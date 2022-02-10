@@ -1,0 +1,18 @@
+[package]
+name = "round-loader"
+version = "0.1.0"
+authors = ["Broxus team"]
+edition = "2021"
+
+[features]
+no-entrypoint = []
+test-bpf = []
+
+[dependencies]
+arrayref = "0.3"
+borsh = "0.9"
+solana-program = "1.9"
+thiserror = "1.0"
+
+[lib]
+crate-type = ["cdylib", "lib"]
