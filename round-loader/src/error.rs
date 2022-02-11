@@ -4,9 +4,7 @@ use solana_program::program_error::ProgramError;
 
 #[derive(Error, Debug, Copy, Clone)]
 pub enum RoundLoaderError {
-    #[error("proposal relays data too small for instruction")]
-    ProposalRelaysDataTooSmall,
-    #[error("Relay doesn't have permission to vote for proposal")]
+    #[error("Relay not in the current round")]
     InvalidRelay,
     #[error("Relay already voted for proposal")]
     RelayAlreadyVoted,

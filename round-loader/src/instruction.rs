@@ -2,15 +2,34 @@ use borsh::{BorshDeserialize, BorshSerialize};
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub enum RoundLoaderInstruction {
+    /// Initialize the first round
+    ///
+    /// # Account references
+    ///   0. [WRITE, SIGNER]    Authority account of Round Loader program
+    ///   1. [WRITE]            Settings account
+    ///   2. [WRITE]            The first Relay Round account
+    ///   3. []                 Program account
+    ///   4. []                 Buffer Program account
+    ///   5. []                 Rent sysvar
+    ///   6. []                 System program
+    Initialize {
+        /// Genesis Relay Round number
+        round: u32,
+        /// TTL of round
+        round_ttl: u32,
+    },
+
     /// Create proposal account for a new Relay Round
     ///
     /// # Account references
     ///   0. [WRITE, SIGNER]    Relay account
     ///   1. [WRITE]            Proposal account
-    ///   2. []                 Rent sysvar
-    ///   3. []                 System program
+    ///   2. []                 Settings account
+    ///   3. []                 Current Round account
+    ///   4. []                 Rent sysvar
+    ///   5. []                 System program
     CreateProposal {
-        /// Relay Round number
+        /// New Relay Round number
         round: u32,
     },
 
@@ -20,7 +39,7 @@ pub enum RoundLoaderInstruction {
     ///   0. [WRITE, SIGNER]    Relay account
     ///   1. [WRITE]            Proposal account
     WriteProposal {
-        /// Relay Round number
+        /// New Relay Round number
         round: u32,
 
         /// Offset at which to write the given bytes
@@ -33,10 +52,12 @@ pub enum RoundLoaderInstruction {
     /// Finalize an proposal account loaded with a new Relay Round data
     ///
     /// # Account references
-    ///   0. [WRITE, SIGNER]    The account to prepare for execution
+    ///   0. [WRITE, SIGNER]    Relay account
     ///   1. [WRITE]            Proposal account
+    ///   1. []                 Settings account
+    ///   2. []                 Current Round account
     FinalizeProposal {
-        /// Relay Round number
+        /// New Relay Round number
         round: u32,
     },
 
@@ -45,5 +66,10 @@ pub enum RoundLoaderInstruction {
     /// # Account references
     ///   0. [WRITE, SIGNER]    Relay account
     ///   1. [WRITE]            Proposal account
+    ///   2. [WRITE]            Settings account
+    ///   3. [WRITE]            New Round account
+    ///   4. []                 Current Round account
+    ///   5. []                 Rent sysvar
+    ///   5. []                 System program
     Vote,
 }

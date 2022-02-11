@@ -21,21 +21,13 @@ pub const LOAD_DATA_END_OFFSET: usize = LOAD_DATA_BEGIN_OFFSET
 
 #[derive(Debug)]
 pub struct RelayRoundProposal {
-    //
     pub is_initialized: bool,
-    //
     pub author: Pubkey,
-    //
     pub round_number: u32,
-    //
     pub required_votes: u32,
-    //
     pub is_executed: bool,
-    //
     pub round_ttl: u32,
-    //
     pub relays: Vec<Pubkey>,
-    //
     pub voters: Vec<Pubkey>,
 }
 
@@ -174,6 +166,128 @@ impl Pack for RelayRoundProposal {
             round_ttl,
             relays,
             voters,
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct RelayRound {
+    pub is_initialized: bool,
+    pub round_number: u32,
+    pub round_ttl: u32,
+    pub relays: Vec<Pubkey>,
+}
+
+impl Sealed for RelayRound {}
+
+impl IsInitialized for RelayRound {
+    fn is_initialized(&self) -> bool {
+        self.is_initialized
+    }
+}
+
+const RELAY_ROUND_LEN: usize = 1 // is_initialized
+    + 4                          // round_number
+    + 4                          // round_ttl
+    + 4                          // relays len
+    + PUBKEY_BYTES * MAX_RELAYS; // relays
+
+impl Pack for RelayRound {
+    const LEN: usize = RELAY_ROUND_LEN;
+    fn pack_into_slice(&self, dst: &mut [u8]) {
+        let dst = array_mut_ref![dst, 0, RELAY_ROUND_LEN];
+        #[allow(clippy::ptr_offset_with_cast)]
+        let (is_initialized, round_number, round_ttl, relays_len, relays_flat) =
+            mut_array_refs![dst, 1, 4, 4, 4, PUBKEY_BYTES * MAX_RELAYS];
+
+        utils::pack_bool(self.is_initialized, is_initialized);
+
+        *round_number = self.round_number.to_le_bytes();
+        *round_ttl = self.round_ttl.to_le_bytes();
+
+        *relays_len = (self.relays.len() as u32).to_le_bytes();
+
+        let mut offset = 0;
+
+        for relay in &self.relays {
+            let relay_flat = array_mut_ref![relays_flat, offset, PUBKEY_BYTES];
+            relay_flat.copy_from_slice(relay.as_ref());
+            offset += PUBKEY_BYTES;
+        }
+    }
+
+    fn unpack_from_slice(src: &[u8]) -> Result<Self, ProgramError> {
+        let input = array_ref![src, 0, RELAY_ROUND_LEN];
+        #[allow(clippy::ptr_offset_with_cast)]
+        let (is_initialized, round_number, round_ttl, relays_len, relays_flat) =
+            array_refs![input, 1, 4, 4, 4, PUBKEY_BYTES * MAX_RELAYS];
+
+        let is_initialized = utils::unpack_bool(is_initialized)?;
+
+        let round_number = u32::from_le_bytes(*round_number);
+        let round_ttl = u32::from_le_bytes(*round_ttl);
+
+        let relays_len = u32::from_le_bytes(*relays_len);
+
+        let mut relays = Vec::with_capacity(relays_len as usize);
+
+        let mut offset = 0;
+        for _ in 0..relays_len {
+            let relay_flat = array_ref![relays_flat, offset, PUBKEY_BYTES];
+            relays.push(Pubkey::new(relay_flat));
+            offset += PUBKEY_BYTES;
+        }
+
+        Ok(Self {
+            is_initialized,
+            round_number,
+            round_ttl,
+            relays,
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct Settings {
+    pub is_initialized: bool,
+    pub round_number: u32,
+}
+
+impl Sealed for Settings {}
+
+impl IsInitialized for Settings {
+    fn is_initialized(&self) -> bool {
+        self.is_initialized
+    }
+}
+
+const SETTINGS_LEN: usize = 1 // is_initialized
+    + 4; // round_number
+
+impl Pack for Settings {
+    const LEN: usize = SETTINGS_LEN;
+    fn pack_into_slice(&self, dst: &mut [u8]) {
+        let dst = array_mut_ref![dst, 0, SETTINGS_LEN];
+        #[allow(clippy::ptr_offset_with_cast)]
+        let (is_initialized, round_number) = mut_array_refs![dst, 1, 4];
+
+        utils::pack_bool(self.is_initialized, is_initialized);
+
+        *round_number = self.round_number.to_le_bytes();
+    }
+
+    fn unpack_from_slice(src: &[u8]) -> Result<Self, ProgramError> {
+        let input = array_ref![src, 0, SETTINGS_LEN];
+        #[allow(clippy::ptr_offset_with_cast)]
+        let (is_initialized, round_number) = array_refs![input, 1, 4];
+
+        let is_initialized = utils::unpack_bool(is_initialized)?;
+
+        let round_number = u32::from_le_bytes(*round_number);
+
+        Ok(Self {
+            is_initialized,
+            round_number,
         })
     }
 }
