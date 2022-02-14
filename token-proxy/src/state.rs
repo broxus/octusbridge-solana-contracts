@@ -56,7 +56,8 @@ impl Pack for Settings {
     fn unpack_from_slice(src: &[u8]) -> Result<Self, ProgramError> {
         let input = array_ref![src, 0, SETTINGS_LEN];
         #[allow(clippy::ptr_offset_with_cast)]
-        let (is_initialized, name, kind, withdrawal_limit, deposit_limit, decimals, admin, token) = array_refs![input, 1, 32, 1, 8, 8, 1, 32, 32];
+        let (is_initialized, name, kind, withdrawal_limit, deposit_limit, decimals, admin, token) =
+            array_refs![input, 1, 32, 1, 8, 8, 1, 32, 32];
 
         let is_initialized = utils::unpack_bool(is_initialized)?;
         let kind = utils::unpack_token_kind(kind)?;

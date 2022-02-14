@@ -10,9 +10,7 @@ use solana_program::rent::Rent;
 use solana_program::sysvar::Sysvar;
 use solana_program::{msg, system_instruction};
 
-use crate::{
-    Settings, TokenKind, TokenProxyError, TokenProxyInstruction,
-};
+use crate::{Settings, TokenKind, TokenProxyError, TokenProxyInstruction};
 
 pub struct Processor;
 impl Processor {
@@ -86,7 +84,8 @@ impl Processor {
         let rent = &Rent::from_account_info(rent_sysvar_info)?;
 
         // Create Settings account
-        let settings_nonce = validate_settings_account(program_id, &name,settings_account_info.key)?;
+        let settings_nonce =
+            validate_settings_account(program_id, &name, settings_account_info.key)?;
         let settings_account_signer_seeds: &[&[_]] = &[b"settings", &name, &[settings_nonce]];
 
         create_account(
@@ -107,7 +106,7 @@ impl Processor {
             deposit_limit,
             decimals,
             admin,
-            token: token_account_info.key.clone()
+            token: token_account_info.key.clone(),
         };
 
         Settings::pack(
@@ -115,14 +114,8 @@ impl Processor {
             &mut settings_account_info.data.borrow_mut(),
         )?;
 
-        if kind == TokenKind::Solana {
-            // Create vault
-            let vault_nonce = validate_vault_account(program_id, &name,token_account_info.key)?;
-            let vault_account_signer_seeds: &[&[_]] = &[b"vault", &name, &[vault_nonce]];
-
-            // TODO! initialize account here
-
-        }
+        // Suppose that token root or token vault account was created before and authority was transferred to
+        // token proxy so there is no need to do anything here with them
 
         Ok(())
     }
