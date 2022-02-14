@@ -19,7 +19,7 @@ pub use self::utils::*;
 #[cfg(not(feature = "no-entrypoint"))]
 mod entrypoint;
 
-solana_program::declare_id!("RoundLoaderPubKey11111111111111111111111111");
+solana_program::declare_id!("TokenProxyPubKey111111111111111111111111111");
 
 pub fn get_associated_proposal_address(relay_address: &Pubkey, round: u32) -> Pubkey {
     Pubkey::find_program_address(&[&relay_address.to_bytes(), &round.to_le_bytes()], &id()).0
@@ -33,18 +33,27 @@ pub fn get_associated_relay_round_address(round: u32) -> Pubkey {
     Pubkey::find_program_address(&[&round.to_le_bytes()], &id()).0
 }
 
-/*pub fn initialize(
+pub fn initialize(
     authority_pubkey: &Pubkey,
     program_buffer_pubkey: &Pubkey,
-    round: u32,
-    round_ttl: u32,
+    name: String,
+    kind: TokenKind,
+    withdrawal_limit: u64,
+    deposit_limit: u64,
+    decimals: u8,
 ) -> Instruction {
     let setting_pubkey = get_associated_settings_address();
     let relay_round_pubkey = get_associated_relay_round_address(round);
 
-    let data = RoundLoaderInstruction::Initialize { round, round_ttl }
-        .try_to_vec()
-        .expect("pack");
+    let data = TokenProxyInstruction::Initialize {
+        name,
+        kind,
+        withdrawal_limit,
+        deposit_limit,
+        decimals,
+    }
+    .try_to_vec()
+    .expect("pack");
 
     Instruction {
         program_id: id(),
@@ -69,7 +78,7 @@ pub fn create_proposal(
     let proposal_pubkey = get_associated_proposal_address(relay_pubkey, round);
     let setting_pubkey = get_associated_settings_address();
 
-    let data = RoundLoaderInstruction::CreateProposal { round }
+    let data = TokenProxyInstruction::CreateProposal { round }
         .try_to_vec()
         .expect("pack");
 
@@ -95,7 +104,7 @@ pub fn write_proposal(
 ) -> Instruction {
     let proposal_pubkey = get_associated_proposal_address(relay_pubkey, round);
 
-    let data = RoundLoaderInstruction::WriteProposal {
+    let data = TokenProxyInstruction::WriteProposal {
         round,
         offset,
         bytes,
@@ -121,7 +130,7 @@ pub fn finalize_proposal(
     let proposal_pubkey = get_associated_proposal_address(relay_pubkey, round);
     let setting_pubkey = get_associated_settings_address();
 
-    let data = RoundLoaderInstruction::FinalizeProposal { round }
+    let data = TokenProxyInstruction::FinalizeProposal { round }
         .try_to_vec()
         .expect("pack");
 
@@ -145,7 +154,7 @@ pub fn vote_for_proposal(
 ) -> Instruction {
     let setting_pubkey = get_associated_settings_address();
 
-    let data = RoundLoaderInstruction::Vote.try_to_vec().expect("pack");
+    let data = TokenProxyInstruction::Vote.try_to_vec().expect("pack");
 
     println!("{}", current_round_pubkey);
     println!("{}", new_round_account_info);
@@ -163,4 +172,4 @@ pub fn vote_for_proposal(
         ],
         data,
     }
-}*/
+}

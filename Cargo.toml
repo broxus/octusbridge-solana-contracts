@@ -1,0 +1,6 @@
+[workspace]
+
+members = [
+    "round-loader",
+    "token-proxy",
+]
