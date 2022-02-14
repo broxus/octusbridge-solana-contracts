@@ -25,8 +25,8 @@ pub fn get_associated_proposal_address(relay_address: &Pubkey, round: u32) -> Pu
     Pubkey::find_program_address(&[&relay_address.to_bytes(), &round.to_le_bytes()], &id()).0
 }
 
-pub fn get_associated_settings_address() -> Pubkey {
-    Pubkey::find_program_address(&[b"settings"], &id()).0
+pub fn get_associated_settings_address(token_name: &str) -> Pubkey {
+    Pubkey::find_program_address(&[b"settings", token_name.as_bytes()], &id()).0
 }
 
 pub fn get_associated_relay_round_address(round: u32) -> Pubkey {
@@ -41,9 +41,10 @@ pub fn initialize(
     withdrawal_limit: u64,
     deposit_limit: u64,
     decimals: u8,
+    admin: Pubkey,
+    token: Pubkey,
 ) -> Instruction {
-    let setting_pubkey = get_associated_settings_address();
-    let relay_round_pubkey = get_associated_relay_round_address(round);
+    let setting_pubkey = get_associated_settings_address(&name);
 
     let data = TokenProxyInstruction::Initialize {
         name,
@@ -51,6 +52,8 @@ pub fn initialize(
         withdrawal_limit,
         deposit_limit,
         decimals,
+        admin,
+        token,
     }
     .try_to_vec()
     .expect("pack");
@@ -60,113 +63,8 @@ pub fn initialize(
         accounts: vec![
             AccountMeta::new(*authority_pubkey, true),
             AccountMeta::new(setting_pubkey, false),
-            AccountMeta::new(relay_round_pubkey, false),
             AccountMeta::new_readonly(id(), false),
             AccountMeta::new_readonly(*program_buffer_pubkey, false),
-            AccountMeta::new_readonly(rent::id(), false),
-            AccountMeta::new_readonly(system_program::id(), false),
-        ],
-        data,
-    }
-}
-
-pub fn create_proposal(
-    relay_pubkey: &Pubkey,
-    current_round_pubkey: &Pubkey,
-    round: u32,
-) -> Instruction {
-    let proposal_pubkey = get_associated_proposal_address(relay_pubkey, round);
-    let setting_pubkey = get_associated_settings_address();
-
-    let data = TokenProxyInstruction::CreateProposal { round }
-        .try_to_vec()
-        .expect("pack");
-
-    Instruction {
-        program_id: id(),
-        accounts: vec![
-            AccountMeta::new(*relay_pubkey, true),
-            AccountMeta::new(proposal_pubkey, false),
-            AccountMeta::new_readonly(setting_pubkey, false),
-            AccountMeta::new_readonly(*current_round_pubkey, false),
-            AccountMeta::new_readonly(rent::id(), false),
-            AccountMeta::new_readonly(system_program::id(), false),
-        ],
-        data,
-    }
-}
-
-pub fn write_proposal(
-    relay_pubkey: &Pubkey,
-    round: u32,
-    offset: u32,
-    bytes: Vec<u8>,
-) -> Instruction {
-    let proposal_pubkey = get_associated_proposal_address(relay_pubkey, round);
-
-    let data = TokenProxyInstruction::WriteProposal {
-        round,
-        offset,
-        bytes,
-    }
-    .try_to_vec()
-    .expect("pack");
-
-    Instruction {
-        program_id: id(),
-        accounts: vec![
-            AccountMeta::new(*relay_pubkey, true),
-            AccountMeta::new(proposal_pubkey, false),
-        ],
-        data,
-    }
-}
-
-pub fn finalize_proposal(
-    relay_pubkey: &Pubkey,
-    current_round_pubkey: &Pubkey,
-    round: u32,
-) -> Instruction {
-    let proposal_pubkey = get_associated_proposal_address(relay_pubkey, round);
-    let setting_pubkey = get_associated_settings_address();
-
-    let data = TokenProxyInstruction::FinalizeProposal { round }
-        .try_to_vec()
-        .expect("pack");
-
-    Instruction {
-        program_id: id(),
-        accounts: vec![
-            AccountMeta::new(*relay_pubkey, true),
-            AccountMeta::new(proposal_pubkey, false),
-            AccountMeta::new_readonly(setting_pubkey, false),
-            AccountMeta::new_readonly(*current_round_pubkey, false),
-        ],
-        data,
-    }
-}
-
-pub fn vote_for_proposal(
-    relay_pubkey: &Pubkey,
-    proposal_pubkey: &Pubkey,
-    current_round_pubkey: &Pubkey,
-    new_round_account_info: &Pubkey,
-) -> Instruction {
-    let setting_pubkey = get_associated_settings_address();
-
-    let data = TokenProxyInstruction::Vote.try_to_vec().expect("pack");
-
-    println!("{}", current_round_pubkey);
-    println!("{}", new_round_account_info);
-
-    Instruction {
-        program_id: id(),
-        accounts: vec![
-            AccountMeta::new(*relay_pubkey, true),
-            AccountMeta::new(*proposal_pubkey, false),
-            AccountMeta::new(setting_pubkey, false),
-            AccountMeta::new(*new_round_account_info, false),
-            AccountMeta::new_readonly(*current_round_pubkey, false),
             AccountMeta::new_readonly(rent::id(), false),
             AccountMeta::new_readonly(system_program::id(), false),
         ],

@@ -31,8 +31,8 @@ const SETTINGS_LEN: usize = 1 // is_initialized
     + 8 // withdrawal_limit
     + 8 // deposit_limit
     + 1 // decimals
-    + 32 // admin account address
-    + 32 // token account address
+    + PUBKEY_BYTES // admin account address
+    + PUBKEY_BYTES // token account address
 ;
 
 impl Pack for Settings {
@@ -41,11 +41,13 @@ impl Pack for Settings {
         let dst = array_mut_ref![dst, 0, SETTINGS_LEN];
         #[allow(clippy::ptr_offset_with_cast)]
         let (is_initialized, name, kind, withdrawal_limit, deposit_limit, decimals, admin, token) =
-            mut_array_refs![dst, 1, 32, 1, 8, 8, 1, 32, 32];
+            mut_array_refs![dst, 1, 32, 1, 8, 8, 1, PUBKEY_BYTES, PUBKEY_BYTES];
 
         utils::pack_bool(self.is_initialized, is_initialized);
         utils::pack_token_kind(self.kind, kind);
-        *name = self.name.to_le_bytes();
+        let mut name_str = format!("{:<32}", self.name);
+        name_str.truncate(32);
+        *name = name_str.into_bytes().try_into().unwrap();
         *withdrawal_limit = self.withdrawal_limit.to_le_bytes();
         *deposit_limit = self.deposit_limit.to_le_bytes();
         *decimals = self.decimals.to_le_bytes();
@@ -57,12 +59,12 @@ impl Pack for Settings {
         let input = array_ref![src, 0, SETTINGS_LEN];
         #[allow(clippy::ptr_offset_with_cast)]
         let (is_initialized, name, kind, withdrawal_limit, deposit_limit, decimals, admin, token) =
-            array_refs![input, 1, 32, 1, 8, 8, 1, 32, 32];
+            array_refs![input, 1, 32, 1, 8, 8, 1, PUBKEY_BYTES, PUBKEY_BYTES];
 
         let is_initialized = utils::unpack_bool(is_initialized)?;
         let kind = utils::unpack_token_kind(kind)?;
 
-        let name = String::from_utf8(name.to_vec())?;
+        let name = String::from_utf8(name.to_vec()).map_err(|_|ProgramError::InvalidAccountData)?;
         let withdrawal_limit = u64::from_le_bytes(*withdrawal_limit);
         let deposit_limit = u64::from_le_bytes(*deposit_limit);
         let decimals = u8::from_le_bytes(*decimals);

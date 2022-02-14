@@ -10,7 +10,7 @@ use solana_program::rent::Rent;
 use solana_program::sysvar::Sysvar;
 use solana_program::{msg, system_instruction};
 
-use crate::{Settings, TokenKind, TokenProxyError, TokenProxyInstruction};
+use crate::{Settings, TokenKind, TokenProxyInstruction};
 
 pub struct Processor;
 impl Processor {
@@ -29,6 +29,7 @@ impl Processor {
                 deposit_limit,
                 decimals,
                 admin,
+                token,
             } => {
                 msg!("Instruction: Initialize");
                 Self::process_initialize(
@@ -40,6 +41,7 @@ impl Processor {
                     deposit_limit,
                     decimals,
                     admin,
+                    token,
                 )?;
             }
         };
@@ -56,12 +58,12 @@ impl Processor {
         deposit_limit: u64,
         decimals: u8,
         admin: Pubkey,
+        token: Pubkey,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
         let authority_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
-        let token_account_info = next_account_info(account_info_iter)?;
         let program_account_info = next_account_info(account_info_iter)?;
         let program_buffer_account_info = next_account_info(account_info_iter)?;
         let rent_sysvar_info = next_account_info(account_info_iter)?;
@@ -86,7 +88,7 @@ impl Processor {
         // Create Settings account
         let settings_nonce =
             validate_settings_account(program_id, &name, settings_account_info.key)?;
-        let settings_account_signer_seeds: &[&[_]] = &[b"settings", &name, &[settings_nonce]];
+        let settings_account_signer_seeds: &[&[_]] = &[b"settings", &name.as_bytes(), &[settings_nonce]];
 
         create_account(
             program_id,
@@ -106,7 +108,7 @@ impl Processor {
             deposit_limit,
             decimals,
             admin,
-            token: token_account_info.key.clone(),
+            token,
         };
 
         Settings::pack(
@@ -155,23 +157,9 @@ fn validate_settings_account(
     token_name: &str,
     settings_account: &Pubkey,
 ) -> Result<u8, ProgramError> {
-    let (pda, nonce) = Pubkey::find_program_address(&[b"settings", token_name], program_id);
+    let (pda, nonce) = Pubkey::find_program_address(&[b"settings", token_name.as_bytes()], program_id);
 
     if pda != *settings_account {
-        return Err(ProgramError::InvalidSeeds);
-    }
-
-    Ok(nonce)
-}
-
-fn validate_vault_account(
-    program_id: &Pubkey,
-    token_name: &str,
-    vault_account: &Pubkey,
-) -> Result<u8, ProgramError> {
-    let (pda, nonce) = Pubkey::find_program_address(&[b"vault", token_name], program_id);
-
-    if pda != *vault_account {
         return Err(ProgramError::InvalidSeeds);
     }
 

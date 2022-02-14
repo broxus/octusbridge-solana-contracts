@@ -9,11 +9,10 @@ pub enum TokenProxyInstruction {
     /// # Account references
     ///   0. [WRITE, SIGNER]    Authority account of Token proxy program
     ///   1. [WRITE]            Settings account
-    ///   2. [WRITE]            Vault or Token proxy account
-    ///   3. []                 Program account
-    ///   4. []                 Buffer Program account
-    ///   5. []                 Rent sysvar
-    ///   6. []                 System program
+    ///   2. []                 Program account
+    ///   3. []                 Buffer Program account
+    ///   4. []                 Rent sysvar
+    ///   5. []                 System program
     Initialize {
         /// Token name
         name: String,
@@ -27,5 +26,7 @@ pub enum TokenProxyInstruction {
         decimals: u8,
         /// Admin account
         admin: Pubkey,
+        /// Token account
+        token: Pubkey,
     },
 }

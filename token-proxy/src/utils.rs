@@ -1,3 +1,4 @@
+use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::program_error::ProgramError;
 
 pub fn pack_bool(boolean: bool, dst: &mut [u8; 1]) {
@@ -12,7 +13,7 @@ pub fn unpack_bool(src: &[u8; 1]) -> Result<bool, ProgramError> {
     }
 }
 
-#[derive(Copy)]
+#[derive(Copy, BorshSerialize, BorshDeserialize, Debug, Clone)]
 pub enum TokenKind {
     Ever = 0,
     Solana = 1,
