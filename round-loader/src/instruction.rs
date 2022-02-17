@@ -8,10 +8,8 @@ pub enum RoundLoaderInstruction {
     ///   0. [WRITE, SIGNER]    Authority account of Round Loader program
     ///   1. [WRITE]            Settings account
     ///   2. [WRITE]            The first Relay Round account
-    ///   3. []                 Program account
-    ///   4. []                 Buffer Program account
-    ///   5. []                 Rent sysvar
-    ///   6. []                 System program
+    ///   3. []                 Buffer Program account
+    ///   4. []                 System program
     Initialize {
         /// Genesis Relay Round number
         round: u32,
@@ -26,8 +24,7 @@ pub enum RoundLoaderInstruction {
     ///   1. [WRITE]            Proposal account
     ///   2. []                 Settings account
     ///   3. []                 Current Round account
-    ///   4. []                 Rent sysvar
-    ///   5. []                 System program
+    ///   4. []                 System program
     CreateProposal {
         /// New Relay Round number
         round: u32,
@@ -69,7 +66,6 @@ pub enum RoundLoaderInstruction {
     ///   2. [WRITE]            Settings account
     ///   3. [WRITE]            New Round account
     ///   4. []                 Current Round account
-    ///   5. []                 Rent sysvar
     ///   5. []                 System program
     Vote,
 }

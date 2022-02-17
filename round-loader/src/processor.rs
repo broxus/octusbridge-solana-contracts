@@ -8,7 +8,7 @@ use solana_program::program_pack::Pack;
 use solana_program::pubkey::Pubkey;
 use solana_program::rent::Rent;
 use solana_program::sysvar::Sysvar;
-use solana_program::{msg, system_instruction};
+use solana_program::{bpf_loader_upgradeable, msg, system_instruction};
 
 use crate::{
     RelayRound, RelayRoundProposal, RoundLoaderError, RoundLoaderInstruction, Settings,
@@ -62,42 +62,37 @@ impl Processor {
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
-        let authority_account_info = next_account_info(account_info_iter)?;
+        let creator_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
         let relay_round_account_info = next_account_info(account_info_iter)?;
-        let program_account_info = next_account_info(account_info_iter)?;
-        let program_buffer_account_info = next_account_info(account_info_iter)?;
-        let rent_sysvar_info = next_account_info(account_info_iter)?;
+        let programdata_account_info = next_account_info(account_info_iter)?;
         let system_program_info = next_account_info(account_info_iter)?;
 
-        if !authority_account_info.is_signer {
+        if !creator_account_info.is_signer {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        if program_account_info.key != program_id {
-            return Err(ProgramError::InvalidAccountData);
-        }
+        validate_programdata_account(program_id, programdata_account_info.key)?;
 
-        validate_authority(
-            authority_account_info,
-            program_account_info,
-            program_buffer_account_info,
-        )?;
+        validate_creator_account(creator_account_info.key, programdata_account_info)?;
 
-        let rent = &Rent::from_account_info(rent_sysvar_info)?;
-
-        // Create Settings account
+        // Create Settings Account
         let settings_nonce = validate_settings_account(program_id, settings_account_info.key)?;
         let settings_account_signer_seeds: &[&[_]] = &[b"settings", &[settings_nonce]];
 
-        create_account(
-            program_id,
-            authority_account_info,
+        fund_account(
             settings_account_info,
+            creator_account_info,
             system_program_info,
             Settings::LEN,
+        )?;
+
+        create_account(
+            program_id,
+            settings_account_info,
+            system_program_info,
             settings_account_signer_seeds,
-            rent,
+            Settings::LEN,
         )?;
 
         let settings_account_data = Settings {
@@ -110,26 +105,31 @@ impl Processor {
             &mut settings_account_info.data.borrow_mut(),
         )?;
 
-        // Create the first Relay Round account
+        // Create the first Relay Round Account
         let round_nonce =
             validate_round_relay_account(program_id, relay_round_account_info.key, round)?;
         let relay_round_account_signer_seeds: &[&[_]] = &[&round.to_le_bytes(), &[round_nonce]];
 
-        create_account(
-            program_id,
-            authority_account_info,
+        fund_account(
             relay_round_account_info,
+            creator_account_info,
             system_program_info,
             RelayRound::LEN,
+        )?;
+
+        create_account(
+            program_id,
+            relay_round_account_info,
+            system_program_info,
             relay_round_account_signer_seeds,
-            rent,
+            RelayRound::LEN,
         )?;
 
         let relay_round_account_data = RelayRound {
             is_initialized: true,
             round_number: round,
             round_ttl,
-            relays: vec![*authority_account_info.key],
+            relays: vec![*creator_account_info.key],
         };
 
         RelayRound::pack(
@@ -151,7 +151,6 @@ impl Processor {
         let proposal_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
         let current_round_account_info = next_account_info(account_info_iter)?;
-        let rent_sysvar_info = next_account_info(account_info_iter)?;
         let system_program_info = next_account_info(account_info_iter)?;
 
         if !relay_account_info.is_signer {
@@ -175,9 +174,7 @@ impl Processor {
             return Err(RoundLoaderError::InvalidRelay.into());
         }
 
-        let rent = &Rent::from_account_info(rent_sysvar_info)?;
-
-        // Create proposal account
+        // Create Proposal Account
         let nonce = validate_proposal_account(
             program_id,
             relay_account_info.key,
@@ -190,14 +187,19 @@ impl Processor {
             &[nonce],
         ];
 
-        create_account(
-            program_id,
-            relay_account_info,
+        fund_account(
             proposal_account_info,
+            relay_account_info,
             system_program_info,
             RelayRoundProposal::LEN,
+        )?;
+
+        create_account(
+            program_id,
+            proposal_account_info,
+            system_program_info,
             proposal_account_signer_seeds,
-            rent,
+            RelayRoundProposal::LEN,
         )?;
 
         Ok(())
@@ -300,7 +302,6 @@ impl Processor {
         let settings_account_info = next_account_info(account_info_iter)?;
         let new_round_account_info = next_account_info(account_info_iter)?;
         let current_round_account_info = next_account_info(account_info_iter)?;
-        let rent_sysvar_info = next_account_info(account_info_iter)?;
         let system_program_info = next_account_info(account_info_iter)?;
 
         if !relay_account_info.is_signer {
@@ -337,9 +338,7 @@ impl Processor {
         proposal.voters.push(*relay_account_info.key);
 
         if !proposal.is_executed && proposal.voters.len() as u32 >= proposal.required_votes {
-            let rent = &Rent::from_account_info(rent_sysvar_info)?;
-
-            // Create a new Relay Round account
+            // Create a new Relay Round Account
             let round_nonce = validate_round_relay_account(
                 program_id,
                 new_round_account_info.key,
@@ -348,14 +347,19 @@ impl Processor {
             let relay_round_account_signer_seeds: &[&[_]] =
                 &[&proposal.round_number.to_le_bytes(), &[round_nonce]];
 
-            create_account(
-                program_id,
-                relay_account_info,
+            fund_account(
                 new_round_account_info,
+                relay_account_info,
                 system_program_info,
                 RelayRound::LEN,
+            )?;
+
+            create_account(
+                program_id,
+                new_round_account_info,
+                system_program_info,
                 relay_round_account_signer_seeds,
-                rent,
+                RelayRound::LEN,
             )?;
 
             let relay_round_account_data = RelayRound {
@@ -386,33 +390,89 @@ impl Processor {
     }
 }
 
-fn validate_authority(
-    authority_account_info: &AccountInfo,
-    program_account_info: &AccountInfo,
-    program_buffer_account_info: &AccountInfo,
+fn fund_account<'a>(
+    account_info: &AccountInfo<'a>,
+    funder_account_info: &AccountInfo<'a>,
+    system_program_info: &AccountInfo<'a>,
+    data_len: usize,
 ) -> Result<(), ProgramError> {
-    if let UpgradeableLoaderState::Program {
-        programdata_address,
-    } =
-        bincode::deserialize::<UpgradeableLoaderState>(&program_account_info.data.borrow()).unwrap()
-    {
-        if programdata_address == *program_buffer_account_info.key {
-            if let UpgradeableLoaderState::ProgramData {
-                upgrade_authority_address,
-                ..
-            } = bincode::deserialize::<UpgradeableLoaderState>(
-                &program_buffer_account_info.data.borrow(),
-            )
-            .unwrap()
-            {
-                if upgrade_authority_address.unwrap() == *authority_account_info.key {
-                    return Ok(());
-                }
-            }
-        }
+    let required_lamports = Rent::default()
+        .minimum_balance(data_len)
+        .max(1)
+        .saturating_sub(account_info.lamports());
+
+    if required_lamports > 0 {
+        invoke(
+            &system_instruction::transfer(
+                funder_account_info.key,
+                account_info.key,
+                required_lamports,
+            ),
+            &[
+                funder_account_info.clone(),
+                account_info.clone(),
+                system_program_info.clone(),
+            ],
+        )?;
     }
 
-    Err(ProgramError::MissingRequiredSignature)
+    Ok(())
+}
+
+fn create_account<'a>(
+    program_id: &Pubkey,
+    account_info: &AccountInfo<'a>,
+    system_program_info: &AccountInfo<'a>,
+    account_signer_seeds: &[&[u8]],
+    space: usize,
+) -> Result<(), ProgramError> {
+    invoke_signed(
+        &system_instruction::allocate(account_info.key, space as u64),
+        &[account_info.clone(), system_program_info.clone()],
+        &[account_signer_seeds],
+    )?;
+    invoke_signed(
+        &system_instruction::assign(account_info.key, program_id),
+        &[account_info.clone(), system_program_info.clone()],
+        &[account_signer_seeds],
+    )
+}
+
+fn validate_programdata_account(
+    program_id: &Pubkey,
+    programdata_account: &Pubkey,
+) -> Result<u8, ProgramError> {
+    let (pda, nonce) =
+        Pubkey::find_program_address(&[program_id.as_ref()], &bpf_loader_upgradeable::id());
+
+    if pda != *programdata_account {
+        return Err(ProgramError::InvalidSeeds);
+    }
+
+    Ok(nonce)
+}
+
+fn validate_creator_account(
+    creator_account: &Pubkey,
+    programdata_account_info: &AccountInfo,
+) -> Result<(), ProgramError> {
+    let upgrade_authority_address = match bincode::deserialize::<UpgradeableLoaderState>(
+        &programdata_account_info.data.borrow(),
+    )
+    .unwrap()
+    {
+        UpgradeableLoaderState::ProgramData {
+            upgrade_authority_address,
+            ..
+        } => upgrade_authority_address,
+        _ => None,
+    };
+
+    if upgrade_authority_address.unwrap() != *creator_account {
+        return Err(ProgramError::IllegalOwner);
+    }
+
+    Ok(())
 }
 
 fn validate_settings_account(
@@ -457,53 +517,6 @@ fn validate_proposal_account(
     }
 
     Ok(nonce)
-}
-
-fn create_account<'a>(
-    program_id: &Pubkey,
-    funder_account_info: &AccountInfo<'a>,
-    new_account_info: &AccountInfo<'a>,
-    system_program_info: &AccountInfo<'a>,
-    data_len: usize,
-    seeds: &[&[u8]],
-    rent: &Rent,
-) -> Result<(), ProgramError> {
-    let required_lamports = rent
-        .minimum_balance(data_len)
-        .max(1)
-        .saturating_sub(new_account_info.lamports());
-
-    if required_lamports > 0 {
-        msg!("Transfer {} lamports to the account", required_lamports);
-        invoke(
-            &system_instruction::transfer(
-                funder_account_info.key,
-                new_account_info.key,
-                required_lamports,
-            ),
-            &[
-                funder_account_info.clone(),
-                new_account_info.clone(),
-                system_program_info.clone(),
-            ],
-        )?;
-    }
-
-    msg!("Allocate space for the account");
-    invoke_signed(
-        &system_instruction::allocate(new_account_info.key, data_len as u64),
-        &[new_account_info.clone(), system_program_info.clone()],
-        &[seeds],
-    )?;
-
-    msg!("Assign the account to the round-loader program");
-    invoke_signed(
-        &system_instruction::assign(new_account_info.key, program_id),
-        &[new_account_info.clone(), system_program_info.clone()],
-        &[seeds],
-    )?;
-
-    Ok(())
 }
 
 fn write_proposal_data(data: &mut [u8], offset: usize, bytes: &[u8]) -> Result<(), ProgramError> {
