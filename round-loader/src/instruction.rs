@@ -22,7 +22,7 @@ pub enum RoundLoaderInstruction {
     ///
     /// # Account references
     ///   0. [WRITE, SIGNER]    Funder account
-    ///   1. [WRITE, SIGNER]    Relay account
+    ///   1. [WRITE, SIGNER]    Creator account
     ///   2. [WRITE]            Proposal account
     ///   3. []                 Settings account
     ///   4. []                 Current Round account
@@ -35,7 +35,7 @@ pub enum RoundLoaderInstruction {
     /// Write Relay Round data into an proposal account
     ///
     /// # Account references
-    ///   0. [WRITE, SIGNER]    Relay account
+    ///   0. [WRITE, SIGNER]    Creator account
     ///   1. [WRITE]            Proposal account
     WriteProposal {
         /// New Relay Round number
@@ -51,7 +51,7 @@ pub enum RoundLoaderInstruction {
     /// Finalize an proposal account loaded with a new Relay Round data
     ///
     /// # Account references
-    ///   0. [WRITE, SIGNER]    Relay account
+    ///   0. [WRITE, SIGNER]    Creator account
     ///   1. [WRITE]            Proposal account
     ///   1. []                 Settings account
     ///   2. []                 Current Round account

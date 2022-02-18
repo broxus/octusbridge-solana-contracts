@@ -290,9 +290,6 @@ impl Processor {
         proposal.round_number = round;
         proposal.required_votes = required_votes;
 
-        msg!("Proposal owner: {}", proposal_account_info.owner);
-        msg!("Proposal key: {}", proposal_account_info.key);
-
         RelayRoundProposal::pack(proposal, &mut proposal_account_info.data.borrow_mut())?;
 
         Ok(())
