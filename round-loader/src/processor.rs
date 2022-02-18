@@ -61,6 +61,7 @@ impl Processor {
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
+        let funder_account_info = next_account_info(account_info_iter)?;
         let creator_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
         let relay_round_account_info = next_account_info(account_info_iter)?;
@@ -81,7 +82,7 @@ impl Processor {
 
         fund_account(
             settings_account_info,
-            creator_account_info,
+            funder_account_info,
             system_program_info,
             Settings::LEN,
         )?;
@@ -111,7 +112,7 @@ impl Processor {
 
         fund_account(
             relay_round_account_info,
-            creator_account_info,
+            funder_account_info,
             system_program_info,
             RelayRound::LEN,
         )?;
@@ -146,13 +147,14 @@ impl Processor {
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
-        let relay_account_info = next_account_info(account_info_iter)?;
+        let funder_account_info = next_account_info(account_info_iter)?;
+        let creator_account_info = next_account_info(account_info_iter)?;
         let proposal_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
         let current_round_account_info = next_account_info(account_info_iter)?;
         let system_program_info = next_account_info(account_info_iter)?;
 
-        if !relay_account_info.is_signer {
+        if !creator_account_info.is_signer {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
@@ -168,7 +170,7 @@ impl Processor {
 
         if !current_round_account_data
             .relays
-            .contains(relay_account_info.key)
+            .contains(creator_account_info.key)
         {
             return Err(RoundLoaderError::InvalidRelay.into());
         }
@@ -176,19 +178,19 @@ impl Processor {
         // Create Proposal Account
         let nonce = validate_proposal_account(
             program_id,
-            relay_account_info.key,
+            creator_account_info.key,
             proposal_account_info.key,
             round,
         )?;
         let proposal_account_signer_seeds: &[&[_]] = &[
-            &relay_account_info.key.to_bytes(),
+            &creator_account_info.key.to_bytes(),
             &round.to_le_bytes(),
             &[nonce],
         ];
 
         fund_account(
             proposal_account_info,
-            relay_account_info,
+            funder_account_info,
             system_program_info,
             RelayRoundProposal::LEN,
         )?;
@@ -213,16 +215,16 @@ impl Processor {
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
-        let relay_account_info = next_account_info(account_info_iter)?;
+        let creator_account_info = next_account_info(account_info_iter)?;
         let proposal_account_info = next_account_info(account_info_iter)?;
 
-        if !relay_account_info.is_signer {
+        if !creator_account_info.is_signer {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
         validate_proposal_account(
             program_id,
-            relay_account_info.key,
+            creator_account_info.key,
             proposal_account_info.key,
             round,
         )?;
@@ -249,12 +251,12 @@ impl Processor {
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
-        let relay_account_info = next_account_info(account_info_iter)?;
+        let creator_account_info = next_account_info(account_info_iter)?;
         let proposal_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
         let current_round_account_info = next_account_info(account_info_iter)?;
 
-        if !relay_account_info.is_signer {
+        if !creator_account_info.is_signer {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
@@ -271,7 +273,7 @@ impl Processor {
 
         validate_proposal_account(
             program_id,
-            relay_account_info.key,
+            creator_account_info.key,
             proposal_account_info.key,
             round,
         )?;
@@ -284,9 +286,12 @@ impl Processor {
         }
 
         proposal.is_initialized = true;
-        proposal.author = *relay_account_info.key;
+        proposal.author = *creator_account_info.key;
         proposal.round_number = round;
         proposal.required_votes = required_votes;
+
+        msg!("Proposal owner: {}", proposal_account_info.owner);
+        msg!("Proposal key: {}", proposal_account_info.key);
 
         RelayRoundProposal::pack(proposal, &mut proposal_account_info.data.borrow_mut())?;
 
@@ -296,14 +301,15 @@ impl Processor {
     fn process_vote_for_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
-        let relay_account_info = next_account_info(account_info_iter)?;
+        let funder_account_info = next_account_info(account_info_iter)?;
+        let voter_account_info = next_account_info(account_info_iter)?;
         let proposal_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
         let new_round_account_info = next_account_info(account_info_iter)?;
         let current_round_account_info = next_account_info(account_info_iter)?;
         let system_program_info = next_account_info(account_info_iter)?;
 
-        if !relay_account_info.is_signer {
+        if !voter_account_info.is_signer {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
@@ -319,7 +325,7 @@ impl Processor {
 
         if !current_round_account_data
             .relays
-            .contains(relay_account_info.key)
+            .contains(voter_account_info.key)
         {
             return Err(RoundLoaderError::InvalidRelay.into());
         }
@@ -330,11 +336,11 @@ impl Processor {
 
         let mut proposal = RelayRoundProposal::unpack(&proposal_account_info.data.borrow())?;
 
-        if proposal.voters.contains(relay_account_info.key) {
+        if proposal.voters.contains(voter_account_info.key) {
             return Err(RoundLoaderError::RelayAlreadyVoted.into());
         }
 
-        proposal.voters.push(*relay_account_info.key);
+        proposal.voters.push(*voter_account_info.key);
 
         if !proposal.is_executed && proposal.voters.len() as u32 >= proposal.required_votes {
             // Create a new Relay Round Account
@@ -348,7 +354,7 @@ impl Processor {
 
             fund_account(
                 new_round_account_info,
-                relay_account_info,
+                funder_account_info,
                 system_program_info,
                 RelayRound::LEN,
             )?;
@@ -503,12 +509,12 @@ fn validate_round_relay_account(
 
 fn validate_proposal_account(
     program_id: &Pubkey,
-    relay_account: &Pubkey,
+    creator_account: &Pubkey,
     proposal_account: &Pubkey,
     round: u32,
 ) -> Result<u8, ProgramError> {
     let (pda, nonce) = Pubkey::find_program_address(
-        &[&relay_account.to_bytes(), &round.to_le_bytes()],
+        &[&creator_account.to_bytes(), &round.to_le_bytes()],
         program_id,
     );
     if pda != *proposal_account {

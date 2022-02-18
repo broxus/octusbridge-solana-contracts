@@ -32,11 +32,16 @@ pub fn get_associated_relay_round_address(round: u32) -> Pubkey {
     Pubkey::find_program_address(&[&round.to_le_bytes()], &id()).0
 }
 
-pub fn get_associated_proposal_address(relay_address: &Pubkey, round: u32) -> Pubkey {
-    Pubkey::find_program_address(&[&relay_address.to_bytes(), &round.to_le_bytes()], &id()).0
+pub fn get_associated_proposal_address(address: &Pubkey, round: u32) -> Pubkey {
+    Pubkey::find_program_address(&[&address.to_bytes(), &round.to_le_bytes()], &id()).0
 }
 
-pub fn initialize(creator_pubkey: &Pubkey, round: u32, round_ttl: u32) -> Instruction {
+pub fn initialize(
+    funder_pubkey: &Pubkey,
+    creator_pubkey: &Pubkey,
+    round: u32,
+    round_ttl: u32,
+) -> Instruction {
     let setting_pubkey = get_associated_settings_address();
     let program_data_pubkey = get_program_data_address();
     let relay_round_pubkey = get_associated_relay_round_address(round);
@@ -48,6 +53,7 @@ pub fn initialize(creator_pubkey: &Pubkey, round: u32, round_ttl: u32) -> Instru
     Instruction {
         program_id: id(),
         accounts: vec![
+            AccountMeta::new(*funder_pubkey, true),
             AccountMeta::new(*creator_pubkey, true),
             AccountMeta::new(setting_pubkey, false),
             AccountMeta::new(relay_round_pubkey, false),
@@ -59,11 +65,12 @@ pub fn initialize(creator_pubkey: &Pubkey, round: u32, round_ttl: u32) -> Instru
 }
 
 pub fn create_proposal(
-    relay_pubkey: &Pubkey,
+    funder_pubkey: &Pubkey,
+    creator_pubkey: &Pubkey,
     current_round_pubkey: &Pubkey,
     round: u32,
 ) -> Instruction {
-    let proposal_pubkey = get_associated_proposal_address(relay_pubkey, round);
+    let proposal_pubkey = get_associated_proposal_address(creator_pubkey, round);
     let setting_pubkey = get_associated_settings_address();
 
     let data = RoundLoaderInstruction::CreateProposal { round }
@@ -73,7 +80,8 @@ pub fn create_proposal(
     Instruction {
         program_id: id(),
         accounts: vec![
-            AccountMeta::new(*relay_pubkey, true),
+            AccountMeta::new(*funder_pubkey, true),
+            AccountMeta::new(*creator_pubkey, true),
             AccountMeta::new(proposal_pubkey, false),
             AccountMeta::new_readonly(setting_pubkey, false),
             AccountMeta::new_readonly(*current_round_pubkey, false),
@@ -84,12 +92,12 @@ pub fn create_proposal(
 }
 
 pub fn write_proposal(
-    relay_pubkey: &Pubkey,
+    creator_pubkey: &Pubkey,
     round: u32,
     offset: u32,
     bytes: Vec<u8>,
 ) -> Instruction {
-    let proposal_pubkey = get_associated_proposal_address(relay_pubkey, round);
+    let proposal_pubkey = get_associated_proposal_address(creator_pubkey, round);
 
     let data = RoundLoaderInstruction::WriteProposal {
         round,
@@ -102,7 +110,7 @@ pub fn write_proposal(
     Instruction {
         program_id: id(),
         accounts: vec![
-            AccountMeta::new(*relay_pubkey, true),
+            AccountMeta::new(*creator_pubkey, true),
             AccountMeta::new(proposal_pubkey, false),
         ],
         data,
@@ -110,11 +118,11 @@ pub fn write_proposal(
 }
 
 pub fn finalize_proposal(
-    relay_pubkey: &Pubkey,
+    creator_pubkey: &Pubkey,
     current_round_pubkey: &Pubkey,
     round: u32,
 ) -> Instruction {
-    let proposal_pubkey = get_associated_proposal_address(relay_pubkey, round);
+    let proposal_pubkey = get_associated_proposal_address(creator_pubkey, round);
     let setting_pubkey = get_associated_settings_address();
 
     let data = RoundLoaderInstruction::FinalizeProposal { round }
@@ -124,7 +132,7 @@ pub fn finalize_proposal(
     Instruction {
         program_id: id(),
         accounts: vec![
-            AccountMeta::new(*relay_pubkey, true),
+            AccountMeta::new(*creator_pubkey, true),
             AccountMeta::new(proposal_pubkey, false),
             AccountMeta::new_readonly(setting_pubkey, false),
             AccountMeta::new_readonly(*current_round_pubkey, false),
@@ -134,12 +142,14 @@ pub fn finalize_proposal(
 }
 
 pub fn vote_for_proposal(
-    relay_pubkey: &Pubkey,
+    funder_pubkey: &Pubkey,
+    creator_pubkey: &Pubkey,
+    voter_pubkey: &Pubkey,
     current_round_pubkey: &Pubkey,
     new_round_pubkey: &Pubkey,
     round: u32,
 ) -> Instruction {
-    let proposal_pubkey = get_associated_proposal_address(relay_pubkey, round);
+    let proposal_pubkey = get_associated_proposal_address(creator_pubkey, round);
     let setting_pubkey = get_associated_settings_address();
 
     let data = RoundLoaderInstruction::Vote.try_to_vec().expect("pack");
@@ -147,7 +157,8 @@ pub fn vote_for_proposal(
     Instruction {
         program_id: id(),
         accounts: vec![
-            AccountMeta::new(*relay_pubkey, true),
+            AccountMeta::new(*funder_pubkey, true),
+            AccountMeta::new(*voter_pubkey, true),
             AccountMeta::new(proposal_pubkey, false),
             AccountMeta::new(setting_pubkey, false),
             AccountMeta::new(*new_round_pubkey, false),

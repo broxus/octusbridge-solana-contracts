@@ -1,4 +1,6 @@
 use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
+use borsh::BorshSerialize;
+
 use solana_program::program_error::ProgramError;
 use solana_program::program_pack::{IsInitialized, Pack, Sealed};
 use solana_program::pubkey::{Pubkey, PUBKEY_BYTES};
@@ -170,7 +172,7 @@ impl Pack for RelayRoundProposal {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, BorshSerialize)]
 pub struct RelayRound {
     pub is_initialized: bool,
     pub round_number: u32,
@@ -247,7 +249,7 @@ impl Pack for RelayRound {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, BorshSerialize)]
 pub struct Settings {
     pub is_initialized: bool,
     pub round_number: u32,
