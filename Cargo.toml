@@ -1,6 +1,8 @@
 [workspace]
 
 members = [
+    "bridge-derive",
+    "bridge-utils",
     "round-loader",
     "token-proxy",
 ]

@@ -1,4 +1,6 @@
 /target
+/bridge-derive/target
+/bridge-utils/target
 /round-loader/target
 /token-proxy/target
 /.idea

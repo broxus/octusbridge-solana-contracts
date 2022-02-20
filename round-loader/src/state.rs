@@ -1,4 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
+use bridge_derive::BridgePack;
 
 use solana_program::program_error::ProgramError;
 use solana_program::program_pack::{IsInitialized, Pack, Sealed};
@@ -18,7 +19,8 @@ pub const LOAD_DATA_END_OFFSET: usize = LOAD_DATA_BEGIN_OFFSET
     + 4                          // relays len
     + PUBKEY_BYTES * MAX_RELAYS; // relays
 
-#[derive(Debug, BorshSerialize, BorshDeserialize)]
+#[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
+#[bridge_pack(length = 6454)]
 pub struct RelayRoundProposal {
     pub is_initialized: bool,
     pub author: Pubkey,
@@ -38,33 +40,8 @@ impl IsInitialized for RelayRoundProposal {
     }
 }
 
-const RELAY_ROUND_PROPOSAL_LEN: usize = 1 // is_initialized
-    + PUBKEY_BYTES               // author
-    + 4                          // round_number
-    + 4                          // required_votes
-    + 1                          // is_executed
-    + 4                          // round_ttl
-    + 4                          // relays len
-    + PUBKEY_BYTES * MAX_RELAYS  // relays
-    + 4                          // voters len
-    + PUBKEY_BYTES * MAX_RELAYS; // voters
-
-impl Pack for RelayRoundProposal {
-    const LEN: usize = RELAY_ROUND_PROPOSAL_LEN;
-
-    fn pack_into_slice(&self, dst: &mut [u8]) {
-        let mut data = self.try_to_vec().unwrap();
-        let (left, _) = dst.split_at_mut(data.len());
-        left.copy_from_slice(&mut data);
-    }
-
-    fn unpack_from_slice(mut src: &[u8]) -> Result<Self, ProgramError> {
-        let unpacked = Self::deserialize(&mut src)?;
-        Ok(unpacked)
-    }
-}
-
-#[derive(Debug, BorshSerialize, BorshDeserialize)]
+#[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
+#[bridge_pack(length = 3213)]
 pub struct RelayRound {
     pub is_initialized: bool,
     pub round_number: u32,
@@ -80,28 +57,8 @@ impl IsInitialized for RelayRound {
     }
 }
 
-const RELAY_ROUND_LEN: usize = 1 // is_initialized
-    + 4                          // round_number
-    + 4                          // round_ttl
-    + 4                          // relays len
-    + PUBKEY_BYTES * MAX_RELAYS; // relays
-
-impl Pack for RelayRound {
-    const LEN: usize = RELAY_ROUND_LEN;
-
-    fn pack_into_slice(&self, dst: &mut [u8]) {
-        let mut data = self.try_to_vec().unwrap();
-        let (left, _) = dst.split_at_mut(data.len());
-        left.copy_from_slice(&mut data);
-    }
-
-    fn unpack_from_slice(mut src: &[u8]) -> Result<Self, ProgramError> {
-        let unpacked = Self::deserialize(&mut src)?;
-        Ok(unpacked)
-    }
-}
-
-#[derive(Debug, BorshSerialize, BorshDeserialize)]
+#[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
+#[bridge_pack(length = 5)]
 pub struct Settings {
     pub is_initialized: bool,
     pub round_number: u32,
@@ -112,23 +69,5 @@ impl Sealed for Settings {}
 impl IsInitialized for Settings {
     fn is_initialized(&self) -> bool {
         self.is_initialized
-    }
-}
-
-const SETTINGS_LEN: usize = 1 // is_initialized
-    + 4; // round_number
-
-impl Pack for Settings {
-    const LEN: usize = SETTINGS_LEN;
-
-    fn pack_into_slice(&self, dst: &mut [u8]) {
-        let mut data = self.try_to_vec().unwrap();
-        let (left, _) = dst.split_at_mut(data.len());
-        left.copy_from_slice(&mut data);
-    }
-
-    fn unpack_from_slice(mut src: &[u8]) -> Result<Self, ProgramError> {
-        let unpacked = Self::deserialize(&mut src)?;
-        Ok(unpacked)
     }
 }

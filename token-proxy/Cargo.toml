@@ -15,6 +15,9 @@ borsh = "0.9"
 solana-program = "1.9"
 thiserror = "1.0"
 spl-token = "3.2"
+
+bridge-derive = { path = "../bridge-derive" }
+bridge-utils = { path = "../bridge-utils" }
 round-loader = {path = "../round-loader"}
 
 [lib]

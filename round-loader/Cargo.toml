@@ -14,6 +14,9 @@ borsh = "0.9"
 solana-program = "1.9"
 thiserror = "1.0"
 
+bridge-derive = { path = "../bridge-derive" }
+bridge-utils = { path = "../bridge-utils" }
+
 [dev-dependencies]
 solana-program-test = "1.9"
 solana-sdk = "1.9"
