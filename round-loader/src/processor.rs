@@ -75,7 +75,7 @@ impl Processor {
 
         // Create Settings Account
         let settings_nonce =
-            bridge_utils::validate_settings_account(program_id, settings_account_info.key)?;
+            bridge_utils::validate_rl_settings_account(program_id, settings_account_info.key)?;
         let settings_account_signer_seeds: &[&[_]] = &[b"settings", &[settings_nonce]];
 
         bridge_utils::fund_account(
@@ -159,7 +159,7 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        bridge_utils::validate_settings_account(program_id, settings_account_info.key)?;
+        bridge_utils::validate_rl_settings_account(program_id, settings_account_info.key)?;
 
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
         let current_round = settings_account_data.round_number;
@@ -265,7 +265,7 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        bridge_utils::validate_settings_account(program_id, settings_account_info.key)?;
+        bridge_utils::validate_rl_settings_account(program_id, settings_account_info.key)?;
 
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
         let current_round = settings_account_data.round_number;
@@ -319,7 +319,7 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        bridge_utils::validate_settings_account(program_id, settings_account_info.key)?;
+        bridge_utils::validate_rl_settings_account(program_id, settings_account_info.key)?;
 
         let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
         let current_round = settings_account_data.round_number;

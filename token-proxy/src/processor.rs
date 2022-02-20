@@ -73,9 +73,13 @@ impl Processor {
         bridge_utils::validate_creator_account(creator_account_info.key, programdata_account_info)?;
 
         // Create Settings Account
-        let settings_nonce =
-            bridge_utils::validate_settings_account(program_id, settings_account_info.key)?;
-        let settings_account_signer_seeds: &[&[_]] = &[b"settings", &[settings_nonce]];
+        let settings_nonce = bridge_utils::validate_tp_settings_account(
+            program_id,
+            settings_account_info.key,
+            &name,
+        )?;
+        let settings_account_signer_seeds: &[&[_]] =
+            &[b"settings", &name.as_bytes(), &[settings_nonce]];
 
         bridge_utils::fund_account(
             settings_account_info,

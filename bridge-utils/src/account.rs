@@ -91,11 +91,26 @@ pub fn validate_creator_account(
     Ok(())
 }
 
-pub fn validate_settings_account(
+pub fn validate_rl_settings_account(
     program_id: &Pubkey,
     settings_account: &Pubkey,
 ) -> Result<u8, ProgramError> {
     let (pda, nonce) = Pubkey::find_program_address(&[b"settings"], program_id);
+
+    if pda != *settings_account {
+        return Err(ProgramError::InvalidSeeds);
+    }
+
+    Ok(nonce)
+}
+
+pub fn validate_tp_settings_account(
+    program_id: &Pubkey,
+    settings_account: &Pubkey,
+    token_name: &str,
+) -> Result<u8, ProgramError> {
+    let (pda, nonce) =
+        Pubkey::find_program_address(&[b"settings", token_name.as_bytes()], program_id);
 
     if pda != *settings_account {
         return Err(ProgramError::InvalidSeeds);
