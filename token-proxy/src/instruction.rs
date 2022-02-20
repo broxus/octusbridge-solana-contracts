@@ -4,15 +4,14 @@ use solana_program::pubkey::Pubkey;
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub enum TokenProxyInstruction {
-    /// Initialize token proxy program
+    /// Initialize the first round
     ///
     /// # Account references
-    ///   0. [WRITE, SIGNER]    Authority account of Token proxy program
-    ///   1. [WRITE]            Settings account
-    ///   2. []                 Program account
+    ///   0. [WRITE, SIGNER]    Funder account
+    ///   1. [WRITE, SIGNER]    Creator account
+    ///   2. [WRITE]            Settings account
     ///   3. []                 Buffer Program account
-    ///   4. []                 Rent sysvar
-    ///   5. []                 System program
+    ///   4. []                 System program
     Initialize {
         /// Token name
         name: String,

@@ -19,21 +19,13 @@ mod entrypoint;
 
 solana_program::declare_id!("TokenProxyPubKey111111111111111111111111111");
 
-pub fn get_associated_proposal_address(relay_address: &Pubkey, round: u32) -> Pubkey {
-    Pubkey::find_program_address(&[&relay_address.to_bytes(), &round.to_le_bytes()], &id()).0
-}
-
 pub fn get_associated_settings_address(token_name: &str) -> Pubkey {
     Pubkey::find_program_address(&[b"settings", token_name.as_bytes()], &id()).0
 }
 
-pub fn get_associated_relay_round_address(round: u32) -> Pubkey {
-    Pubkey::find_program_address(&[&round.to_le_bytes()], &id()).0
-}
-
 pub fn initialize(
-    authority_pubkey: &Pubkey,
-    program_buffer_pubkey: &Pubkey,
+    funder_pubkey: &Pubkey,
+    creator_pubkey: &Pubkey,
     name: String,
     kind: TokenKind,
     withdrawal_limit: u64,
@@ -59,11 +51,10 @@ pub fn initialize(
     Instruction {
         program_id: id(),
         accounts: vec![
-            AccountMeta::new(*authority_pubkey, true),
+            AccountMeta::new(*funder_pubkey, true),
+            AccountMeta::new(*creator_pubkey, true),
             AccountMeta::new(setting_pubkey, false),
             AccountMeta::new_readonly(id(), false),
-            AccountMeta::new_readonly(*program_buffer_pubkey, false),
-            AccountMeta::new_readonly(rent::id(), false),
             AccountMeta::new_readonly(system_program::id(), false),
         ],
         data,
