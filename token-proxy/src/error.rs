@@ -4,10 +4,10 @@ use solana_program::program_error::ProgramError;
 
 #[derive(Error, Debug, Copy, Clone)]
 pub enum TokenProxyError {
-    #[error("Relay not in the current round")]
-    InvalidRelay,
-    #[error("Relay already voted for proposal")]
-    RelayAlreadyVoted,
+    #[error("Deposit limit exceeded")]
+    DepositLimit,
+    #[error("Invalid token kind")]
+    InvalidTokenKind,
 }
 
 impl From<TokenProxyError> for ProgramError {

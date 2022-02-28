@@ -41,14 +41,14 @@ async fn test_init_relay_loader() {
     .0;
 
     let programdata_data = UpgradeableLoaderState::ProgramData {
-        slot: 5324,
+        slot: 0,
         upgrade_authority_address: Some(creator.pubkey()),
     };
 
     program_test.add_account(
         programdata_address,
         Account {
-            lamports: Rent::default().minimum_balance(Settings::LEN),
+            lamports: Rent::default().minimum_balance(8 + 32),
             data: bincode::serialize::<UpgradeableLoaderState>(&programdata_data).unwrap(),
             owner: round_loader::id(),
             executable: false,

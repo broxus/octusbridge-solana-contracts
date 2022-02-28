@@ -1,31 +1,49 @@
-use crate::TokenKind;
 use borsh::{BorshDeserialize, BorshSerialize};
+use solana_program::hash::Hash;
 use solana_program::pubkey::Pubkey;
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub enum TokenProxyInstruction {
-    /// Initialize the first round
+    /// Initialize Mint Account
     ///
     /// # Account references
     ///   0. [WRITE, SIGNER]    Funder account
-    ///   1. [WRITE, SIGNER]    Creator account
-    ///   2. [WRITE]            Settings account
-    ///   3. []                 Buffer Program account
-    ///   4. []                 System program
-    Initialize {
-        /// Token name
+    ///   1. [WRITE, SIGNER]    Initializer account
+    ///   ..
+    InitializeMint {
+        /// Mint asset name
         name: String,
-        /// Token kind
-        kind: TokenKind,
-        /// Withdrawals limit
-        withdrawal_limit: u64,
-        /// Vault deposit limit
-        deposit_limit: u64,
         /// Number of base 10 digits to the right of the decimal place.
         decimals: u8,
-        /// Admin account
-        admin: Pubkey,
-        /// Token account
-        token: Pubkey,
+    },
+
+    /// Initialize Vault Account
+    ///
+    /// # Account references
+    ///   0. [WRITE, SIGNER]    Funder account
+    ///   1. [WRITE, SIGNER]    Initializer account
+    ///   ..
+    InitializeVault {
+        // Deposit limit
+        deposit_limit: u64,
+        // Withdrawal limit
+        withdrawal_limit: u64,
+        /// Number of base 10 digits to the right of the decimal place.
+        decimals: u8,
+    },
+
+    /// Deposit SOL
+    ///
+    /// # Account references
+    ///   0. [WRITE, SIGNER]    Funder account
+    ///   1. [WRITE, SIGNER]    Initializer account
+    ///   ..
+    DepositSolana {
+        // Unique transfer hash
+        payload_id: Hash,
+        // Ever recipient address
+        recipient: Pubkey,
+        // Deposit amount
+        amount: u64,
     },
 }

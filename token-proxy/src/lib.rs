@@ -1,8 +1,9 @@
 use borsh::BorshSerialize;
+use solana_program::hash::Hash;
 use solana_program::instruction::{AccountMeta, Instruction};
 use solana_program::pubkey::Pubkey;
-use solana_program::system_program;
-use solana_program::sysvar::rent;
+use solana_program::{bpf_loader_upgradeable, system_program, sysvar};
+use spl_associated_token_account::get_associated_token_address;
 
 mod error;
 mod instruction;
@@ -17,33 +18,54 @@ pub use self::state::*;
 #[cfg(not(feature = "no-entrypoint"))]
 mod entrypoint;
 
-solana_program::declare_id!("TokenProxyPubKey111111111111111111111111111");
+solana_program::declare_id!("9pLaxnRNgMQY4Wpk9X1EjBVANwEPjwZw36ok8Af6gW1L");
 
-pub fn get_associated_settings_address(token_name: &str) -> Pubkey {
-    Pubkey::find_program_address(&[b"settings", token_name.as_bytes()], &id()).0
+pub fn get_associated_vault_owner_address(mint_pubkey: &Pubkey) -> Pubkey {
+    Pubkey::find_program_address(&[br"vault", &mint_pubkey.to_bytes()], &id()).0
 }
 
-pub fn initialize(
-    funder_pubkey: &Pubkey,
-    creator_pubkey: &Pubkey,
-    name: String,
-    kind: TokenKind,
-    withdrawal_limit: u64,
-    deposit_limit: u64,
-    decimals: u8,
-    admin: Pubkey,
-    token: Pubkey,
-) -> Instruction {
-    let setting_pubkey = get_associated_settings_address(&name);
+pub fn get_associated_vault_address(vault_owner_pubkey: &Pubkey, mint_pubkey: &Pubkey) -> Pubkey {
+    Pubkey::find_program_address(
+        &[&vault_owner_pubkey.to_bytes(), &mint_pubkey.to_bytes()],
+        &id(),
+    )
+    .0
+}
 
-    let data = TokenProxyInstruction::Initialize {
-        name,
-        kind,
-        withdrawal_limit,
-        deposit_limit,
+pub fn get_associated_mint_owner_address(mint_pubkey: &Pubkey) -> Pubkey {
+    Pubkey::find_program_address(&[br"mint", &mint_pubkey.to_bytes()], &id()).0
+}
+
+pub fn get_associated_mint_address(name: &str) -> Pubkey {
+    Pubkey::find_program_address(&[name.as_bytes()], &id()).0
+}
+
+pub fn get_associated_settings_address(mint_pubkey: &Pubkey) -> Pubkey {
+    Pubkey::find_program_address(&[br"settings", &mint_pubkey.to_bytes()], &id()).0
+}
+
+pub fn get_associated_deposit_address(payload_id: &Hash) -> Pubkey {
+    Pubkey::find_program_address(&[br"deposit", &payload_id.to_bytes()], &id()).0
+}
+
+pub fn get_program_data_address() -> Pubkey {
+    Pubkey::find_program_address(&[id().as_ref()], &bpf_loader_upgradeable::id()).0
+}
+
+pub fn initialize_mint(
+    funder_pubkey: &Pubkey,
+    initializer_pubkey: &Pubkey,
+    name: &str,
+    decimals: u8,
+) -> Instruction {
+    let mint_pubkey = get_associated_mint_address(name);
+    let mint_owner_pubkey = get_associated_mint_owner_address(&mint_pubkey);
+    let settings_pubkey = get_associated_settings_address(&mint_pubkey);
+    let program_data_pubkey = get_program_data_address();
+
+    let data = TokenProxyInstruction::InitializeMint {
+        name: name.to_string(),
         decimals,
-        admin,
-        token,
     }
     .try_to_vec()
     .expect("pack");
@@ -52,11 +74,104 @@ pub fn initialize(
         program_id: id(),
         accounts: vec![
             AccountMeta::new(*funder_pubkey, true),
-            AccountMeta::new(*creator_pubkey, true),
-            AccountMeta::new(setting_pubkey, false),
-            AccountMeta::new_readonly(id(), false),
+            AccountMeta::new(*initializer_pubkey, true),
+            AccountMeta::new(mint_owner_pubkey, false),
+            AccountMeta::new(mint_pubkey, false),
+            AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new_readonly(program_data_pubkey, false),
             AccountMeta::new_readonly(system_program::id(), false),
+            AccountMeta::new_readonly(spl_token::id(), false),
+            AccountMeta::new_readonly(sysvar::rent::id(), false),
         ],
         data,
     }
 }
+
+pub fn initialize_vault(
+    funder_pubkey: &Pubkey,
+    initializer_pubkey: &Pubkey,
+    mint_pubkey: &Pubkey,
+    decimals: u8,
+) -> Instruction {
+    let vault_owner_pubkey = get_associated_vault_owner_address(&mint_pubkey);
+    let vault_pubkey = get_associated_vault_address(&vault_owner_pubkey, &mint_pubkey);
+    let settings_pubkey = get_associated_settings_address(&mint_pubkey);
+    let program_data_pubkey = get_program_data_address();
+
+    let data = TokenProxyInstruction::InitializeVault {
+        deposit_limit: 1000000000,
+        withdrawal_limit: 1000000000,
+        decimals,
+    }
+    .try_to_vec()
+    .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(*funder_pubkey, true),
+            AccountMeta::new(*initializer_pubkey, true),
+            AccountMeta::new(vault_owner_pubkey, false),
+            AccountMeta::new(vault_pubkey, false),
+            AccountMeta::new(*mint_pubkey, false),
+            AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new_readonly(program_data_pubkey, false),
+            AccountMeta::new_readonly(spl_token::id(), false),
+            AccountMeta::new_readonly(system_program::id(), false),
+            AccountMeta::new_readonly(sysvar::rent::id(), false),
+        ],
+        data,
+    }
+}
+
+pub fn deposit_solana(
+    funder_pubkey: &Pubkey,
+    sender_pubkey: &Pubkey,
+    mint_pubkey: &Pubkey,
+    payload_id: Hash,
+    recipient: Pubkey,
+    amount: u64,
+) -> Instruction {
+    let sender_token_pubkey = get_associated_token_address(sender_pubkey, mint_pubkey);
+    let vault_owner_pubkey = get_associated_vault_owner_address(&mint_pubkey);
+    let vault_pubkey = get_associated_vault_address(&vault_owner_pubkey, &mint_pubkey);
+    let settings_pubkey = get_associated_settings_address(&mint_pubkey);
+    let deposit_pubkey = get_associated_deposit_address(&payload_id);
+
+    let data = TokenProxyInstruction::DepositSolana {
+        payload_id,
+        recipient,
+        amount,
+    }
+    .try_to_vec()
+    .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(*funder_pubkey, true),
+            AccountMeta::new(*sender_pubkey, true),
+            AccountMeta::new(sender_token_pubkey, false),
+            AccountMeta::new(vault_pubkey, false),
+            AccountMeta::new(deposit_pubkey, false),
+            AccountMeta::new_readonly(*mint_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new_readonly(spl_token::id(), false),
+            AccountMeta::new_readonly(system_program::id(), false),
+            AccountMeta::new_readonly(sysvar::rent::id(), false),
+        ],
+        data,
+    }
+}
+
+/*let funder_account_info = next_account_info(account_info_iter)?;
+let authority_account_info = next_account_info(account_info_iter)?;
+let sender_account_info = next_account_info(account_info_iter)?;
+let vault_account_info = next_account_info(account_info_iter)?;
+let mint_account_info = next_account_info(account_info_iter)?;
+let settings_account_info = next_account_info(account_info_iter)?;
+let deposit_account_info = next_account_info(account_info_iter)?;
+let token_program_info = next_account_info(account_info_iter)?;
+let system_program_info = next_account_info(account_info_iter)?;
+let rent_sysvar_info = next_account_info(account_info_iter)?;
+let rent = &Rent::from_account_info(rent_sysvar_info)?;*/

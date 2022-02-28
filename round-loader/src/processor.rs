@@ -71,7 +71,10 @@ impl Processor {
 
         bridge_utils::validate_programdata_account(program_id, programdata_account_info.key)?;
 
-        bridge_utils::validate_creator_account(creator_account_info.key, programdata_account_info)?;
+        bridge_utils::validate_initializer_account(
+            creator_account_info.key,
+            programdata_account_info,
+        )?;
 
         // Create Settings Account
         let settings_nonce =

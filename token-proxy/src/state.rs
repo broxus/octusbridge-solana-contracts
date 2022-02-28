@@ -1,21 +1,19 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use bridge_derive::BridgePack;
+use enum_as_inner::EnumAsInner;
 
+use solana_program::hash::Hash;
 use solana_program::program_error::ProgramError;
 use solana_program::program_pack::{IsInitialized, Pack, Sealed};
-use solana_program::pubkey::{Pubkey, PUBKEY_BYTES};
+use solana_program::pubkey::Pubkey;
+
+use bridge_derive::BridgePack;
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
-#[bridge_pack(length = 115)]
+#[bridge_pack(length = 500)]
 pub struct Settings {
     pub is_initialized: bool,
-    pub name: String,
     pub kind: TokenKind,
-    pub withdrawal_limit: u64,
-    pub deposit_limit: u64,
     pub decimals: u8,
-    pub admin: Pubkey,
-    pub token: Pubkey,
 }
 
 impl Sealed for Settings {}
@@ -26,8 +24,34 @@ impl IsInitialized for Settings {
     }
 }
 
-#[derive(Copy, BorshSerialize, BorshDeserialize, Debug, Clone)]
+#[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
+#[bridge_pack(length = 500)]
+pub struct Deposit {
+    pub is_initialized: bool,
+    pub payload_id: Hash,
+    pub kind: TokenKind,
+    pub sender: Pubkey,
+    pub recipient: Pubkey,
+    pub decimals: u8,
+    pub amount: u64,
+}
+
+impl Sealed for Deposit {}
+
+impl IsInitialized for Deposit {
+    fn is_initialized(&self) -> bool {
+        self.is_initialized
+    }
+}
+
+#[derive(Debug, BorshSerialize, BorshDeserialize, EnumAsInner)]
 pub enum TokenKind {
-    Ever = 0,
-    Solana = 1,
+    Ever {
+        name: String,
+    },
+    Solana {
+        mint: Pubkey,
+        deposit_limit: u64,
+        withdrawal_limit: u64,
+    },
 }
