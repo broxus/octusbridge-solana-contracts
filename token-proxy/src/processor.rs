@@ -64,7 +64,6 @@ impl Processor {
 
         let funder_account_info = next_account_info(account_info_iter)?;
         let initializer_account_info = next_account_info(account_info_iter)?;
-        let mint_owner_account_info = next_account_info(account_info_iter)?;
         let mint_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
         let programdata_account_info = next_account_info(account_info_iter)?;
@@ -84,22 +83,14 @@ impl Processor {
             programdata_account_info,
         )?;
 
-        // Validate Mint Account owner
-        let (mint_owner_account, _nonce) = Pubkey::find_program_address(
-            &[br"mint", &mint_account_info.key.to_bytes()],
-            program_id,
-        );
-        if mint_owner_account != *mint_owner_account_info.key {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
         // Validate Mint Account
-        let (mint_account, nonce) = Pubkey::find_program_address(&[name.as_bytes()], program_id);
+        let (mint_account, nonce) =
+            Pubkey::find_program_address(&[br"mint", name.as_bytes()], program_id);
         if mint_account != *mint_account_info.key {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        let mint_account_signer_seeds: &[&[_]] = &[name.as_bytes(), &[nonce]];
+        let mint_account_signer_seeds: &[&[_]] = &[br"mint", name.as_bytes(), &[nonce]];
 
         // Validate Settings Account
         let (settings_account, settings_nonce) = Pubkey::find_program_address(
@@ -138,7 +129,7 @@ impl Processor {
             &spl_token::instruction::initialize_mint(
                 &spl_token::id(),
                 mint_account_info.key,
-                mint_owner_account_info.key,
+                mint_account_info.key,
                 None,
                 decimals,
             )?,
@@ -193,7 +184,6 @@ impl Processor {
 
         let funder_account_info = next_account_info(account_info_iter)?;
         let initializer_account_info = next_account_info(account_info_iter)?;
-        let vault_owner_account_info = next_account_info(account_info_iter)?;
         let vault_account_info = next_account_info(account_info_iter)?;
         let mint_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
@@ -214,32 +204,17 @@ impl Processor {
             programdata_account_info,
         )?;
 
-        // Validate Vault Account owner
-        let (vault_owner_account, _nonce) = Pubkey::find_program_address(
-            &[br"vault", &mint_account_info.key.to_bytes()],
-            program_id,
-        );
-        if vault_owner_account != *vault_owner_account_info.key {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
         // Validate Vault Account
         let (vault_account, nonce) = Pubkey::find_program_address(
-            &[
-                &vault_owner_account.to_bytes(),
-                &mint_account_info.key.to_bytes(),
-            ],
+            &[br"vault", &mint_account_info.key.to_bytes()],
             program_id,
         );
         if vault_account != *vault_account_info.key {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        let vault_account_signer_seeds: &[&[_]] = &[
-            &vault_owner_account.to_bytes(),
-            &mint_account_info.key.to_bytes(),
-            &[nonce],
-        ];
+        let vault_account_signer_seeds: &[&[_]] =
+            &[br"vault", &mint_account_info.key.to_bytes(), &[nonce]];
 
         // Validate Settings Account
         let (settings_account, settings_nonce) = Pubkey::find_program_address(
@@ -279,13 +254,12 @@ impl Processor {
                 &spl_token::id(),
                 vault_account_info.key,
                 mint_account_info.key,
-                vault_owner_account_info.key,
+                vault_account_info.key,
             )?,
             &[
                 vault_account_info.clone(),
                 token_program_info.clone(),
                 rent_sysvar_info.clone(),
-                vault_owner_account_info.clone(),
                 mint_account_info.clone(),
             ],
             &[vault_account_signer_seeds],
@@ -369,16 +343,8 @@ impl Processor {
         }
 
         // Validate Vault account
-        let (vault_owner_account, _nonce) = Pubkey::find_program_address(
-            &[br"vault", &mint_account_info.key.to_bytes()],
-            program_id,
-        );
-
         let (vault_account, _nonce) = Pubkey::find_program_address(
-            &[
-                &vault_owner_account.to_bytes(),
-                &mint_account_info.key.to_bytes(),
-            ],
+            &[br"vault", &mint_account_info.key.to_bytes()],
             program_id,
         );
         if vault_account != *vault_account_info.key {

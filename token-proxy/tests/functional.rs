@@ -11,11 +11,7 @@ use solana_sdk::transaction::Transaction;
 use spl_associated_token_account::get_associated_token_address;
 use spl_token::state::AccountState;
 
-use token_proxy::{
-    get_associated_mint_address, get_associated_mint_owner_address,
-    get_associated_settings_address, get_associated_vault_address,
-    get_associated_vault_owner_address, Processor, Settings, TokenKind,
-};
+use token_proxy::{Processor, Settings, TokenKind};
 
 #[tokio::test]
 async fn test_init_mint_token_proxy() {
@@ -72,7 +68,7 @@ async fn test_init_mint_token_proxy() {
         .await
         .expect("process_transaction");
 
-    let mint_address = get_associated_mint_address(&name);
+    let mint_address = token_proxy::get_associated_mint_address(&name);
     let mint_info = banks_client
         .get_account(mint_address)
         .await
@@ -82,17 +78,16 @@ async fn test_init_mint_token_proxy() {
     assert_eq!(mint_info.owner, spl_token::id());
 
     let mint_data = spl_token::state::Mint::unpack(mint_info.data()).expect("mint unpack");
-    let mint_authority = get_associated_mint_owner_address(&mint_address);
 
     assert_eq!(mint_data.is_initialized, true);
     assert_eq!(mint_data.decimals, decimals);
     assert_eq!(mint_data.supply, 0);
     assert_eq!(
         mint_data.mint_authority,
-        program_option::COption::Some(mint_authority)
+        program_option::COption::Some(mint_address)
     );
 
-    let settings_address = get_associated_settings_address(&mint_address);
+    let settings_address = token_proxy::get_associated_settings_address(&mint_address);
     let settings_info = banks_client
         .get_account(settings_address)
         .await
@@ -190,8 +185,7 @@ async fn test_init_vault_token_proxy() {
         .await
         .expect("process_transaction");
 
-    let vault_owner_address = get_associated_vault_owner_address(&mint.pubkey());
-    let vault_address = get_associated_vault_address(&vault_owner_address, &mint.pubkey());
+    let vault_address = token_proxy::get_associated_vault_address(&mint.pubkey());
     let vault_info = banks_client
         .get_account(vault_address)
         .await
@@ -203,7 +197,7 @@ async fn test_init_vault_token_proxy() {
     let vault_data = spl_token::state::Account::unpack(vault_info.data()).expect("mint unpack");
 
     assert_eq!(vault_data.mint, mint.pubkey());
-    assert_eq!(vault_data.owner, vault_owner_address);
+    assert_eq!(vault_data.owner, vault_address);
     assert_eq!(vault_data.state, AccountState::Initialized);
     assert_eq!(vault_data.amount, 0);
 }
@@ -267,12 +261,11 @@ async fn test_deposit_solana_token_proxy() {
     );
 
     // Add Vault Account
-    let vault_owner_address = get_associated_vault_owner_address(&mint.pubkey());
-    let vault_address = get_associated_vault_address(&vault_owner_address, &mint.pubkey());
+    let vault_address = token_proxy::get_associated_vault_address(&mint.pubkey());
 
     let vault_account_data = spl_token::state::Account {
         mint: mint.pubkey(),
-        owner: vault_owner_address,
+        owner: vault_address,
         amount: 0,
         state: AccountState::Initialized,
         ..Default::default()
@@ -330,7 +323,7 @@ async fn test_deposit_solana_token_proxy() {
     );
 
     // Add Settings Account
-    let settings_address = get_associated_settings_address(&mint.pubkey());
+    let settings_address = token_proxy::get_associated_settings_address(&mint.pubkey());
 
     let settings_account_data = Settings {
         is_initialized: true,
@@ -380,8 +373,7 @@ async fn test_deposit_solana_token_proxy() {
         .await
         .expect("process_transaction");
 
-    let vault_owner_address = get_associated_vault_owner_address(&mint.pubkey());
-    let vault_address = get_associated_vault_address(&vault_owner_address, &mint.pubkey());
+    let vault_address = token_proxy::get_associated_vault_address(&mint.pubkey());
     let vault_info = banks_client
         .get_account(vault_address)
         .await

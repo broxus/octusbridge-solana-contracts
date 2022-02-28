@@ -20,24 +20,12 @@ mod entrypoint;
 
 solana_program::declare_id!("9pLaxnRNgMQY4Wpk9X1EjBVANwEPjwZw36ok8Af6gW1L");
 
-pub fn get_associated_vault_owner_address(mint_pubkey: &Pubkey) -> Pubkey {
+pub fn get_associated_vault_address(mint_pubkey: &Pubkey) -> Pubkey {
     Pubkey::find_program_address(&[br"vault", &mint_pubkey.to_bytes()], &id()).0
 }
 
-pub fn get_associated_vault_address(vault_owner_pubkey: &Pubkey, mint_pubkey: &Pubkey) -> Pubkey {
-    Pubkey::find_program_address(
-        &[&vault_owner_pubkey.to_bytes(), &mint_pubkey.to_bytes()],
-        &id(),
-    )
-    .0
-}
-
-pub fn get_associated_mint_owner_address(mint_pubkey: &Pubkey) -> Pubkey {
-    Pubkey::find_program_address(&[br"mint", &mint_pubkey.to_bytes()], &id()).0
-}
-
 pub fn get_associated_mint_address(name: &str) -> Pubkey {
-    Pubkey::find_program_address(&[name.as_bytes()], &id()).0
+    Pubkey::find_program_address(&[br"mint", name.as_bytes()], &id()).0
 }
 
 pub fn get_associated_settings_address(mint_pubkey: &Pubkey) -> Pubkey {
@@ -59,7 +47,6 @@ pub fn initialize_mint(
     decimals: u8,
 ) -> Instruction {
     let mint_pubkey = get_associated_mint_address(name);
-    let mint_owner_pubkey = get_associated_mint_owner_address(&mint_pubkey);
     let settings_pubkey = get_associated_settings_address(&mint_pubkey);
     let program_data_pubkey = get_program_data_address();
 
@@ -75,7 +62,6 @@ pub fn initialize_mint(
         accounts: vec![
             AccountMeta::new(*funder_pubkey, true),
             AccountMeta::new(*initializer_pubkey, true),
-            AccountMeta::new(mint_owner_pubkey, false),
             AccountMeta::new(mint_pubkey, false),
             AccountMeta::new(settings_pubkey, false),
             AccountMeta::new_readonly(program_data_pubkey, false),
@@ -93,8 +79,7 @@ pub fn initialize_vault(
     mint_pubkey: &Pubkey,
     decimals: u8,
 ) -> Instruction {
-    let vault_owner_pubkey = get_associated_vault_owner_address(&mint_pubkey);
-    let vault_pubkey = get_associated_vault_address(&vault_owner_pubkey, &mint_pubkey);
+    let vault_pubkey = get_associated_vault_address(&mint_pubkey);
     let settings_pubkey = get_associated_settings_address(&mint_pubkey);
     let program_data_pubkey = get_program_data_address();
 
@@ -111,7 +96,6 @@ pub fn initialize_vault(
         accounts: vec![
             AccountMeta::new(*funder_pubkey, true),
             AccountMeta::new(*initializer_pubkey, true),
-            AccountMeta::new(vault_owner_pubkey, false),
             AccountMeta::new(vault_pubkey, false),
             AccountMeta::new(*mint_pubkey, false),
             AccountMeta::new(settings_pubkey, false),
@@ -133,8 +117,7 @@ pub fn deposit_solana(
     amount: u64,
 ) -> Instruction {
     let sender_token_pubkey = get_associated_token_address(sender_pubkey, mint_pubkey);
-    let vault_owner_pubkey = get_associated_vault_owner_address(&mint_pubkey);
-    let vault_pubkey = get_associated_vault_address(&vault_owner_pubkey, &mint_pubkey);
+    let vault_pubkey = get_associated_vault_address(&mint_pubkey);
     let settings_pubkey = get_associated_settings_address(&mint_pubkey);
     let deposit_pubkey = get_associated_deposit_address(&payload_id);
 
