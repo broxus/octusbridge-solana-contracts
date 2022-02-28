@@ -203,7 +203,172 @@ async fn test_init_vault_token_proxy() {
 }
 
 #[tokio::test]
-async fn test_deposit_solana_token_proxy() {
+async fn test_deposit_ever_token_proxy() {
+    let mut program_test = ProgramTest::new(
+        "token_proxy",
+        token_proxy::id(),
+        processor!(Processor::process),
+    );
+
+    // Setup environment
+    let initializer = Keypair::new();
+
+    let programdata_address =
+        Pubkey::find_program_address(&[token_proxy::id().as_ref()], &bpf_loader_upgradeable::id())
+            .0;
+
+    let programdata_data = UpgradeableLoaderState::ProgramData {
+        slot: 0,
+        upgrade_authority_address: Some(initializer.pubkey()),
+    };
+
+    let programdata_data_serialized =
+        bincode::serialize::<UpgradeableLoaderState>(&programdata_data).unwrap();
+
+    program_test.add_account(
+        programdata_address,
+        Account {
+            lamports: Rent::default().minimum_balance(programdata_data_serialized.len()),
+            data: programdata_data_serialized,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Mint Account
+    let decimals = 9;
+    let name = "WEVER".to_string();
+
+    let mint_address = token_proxy::get_associated_mint_address(&name);
+
+    let mint_account_data = spl_token::state::Mint {
+        is_initialized: true,
+        mint_authority: program_option::COption::Some(mint_address),
+        supply: 100,
+        decimals,
+        ..Default::default()
+    };
+
+    let mut mint_packed = vec![0; spl_token::state::Mint::LEN];
+    spl_token::state::Mint::pack(mint_account_data, &mut mint_packed).unwrap();
+    program_test.add_account(
+        mint_address,
+        Account {
+            lamports: Rent::default().minimum_balance(spl_token::state::Mint::LEN),
+            data: mint_packed,
+            owner: spl_token::id(),
+            executable: false,
+            rent_epoch: 1,
+        },
+    );
+
+    // Add Sender Account
+    let sender = Keypair::new();
+    program_test.add_account(
+        sender.pubkey(),
+        Account {
+            lamports: 0,
+            data: vec![],
+            owner: solana_program::system_program::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Sender Token Account
+    let sender_associated_token_address =
+        get_associated_token_address(&sender.pubkey(), &mint_address);
+
+    let sender_account_data = spl_token::state::Account {
+        mint: mint_address,
+        owner: sender.pubkey(),
+        amount: 100,
+        state: AccountState::Initialized,
+        ..Default::default()
+    };
+
+    let mut sender_packed = vec![0; spl_token::state::Account::LEN];
+    spl_token::state::Account::pack(sender_account_data, &mut sender_packed).unwrap();
+    program_test.add_account(
+        sender_associated_token_address,
+        Account {
+            lamports: Rent::default().minimum_balance(spl_token::state::Account::LEN),
+            data: sender_packed,
+            owner: spl_token::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Settings Account
+    let settings_address = token_proxy::get_associated_settings_address(&mint_address);
+
+    let settings_account_data = Settings {
+        is_initialized: true,
+        kind: TokenKind::Ever { name },
+        decimals,
+    };
+
+    let mut settings_packed = vec![0; Settings::LEN];
+    Settings::pack(settings_account_data, &mut settings_packed).unwrap();
+    program_test.add_account(
+        settings_address,
+        Account {
+            lamports: Rent::default().minimum_balance(Settings::LEN),
+            data: settings_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Start Program Test
+    let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
+
+    let payload_id = Hash::new_unique();
+    let recipient = Pubkey::new_unique();
+    let amount = 32;
+
+    let mut transaction = Transaction::new_with_payer(
+        &[token_proxy::deposit_ever(
+            &funder.pubkey(),
+            &sender.pubkey(),
+            &mint_address,
+            payload_id,
+            recipient,
+            amount,
+        )],
+        Some(&funder.pubkey()),
+    );
+    transaction.sign(&[&funder, &sender], recent_blockhash);
+
+    banks_client
+        .process_transaction(transaction)
+        .await
+        .expect("process_transaction");
+
+    let mint_info = banks_client
+        .get_account(mint_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let mint_data = spl_token::state::Mint::unpack(mint_info.data()).expect("mint unpack");
+    assert_eq!(mint_data.supply, 100 - amount);
+
+    let sender_info = banks_client
+        .get_account(sender_associated_token_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let sender_data = spl_token::state::Account::unpack(sender_info.data()).expect("token unpack");
+    assert_eq!(sender_data.amount, 100 - amount);
+}
+
+#[tokio::test]
+async fn test_deposit_sol_token_proxy() {
     let mut program_test = ProgramTest::new(
         "token_proxy",
         token_proxy::id(),
@@ -356,7 +521,7 @@ async fn test_deposit_solana_token_proxy() {
     let amount = 32;
 
     let mut transaction = Transaction::new_with_payer(
-        &[token_proxy::deposit_solana(
+        &[token_proxy::deposit_sol(
             &funder.pubkey(),
             &sender.pubkey(),
             &mint.pubkey(),

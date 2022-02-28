@@ -41,13 +41,21 @@ impl Processor {
                     decimals,
                 )?;
             }
-            TokenProxyInstruction::DepositSolana {
+            TokenProxyInstruction::DepositEver {
+                payload_id,
+                recipient,
+                amount,
+            } => {
+                msg!("Instruction: Deposit EVER");
+                Self::process_deposit_ever(program_id, accounts, payload_id, recipient, amount)?;
+            }
+            TokenProxyInstruction::DepositSol {
                 payload_id,
                 recipient,
                 amount,
             } => {
                 msg!("Instruction: Deposit SOL");
-                Self::process_deposit_solana(program_id, accounts, payload_id, recipient, amount)?;
+                Self::process_deposit_sol(program_id, accounts, payload_id, recipient, amount)?;
             }
         };
 
@@ -92,21 +100,6 @@ impl Processor {
 
         let mint_account_signer_seeds: &[&[_]] = &[br"mint", name.as_bytes(), &[nonce]];
 
-        // Validate Settings Account
-        let (settings_account, settings_nonce) = Pubkey::find_program_address(
-            &[br"settings", &mint_account_info.key.to_bytes()],
-            program_id,
-        );
-        if settings_account != *settings_account_info.key {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
-        let settings_account_signer_seeds: &[&[_]] = &[
-            br"settings",
-            &mint_account_info.key.to_bytes(),
-            &[settings_nonce],
-        ];
-
         // Create Mint Account
         invoke_signed(
             &system_instruction::create_account(
@@ -140,6 +133,21 @@ impl Processor {
             ],
             &[mint_account_signer_seeds],
         )?;
+
+        // Validate Settings Account
+        let (settings_account, settings_nonce) = Pubkey::find_program_address(
+            &[br"settings", &mint_account_info.key.to_bytes()],
+            program_id,
+        );
+        if settings_account != *settings_account_info.key {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        let settings_account_signer_seeds: &[&[_]] = &[
+            br"settings",
+            &mint_account_info.key.to_bytes(),
+            &[settings_nonce],
+        ];
 
         // Create Settings Account
         invoke_signed(
@@ -216,21 +224,6 @@ impl Processor {
         let vault_account_signer_seeds: &[&[_]] =
             &[br"vault", &mint_account_info.key.to_bytes(), &[nonce]];
 
-        // Validate Settings Account
-        let (settings_account, settings_nonce) = Pubkey::find_program_address(
-            &[br"settings", &mint_account_info.key.to_bytes()],
-            program_id,
-        );
-        if settings_account != *settings_account_info.key {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
-        let settings_account_signer_seeds: &[&[_]] = &[
-            br"settings",
-            &mint_account_info.key.to_bytes(),
-            &[settings_nonce],
-        ];
-
         // Create Vault Account
         invoke_signed(
             &system_instruction::create_account(
@@ -264,6 +257,21 @@ impl Processor {
             ],
             &[vault_account_signer_seeds],
         )?;
+
+        // Validate Settings Account
+        let (settings_account, settings_nonce) = Pubkey::find_program_address(
+            &[br"settings", &mint_account_info.key.to_bytes()],
+            program_id,
+        );
+        if settings_account != *settings_account_info.key {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        let settings_account_signer_seeds: &[&[_]] = &[
+            br"settings",
+            &mint_account_info.key.to_bytes(),
+            &[settings_nonce],
+        ];
 
         // Create Settings Account
         invoke_signed(
@@ -301,7 +309,114 @@ impl Processor {
         Ok(())
     }
 
-    fn process_deposit_solana(
+    fn process_deposit_ever(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        payload_id: Hash,
+        recipient: Pubkey,
+        amount: u64,
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+
+        let funder_account_info = next_account_info(account_info_iter)?;
+        let authority_account_info = next_account_info(account_info_iter)?;
+        let sender_account_info = next_account_info(account_info_iter)?;
+        let deposit_account_info = next_account_info(account_info_iter)?;
+        let mint_account_info = next_account_info(account_info_iter)?;
+        let settings_account_info = next_account_info(account_info_iter)?;
+        let system_program_info = next_account_info(account_info_iter)?;
+        let token_program_info = next_account_info(account_info_iter)?;
+        let rent_sysvar_info = next_account_info(account_info_iter)?;
+        let rent = &Rent::from_account_info(rent_sysvar_info)?;
+
+        if !authority_account_info.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        // Validate Settings Account
+        if settings_account_info.owner != program_id {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+        let name = settings_account_data
+            .kind
+            .as_ever()
+            .ok_or(TokenProxyError::InvalidTokenKind)?;
+
+        // Validate Mint Account
+        let (mint_account, _nonce) =
+            Pubkey::find_program_address(&[br"mint", name.as_bytes()], program_id);
+        if mint_account != *mint_account_info.key {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        // Burn tokens
+        invoke(
+            &spl_token::instruction::burn(
+                token_program_info.key,
+                sender_account_info.key,
+                mint_account_info.key,
+                authority_account_info.key,
+                &[authority_account_info.key],
+                amount,
+            )?,
+            &[
+                token_program_info.clone(),
+                authority_account_info.clone(),
+                sender_account_info.clone(),
+                mint_account_info.clone(),
+            ],
+        )?;
+
+        // Validate Deposit Account
+        let (deposit_account, deposit_nonce) =
+            Pubkey::find_program_address(&[br"deposit", &payload_id.to_bytes()], program_id);
+
+        if deposit_account != *deposit_account_info.key {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        let deposit_account_signer_seeds: &[&[_]] =
+            &[br"deposit", &payload_id.to_bytes(), &[deposit_nonce]];
+
+        // Create Deposit Account
+        invoke_signed(
+            &system_instruction::create_account(
+                funder_account_info.key,
+                deposit_account_info.key,
+                1.max(rent.minimum_balance(Deposit::LEN)),
+                Deposit::LEN as u64,
+                program_id,
+            ),
+            &[
+                funder_account_info.clone(),
+                deposit_account_info.clone(),
+                system_program_info.clone(),
+            ],
+            &[deposit_account_signer_seeds],
+        )?;
+
+        // Init Deposit Account
+        let deposit_account_data = Deposit {
+            is_initialized: true,
+            payload_id,
+            kind: settings_account_data.kind,
+            sender: *sender_account_info.key,
+            recipient,
+            decimals: settings_account_data.decimals,
+            amount,
+        };
+
+        Deposit::pack(
+            deposit_account_data,
+            &mut deposit_account_info.data.borrow_mut(),
+        )?;
+
+        Ok(())
+    }
+
+    fn process_deposit_sol(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         payload_id: Hash,
@@ -317,8 +432,8 @@ impl Processor {
         let deposit_account_info = next_account_info(account_info_iter)?;
         let mint_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
-        let token_program_info = next_account_info(account_info_iter)?;
         let system_program_info = next_account_info(account_info_iter)?;
+        let token_program_info = next_account_info(account_info_iter)?;
         let rent_sysvar_info = next_account_info(account_info_iter)?;
         let rent = &Rent::from_account_info(rent_sysvar_info)?;
 
@@ -360,17 +475,6 @@ impl Processor {
             return Err(TokenProxyError::DepositLimit.into());
         }
 
-        // Validate Deposit Account
-        let (deposit_account, deposit_nonce) =
-            Pubkey::find_program_address(&[br"deposit", &payload_id.to_bytes()], program_id);
-
-        if deposit_account != *deposit_account_info.key {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
-        let deposit_account_signer_seeds: &[&[_]] =
-            &[br"deposit", &payload_id.to_bytes(), &[deposit_nonce]];
-
         // Transfer tokens
         invoke(
             &spl_token::instruction::transfer(
@@ -389,13 +493,24 @@ impl Processor {
             ],
         )?;
 
+        // Validate Deposit Account
+        let (deposit_account, deposit_nonce) =
+            Pubkey::find_program_address(&[br"deposit", &payload_id.to_bytes()], program_id);
+
+        if deposit_account != *deposit_account_info.key {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        let deposit_account_signer_seeds: &[&[_]] =
+            &[br"deposit", &payload_id.to_bytes(), &[deposit_nonce]];
+
         // Create Deposit Account
         invoke_signed(
             &system_instruction::create_account(
                 funder_account_info.key,
                 deposit_account_info.key,
                 1.max(rent.minimum_balance(Deposit::LEN)),
-                Settings::LEN as u64,
+                Deposit::LEN as u64,
                 program_id,
             ),
             &[

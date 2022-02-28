@@ -108,7 +108,44 @@ pub fn initialize_vault(
     }
 }
 
-pub fn deposit_solana(
+pub fn deposit_ever(
+    funder_pubkey: &Pubkey,
+    sender_pubkey: &Pubkey,
+    mint_pubkey: &Pubkey,
+    payload_id: Hash,
+    recipient: Pubkey,
+    amount: u64,
+) -> Instruction {
+    let sender_token_pubkey = get_associated_token_address(sender_pubkey, mint_pubkey);
+    let settings_pubkey = get_associated_settings_address(&mint_pubkey);
+    let deposit_pubkey = get_associated_deposit_address(&payload_id);
+
+    let data = TokenProxyInstruction::DepositEver {
+        payload_id,
+        recipient,
+        amount,
+    }
+    .try_to_vec()
+    .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(*funder_pubkey, true),
+            AccountMeta::new(*sender_pubkey, true),
+            AccountMeta::new(sender_token_pubkey, false),
+            AccountMeta::new(deposit_pubkey, false),
+            AccountMeta::new(*mint_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+            AccountMeta::new_readonly(spl_token::id(), false),
+            AccountMeta::new_readonly(sysvar::rent::id(), false),
+        ],
+        data,
+    }
+}
+
+pub fn deposit_sol(
     funder_pubkey: &Pubkey,
     sender_pubkey: &Pubkey,
     mint_pubkey: &Pubkey,
@@ -121,7 +158,7 @@ pub fn deposit_solana(
     let settings_pubkey = get_associated_settings_address(&mint_pubkey);
     let deposit_pubkey = get_associated_deposit_address(&payload_id);
 
-    let data = TokenProxyInstruction::DepositSolana {
+    let data = TokenProxyInstruction::DepositSol {
         payload_id,
         recipient,
         amount,
@@ -139,8 +176,8 @@ pub fn deposit_solana(
             AccountMeta::new(deposit_pubkey, false),
             AccountMeta::new_readonly(*mint_pubkey, false),
             AccountMeta::new_readonly(settings_pubkey, false),
-            AccountMeta::new_readonly(spl_token::id(), false),
             AccountMeta::new_readonly(system_program::id(), false),
+            AccountMeta::new_readonly(spl_token::id(), false),
             AccountMeta::new_readonly(sysvar::rent::id(), false),
         ],
         data,
