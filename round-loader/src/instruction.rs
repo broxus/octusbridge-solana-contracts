@@ -11,6 +11,7 @@ pub enum RoundLoaderInstruction {
     ///   3. [WRITE]            The first Relay Round account
     ///   4. []                 Buffer Program account
     ///   5. []                 System program
+    ///   6. []                 The rent sysvar
     Initialize {
         /// Genesis Relay Round number
         round: u32,
@@ -27,6 +28,7 @@ pub enum RoundLoaderInstruction {
     ///   3. []                 Settings account
     ///   4. []                 Current Round account
     ///   5. []                 System program
+    ///   6. []                 The rent sysvar
     CreateProposal {
         /// New Relay Round number
         round: u32,
@@ -70,5 +72,6 @@ pub enum RoundLoaderInstruction {
     ///   4. [WRITE]            New Round account
     ///   5. []                 Current Round account
     ///   6. []                 System program
+    ///   7. []                 The rent sysvar
     Vote,
 }
