@@ -146,15 +146,3 @@ pub fn deposit_solana(
         data,
     }
 }
-
-/*let funder_account_info = next_account_info(account_info_iter)?;
-let authority_account_info = next_account_info(account_info_iter)?;
-let sender_account_info = next_account_info(account_info_iter)?;
-let vault_account_info = next_account_info(account_info_iter)?;
-let mint_account_info = next_account_info(account_info_iter)?;
-let settings_account_info = next_account_info(account_info_iter)?;
-let deposit_account_info = next_account_info(account_info_iter)?;
-let token_program_info = next_account_info(account_info_iter)?;
-let system_program_info = next_account_info(account_info_iter)?;
-let rent_sysvar_info = next_account_info(account_info_iter)?;
-let rent = &Rent::from_account_info(rent_sysvar_info)?;*/

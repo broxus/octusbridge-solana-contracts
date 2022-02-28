@@ -1,7 +1,7 @@
 use borsh::BorshSerialize;
 use solana_program::instruction::{AccountMeta, Instruction};
 use solana_program::pubkey::Pubkey;
-use solana_program::{bpf_loader_upgradeable, system_program};
+use solana_program::{bpf_loader_upgradeable, system_program, sysvar};
 
 mod error;
 mod instruction;
@@ -57,6 +57,7 @@ pub fn initialize(
             AccountMeta::new(relay_round_pubkey, false),
             AccountMeta::new_readonly(program_data_pubkey, false),
             AccountMeta::new_readonly(system_program::id(), false),
+            AccountMeta::new_readonly(sysvar::rent::id(), false),
         ],
         data,
     }
@@ -84,6 +85,7 @@ pub fn create_proposal(
             AccountMeta::new_readonly(setting_pubkey, false),
             AccountMeta::new_readonly(*current_round_pubkey, false),
             AccountMeta::new_readonly(system_program::id(), false),
+            AccountMeta::new_readonly(sysvar::rent::id(), false),
         ],
         data,
     }
@@ -162,6 +164,7 @@ pub fn vote_for_proposal(
             AccountMeta::new(*new_round_pubkey, false),
             AccountMeta::new_readonly(*current_round_pubkey, false),
             AccountMeta::new_readonly(system_program::id(), false),
+            AccountMeta::new_readonly(sysvar::rent::id(), false),
         ],
         data,
     }
