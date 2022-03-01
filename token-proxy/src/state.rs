@@ -44,11 +44,9 @@ impl IsInitialized for Deposit {
     }
 }
 
-#[derive(Debug, BorshSerialize, BorshDeserialize, EnumAsInner)]
+#[derive(Debug, BorshSerialize, BorshDeserialize, EnumAsInner, PartialEq, Eq)]
 pub enum TokenKind {
-    Ever {
-        name: String,
-    },
+    Ever,
     Solana {
         mint: Pubkey,
         deposit_limit: u64,

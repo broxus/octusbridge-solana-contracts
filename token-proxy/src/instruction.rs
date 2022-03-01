@@ -35,6 +35,8 @@ pub enum TokenProxyInstruction {
     ///   7. []                 Token program
     ///   8. []                 The rent sysvar
     InitializeVault {
+        /// Vault asset name
+        name: String,
         // Deposit limit
         deposit_limit: u64,
         // Withdrawal limit
@@ -56,6 +58,8 @@ pub enum TokenProxyInstruction {
     ///   7. []                 Token program
     ///   8. []                 The rent sysvar
     DepositEver {
+        /// Mint asset name
+        name: String,
         // Unique transfer hash
         payload_id: Hash,
         // Ever recipient address
@@ -78,6 +82,8 @@ pub enum TokenProxyInstruction {
     ///   8. []                 Token program
     ///   9. []                 The rent sysvar
     DepositSol {
+        /// Vault asset name
+        name: String,
         // Unique transfer hash
         payload_id: Hash,
         // Ever recipient address

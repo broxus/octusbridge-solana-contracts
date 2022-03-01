@@ -20,16 +20,16 @@ mod entrypoint;
 
 solana_program::declare_id!("9pLaxnRNgMQY4Wpk9X1EjBVANwEPjwZw36ok8Af6gW1L");
 
-pub fn get_associated_vault_address(mint_pubkey: &Pubkey) -> Pubkey {
-    Pubkey::find_program_address(&[br"vault", &mint_pubkey.to_bytes()], &id()).0
+pub fn get_associated_vault_address(name: &str) -> Pubkey {
+    Pubkey::find_program_address(&[br"vault", name.as_bytes()], &id()).0
 }
 
 pub fn get_associated_mint_address(name: &str) -> Pubkey {
     Pubkey::find_program_address(&[br"mint", name.as_bytes()], &id()).0
 }
 
-pub fn get_associated_settings_address(mint_pubkey: &Pubkey) -> Pubkey {
-    Pubkey::find_program_address(&[br"settings", &mint_pubkey.to_bytes()], &id()).0
+pub fn get_associated_settings_address(name: &str) -> Pubkey {
+    Pubkey::find_program_address(&[br"settings", name.as_bytes()], &id()).0
 }
 
 pub fn get_associated_deposit_address(payload_id: &Hash) -> Pubkey {
@@ -43,19 +43,16 @@ pub fn get_program_data_address() -> Pubkey {
 pub fn initialize_mint(
     funder_pubkey: &Pubkey,
     initializer_pubkey: &Pubkey,
-    name: &str,
+    name: String,
     decimals: u8,
 ) -> Instruction {
-    let mint_pubkey = get_associated_mint_address(name);
-    let settings_pubkey = get_associated_settings_address(&mint_pubkey);
+    let mint_pubkey = get_associated_mint_address(&name);
+    let settings_pubkey = get_associated_settings_address(&name);
     let program_data_pubkey = get_program_data_address();
 
-    let data = TokenProxyInstruction::InitializeMint {
-        name: name.to_string(),
-        decimals,
-    }
-    .try_to_vec()
-    .expect("pack");
+    let data = TokenProxyInstruction::InitializeMint { name, decimals }
+        .try_to_vec()
+        .expect("pack");
 
     Instruction {
         program_id: id(),
@@ -77,13 +74,15 @@ pub fn initialize_vault(
     funder_pubkey: &Pubkey,
     initializer_pubkey: &Pubkey,
     mint_pubkey: &Pubkey,
+    name: String,
     decimals: u8,
 ) -> Instruction {
-    let vault_pubkey = get_associated_vault_address(&mint_pubkey);
-    let settings_pubkey = get_associated_settings_address(&mint_pubkey);
+    let vault_pubkey = get_associated_vault_address(&name);
+    let settings_pubkey = get_associated_settings_address(&name);
     let program_data_pubkey = get_program_data_address();
 
     let data = TokenProxyInstruction::InitializeVault {
+        name,
         deposit_limit: 1000000000,
         withdrawal_limit: 1000000000,
         decimals,
@@ -96,8 +95,8 @@ pub fn initialize_vault(
         accounts: vec![
             AccountMeta::new(*funder_pubkey, true),
             AccountMeta::new(*initializer_pubkey, true),
-            AccountMeta::new(vault_pubkey, false),
             AccountMeta::new(*mint_pubkey, false),
+            AccountMeta::new(vault_pubkey, false),
             AccountMeta::new(settings_pubkey, false),
             AccountMeta::new_readonly(program_data_pubkey, false),
             AccountMeta::new_readonly(spl_token::id(), false),
@@ -111,16 +110,18 @@ pub fn initialize_vault(
 pub fn deposit_ever(
     funder_pubkey: &Pubkey,
     sender_pubkey: &Pubkey,
-    mint_pubkey: &Pubkey,
+    name: String,
     payload_id: Hash,
     recipient: Pubkey,
     amount: u64,
 ) -> Instruction {
-    let sender_token_pubkey = get_associated_token_address(sender_pubkey, mint_pubkey);
-    let settings_pubkey = get_associated_settings_address(&mint_pubkey);
+    let mint_pubkey = get_associated_mint_address(&name);
+    let settings_pubkey = get_associated_settings_address(&name);
+    let sender_token_pubkey = get_associated_token_address(sender_pubkey, &mint_pubkey);
     let deposit_pubkey = get_associated_deposit_address(&payload_id);
 
     let data = TokenProxyInstruction::DepositEver {
+        name,
         payload_id,
         recipient,
         amount,
@@ -135,7 +136,7 @@ pub fn deposit_ever(
             AccountMeta::new(*sender_pubkey, true),
             AccountMeta::new(sender_token_pubkey, false),
             AccountMeta::new(deposit_pubkey, false),
-            AccountMeta::new(*mint_pubkey, false),
+            AccountMeta::new(mint_pubkey, false),
             AccountMeta::new_readonly(settings_pubkey, false),
             AccountMeta::new_readonly(system_program::id(), false),
             AccountMeta::new_readonly(spl_token::id(), false),
@@ -147,18 +148,21 @@ pub fn deposit_ever(
 
 pub fn deposit_sol(
     funder_pubkey: &Pubkey,
-    sender_pubkey: &Pubkey,
     mint_pubkey: &Pubkey,
+    sender_pubkey: &Pubkey,
+    name: String,
     payload_id: Hash,
     recipient: Pubkey,
     amount: u64,
 ) -> Instruction {
-    let sender_token_pubkey = get_associated_token_address(sender_pubkey, mint_pubkey);
-    let vault_pubkey = get_associated_vault_address(&mint_pubkey);
-    let settings_pubkey = get_associated_settings_address(&mint_pubkey);
+    let vault_pubkey = get_associated_vault_address(&name);
+    let settings_pubkey = get_associated_settings_address(&name);
+
     let deposit_pubkey = get_associated_deposit_address(&payload_id);
+    let sender_token_pubkey = get_associated_token_address(sender_pubkey, &mint_pubkey);
 
     let data = TokenProxyInstruction::DepositSol {
+        name,
         payload_id,
         recipient,
         amount,

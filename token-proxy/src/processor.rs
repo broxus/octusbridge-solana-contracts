@@ -28,6 +28,7 @@ impl Processor {
                 Self::process_mint_initialize(program_id, accounts, name, decimals)?;
             }
             TokenProxyInstruction::InitializeVault {
+                name,
                 deposit_limit,
                 withdrawal_limit,
                 decimals,
@@ -36,26 +37,33 @@ impl Processor {
                 Self::process_vault_initialize(
                     program_id,
                     accounts,
+                    name,
                     deposit_limit,
                     withdrawal_limit,
                     decimals,
                 )?;
             }
             TokenProxyInstruction::DepositEver {
+                name,
                 payload_id,
                 recipient,
                 amount,
             } => {
                 msg!("Instruction: Deposit EVER");
-                Self::process_deposit_ever(program_id, accounts, payload_id, recipient, amount)?;
+                Self::process_deposit_ever(
+                    program_id, accounts, name, payload_id, recipient, amount,
+                )?;
             }
             TokenProxyInstruction::DepositSol {
+                name,
                 payload_id,
                 recipient,
                 amount,
             } => {
                 msg!("Instruction: Deposit SOL");
-                Self::process_deposit_sol(program_id, accounts, payload_id, recipient, amount)?;
+                Self::process_deposit_sol(
+                    program_id, accounts, name, payload_id, recipient, amount,
+                )?;
             }
         };
 
@@ -135,19 +143,14 @@ impl Processor {
         )?;
 
         // Validate Settings Account
-        let (settings_account, settings_nonce) = Pubkey::find_program_address(
-            &[br"settings", &mint_account_info.key.to_bytes()],
-            program_id,
-        );
+        let (settings_account, settings_nonce) =
+            Pubkey::find_program_address(&[br"settings", name.as_bytes()], program_id);
         if settings_account != *settings_account_info.key {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        let settings_account_signer_seeds: &[&[_]] = &[
-            br"settings",
-            &mint_account_info.key.to_bytes(),
-            &[settings_nonce],
-        ];
+        let settings_account_signer_seeds: &[&[_]] =
+            &[br"settings", name.as_bytes(), &[settings_nonce]];
 
         // Create Settings Account
         invoke_signed(
@@ -169,7 +172,7 @@ impl Processor {
         // Init Settings Account
         let settings_account_data = Settings {
             is_initialized: true,
-            kind: TokenKind::Ever { name },
+            kind: TokenKind::Ever,
             decimals,
         };
 
@@ -184,6 +187,7 @@ impl Processor {
     fn process_vault_initialize(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
+        name: String,
         deposit_limit: u64,
         withdrawal_limit: u64,
         decimals: u8,
@@ -192,8 +196,8 @@ impl Processor {
 
         let funder_account_info = next_account_info(account_info_iter)?;
         let initializer_account_info = next_account_info(account_info_iter)?;
-        let vault_account_info = next_account_info(account_info_iter)?;
         let mint_account_info = next_account_info(account_info_iter)?;
+        let vault_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
         let programdata_account_info = next_account_info(account_info_iter)?;
         let token_program_info = next_account_info(account_info_iter)?;
@@ -213,16 +217,13 @@ impl Processor {
         )?;
 
         // Validate Vault Account
-        let (vault_account, nonce) = Pubkey::find_program_address(
-            &[br"vault", &mint_account_info.key.to_bytes()],
-            program_id,
-        );
+        let (vault_account, nonce) =
+            Pubkey::find_program_address(&[br"vault", name.as_bytes()], program_id);
         if vault_account != *vault_account_info.key {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        let vault_account_signer_seeds: &[&[_]] =
-            &[br"vault", &mint_account_info.key.to_bytes(), &[nonce]];
+        let vault_account_signer_seeds: &[&[_]] = &[br"vault", name.as_bytes(), &[nonce]];
 
         // Create Vault Account
         invoke_signed(
@@ -259,19 +260,14 @@ impl Processor {
         )?;
 
         // Validate Settings Account
-        let (settings_account, settings_nonce) = Pubkey::find_program_address(
-            &[br"settings", &mint_account_info.key.to_bytes()],
-            program_id,
-        );
+        let (settings_account, settings_nonce) =
+            Pubkey::find_program_address(&[br"settings", name.as_bytes()], program_id);
         if settings_account != *settings_account_info.key {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        let settings_account_signer_seeds: &[&[_]] = &[
-            br"settings",
-            &mint_account_info.key.to_bytes(),
-            &[settings_nonce],
-        ];
+        let settings_account_signer_seeds: &[&[_]] =
+            &[br"settings", name.as_bytes(), &[settings_nonce]];
 
         // Create Settings Account
         invoke_signed(
@@ -312,6 +308,7 @@ impl Processor {
     fn process_deposit_ever(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
+        name: String,
         payload_id: Hash,
         recipient: Pubkey,
         amount: u64,
@@ -334,15 +331,13 @@ impl Processor {
         }
 
         // Validate Settings Account
-        if settings_account_info.owner != program_id {
+        let (settings_account, _nonce) =
+            Pubkey::find_program_address(&[br"settings", name.as_bytes()], program_id);
+        if settings_account != *settings_account_info.key {
             return Err(ProgramError::InvalidAccountData);
         }
 
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
-        let name = settings_account_data
-            .kind
-            .as_ever()
-            .ok_or(TokenProxyError::InvalidTokenKind)?;
 
         // Validate Mint Account
         let (mint_account, _nonce) =
@@ -419,6 +414,7 @@ impl Processor {
     fn process_deposit_sol(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
+        name: String,
         payload_id: Hash,
         recipient: Pubkey,
         amount: u64,
@@ -442,7 +438,9 @@ impl Processor {
         }
 
         // Validate Settings Account
-        if settings_account_info.owner != program_id {
+        let (settings_account, _nonce) =
+            Pubkey::find_program_address(&[br"settings", name.as_bytes()], program_id);
+        if settings_account != *settings_account_info.key {
             return Err(ProgramError::InvalidAccountData);
         }
 
@@ -457,11 +455,9 @@ impl Processor {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        // Validate Vault account
-        let (vault_account, _nonce) = Pubkey::find_program_address(
-            &[br"vault", &mint_account_info.key.to_bytes()],
-            program_id,
-        );
+        // Validate Vault Account
+        let (vault_account, _nonce) =
+            Pubkey::find_program_address(&[br"vault", name.as_bytes()], program_id);
         if vault_account != *vault_account_info.key {
             return Err(ProgramError::InvalidAccountData);
         }

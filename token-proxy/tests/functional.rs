@@ -50,13 +50,13 @@ async fn test_init_mint_token_proxy() {
     // Start Program Test
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
-    let name = "USDT";
+    let name = "WEVER".to_string();
     let decimals = 9;
     let mut transaction = Transaction::new_with_payer(
         &[token_proxy::initialize_mint(
             &funder.pubkey(),
             &initializer.pubkey(),
-            name,
+            name.clone(),
             decimals,
         )],
         Some(&funder.pubkey()),
@@ -87,7 +87,7 @@ async fn test_init_mint_token_proxy() {
         program_option::COption::Some(mint_address)
     );
 
-    let settings_address = token_proxy::get_associated_settings_address(&mint_address);
+    let settings_address = token_proxy::get_associated_settings_address(&name);
     let settings_info = banks_client
         .get_account(settings_address)
         .await
@@ -99,12 +99,8 @@ async fn test_init_mint_token_proxy() {
     let settings_data = Settings::unpack(settings_info.data()).expect("settings unpack");
 
     assert_eq!(settings_data.is_initialized, true);
+    assert_eq!(settings_data.kind, TokenKind::Ever);
     assert_eq!(settings_data.decimals, decimals);
-
-    match settings_data.kind {
-        TokenKind::Ever { name: token_name } => assert_eq!(token_name, name.to_string()),
-        TokenKind::Solana { .. } => unreachable!(),
-    };
 }
 
 #[tokio::test]
@@ -144,6 +140,7 @@ async fn test_init_vault_token_proxy() {
     // Add Mint Account
     let mint = Keypair::new();
 
+    let name = "USDT".to_string();
     let decimals = 9;
     let mint_account_data = spl_token::state::Mint {
         is_initialized: true,
@@ -174,6 +171,7 @@ async fn test_init_vault_token_proxy() {
             &funder.pubkey(),
             &initializer.pubkey(),
             &mint.pubkey(),
+            name.clone(),
             decimals,
         )],
         Some(&funder.pubkey()),
@@ -185,7 +183,7 @@ async fn test_init_vault_token_proxy() {
         .await
         .expect("process_transaction");
 
-    let vault_address = token_proxy::get_associated_vault_address(&mint.pubkey());
+    let vault_address = token_proxy::get_associated_vault_address(&name);
     let vault_info = banks_client
         .get_account(vault_address)
         .await
@@ -302,11 +300,11 @@ async fn test_deposit_ever_token_proxy() {
     );
 
     // Add Settings Account
-    let settings_address = token_proxy::get_associated_settings_address(&mint_address);
+    let settings_address = token_proxy::get_associated_settings_address(&name);
 
     let settings_account_data = Settings {
         is_initialized: true,
-        kind: TokenKind::Ever { name },
+        kind: TokenKind::Ever,
         decimals,
     };
 
@@ -334,7 +332,7 @@ async fn test_deposit_ever_token_proxy() {
         &[token_proxy::deposit_ever(
             &funder.pubkey(),
             &sender.pubkey(),
-            &mint_address,
+            name,
             payload_id,
             recipient,
             amount,
@@ -404,6 +402,7 @@ async fn test_deposit_sol_token_proxy() {
     // Add Mint Account
     let mint = Keypair::new();
 
+    let name = "USDT".to_string();
     let decimals = 9;
     let mint_account_data = spl_token::state::Mint {
         is_initialized: true,
@@ -426,7 +425,7 @@ async fn test_deposit_sol_token_proxy() {
     );
 
     // Add Vault Account
-    let vault_address = token_proxy::get_associated_vault_address(&mint.pubkey());
+    let vault_address = token_proxy::get_associated_vault_address(&name);
 
     let vault_account_data = spl_token::state::Account {
         mint: mint.pubkey(),
@@ -488,7 +487,7 @@ async fn test_deposit_sol_token_proxy() {
     );
 
     // Add Settings Account
-    let settings_address = token_proxy::get_associated_settings_address(&mint.pubkey());
+    let settings_address = token_proxy::get_associated_settings_address(&name);
 
     let settings_account_data = Settings {
         is_initialized: true,
@@ -523,8 +522,9 @@ async fn test_deposit_sol_token_proxy() {
     let mut transaction = Transaction::new_with_payer(
         &[token_proxy::deposit_sol(
             &funder.pubkey(),
-            &sender.pubkey(),
             &mint.pubkey(),
+            &sender.pubkey(),
+            name.clone(),
             payload_id,
             recipient,
             amount,
@@ -538,7 +538,7 @@ async fn test_deposit_sol_token_proxy() {
         .await
         .expect("process_transaction");
 
-    let vault_address = token_proxy::get_associated_vault_address(&mint.pubkey());
+    let vault_address = token_proxy::get_associated_vault_address(&name);
     let vault_info = banks_client
         .get_account(vault_address)
         .await
