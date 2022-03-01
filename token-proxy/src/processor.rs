@@ -85,6 +85,20 @@ impl Processor {
                     amount,
                 )?;
             }
+            TokenProxyInstruction::ConfirmWithdrawEver {
+                name,
+                payload_id,
+                round_number,
+            } => {
+                msg!("Instruction: Confirm withdraw EVER");
+                Self::process_confirm_withdraw_ever(
+                    program_id,
+                    accounts,
+                    name,
+                    payload_id,
+                    round_number,
+                )?;
+            }
         };
 
         Ok(())
@@ -192,6 +206,7 @@ impl Processor {
         // Init Settings Account
         let settings_account_data = Settings {
             is_initialized: true,
+            emergency: false,
             kind: TokenKind::Ever,
             decimals,
         };
@@ -309,6 +324,7 @@ impl Processor {
         // Init Settings Account
         let settings_account_data = Settings {
             is_initialized: true,
+            emergency: false,
             kind: TokenKind::Solana {
                 mint: *mint_account_info.key,
                 deposit_limit,
@@ -358,6 +374,10 @@ impl Processor {
         }
 
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+
+        if settings_account_data.emergency {
+            return Err(TokenProxyError::EmergencyEnabled.into());
+        }
 
         // Validate Mint Account
         let (mint_account, _nonce) =
@@ -464,6 +484,11 @@ impl Processor {
         }
 
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+
+        if settings_account_data.emergency {
+            return Err(TokenProxyError::EmergencyEnabled.into());
+        }
+
         let (mint, deposit_limit, ..) = settings_account_data
             .kind
             .as_solana()
@@ -584,6 +609,11 @@ impl Processor {
         }
 
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+
+        if settings_account_data.emergency {
+            return Err(TokenProxyError::EmergencyEnabled.into());
+        }
+
         let kind = settings_account_data.kind;
 
         // Validate Relay Round Account
@@ -643,6 +673,90 @@ impl Processor {
             required_votes,
             amount,
         };
+
+        Withdrawal::pack(
+            withdrawal_account_data,
+            &mut withdrawal_account_info.data.borrow_mut(),
+        )?;
+
+        Ok(())
+    }
+
+    fn process_confirm_withdraw_ever(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        name: String,
+        payload_id: Hash,
+        round_number: u32,
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+
+        let relay_account_info = next_account_info(account_info_iter)?;
+        let withdrawal_account_info = next_account_info(account_info_iter)?;
+        let settings_account_info = next_account_info(account_info_iter)?;
+        let relay_round_account_info = next_account_info(account_info_iter)?;
+        let clock_info = next_account_info(account_info_iter)?;
+        let clock = Clock::from_account_info(clock_info)?;
+
+        if !relay_account_info.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        // Validate Settings Account
+        let (settings_account, _nonce) =
+            Pubkey::find_program_address(&[br"settings", name.as_bytes()], program_id);
+        if settings_account != *settings_account_info.key {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+
+        if settings_account_data.emergency {
+            return Err(TokenProxyError::EmergencyEnabled.into());
+        }
+
+        // Validate Relay Round Account
+        let relay_round_account = round_loader::get_associated_relay_round_address(round_number);
+        if relay_round_account != *relay_round_account_info.key {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        let relay_round_account_data =
+            round_loader::RelayRound::unpack(&relay_round_account_info.data.borrow())?;
+
+        if relay_round_account_data.round_number != round_number {
+            return Err(TokenProxyError::InvalidRelayRound.into());
+        }
+
+        if relay_round_account_data.round_ttl <= clock.unix_timestamp {
+            return Err(TokenProxyError::RelayRoundExpired.into());
+        }
+
+        let relay_round_account_data =
+            round_loader::RelayRound::unpack(&relay_round_account_info.data.borrow())?;
+
+        // Validate Relay Account
+        if !relay_round_account_data
+            .relays
+            .contains(relay_account_info.key)
+        {
+            return Err(TokenProxyError::InvalidRelay.into());
+        }
+
+        // Validate Withdrawal Account
+        let (withdrawal_account, _nonce) =
+            Pubkey::find_program_address(&[br"withdrawal", &payload_id.to_bytes()], program_id);
+        if withdrawal_account != *withdrawal_account_info.key {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        // Update Withdrawal Account
+        let mut withdrawal_account_data =
+            Withdrawal::unpack(&withdrawal_account_info.data.borrow())?;
+
+        withdrawal_account_data
+            .signers
+            .push(*relay_account_info.key);
 
         Withdrawal::pack(
             withdrawal_account_data,

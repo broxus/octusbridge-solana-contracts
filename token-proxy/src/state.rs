@@ -14,6 +14,7 @@ pub struct Settings {
     pub is_initialized: bool,
     pub kind: TokenKind,
     pub decimals: u8,
+    pub emergency: bool,
 }
 
 impl Sealed for Settings {}

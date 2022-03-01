@@ -107,4 +107,18 @@ pub enum TokenProxyInstruction {
         // Deposit amount
         amount: u64,
     },
+
+    /// Confirm withdraw EVER
+    ///
+    /// # Account references
+    ///   0. [WRITE, SIGNER]    Funder account
+    /// ...
+    ConfirmWithdrawEver {
+        /// Mint asset name
+        name: String,
+        // Unique transfer hash
+        payload_id: Hash,
+        // Current round number
+        round_number: u32,
+    },
 }

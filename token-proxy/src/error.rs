@@ -12,6 +12,10 @@ pub enum TokenProxyError {
     RelayRoundExpired,
     #[error("Invalid relay round")]
     InvalidRelayRound,
+    #[error("Relay not in the round")]
+    InvalidRelay,
+    #[error("Emergency mode enabled")]
+    EmergencyEnabled,
 }
 
 impl From<TokenProxyError> for ProgramError {

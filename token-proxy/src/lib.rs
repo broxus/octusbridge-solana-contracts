@@ -80,6 +80,8 @@ pub fn initialize_vault(
     mint_pubkey: &Pubkey,
     name: String,
     decimals: u8,
+    deposit_limit: u64,
+    withdrawal_limit: u64,
 ) -> Instruction {
     let vault_pubkey = get_associated_vault_address(&name);
     let settings_pubkey = get_associated_settings_address(&name);
@@ -87,8 +89,8 @@ pub fn initialize_vault(
 
     let data = TokenProxyInstruction::InitializeVault {
         name,
-        deposit_limit: 1000000000,
-        withdrawal_limit: 1000000000,
+        deposit_limit,
+        withdrawal_limit,
         decimals,
     }
     .try_to_vec()
@@ -222,6 +224,37 @@ pub fn withdrawal_ever(
             AccountMeta::new_readonly(system_program::id(), false),
             AccountMeta::new_readonly(sysvar::clock::id(), false),
             AccountMeta::new_readonly(sysvar::rent::id(), false),
+        ],
+        data,
+    }
+}
+
+pub fn confirm_withdrawal_ever(
+    relay_pubkey: &Pubkey,
+    name: String,
+    payload_id: Hash,
+    round_number: u32,
+) -> Instruction {
+    let settings_pubkey = get_associated_settings_address(&name);
+    let withdrawal_pubkey = get_associated_withdrawal_address(&payload_id);
+    let relay_round_pubkey = round_loader::get_associated_relay_round_address(round_number);
+
+    let data = TokenProxyInstruction::ConfirmWithdrawEver {
+        name,
+        payload_id,
+        round_number,
+    }
+    .try_to_vec()
+    .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(*relay_pubkey, true),
+            AccountMeta::new(withdrawal_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new_readonly(relay_round_pubkey, false),
+            AccountMeta::new_readonly(sysvar::clock::id(), false),
         ],
         data,
     }
