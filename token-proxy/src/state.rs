@@ -44,6 +44,27 @@ impl IsInitialized for Deposit {
     }
 }
 
+#[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
+#[bridge_pack(length = 5000)]
+pub struct Withdrawal {
+    pub is_initialized: bool,
+    pub payload_id: Hash,
+    pub kind: TokenKind,
+    pub required_votes: u32,
+    pub signers: Vec<Pubkey>,
+    pub status: WithdrawalStatus,
+    pub amount: u64,
+    pub bounty: u64,
+}
+
+impl Sealed for Withdrawal {}
+
+impl IsInitialized for Withdrawal {
+    fn is_initialized(&self) -> bool {
+        self.is_initialized
+    }
+}
+
 #[derive(Debug, BorshSerialize, BorshDeserialize, EnumAsInner, PartialEq, Eq)]
 pub enum TokenKind {
     Ever,
@@ -52,4 +73,14 @@ pub enum TokenKind {
         deposit_limit: u64,
         withdrawal_limit: u64,
     },
+}
+
+#[derive(Copy, BorshSerialize, BorshDeserialize, Debug, Clone, PartialEq)]
+pub enum WithdrawalStatus {
+    New,
+    Expired,
+    Processed,
+    Cancelled,
+    Pending,
+    WaitingForApprove,
 }

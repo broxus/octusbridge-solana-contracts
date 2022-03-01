@@ -57,7 +57,7 @@ impl Processor {
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         round: u32,
-        round_ttl: u32,
+        round_ttl: i64,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 

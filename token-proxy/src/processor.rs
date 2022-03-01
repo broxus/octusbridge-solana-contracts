@@ -1,6 +1,7 @@
 use borsh::BorshDeserialize;
 
 use solana_program::account_info::{next_account_info, AccountInfo};
+use solana_program::clock::Clock;
 use solana_program::entrypoint::ProgramResult;
 use solana_program::hash::Hash;
 use solana_program::program::{invoke, invoke_signed};
@@ -11,7 +12,10 @@ use solana_program::rent::Rent;
 use solana_program::sysvar::Sysvar;
 use solana_program::{msg, system_instruction};
 
-use crate::{Deposit, Settings, TokenKind, TokenProxyError, TokenProxyInstruction};
+use crate::{
+    Deposit, Settings, TokenKind, TokenProxyError, TokenProxyInstruction, Withdrawal,
+    WithdrawalStatus,
+};
 
 pub struct Processor;
 impl Processor {
@@ -63,6 +67,22 @@ impl Processor {
                 msg!("Instruction: Deposit SOL");
                 Self::process_deposit_sol(
                     program_id, accounts, name, payload_id, recipient, amount,
+                )?;
+            }
+            TokenProxyInstruction::WithdrawEver {
+                name,
+                payload_id,
+                round_number,
+                amount,
+            } => {
+                msg!("Instruction: Withdraw EVER");
+                Self::process_withdraw_ever(
+                    program_id,
+                    accounts,
+                    name,
+                    payload_id,
+                    round_number,
+                    amount,
                 )?;
             }
         };
@@ -367,7 +387,6 @@ impl Processor {
         // Validate Deposit Account
         let (deposit_account, deposit_nonce) =
             Pubkey::find_program_address(&[br"deposit", &payload_id.to_bytes()], program_id);
-
         if deposit_account != *deposit_account_info.key {
             return Err(ProgramError::InvalidAccountData);
         }
@@ -492,7 +511,6 @@ impl Processor {
         // Validate Deposit Account
         let (deposit_account, deposit_nonce) =
             Pubkey::find_program_address(&[br"deposit", &payload_id.to_bytes()], program_id);
-
         if deposit_account != *deposit_account_info.key {
             return Err(ProgramError::InvalidAccountData);
         }
@@ -531,6 +549,104 @@ impl Processor {
         Deposit::pack(
             deposit_account_data,
             &mut deposit_account_info.data.borrow_mut(),
+        )?;
+
+        Ok(())
+    }
+
+    fn process_withdraw_ever(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        name: String,
+        payload_id: Hash,
+        round_number: u32,
+        amount: u64,
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+
+        let funder_account_info = next_account_info(account_info_iter)?;
+        let withdrawal_account_info = next_account_info(account_info_iter)?;
+        let settings_account_info = next_account_info(account_info_iter)?;
+        let relay_round_account_info = next_account_info(account_info_iter)?;
+        let system_program_info = next_account_info(account_info_iter)?;
+
+        let clock_info = next_account_info(account_info_iter)?;
+        let clock = Clock::from_account_info(clock_info)?;
+
+        let rent_sysvar_info = next_account_info(account_info_iter)?;
+        let rent = &Rent::from_account_info(rent_sysvar_info)?;
+
+        // Validate Settings Account
+        let (settings_account, _nonce) =
+            Pubkey::find_program_address(&[br"settings", name.as_bytes()], program_id);
+        if settings_account != *settings_account_info.key {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+        let kind = settings_account_data.kind;
+
+        // Validate Relay Round Account
+        let relay_round_account = round_loader::get_associated_relay_round_address(round_number);
+        if relay_round_account != *relay_round_account_info.key {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        let relay_round_account_data =
+            round_loader::RelayRound::unpack(&relay_round_account_info.data.borrow())?;
+
+        if relay_round_account_data.round_number != round_number {
+            return Err(TokenProxyError::InvalidRelayRound.into());
+        }
+
+        if relay_round_account_data.round_ttl <= clock.unix_timestamp {
+            return Err(TokenProxyError::RelayRoundExpired.into());
+        }
+
+        let required_votes = (relay_round_account_data.relays.len() * 2 / 3 + 1) as u32;
+
+        // Validate Withdrawal Account
+        let (withdrawal_account, deposit_nonce) =
+            Pubkey::find_program_address(&[br"withdrawal", &payload_id.to_bytes()], program_id);
+        if withdrawal_account != *withdrawal_account_info.key {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        let withdrawal_account_signer_seeds: &[&[_]] =
+            &[br"withdrawal", &payload_id.to_bytes(), &[deposit_nonce]];
+
+        // Create Withdrawal Account
+        invoke_signed(
+            &system_instruction::create_account(
+                funder_account_info.key,
+                withdrawal_account_info.key,
+                1.max(rent.minimum_balance(Withdrawal::LEN)),
+                Withdrawal::LEN as u64,
+                program_id,
+            ),
+            &[
+                funder_account_info.clone(),
+                withdrawal_account_info.clone(),
+                system_program_info.clone(),
+            ],
+            &[withdrawal_account_signer_seeds],
+        )?;
+
+        // Init Withdrawal Account
+        let withdrawal_account_data = Withdrawal {
+            is_initialized: true,
+            status: WithdrawalStatus::New,
+            signers: vec![],
+            bounty: 0,
+            payload_id,
+            kind,
+            required_votes,
+            amount,
+        };
+
+        Withdrawal::pack(
+            withdrawal_account_data,
+            &mut withdrawal_account_info.data.borrow_mut(),
         )?;
 
         Ok(())

@@ -8,6 +8,10 @@ pub enum TokenProxyError {
     DepositLimit,
     #[error("Invalid token kind")]
     InvalidTokenKind,
+    #[error("Relay round expired")]
+    RelayRoundExpired,
+    #[error("Invalid relay round")]
+    InvalidRelayRound,
 }
 
 impl From<TokenProxyError> for ProgramError {

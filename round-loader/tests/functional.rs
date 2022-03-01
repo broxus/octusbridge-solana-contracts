@@ -19,7 +19,7 @@ use round_loader::{
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 struct WriteData {
-    round_ttl: u32,
+    round_ttl: i64,
     relays: Vec<Pubkey>,
 }
 
@@ -45,10 +45,13 @@ async fn test_init_relay_loader() {
         upgrade_authority_address: Some(creator.pubkey()),
     };
 
+    let programdata_data_serialized =
+        bincode::serialize::<UpgradeableLoaderState>(&programdata_data).unwrap();
+
     program_test.add_account(
         programdata_address,
         Account {
-            lamports: Rent::default().minimum_balance(8 + 32),
+            lamports: Rent::default().minimum_balance(programdata_data_serialized.len()),
             data: bincode::serialize::<UpgradeableLoaderState>(&programdata_data).unwrap(),
             owner: round_loader::id(),
             executable: false,

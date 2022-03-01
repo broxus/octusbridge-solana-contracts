@@ -15,19 +15,19 @@ pub const LOAD_DATA_BEGIN_OFFSET: usize = 1
     + 1; // is_executed
 
 pub const LOAD_DATA_END_OFFSET: usize = LOAD_DATA_BEGIN_OFFSET
-    + 4                          // round_ttl
+    + 8                          // round_ttl
     + 4                          // relays len
     + PUBKEY_BYTES * MAX_RELAYS; // relays
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
-#[bridge_pack(length = 6454)]
+#[bridge_pack(length = 6458)]
 pub struct RelayRoundProposal {
     pub is_initialized: bool,
     pub author: Pubkey,
     pub round_number: u32,
     pub required_votes: u32,
     pub is_executed: bool,
-    pub round_ttl: u32,
+    pub round_ttl: i64,
     pub relays: Vec<Pubkey>,
     pub voters: Vec<Pubkey>,
 }
@@ -41,11 +41,11 @@ impl IsInitialized for RelayRoundProposal {
 }
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
-#[bridge_pack(length = 3213)]
+#[bridge_pack(length = 3217)]
 pub struct RelayRound {
     pub is_initialized: bool,
     pub round_number: u32,
-    pub round_ttl: u32,
+    pub round_ttl: i64,
     pub relays: Vec<Pubkey>,
 }
 

@@ -20,7 +20,7 @@ spl-associated-token-account = {version = "1.0", features = ["no-entrypoint"]}
 
 bridge-derive = { path = "../bridge-derive" }
 bridge-utils = { path = "../bridge-utils" }
-round-loader = {path = "../round-loader"}
+round-loader = { path = "../round-loader", features = ["no-entrypoint"] }
 
 [dev-dependencies]
 solana-program-test = "1.9"

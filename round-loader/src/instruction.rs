@@ -16,7 +16,7 @@ pub enum RoundLoaderInstruction {
         /// Genesis Relay Round number
         round: u32,
         /// TTL of round
-        round_ttl: u32,
+        round_ttl: i64,
     },
 
     /// Create proposal account for a new Relay Round

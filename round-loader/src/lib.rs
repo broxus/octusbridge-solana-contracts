@@ -38,7 +38,7 @@ pub fn initialize(
     funder_pubkey: &Pubkey,
     creator_pubkey: &Pubkey,
     round: u32,
-    round_ttl: u32,
+    round_ttl: i64,
 ) -> Instruction {
     let setting_pubkey = get_associated_settings_address();
     let program_data_pubkey = get_program_data_address();
