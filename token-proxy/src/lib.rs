@@ -201,7 +201,7 @@ pub fn deposit_sol(
     }
 }
 
-pub fn withdrawal_ever_request(
+pub fn withdrawal_request(
     funder_pubkey: &Pubkey,
     to_pubkey: &Pubkey,
     name: String,
@@ -217,7 +217,7 @@ pub fn withdrawal_ever_request(
     let recipient_pubkey =
         spl_associated_token_account::get_associated_token_address(to_pubkey, &mint_pubkey);
 
-    let data = TokenProxyInstruction::WithdrawEverRequest {
+    let data = TokenProxyInstruction::WithdrawRequest {
         name,
         payload_id,
         round_number,
@@ -242,7 +242,7 @@ pub fn withdrawal_ever_request(
     }
 }
 
-pub fn confirm_withdrawal_ever(
+pub fn confirm_withdrawal_request(
     relay_pubkey: &Pubkey,
     name: String,
     payload_id: Hash,
@@ -252,7 +252,7 @@ pub fn confirm_withdrawal_ever(
     let withdrawal_pubkey = get_associated_withdrawal_address(&payload_id);
     let relay_round_pubkey = round_loader::get_associated_relay_round_address(round_number);
 
-    let data = TokenProxyInstruction::ConfirmWithdrawEver {
+    let data = TokenProxyInstruction::ConfirmWithdrawRequest {
         name,
         payload_id,
         round_number,
@@ -289,6 +289,36 @@ pub fn withdrawal_ever(to_pubkey: &Pubkey, name: String, payload_id: Hash) -> In
         program_id: id(),
         accounts: vec![
             AccountMeta::new(mint_pubkey, false),
+            AccountMeta::new(withdrawal_pubkey, false),
+            AccountMeta::new(recipient_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new_readonly(spl_token::id(), false),
+        ],
+        data,
+    }
+}
+
+pub fn withdrawal_sol(
+    mint_pubkey: &Pubkey,
+    to_pubkey: &Pubkey,
+    name: String,
+    payload_id: Hash,
+) -> Instruction {
+    let settings_pubkey = get_associated_settings_address(&name);
+    let withdrawal_pubkey = get_associated_withdrawal_address(&payload_id);
+
+    let vault_account = get_associated_vault_address(&name);
+    let recipient_pubkey =
+        spl_associated_token_account::get_associated_token_address(to_pubkey, &mint_pubkey);
+
+    let data = TokenProxyInstruction::WithdrawSol { name, payload_id }
+        .try_to_vec()
+        .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(vault_account, false),
             AccountMeta::new(withdrawal_pubkey, false),
             AccountMeta::new(recipient_pubkey, false),
             AccountMeta::new_readonly(settings_pubkey, false),

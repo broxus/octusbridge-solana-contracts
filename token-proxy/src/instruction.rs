@@ -101,7 +101,7 @@ pub enum TokenProxyInstruction {
     /// # Account references
     ///   0. [WRITE, SIGNER]    Funder account
     /// ...
-    WithdrawEverRequest {
+    WithdrawRequest {
         /// Mint asset name
         name: String,
         // Unique transfer hash
@@ -112,12 +112,12 @@ pub enum TokenProxyInstruction {
         amount: u64,
     },
 
-    /// Confirm withdraw EVER
+    /// Confirm withdraw EVER request
     ///
     /// # Account references
     ///   0. [WRITE, SIGNER]    Funder account
     /// ...
-    ConfirmWithdrawEver {
+    ConfirmWithdrawRequest {
         /// Mint asset name
         name: String,
         // Unique transfer hash
@@ -132,6 +132,18 @@ pub enum TokenProxyInstruction {
     ///   0. [WRITE, SIGNER]    Funder account
     /// ...
     WithdrawEver {
+        /// Mint asset name
+        name: String,
+        // Unique transfer hash
+        payload_id: Hash,
+    },
+
+    /// Withdraw SOL
+    ///
+    /// # Account references
+    ///   0. [WRITE, SIGNER]    Funder account
+    /// ...
+    WithdrawSol {
         /// Mint asset name
         name: String,
         // Unique transfer hash
