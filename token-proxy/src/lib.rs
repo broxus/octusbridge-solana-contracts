@@ -194,7 +194,7 @@ pub fn deposit_sol(
     }
 }
 
-pub fn withdrawal_ever(
+pub fn withdrawal_ever_request(
     funder_pubkey: &Pubkey,
     name: String,
     payload_id: Hash,
@@ -205,7 +205,7 @@ pub fn withdrawal_ever(
     let withdrawal_pubkey = get_associated_withdrawal_address(&payload_id);
     let relay_round_pubkey = round_loader::get_associated_relay_round_address(round_number);
 
-    let data = TokenProxyInstruction::WithdrawEver {
+    let data = TokenProxyInstruction::WithdrawEverRequest {
         name,
         payload_id,
         round_number,

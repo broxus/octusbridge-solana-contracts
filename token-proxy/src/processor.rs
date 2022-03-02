@@ -69,14 +69,14 @@ impl Processor {
                     program_id, accounts, name, payload_id, recipient, amount,
                 )?;
             }
-            TokenProxyInstruction::WithdrawEver {
+            TokenProxyInstruction::WithdrawEverRequest {
                 name,
                 payload_id,
                 round_number,
                 amount,
             } => {
-                msg!("Instruction: Withdraw EVER");
-                Self::process_withdraw_ever(
+                msg!("Instruction: Withdraw EVER request");
+                Self::process_withdraw_ever_request(
                     program_id,
                     accounts,
                     name,
@@ -579,7 +579,7 @@ impl Processor {
         Ok(())
     }
 
-    fn process_withdraw_ever(
+    fn process_withdraw_ever_request(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         name: String,

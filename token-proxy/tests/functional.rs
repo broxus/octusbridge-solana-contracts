@@ -671,7 +671,7 @@ async fn test_withdrawal_ever() {
     let amount = 32;
 
     let mut transaction = Transaction::new_with_payer(
-        &[token_proxy::withdrawal_ever(
+        &[token_proxy::withdrawal_ever_request(
             &funder.pubkey(),
             name,
             payload_id.clone(),

@@ -92,12 +92,12 @@ pub enum TokenProxyInstruction {
         amount: u64,
     },
 
-    /// Withdraw EVER
+    /// Withdraw EVER request
     ///
     /// # Account references
     ///   0. [WRITE, SIGNER]    Funder account
     /// ...
-    WithdrawEver {
+    WithdrawEverRequest {
         /// Mint asset name
         name: String,
         // Unique transfer hash
