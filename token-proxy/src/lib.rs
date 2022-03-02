@@ -49,14 +49,21 @@ pub fn initialize_mint(
     initializer_pubkey: &Pubkey,
     name: String,
     decimals: u8,
+    deposit_limit: u64,
+    withdrawal_limit: u64,
 ) -> Instruction {
     let mint_pubkey = get_associated_mint_address(&name);
     let settings_pubkey = get_associated_settings_address(&name);
     let program_data_pubkey = get_program_data_address();
 
-    let data = TokenProxyInstruction::InitializeMint { name, decimals }
-        .try_to_vec()
-        .expect("pack");
+    let data = TokenProxyInstruction::InitializeMint {
+        name,
+        decimals,
+        deposit_limit,
+        withdrawal_limit,
+    }
+    .try_to_vec()
+    .expect("pack");
 
     Instruction {
         program_id: id(),
@@ -196,6 +203,7 @@ pub fn deposit_sol(
 
 pub fn withdrawal_ever_request(
     funder_pubkey: &Pubkey,
+    to_pubkey: &Pubkey,
     name: String,
     payload_id: Hash,
     round_number: u32,
@@ -204,6 +212,10 @@ pub fn withdrawal_ever_request(
     let settings_pubkey = get_associated_settings_address(&name);
     let withdrawal_pubkey = get_associated_withdrawal_address(&payload_id);
     let relay_round_pubkey = round_loader::get_associated_relay_round_address(round_number);
+
+    let mint_pubkey = get_associated_mint_address(&name);
+    let recipient_pubkey =
+        spl_associated_token_account::get_associated_token_address(to_pubkey, &mint_pubkey);
 
     let data = TokenProxyInstruction::WithdrawEverRequest {
         name,
@@ -219,6 +231,7 @@ pub fn withdrawal_ever_request(
         accounts: vec![
             AccountMeta::new(*funder_pubkey, true),
             AccountMeta::new(withdrawal_pubkey, false),
+            AccountMeta::new_readonly(recipient_pubkey, false),
             AccountMeta::new_readonly(settings_pubkey, false),
             AccountMeta::new_readonly(relay_round_pubkey, false),
             AccountMeta::new_readonly(system_program::id(), false),
@@ -255,6 +268,31 @@ pub fn confirm_withdrawal_ever(
             AccountMeta::new_readonly(settings_pubkey, false),
             AccountMeta::new_readonly(relay_round_pubkey, false),
             AccountMeta::new_readonly(sysvar::clock::id(), false),
+        ],
+        data,
+    }
+}
+
+pub fn withdrawal_ever(to_pubkey: &Pubkey, name: String, payload_id: Hash) -> Instruction {
+    let settings_pubkey = get_associated_settings_address(&name);
+    let withdrawal_pubkey = get_associated_withdrawal_address(&payload_id);
+
+    let mint_pubkey = get_associated_mint_address(&name);
+    let recipient_pubkey =
+        spl_associated_token_account::get_associated_token_address(to_pubkey, &mint_pubkey);
+
+    let data = TokenProxyInstruction::WithdrawEver { name, payload_id }
+        .try_to_vec()
+        .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(mint_pubkey, false),
+            AccountMeta::new(withdrawal_pubkey, false),
+            AccountMeta::new(recipient_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new_readonly(spl_token::id(), false),
         ],
         data,
     }

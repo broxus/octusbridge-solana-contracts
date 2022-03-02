@@ -53,12 +53,16 @@ async fn test_init_mint() {
 
     let name = "WEVER".to_string();
     let decimals = 9;
+    let deposit_limit = 10000000;
+    let withdrawal_limit = 10000;
     let mut transaction = Transaction::new_with_payer(
         &[token_proxy::initialize_mint(
             &funder.pubkey(),
             &initializer.pubkey(),
             name.clone(),
             decimals,
+            deposit_limit,
+            withdrawal_limit,
         )],
         Some(&funder.pubkey()),
     );
@@ -99,8 +103,10 @@ async fn test_init_mint() {
 
     assert_eq!(settings_data.is_initialized, true);
     assert_eq!(settings_data.emergency, false);
-    assert_eq!(settings_data.kind, TokenKind::Ever);
+    assert_eq!(settings_data.kind, TokenKind::Ever { mint: mint_address });
     assert_eq!(settings_data.decimals, decimals);
+    assert_eq!(settings_data.deposit_limit, deposit_limit);
+    assert_eq!(settings_data.withdrawal_limit, withdrawal_limit);
 }
 
 #[tokio::test]
@@ -142,6 +148,8 @@ async fn test_init_vault() {
 
     let name = "USDT".to_string();
     let decimals = 9;
+    let deposit_limit = 10000000;
+    let withdrawal_limit = 10000;
     let mint_account_data = spl_token::state::Mint {
         is_initialized: true,
         mint_authority: program_option::COption::Some(mint.pubkey()),
@@ -165,9 +173,6 @@ async fn test_init_vault() {
     // Start Program Test
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
-    let decimals = 9;
-    let deposit_limit = 10000000;
-    let withdrawal_limit = 10000;
     let mut transaction = Transaction::new_with_payer(
         &[token_proxy::initialize_vault(
             &funder.pubkey(),
@@ -218,11 +223,12 @@ async fn test_init_vault() {
         settings_data.kind,
         TokenKind::Solana {
             mint: mint.pubkey(),
-            deposit_limit,
-            withdrawal_limit,
+            vault: vault_address,
         }
     );
     assert_eq!(settings_data.decimals, decimals);
+    assert_eq!(settings_data.deposit_limit, deposit_limit);
+    assert_eq!(settings_data.withdrawal_limit, withdrawal_limit);
 }
 
 #[tokio::test]
@@ -260,8 +266,10 @@ async fn test_deposit_ever() {
     );
 
     // Add Mint Account
-    let decimals = 9;
     let name = "WEVER".to_string();
+    let decimals = 9;
+    let deposit_limit = 10000000;
+    let withdrawal_limit = 10000;
 
     let mint_address = token_proxy::get_associated_mint_address(&name);
 
@@ -330,8 +338,10 @@ async fn test_deposit_ever() {
     let settings_account_data = Settings {
         is_initialized: true,
         emergency: false,
-        kind: TokenKind::Ever,
+        kind: TokenKind::Ever { mint: mint_address },
         decimals,
+        deposit_limit,
+        withdrawal_limit,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -430,6 +440,9 @@ async fn test_deposit_sol() {
 
     let name = "USDT".to_string();
     let decimals = 9;
+    let deposit_limit = 10000000;
+    let withdrawal_limit = 10000;
+
     let mint_account_data = spl_token::state::Mint {
         is_initialized: true,
         mint_authority: program_option::COption::Some(mint.pubkey()),
@@ -520,10 +533,11 @@ async fn test_deposit_sol() {
         emergency: false,
         kind: TokenKind::Solana {
             mint: mint.pubkey(),
-            deposit_limit: 1000,
-            withdrawal_limit: 1000,
+            vault: vault_address,
         },
         decimals,
+        deposit_limit,
+        withdrawal_limit,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -577,7 +591,7 @@ async fn test_deposit_sol() {
 }
 
 #[tokio::test]
-async fn test_withdrawal_ever() {
+async fn test_withdrawal_ever_request() {
     let mut program_test = ProgramTest::new(
         "token_proxy",
         token_proxy::id(),
@@ -612,6 +626,10 @@ async fn test_withdrawal_ever() {
 
     let name = "WEVER".to_string();
     let decimals = 9;
+    let deposit_limit = 10000000;
+    let withdrawal_limit = 10000;
+
+    let mint_address = token_proxy::get_associated_mint_address(&name);
 
     // Add Settings Account
     let settings_address = token_proxy::get_associated_settings_address(&name);
@@ -619,8 +637,10 @@ async fn test_withdrawal_ever() {
     let settings_account_data = Settings {
         is_initialized: true,
         emergency: false,
-        kind: TokenKind::Ever,
+        kind: TokenKind::Ever { mint: mint_address },
         decimals,
+        deposit_limit,
+        withdrawal_limit,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -668,11 +688,13 @@ async fn test_withdrawal_ever() {
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
     let payload_id = Hash::new_unique();
+    let recipient_address = Pubkey::new_unique();
     let amount = 32;
 
     let mut transaction = Transaction::new_with_payer(
         &[token_proxy::withdrawal_ever_request(
             &funder.pubkey(),
+            &recipient_address,
             name,
             payload_id.clone(),
             round_number,
@@ -699,7 +721,7 @@ async fn test_withdrawal_ever() {
     assert_eq!(withdrawal_data.payload_id, payload_id);
     assert_eq!(withdrawal_data.amount, amount);
     assert_eq!(withdrawal_data.signers.len(), 0);
-    assert_eq!(withdrawal_data.kind, TokenKind::Ever);
+    assert_eq!(withdrawal_data.kind, TokenKind::Ever { mint: mint_address });
     assert_eq!(withdrawal_data.status, WithdrawalStatus::New);
 }
 
@@ -739,6 +761,10 @@ async fn test_confirm_withdrawal_ever() {
 
     let name = "WEVER".to_string();
     let decimals = 9;
+    let deposit_limit = 10000000;
+    let withdrawal_limit = 10000;
+
+    let mint_address = token_proxy::get_associated_mint_address(&name);
 
     // Add Settings Account
     let settings_address = token_proxy::get_associated_settings_address(&name);
@@ -746,8 +772,10 @@ async fn test_confirm_withdrawal_ever() {
     let settings_account_data = Settings {
         is_initialized: true,
         emergency: false,
-        kind: TokenKind::Ever,
+        kind: TokenKind::Ever { mint: mint_address },
         decimals,
+        deposit_limit,
+        withdrawal_limit,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -791,13 +819,15 @@ async fn test_confirm_withdrawal_ever() {
 
     // Add Withdrawal Round Account
     let payload_id = Hash::new_unique();
+    let recipient_address = Pubkey::new_unique();
 
     let withdrawal_address = token_proxy::get_associated_withdrawal_address(&payload_id);
 
     let withdrawal_account_data = Withdrawal {
         is_initialized: true,
         payload_id,
-        kind: TokenKind::Ever,
+        kind: TokenKind::Ever { mint: mint_address },
+        recipient: recipient_address,
         required_votes: 1,
         signers: vec![],
         status: WithdrawalStatus::New,
@@ -846,4 +876,185 @@ async fn test_confirm_withdrawal_ever() {
 
     let withdrawal_data = Withdrawal::unpack(withdrawal_info.data()).expect("mint unpack");
     assert_eq!(withdrawal_data.signers.len(), 1);
+}
+
+#[tokio::test]
+async fn test_withdrawal_ever() {
+    let mut program_test = ProgramTest::new(
+        "token_proxy",
+        token_proxy::id(),
+        processor!(Processor::process),
+    );
+
+    // Setup environment
+    let initializer = Keypair::new();
+
+    let programdata_address =
+        Pubkey::find_program_address(&[token_proxy::id().as_ref()], &bpf_loader_upgradeable::id())
+            .0;
+
+    let programdata_data = UpgradeableLoaderState::ProgramData {
+        slot: 0,
+        upgrade_authority_address: Some(initializer.pubkey()),
+    };
+
+    let programdata_data_serialized =
+        bincode::serialize::<UpgradeableLoaderState>(&programdata_data).unwrap();
+
+    program_test.add_account(
+        programdata_address,
+        Account {
+            lamports: Rent::default().minimum_balance(programdata_data_serialized.len()),
+            data: programdata_data_serialized,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Mint Account
+    let name = "WEVER".to_string();
+    let decimals = 9;
+    let deposit_limit = 10000000;
+    let withdrawal_limit = 10000;
+
+    let mint_address = token_proxy::get_associated_mint_address(&name);
+
+    let mint_account_data = spl_token::state::Mint {
+        is_initialized: true,
+        mint_authority: program_option::COption::Some(mint_address),
+        decimals,
+        ..Default::default()
+    };
+
+    let mut mint_packed = vec![0; spl_token::state::Mint::LEN];
+    spl_token::state::Mint::pack(mint_account_data, &mut mint_packed).unwrap();
+    program_test.add_account(
+        mint_address,
+        Account {
+            lamports: Rent::default().minimum_balance(spl_token::state::Mint::LEN),
+            data: mint_packed,
+            owner: spl_token::id(),
+            executable: false,
+            rent_epoch: 1,
+        },
+    );
+
+    // Add Settings Account
+    let settings_address = token_proxy::get_associated_settings_address(&name);
+
+    let settings_account_data = Settings {
+        is_initialized: true,
+        emergency: false,
+        kind: TokenKind::Ever { mint: mint_address },
+        decimals,
+        deposit_limit,
+        withdrawal_limit,
+    };
+
+    let mut settings_packed = vec![0; Settings::LEN];
+    Settings::pack(settings_account_data, &mut settings_packed).unwrap();
+    program_test.add_account(
+        settings_address,
+        Account {
+            lamports: Rent::default().minimum_balance(Settings::LEN),
+            data: settings_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Recipient Token Account
+    let recipient_address = Pubkey::new_unique();
+    let recipient_associated_token_address =
+        get_associated_token_address(&recipient_address, &mint_address);
+
+    let recipient_account_data = spl_token::state::Account {
+        mint: mint_address,
+        owner: recipient_address,
+        state: AccountState::Initialized,
+        ..Default::default()
+    };
+
+    let mut recipient_packed = vec![0; spl_token::state::Account::LEN];
+    spl_token::state::Account::pack(recipient_account_data, &mut recipient_packed).unwrap();
+    program_test.add_account(
+        recipient_associated_token_address,
+        Account {
+            lamports: Rent::default().minimum_balance(spl_token::state::Account::LEN),
+            data: recipient_packed,
+            owner: spl_token::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Withdrawal Round Account
+    let payload_id = Hash::new_unique();
+    let amount = 10;
+
+    let withdrawal_address = token_proxy::get_associated_withdrawal_address(&payload_id);
+
+    let withdrawal_account_data = Withdrawal {
+        is_initialized: true,
+        payload_id,
+        kind: TokenKind::Ever { mint: mint_address },
+        recipient: recipient_associated_token_address,
+        required_votes: 0,
+        signers: vec![],
+        status: WithdrawalStatus::New,
+        amount,
+        bounty: 0,
+    };
+
+    let mut withdrawal_packed = vec![0; Withdrawal::LEN];
+    Withdrawal::pack(withdrawal_account_data, &mut withdrawal_packed).unwrap();
+    program_test.add_account(
+        withdrawal_address,
+        Account {
+            lamports: Rent::default().minimum_balance(Withdrawal::LEN),
+            data: withdrawal_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Start Program Test
+    let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
+
+    let mut transaction = Transaction::new_with_payer(
+        &[token_proxy::withdrawal_ever(
+            &recipient_address,
+            name,
+            payload_id.clone(),
+        )],
+        Some(&funder.pubkey()),
+    );
+    transaction.sign(&[&funder], recent_blockhash);
+
+    banks_client
+        .process_transaction(transaction)
+        .await
+        .expect("process_transaction");
+
+    let mint_info = banks_client
+        .get_account(mint_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let withdrawal_data = spl_token::state::Mint::unpack(mint_info.data()).expect("mint unpack");
+    assert_eq!(withdrawal_data.supply, amount);
+
+    let recipient_info = banks_client
+        .get_account(recipient_associated_token_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let recipient_data =
+        spl_token::state::Account::unpack(recipient_info.data()).expect("token unpack");
+    assert_eq!(recipient_data.amount, amount);
 }

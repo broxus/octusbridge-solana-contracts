@@ -20,6 +20,10 @@ pub enum TokenProxyInstruction {
         name: String,
         /// Number of base 10 digits to the right of the decimal place.
         decimals: u8,
+        // Deposit limit
+        deposit_limit: u64,
+        // Withdrawal limit
+        withdrawal_limit: u64,
     },
 
     /// Initialize Vault Account
@@ -37,12 +41,12 @@ pub enum TokenProxyInstruction {
     InitializeVault {
         /// Vault asset name
         name: String,
+        /// Number of base 10 digits to the right of the decimal place.
+        decimals: u8,
         // Deposit limit
         deposit_limit: u64,
         // Withdrawal limit
         withdrawal_limit: u64,
-        /// Number of base 10 digits to the right of the decimal place.
-        decimals: u8,
     },
 
     /// Deposit EVER
@@ -120,5 +124,17 @@ pub enum TokenProxyInstruction {
         payload_id: Hash,
         // Current round number
         round_number: u32,
+    },
+
+    /// Withdraw EVER
+    ///
+    /// # Account references
+    ///   0. [WRITE, SIGNER]    Funder account
+    /// ...
+    WithdrawEver {
+        /// Mint asset name
+        name: String,
+        // Unique transfer hash
+        payload_id: Hash,
     },
 }

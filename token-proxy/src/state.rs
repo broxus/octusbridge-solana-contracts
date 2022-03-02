@@ -15,6 +15,8 @@ pub struct Settings {
     pub kind: TokenKind,
     pub decimals: u8,
     pub emergency: bool,
+    pub deposit_limit: u64,
+    pub withdrawal_limit: u64,
 }
 
 impl Sealed for Settings {}
@@ -51,6 +53,7 @@ pub struct Withdrawal {
     pub is_initialized: bool,
     pub payload_id: Hash,
     pub kind: TokenKind,
+    pub recipient: Pubkey,
     pub required_votes: u32,
     pub signers: Vec<Pubkey>,
     pub status: WithdrawalStatus,
@@ -68,12 +71,8 @@ impl IsInitialized for Withdrawal {
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, EnumAsInner, PartialEq, Eq)]
 pub enum TokenKind {
-    Ever,
-    Solana {
-        mint: Pubkey,
-        deposit_limit: u64,
-        withdrawal_limit: u64,
-    },
+    Ever { mint: Pubkey },
+    Solana { mint: Pubkey, vault: Pubkey },
 }
 
 #[derive(Copy, BorshSerialize, BorshDeserialize, Debug, Clone, PartialEq)]

@@ -27,24 +27,36 @@ impl Processor {
         let instruction = TokenProxyInstruction::try_from_slice(instruction_data).unwrap();
 
         match instruction {
-            TokenProxyInstruction::InitializeMint { name, decimals } => {
+            TokenProxyInstruction::InitializeMint {
+                name,
+                decimals,
+                deposit_limit,
+                withdrawal_limit,
+            } => {
                 msg!("Instruction: Initialize Mint");
-                Self::process_mint_initialize(program_id, accounts, name, decimals)?;
+                Self::process_mint_initialize(
+                    program_id,
+                    accounts,
+                    name,
+                    decimals,
+                    deposit_limit,
+                    withdrawal_limit,
+                )?;
             }
             TokenProxyInstruction::InitializeVault {
                 name,
+                decimals,
                 deposit_limit,
                 withdrawal_limit,
-                decimals,
             } => {
                 msg!("Instruction: Initialize Vault");
                 Self::process_vault_initialize(
                     program_id,
                     accounts,
                     name,
+                    decimals,
                     deposit_limit,
                     withdrawal_limit,
-                    decimals,
                 )?;
             }
             TokenProxyInstruction::DepositEver {
@@ -99,6 +111,10 @@ impl Processor {
                     round_number,
                 )?;
             }
+            TokenProxyInstruction::WithdrawEver { name, payload_id } => {
+                msg!("Instruction: Withdraw EVER");
+                Self::process_withdraw_ever(program_id, accounts, name, payload_id)?;
+            }
         };
 
         Ok(())
@@ -109,6 +125,8 @@ impl Processor {
         accounts: &[AccountInfo],
         name: String,
         decimals: u8,
+        deposit_limit: u64,
+        withdrawal_limit: u64,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -207,8 +225,12 @@ impl Processor {
         let settings_account_data = Settings {
             is_initialized: true,
             emergency: false,
-            kind: TokenKind::Ever,
+            kind: TokenKind::Ever {
+                mint: *mint_account_info.key,
+            },
             decimals,
+            deposit_limit,
+            withdrawal_limit,
         };
 
         Settings::pack(
@@ -223,9 +245,9 @@ impl Processor {
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         name: String,
+        decimals: u8,
         deposit_limit: u64,
         withdrawal_limit: u64,
-        decimals: u8,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -327,10 +349,11 @@ impl Processor {
             emergency: false,
             kind: TokenKind::Solana {
                 mint: *mint_account_info.key,
-                deposit_limit,
-                withdrawal_limit,
+                vault: *vault_account_info.key,
             },
             decimals,
+            deposit_limit,
+            withdrawal_limit,
         };
 
         Settings::pack(
@@ -489,20 +512,18 @@ impl Processor {
             return Err(TokenProxyError::EmergencyEnabled.into());
         }
 
-        let (mint, deposit_limit, ..) = settings_account_data
+        let (mint_account, vault_account) = settings_account_data
             .kind
             .as_solana()
             .ok_or(TokenProxyError::InvalidTokenKind)?;
 
         // Validate Mint Account
-        if mint_account_info.key != mint {
+        if mint_account != mint_account_info.key {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        // Validate Vault Account
-        let (vault_account, _nonce) =
-            Pubkey::find_program_address(&[br"vault", name.as_bytes()], program_id);
-        if vault_account != *vault_account_info.key {
+        // Validate Mint Account
+        if vault_account != vault_account_info.key {
             return Err(ProgramError::InvalidAccountData);
         }
 
@@ -511,7 +532,7 @@ impl Processor {
             spl_token::state::Account::unpack(&vault_account_info.data.borrow())?;
 
         // Validate limits
-        if vault_account_data.amount + amount > *deposit_limit {
+        if vault_account_data.amount + amount > settings_account_data.deposit_limit {
             return Err(TokenProxyError::DepositLimit.into());
         }
 
@@ -591,6 +612,7 @@ impl Processor {
 
         let funder_account_info = next_account_info(account_info_iter)?;
         let withdrawal_account_info = next_account_info(account_info_iter)?;
+        let recipient_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
         let relay_round_account_info = next_account_info(account_info_iter)?;
         let system_program_info = next_account_info(account_info_iter)?;
@@ -636,14 +658,14 @@ impl Processor {
         let required_votes = (relay_round_account_data.relays.len() * 2 / 3 + 1) as u32;
 
         // Validate Withdrawal Account
-        let (withdrawal_account, deposit_nonce) =
+        let (withdrawal_account, withdrawal_nonce) =
             Pubkey::find_program_address(&[br"withdrawal", &payload_id.to_bytes()], program_id);
         if withdrawal_account != *withdrawal_account_info.key {
             return Err(ProgramError::InvalidAccountData);
         }
 
         let withdrawal_account_signer_seeds: &[&[_]] =
-            &[br"withdrawal", &payload_id.to_bytes(), &[deposit_nonce]];
+            &[br"withdrawal", &payload_id.to_bytes(), &[withdrawal_nonce]];
 
         // Create Withdrawal Account
         invoke_signed(
@@ -666,6 +688,7 @@ impl Processor {
         let withdrawal_account_data = Withdrawal {
             is_initialized: true,
             status: WithdrawalStatus::New,
+            recipient: *recipient_account_info.key,
             signers: vec![],
             bounty: 0,
             payload_id,
@@ -757,6 +780,109 @@ impl Processor {
         withdrawal_account_data
             .signers
             .push(*relay_account_info.key);
+
+        Withdrawal::pack(
+            withdrawal_account_data,
+            &mut withdrawal_account_info.data.borrow_mut(),
+        )?;
+
+        Ok(())
+    }
+
+    fn process_withdraw_ever(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        name: String,
+        payload_id: Hash,
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+
+        let mint_account_info = next_account_info(account_info_iter)?;
+        let withdrawal_account_info = next_account_info(account_info_iter)?;
+        let recipient_account_info = next_account_info(account_info_iter)?;
+        let settings_account_info = next_account_info(account_info_iter)?;
+        let token_program_info = next_account_info(account_info_iter)?;
+
+        // Validate Settings Account
+        let (settings_account, _nonce) =
+            Pubkey::find_program_address(&[br"settings", name.as_bytes()], program_id);
+        if settings_account != *settings_account_info.key {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+
+        if settings_account_data.emergency {
+            return Err(TokenProxyError::EmergencyEnabled.into());
+        }
+
+        // Validate Withdrawal Account
+        let (withdrawal_account, _nonce) =
+            Pubkey::find_program_address(&[br"withdrawal", &payload_id.to_bytes()], program_id);
+        if withdrawal_account != *withdrawal_account_info.key {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        let mut withdrawal_account_data =
+            Withdrawal::unpack(&withdrawal_account_info.data.borrow())?;
+
+        // Validate connection of Settings to Withdrawal
+        let settings_kind = settings_account_data
+            .kind
+            .as_ever()
+            .ok_or(TokenProxyError::InvalidTokenKind)?;
+        let withdrawal_kind = withdrawal_account_data
+            .kind
+            .as_ever()
+            .ok_or(TokenProxyError::InvalidTokenKind)?;
+
+        if settings_kind != withdrawal_kind {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        // Validate Recipient Account
+        if withdrawal_account_data.recipient != *recipient_account_info.key {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        // Validate Mint Account
+        let (mint_account, mint_nonce) =
+            Pubkey::find_program_address(&[br"mint", name.as_bytes()], program_id);
+        if mint_account != *mint_account_info.key {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        let mint_account_signer_seeds: &[&[_]] = &[br"mint", name.as_bytes(), &[mint_nonce]];
+
+        if withdrawal_account_data.status == WithdrawalStatus::New
+            && withdrawal_account_data.signers.len() as u32
+                >= withdrawal_account_data.required_votes
+        {
+            if withdrawal_account_data.amount < settings_account_data.withdrawal_limit {
+                // Mint tokens
+                invoke_signed(
+                    &spl_token::instruction::mint_to(
+                        token_program_info.key,
+                        mint_account_info.key,
+                        recipient_account_info.key,
+                        mint_account_info.key,
+                        &[mint_account_info.key],
+                        withdrawal_account_data.amount,
+                    )?,
+                    &[
+                        token_program_info.clone(),
+                        mint_account_info.clone(),
+                        recipient_account_info.clone(),
+                        mint_account_info.clone(),
+                    ],
+                    &[mint_account_signer_seeds],
+                )?;
+
+                withdrawal_account_data.status = WithdrawalStatus::Processed;
+            } else {
+                withdrawal_account_data.status = WithdrawalStatus::WaitingForApprove;
+            }
+        }
 
         Withdrawal::pack(
             withdrawal_account_data,
