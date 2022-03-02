@@ -331,3 +331,57 @@ pub fn withdrawal_sol(
         data,
     }
 }
+
+pub fn approve_withdrawal_ever(
+    authority_pubkey: &Pubkey,
+    to_pubkey: &Pubkey,
+    name: String,
+    payload_id: Hash,
+) -> Instruction {
+    let settings_pubkey = get_associated_settings_address(&name);
+    let withdrawal_pubkey = get_associated_withdrawal_address(&payload_id);
+
+    let mint_pubkey = get_associated_mint_address(&name);
+    let recipient_pubkey =
+        spl_associated_token_account::get_associated_token_address(to_pubkey, &mint_pubkey);
+
+    let data = TokenProxyInstruction::ApproveWithdrawEver { name, payload_id }
+        .try_to_vec()
+        .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(*authority_pubkey, true),
+            AccountMeta::new(mint_pubkey, false),
+            AccountMeta::new(withdrawal_pubkey, false),
+            AccountMeta::new(recipient_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new_readonly(spl_token::id(), false),
+        ],
+        data,
+    }
+}
+
+pub fn approve_withdrawal_sol(
+    authority_pubkey: &Pubkey,
+    name: String,
+    payload_id: Hash,
+) -> Instruction {
+    let settings_pubkey = get_associated_settings_address(&name);
+    let withdrawal_pubkey = get_associated_withdrawal_address(&payload_id);
+
+    let data = TokenProxyInstruction::ApproveWithdrawSol { name, payload_id }
+        .try_to_vec()
+        .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(*authority_pubkey, true),
+            AccountMeta::new(withdrawal_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
+        ],
+        data,
+    }
+}

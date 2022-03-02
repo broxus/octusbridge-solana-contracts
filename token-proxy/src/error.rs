@@ -16,6 +16,8 @@ pub enum TokenProxyError {
     InvalidRelay,
     #[error("Emergency mode enabled")]
     EmergencyEnabled,
+    #[error("Invalid withdrawal status")]
+    InvalidWithdrawalStatus,
 }
 
 impl From<TokenProxyError> for ProgramError {

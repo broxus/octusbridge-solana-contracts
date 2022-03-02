@@ -123,6 +123,14 @@ impl Processor {
                 msg!("Instruction: Withdraw SOL");
                 Self::process_withdraw_sol(program_id, accounts, name, payload_id)?;
             }
+            TokenProxyInstruction::ApproveWithdrawEver { name, payload_id } => {
+                msg!("Instruction: Approve Withdraw EVER");
+                Self::process_approve_withdraw_ever(program_id, accounts, name, payload_id)?;
+            }
+            TokenProxyInstruction::ApproveWithdrawSol { name, payload_id } => {
+                msg!("Instruction: Approve Withdraw SOL");
+                Self::process_approve_withdraw_sol(program_id, accounts, name, payload_id)?;
+            }
         };
 
         Ok(())
@@ -838,7 +846,7 @@ impl Processor {
         let mut withdrawal_account_data =
             Withdrawal::unpack(&withdrawal_account_info.data.borrow())?;
 
-        // Validate connection of Settings to Withdrawal
+        // Validate connection between Settings and Withdrawal
         let settings_kind = settings_account_data
             .kind
             .as_ever()
@@ -941,7 +949,7 @@ impl Processor {
         let mut withdrawal_account_data =
             Withdrawal::unpack(&withdrawal_account_info.data.borrow())?;
 
-        // Validate connection of Settings to Withdrawal
+        // Validate connection between Settings and Withdrawal
         let settings_kind = settings_account_data
             .kind
             .as_solana()
@@ -1005,6 +1013,184 @@ impl Processor {
                 withdrawal_account_data.status = WithdrawalStatus::WaitingForApprove;
             }
         }
+
+        Withdrawal::pack(
+            withdrawal_account_data,
+            &mut withdrawal_account_info.data.borrow_mut(),
+        )?;
+
+        Ok(())
+    }
+
+    fn process_approve_withdraw_ever(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        name: String,
+        payload_id: Hash,
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+
+        let authority_account_info = next_account_info(account_info_iter)?;
+        let mint_account_info = next_account_info(account_info_iter)?;
+        let withdrawal_account_info = next_account_info(account_info_iter)?;
+        let recipient_account_info = next_account_info(account_info_iter)?;
+        let settings_account_info = next_account_info(account_info_iter)?;
+        let token_program_info = next_account_info(account_info_iter)?;
+
+        if !authority_account_info.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        // Validate Settings Account
+        let (settings_account, _nonce) =
+            Pubkey::find_program_address(&[br"settings", name.as_bytes()], program_id);
+        if settings_account != *settings_account_info.key {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+
+        if settings_account_data.emergency {
+            return Err(TokenProxyError::EmergencyEnabled.into());
+        }
+
+        if settings_account_data.admin != *authority_account_info.key {
+            return Err(ProgramError::IllegalOwner);
+        }
+
+        // Validate Withdrawal Account
+        let (withdrawal_account, _nonce) =
+            Pubkey::find_program_address(&[br"withdrawal", &payload_id.to_bytes()], program_id);
+        if withdrawal_account != *withdrawal_account_info.key {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        let mut withdrawal_account_data =
+            Withdrawal::unpack(&withdrawal_account_info.data.borrow())?;
+
+        if withdrawal_account_data.status != WithdrawalStatus::WaitingForApprove {
+            return Err(TokenProxyError::InvalidWithdrawalStatus.into());
+        }
+
+        // Validate connection between Settings and Withdrawal
+        let settings_kind = settings_account_data
+            .kind
+            .as_ever()
+            .ok_or(TokenProxyError::InvalidTokenKind)?;
+        let withdrawal_kind = withdrawal_account_data
+            .kind
+            .as_ever()
+            .ok_or(TokenProxyError::InvalidTokenKind)?;
+
+        if settings_kind != withdrawal_kind {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        // Validate Recipient Account
+        if withdrawal_account_data.recipient != *recipient_account_info.key {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        // Validate Mint Account
+        let (mint_account, mint_nonce) =
+            Pubkey::find_program_address(&[br"mint", name.as_bytes()], program_id);
+        if mint_account != *mint_account_info.key {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        let mint_account_signer_seeds: &[&[_]] = &[br"mint", name.as_bytes(), &[mint_nonce]];
+
+        // Mint tokens
+        invoke_signed(
+            &spl_token::instruction::mint_to(
+                token_program_info.key,
+                mint_account_info.key,
+                recipient_account_info.key,
+                mint_account_info.key,
+                &[mint_account_info.key],
+                withdrawal_account_data.amount,
+            )?,
+            &[
+                token_program_info.clone(),
+                mint_account_info.clone(),
+                recipient_account_info.clone(),
+                mint_account_info.clone(),
+            ],
+            &[mint_account_signer_seeds],
+        )?;
+
+        withdrawal_account_data.status = WithdrawalStatus::Processed;
+
+        Withdrawal::pack(
+            withdrawal_account_data,
+            &mut withdrawal_account_info.data.borrow_mut(),
+        )?;
+
+        Ok(())
+    }
+
+    fn process_approve_withdraw_sol(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        name: String,
+        payload_id: Hash,
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+
+        let authority_account_info = next_account_info(account_info_iter)?;
+        let withdrawal_account_info = next_account_info(account_info_iter)?;
+        let settings_account_info = next_account_info(account_info_iter)?;
+
+        if !authority_account_info.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        // Validate Settings Account
+        let (settings_account, _nonce) =
+            Pubkey::find_program_address(&[br"settings", name.as_bytes()], program_id);
+        if settings_account != *settings_account_info.key {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+
+        if settings_account_data.emergency {
+            return Err(TokenProxyError::EmergencyEnabled.into());
+        }
+
+        if settings_account_data.admin != *authority_account_info.key {
+            return Err(ProgramError::IllegalOwner);
+        }
+
+        // Validate Withdrawal Account
+        let (withdrawal_account, _nonce) =
+            Pubkey::find_program_address(&[br"withdrawal", &payload_id.to_bytes()], program_id);
+        if withdrawal_account != *withdrawal_account_info.key {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        let mut withdrawal_account_data =
+            Withdrawal::unpack(&withdrawal_account_info.data.borrow())?;
+
+        if withdrawal_account_data.status != WithdrawalStatus::WaitingForApprove {
+            return Err(TokenProxyError::InvalidWithdrawalStatus.into());
+        }
+
+        // Validate connection between Settings and Withdrawal
+        let settings_kind = settings_account_data
+            .kind
+            .as_solana()
+            .ok_or(TokenProxyError::InvalidTokenKind)?;
+        let withdrawal_kind = withdrawal_account_data
+            .kind
+            .as_solana()
+            .ok_or(TokenProxyError::InvalidTokenKind)?;
+
+        if settings_kind != withdrawal_kind {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        withdrawal_account_data.status = WithdrawalStatus::Pending;
 
         Withdrawal::pack(
             withdrawal_account_data,
