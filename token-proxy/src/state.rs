@@ -13,6 +13,7 @@ use bridge_derive::BridgePack;
 pub struct Settings {
     pub is_initialized: bool,
     pub kind: TokenKind,
+    pub admin: Pubkey,
     pub decimals: u8,
     pub emergency: bool,
     pub deposit_limit: u64,

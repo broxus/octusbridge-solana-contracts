@@ -55,6 +55,7 @@ async fn test_init_mint() {
     let decimals = 9;
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
+    let admin = Pubkey::new_unique();
     let mut transaction = Transaction::new_with_payer(
         &[token_proxy::initialize_mint(
             &funder.pubkey(),
@@ -63,6 +64,7 @@ async fn test_init_mint() {
             decimals,
             deposit_limit,
             withdrawal_limit,
+            admin,
         )],
         Some(&funder.pubkey()),
     );
@@ -107,6 +109,7 @@ async fn test_init_mint() {
     assert_eq!(settings_data.decimals, decimals);
     assert_eq!(settings_data.deposit_limit, deposit_limit);
     assert_eq!(settings_data.withdrawal_limit, withdrawal_limit);
+    assert_eq!(settings_data.admin, admin);
 }
 
 #[tokio::test]
@@ -150,6 +153,7 @@ async fn test_init_vault() {
     let decimals = 9;
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
+    let admin = Pubkey::new_unique();
     let mint_account_data = spl_token::state::Mint {
         is_initialized: true,
         mint_authority: program_option::COption::Some(mint.pubkey()),
@@ -182,6 +186,7 @@ async fn test_init_vault() {
             decimals,
             deposit_limit,
             withdrawal_limit,
+            admin,
         )],
         Some(&funder.pubkey()),
     );
@@ -229,6 +234,7 @@ async fn test_init_vault() {
     assert_eq!(settings_data.decimals, decimals);
     assert_eq!(settings_data.deposit_limit, deposit_limit);
     assert_eq!(settings_data.withdrawal_limit, withdrawal_limit);
+    assert_eq!(settings_data.admin, admin);
 }
 
 #[tokio::test]
@@ -270,6 +276,7 @@ async fn test_deposit_ever() {
     let decimals = 9;
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
+    let admin = Pubkey::new_unique();
 
     let mint_address = token_proxy::get_associated_mint_address(&name);
 
@@ -342,6 +349,7 @@ async fn test_deposit_ever() {
         decimals,
         deposit_limit,
         withdrawal_limit,
+        admin,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -442,6 +450,7 @@ async fn test_deposit_sol() {
     let decimals = 9;
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
+    let admin = Pubkey::new_unique();
 
     let mint_account_data = spl_token::state::Mint {
         is_initialized: true,
@@ -538,6 +547,7 @@ async fn test_deposit_sol() {
         decimals,
         deposit_limit,
         withdrawal_limit,
+        admin,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -628,6 +638,7 @@ async fn test_withdrawal_request() {
     let decimals = 9;
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
+    let admin = Pubkey::new_unique();
 
     let mint_address = token_proxy::get_associated_mint_address(&name);
 
@@ -641,6 +652,7 @@ async fn test_withdrawal_request() {
         decimals,
         deposit_limit,
         withdrawal_limit,
+        admin,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -763,6 +775,7 @@ async fn test_confirm_withdrawal_request() {
     let decimals = 9;
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
+    let admin = Pubkey::new_unique();
 
     let mint_address = token_proxy::get_associated_mint_address(&name);
 
@@ -776,6 +789,7 @@ async fn test_confirm_withdrawal_request() {
         decimals,
         deposit_limit,
         withdrawal_limit,
+        admin,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -917,6 +931,7 @@ async fn test_withdrawal_ever() {
     let decimals = 9;
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
+    let admin = Pubkey::new_unique();
 
     let mint_address = token_proxy::get_associated_mint_address(&name);
 
@@ -950,6 +965,7 @@ async fn test_withdrawal_ever() {
         decimals,
         deposit_limit,
         withdrawal_limit,
+        admin,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -1100,6 +1116,8 @@ async fn test_withdrawal_sol() {
     let decimals = 9;
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
+    let admin = Pubkey::new_unique();
+
     let mint_account_data = spl_token::state::Mint {
         is_initialized: true,
         mint_authority: program_option::COption::Some(mint.pubkey()),
@@ -1157,6 +1175,7 @@ async fn test_withdrawal_sol() {
         decimals,
         deposit_limit,
         withdrawal_limit,
+        admin,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];

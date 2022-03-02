@@ -32,6 +32,7 @@ impl Processor {
                 decimals,
                 deposit_limit,
                 withdrawal_limit,
+                admin,
             } => {
                 msg!("Instruction: Initialize Mint");
                 Self::process_mint_initialize(
@@ -41,6 +42,7 @@ impl Processor {
                     decimals,
                     deposit_limit,
                     withdrawal_limit,
+                    admin,
                 )?;
             }
             TokenProxyInstruction::InitializeVault {
@@ -48,6 +50,7 @@ impl Processor {
                 decimals,
                 deposit_limit,
                 withdrawal_limit,
+                admin,
             } => {
                 msg!("Instruction: Initialize Vault");
                 Self::process_vault_initialize(
@@ -57,6 +60,7 @@ impl Processor {
                     decimals,
                     deposit_limit,
                     withdrawal_limit,
+                    admin,
                 )?;
             }
             TokenProxyInstruction::DepositEver {
@@ -131,6 +135,7 @@ impl Processor {
         decimals: u8,
         deposit_limit: u64,
         withdrawal_limit: u64,
+        admin: Pubkey,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -235,6 +240,7 @@ impl Processor {
             decimals,
             deposit_limit,
             withdrawal_limit,
+            admin,
         };
 
         Settings::pack(
@@ -252,6 +258,7 @@ impl Processor {
         decimals: u8,
         deposit_limit: u64,
         withdrawal_limit: u64,
+        admin: Pubkey,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -358,6 +365,7 @@ impl Processor {
             decimals,
             deposit_limit,
             withdrawal_limit,
+            admin,
         };
 
         Settings::pack(
@@ -971,30 +979,28 @@ impl Processor {
         {
             if withdrawal_account_data.amount < settings_account_data.withdrawal_limit {
                 if vault_account_data.amount >= withdrawal_account_data.amount {
+                    // Transfer tokens
+                    invoke_signed(
+                        &spl_token::instruction::transfer(
+                            token_program_info.key,
+                            vault_account_info.key,
+                            recipient_account_info.key,
+                            vault_account_info.key,
+                            &[vault_account_info.key],
+                            withdrawal_account_data.amount,
+                        )?,
+                        &[
+                            token_program_info.clone(),
+                            vault_account_info.clone(),
+                            recipient_account_info.clone(),
+                        ],
+                        &[vault_account_signer_seeds],
+                    )?;
+
                     withdrawal_account_data.status = WithdrawalStatus::Processed;
                 } else {
                     withdrawal_account_data.status = WithdrawalStatus::Pending;
                 }
-
-                // Transfer tokens
-                invoke_signed(
-                    &spl_token::instruction::transfer(
-                        token_program_info.key,
-                        vault_account_info.key,
-                        recipient_account_info.key,
-                        vault_account_info.key,
-                        &[vault_account_info.key],
-                        withdrawal_account_data.amount,
-                    )?,
-                    &[
-                        token_program_info.clone(),
-                        vault_account_info.clone(),
-                        recipient_account_info.clone(),
-                    ],
-                    &[vault_account_signer_seeds],
-                )?;
-
-                withdrawal_account_data.status = WithdrawalStatus::Processed;
             } else {
                 withdrawal_account_data.status = WithdrawalStatus::WaitingForApprove;
             }

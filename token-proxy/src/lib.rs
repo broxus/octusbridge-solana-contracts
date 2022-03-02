@@ -51,6 +51,7 @@ pub fn initialize_mint(
     decimals: u8,
     deposit_limit: u64,
     withdrawal_limit: u64,
+    admin: Pubkey,
 ) -> Instruction {
     let mint_pubkey = get_associated_mint_address(&name);
     let settings_pubkey = get_associated_settings_address(&name);
@@ -61,6 +62,7 @@ pub fn initialize_mint(
         decimals,
         deposit_limit,
         withdrawal_limit,
+        admin,
     }
     .try_to_vec()
     .expect("pack");
@@ -89,6 +91,7 @@ pub fn initialize_vault(
     decimals: u8,
     deposit_limit: u64,
     withdrawal_limit: u64,
+    admin: Pubkey,
 ) -> Instruction {
     let vault_pubkey = get_associated_vault_address(&name);
     let settings_pubkey = get_associated_settings_address(&name);
@@ -99,6 +102,7 @@ pub fn initialize_vault(
         deposit_limit,
         withdrawal_limit,
         decimals,
+        admin,
     }
     .try_to_vec()
     .expect("pack");

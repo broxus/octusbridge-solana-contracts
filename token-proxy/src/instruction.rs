@@ -24,6 +24,8 @@ pub enum TokenProxyInstruction {
         deposit_limit: u64,
         // Withdrawal limit
         withdrawal_limit: u64,
+        // Admin pubkey
+        admin: Pubkey,
     },
 
     /// Initialize Vault Account
@@ -47,6 +49,8 @@ pub enum TokenProxyInstruction {
         deposit_limit: u64,
         // Withdrawal limit
         withdrawal_limit: u64,
+        // Admin pubkey
+        admin: Pubkey,
     },
 
     /// Deposit EVER
@@ -149,4 +153,15 @@ pub enum TokenProxyInstruction {
         // Unique transfer hash
         payload_id: Hash,
     },
+    /*/// Withdraw SOL
+    ///
+    /// # Account references
+    ///   0. [WRITE, SIGNER]    Funder account
+    /// ...
+    ApproveWithdrawSol {
+        /// Mint asset name
+        name: String,
+        // Unique transfer hash
+        payload_id: Hash,
+    },*/
 }
