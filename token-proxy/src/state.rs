@@ -54,6 +54,7 @@ pub struct Withdrawal {
     pub is_initialized: bool,
     pub payload_id: Hash,
     pub kind: TokenKind,
+    pub author: Pubkey,
     pub recipient: Pubkey,
     pub required_votes: u32,
     pub signers: Vec<Pubkey>,

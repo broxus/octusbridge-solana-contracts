@@ -207,6 +207,7 @@ pub fn deposit_sol(
 
 pub fn withdrawal_request(
     funder_pubkey: &Pubkey,
+    author_pubkey: &Pubkey,
     to_pubkey: &Pubkey,
     name: String,
     payload_id: Hash,
@@ -234,6 +235,7 @@ pub fn withdrawal_request(
         program_id: id(),
         accounts: vec![
             AccountMeta::new(*funder_pubkey, true),
+            AccountMeta::new(*author_pubkey, true),
             AccountMeta::new(withdrawal_pubkey, false),
             AccountMeta::new_readonly(recipient_pubkey, false),
             AccountMeta::new_readonly(settings_pubkey, false),
@@ -411,6 +413,27 @@ pub fn force_withdrawal_sol(
             AccountMeta::new(recipient_pubkey, false),
             AccountMeta::new_readonly(settings_pubkey, false),
             AccountMeta::new_readonly(spl_token::id(), false),
+        ],
+        data,
+    }
+}
+
+pub fn change_bounty_for_withdrawal_sol(
+    author_pubkey: &Pubkey,
+    payload_id: Hash,
+    bounty: u64,
+) -> Instruction {
+    let withdrawal_pubkey = get_associated_withdrawal_address(&payload_id);
+
+    let data = TokenProxyInstruction::ChangeBountyForWithdrawSol { payload_id, bounty }
+        .try_to_vec()
+        .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(*author_pubkey, true),
+            AccountMeta::new(withdrawal_pubkey, false),
         ],
         data,
     }

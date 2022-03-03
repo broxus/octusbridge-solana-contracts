@@ -189,4 +189,16 @@ pub enum TokenProxyInstruction {
         // Unique transfer hash
         payload_id: Hash,
     },
+
+    /// Change Bounty for Withdraw SOL
+    ///
+    /// # Account references
+    ///   0. [WRITE, SIGNER]    Funder account
+    /// ...
+    ChangeBountyForWithdrawSol {
+        // Unique transfer hash
+        payload_id: Hash,
+        // New bounty value
+        bounty: u64,
+    },
 }

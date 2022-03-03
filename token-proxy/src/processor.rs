@@ -135,6 +135,12 @@ impl Processor {
                 msg!("Instruction: Force Withdraw SOL");
                 Self::process_force_withdraw_sol(program_id, accounts, name, payload_id)?;
             }
+            TokenProxyInstruction::ChangeBountyForWithdrawSol { payload_id, bounty } => {
+                msg!("Instruction: Change Bounty for Withdraw SOL");
+                Self::process_change_bounty_for_withdraw_sol(
+                    program_id, accounts, payload_id, bounty,
+                )?;
+            }
         };
 
         Ok(())
@@ -635,6 +641,7 @@ impl Processor {
         let account_info_iter = &mut accounts.iter();
 
         let funder_account_info = next_account_info(account_info_iter)?;
+        let authority_account_info = next_account_info(account_info_iter)?;
         let withdrawal_account_info = next_account_info(account_info_iter)?;
         let recipient_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
@@ -646,6 +653,10 @@ impl Processor {
 
         let rent_sysvar_info = next_account_info(account_info_iter)?;
         let rent = &Rent::from_account_info(rent_sysvar_info)?;
+
+        if !authority_account_info.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
 
         // Validate Settings Account
         let (settings_account, _nonce) =
@@ -712,6 +723,7 @@ impl Processor {
         let withdrawal_account_data = Withdrawal {
             is_initialized: true,
             status: WithdrawalStatus::New,
+            author: *authority_account_info.key,
             recipient: *recipient_account_info.key,
             signers: vec![],
             bounty: 0,
@@ -1299,6 +1311,49 @@ impl Processor {
         )?;
 
         withdrawal_account_data.status = WithdrawalStatus::Processed;
+
+        Withdrawal::pack(
+            withdrawal_account_data,
+            &mut withdrawal_account_info.data.borrow_mut(),
+        )?;
+
+        Ok(())
+    }
+
+    fn process_change_bounty_for_withdraw_sol(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        payload_id: Hash,
+        bounty: u64,
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+
+        let authority_account_info = next_account_info(account_info_iter)?;
+        let withdrawal_account_info = next_account_info(account_info_iter)?;
+
+        if !authority_account_info.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        // Validate Withdrawal Account
+        let (withdrawal_account, _nonce) =
+            Pubkey::find_program_address(&[br"withdrawal", &payload_id.to_bytes()], program_id);
+        if withdrawal_account != *withdrawal_account_info.key {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        let mut withdrawal_account_data =
+            Withdrawal::unpack(&withdrawal_account_info.data.borrow())?;
+
+        if withdrawal_account_data.status != WithdrawalStatus::Pending {
+            return Err(TokenProxyError::InvalidWithdrawalStatus.into());
+        }
+
+        if withdrawal_account_data.author != *authority_account_info.key {
+            return Err(ProgramError::IllegalOwner);
+        }
+
+        withdrawal_account_data.bounty = bounty;
 
         Withdrawal::pack(
             withdrawal_account_data,
