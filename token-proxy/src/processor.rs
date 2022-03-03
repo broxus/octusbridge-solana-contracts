@@ -131,6 +131,10 @@ impl Processor {
                 msg!("Instruction: Approve Withdraw SOL");
                 Self::process_approve_withdraw_sol(program_id, accounts, name, payload_id)?;
             }
+            TokenProxyInstruction::ForceWithdrawSol { name, payload_id } => {
+                msg!("Instruction: Force Withdraw SOL");
+                Self::process_force_withdraw_sol(program_id, accounts, name, payload_id)?;
+            }
         };
 
         Ok(())
@@ -1191,6 +1195,110 @@ impl Processor {
         }
 
         withdrawal_account_data.status = WithdrawalStatus::Pending;
+
+        Withdrawal::pack(
+            withdrawal_account_data,
+            &mut withdrawal_account_info.data.borrow_mut(),
+        )?;
+
+        Ok(())
+    }
+
+    fn process_force_withdraw_sol(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        name: String,
+        payload_id: Hash,
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+
+        let vault_account_info = next_account_info(account_info_iter)?;
+        let withdrawal_account_info = next_account_info(account_info_iter)?;
+        let recipient_account_info = next_account_info(account_info_iter)?;
+        let settings_account_info = next_account_info(account_info_iter)?;
+        let token_program_info = next_account_info(account_info_iter)?;
+
+        // Validate Settings Account
+        let (settings_account, _nonce) =
+            Pubkey::find_program_address(&[br"settings", name.as_bytes()], program_id);
+        if settings_account != *settings_account_info.key {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+
+        if settings_account_data.emergency {
+            return Err(TokenProxyError::EmergencyEnabled.into());
+        }
+
+        // Validate Withdrawal Account
+        let (withdrawal_account, _nonce) =
+            Pubkey::find_program_address(&[br"withdrawal", &payload_id.to_bytes()], program_id);
+        if withdrawal_account != *withdrawal_account_info.key {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        let mut withdrawal_account_data =
+            Withdrawal::unpack(&withdrawal_account_info.data.borrow())?;
+
+        if withdrawal_account_data.status != WithdrawalStatus::Pending {
+            return Err(TokenProxyError::InvalidWithdrawalStatus.into());
+        }
+
+        // Validate connection between Settings and Withdrawal
+        let settings_kind = settings_account_data
+            .kind
+            .as_solana()
+            .ok_or(TokenProxyError::InvalidTokenKind)?;
+        let withdrawal_kind = withdrawal_account_data
+            .kind
+            .as_solana()
+            .ok_or(TokenProxyError::InvalidTokenKind)?;
+
+        if settings_kind != withdrawal_kind {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        // Validate Recipient Account
+        if withdrawal_account_data.recipient != *recipient_account_info.key {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        // Validate Vault Account
+        let (vault_account, vault_nonce) =
+            Pubkey::find_program_address(&[br"vault", name.as_bytes()], program_id);
+        if vault_account != *vault_account_info.key {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        let vault_account_signer_seeds: &[&[_]] = &[br"vault", name.as_bytes(), &[vault_nonce]];
+
+        let vault_account_data =
+            spl_token::state::Account::unpack(&vault_account_info.data.borrow())?;
+
+        if withdrawal_account_data.amount > vault_account_data.amount {
+            return Err(TokenProxyError::InsufficientVaultBalance.into());
+        }
+
+        // Transfer tokens
+        invoke_signed(
+            &spl_token::instruction::transfer(
+                token_program_info.key,
+                vault_account_info.key,
+                recipient_account_info.key,
+                vault_account_info.key,
+                &[vault_account_info.key],
+                withdrawal_account_data.amount,
+            )?,
+            &[
+                token_program_info.clone(),
+                vault_account_info.clone(),
+                recipient_account_info.clone(),
+            ],
+            &[vault_account_signer_seeds],
+        )?;
+
+        withdrawal_account_data.status = WithdrawalStatus::Processed;
 
         Withdrawal::pack(
             withdrawal_account_data,

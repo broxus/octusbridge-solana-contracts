@@ -177,4 +177,16 @@ pub enum TokenProxyInstruction {
         // Unique transfer hash
         payload_id: Hash,
     },
+
+    /// Force Withdraw SOL
+    ///
+    /// # Account references
+    ///   0. [WRITE, SIGNER]    Funder account
+    /// ...
+    ForceWithdrawSol {
+        /// Mint asset name
+        name: String,
+        // Unique transfer hash
+        payload_id: Hash,
+    },
 }

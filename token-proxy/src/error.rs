@@ -18,6 +18,8 @@ pub enum TokenProxyError {
     EmergencyEnabled,
     #[error("Invalid withdrawal status")]
     InvalidWithdrawalStatus,
+    #[error("Insufficient vault balance")]
+    InsufficientVaultBalance,
 }
 
 impl From<TokenProxyError> for ProgramError {
