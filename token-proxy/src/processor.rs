@@ -171,23 +171,15 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        // Validate creator
         bridge_utils::validate_programdata_account(program_id, programdata_account_info.key)?;
         bridge_utils::validate_initializer_account(
             initializer_account_info.key,
             programdata_account_info,
         )?;
 
-        // Validate Mint Account
-        let (mint_account, nonce) =
-            Pubkey::find_program_address(&[br"mint", name.as_bytes()], program_id);
-        if mint_account != *mint_account_info.key {
-            return Err(ProgramError::InvalidAccountData);
-        }
+        let mint_nonce = bridge_utils::validate_mint_account(program_id, &name, mint_account_info)?;
+        let mint_account_signer_seeds: &[&[_]] = &[br"mint", name.as_bytes(), &[mint_nonce]];
 
-        let mint_account_signer_seeds: &[&[_]] = &[br"mint", name.as_bytes(), &[nonce]];
-
-        // Create Mint Account
         invoke_signed(
             &system_instruction::create_account(
                 funder_account_info.key,
@@ -204,7 +196,6 @@ impl Processor {
             &[mint_account_signer_seeds],
         )?;
 
-        // Init Mint Account
         invoke_signed(
             &spl_token::instruction::initialize_mint(
                 &spl_token::id(),
@@ -221,17 +212,11 @@ impl Processor {
             &[mint_account_signer_seeds],
         )?;
 
-        // Validate Settings Account
-        let (settings_account, settings_nonce) =
-            Pubkey::find_program_address(&[br"settings", name.as_bytes()], program_id);
-        if settings_account != *settings_account_info.key {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
+        let settings_nonce =
+            bridge_utils::validate_settings_account(program_id, &name, settings_account_info)?;
         let settings_account_signer_seeds: &[&[_]] =
             &[br"settings", name.as_bytes(), &[settings_nonce]];
 
-        // Create Settings Account
         invoke_signed(
             &system_instruction::create_account(
                 funder_account_info.key,
@@ -248,7 +233,6 @@ impl Processor {
             &[settings_account_signer_seeds],
         )?;
 
-        // Init Settings Account
         let settings_account_data = Settings {
             is_initialized: true,
             emergency: false,
@@ -295,23 +279,16 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        // Validate Initializer Account
         bridge_utils::validate_programdata_account(program_id, programdata_account_info.key)?;
         bridge_utils::validate_initializer_account(
             initializer_account_info.key,
             programdata_account_info,
         )?;
 
-        // Validate Vault Account
-        let (vault_account, nonce) =
-            Pubkey::find_program_address(&[br"vault", name.as_bytes()], program_id);
-        if vault_account != *vault_account_info.key {
-            return Err(ProgramError::InvalidAccountData);
-        }
+        let vault_nonce =
+            bridge_utils::validate_vault_account(program_id, &name, vault_account_info)?;
+        let vault_account_signer_seeds: &[&[_]] = &[br"vault", name.as_bytes(), &[vault_nonce]];
 
-        let vault_account_signer_seeds: &[&[_]] = &[br"vault", name.as_bytes(), &[nonce]];
-
-        // Create Vault Account
         invoke_signed(
             &system_instruction::create_account(
                 funder_account_info.key,
@@ -328,7 +305,6 @@ impl Processor {
             &[vault_account_signer_seeds],
         )?;
 
-        // Init Vault Account
         invoke_signed(
             &spl_token::instruction::initialize_account(
                 &spl_token::id(),
@@ -345,17 +321,11 @@ impl Processor {
             &[vault_account_signer_seeds],
         )?;
 
-        // Validate Settings Account
-        let (settings_account, settings_nonce) =
-            Pubkey::find_program_address(&[br"settings", name.as_bytes()], program_id);
-        if settings_account != *settings_account_info.key {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
+        let settings_nonce =
+            bridge_utils::validate_settings_account(program_id, &name, settings_account_info)?;
         let settings_account_signer_seeds: &[&[_]] =
             &[br"settings", name.as_bytes(), &[settings_nonce]];
 
-        // Create Settings Account
         invoke_signed(
             &system_instruction::create_account(
                 funder_account_info.key,
@@ -372,7 +342,6 @@ impl Processor {
             &[settings_account_signer_seeds],
         )?;
 
-        // Init Settings Account
         let settings_account_data = Settings {
             is_initialized: true,
             emergency: false,
@@ -419,27 +388,15 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        // Validate Settings Account
-        let (settings_account, _nonce) =
-            Pubkey::find_program_address(&[br"settings", name.as_bytes()], program_id);
-        if settings_account != *settings_account_info.key {
-            return Err(ProgramError::InvalidAccountData);
-        }
+        bridge_utils::validate_settings_account(program_id, &name, settings_account_info)?;
 
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
-
         if settings_account_data.emergency {
             return Err(TokenProxyError::EmergencyEnabled.into());
         }
 
-        // Validate Mint Account
-        let (mint_account, _nonce) =
-            Pubkey::find_program_address(&[br"mint", name.as_bytes()], program_id);
-        if mint_account != *mint_account_info.key {
-            return Err(ProgramError::InvalidAccountData);
-        }
+        bridge_utils::validate_mint_account(program_id, &name, mint_account_info)?;
 
-        // Burn tokens
         invoke(
             &spl_token::instruction::burn(
                 token_program_info.key,
@@ -457,17 +414,11 @@ impl Processor {
             ],
         )?;
 
-        // Validate Deposit Account
-        let (deposit_account, deposit_nonce) =
-            Pubkey::find_program_address(&[br"deposit", &payload_id.to_bytes()], program_id);
-        if deposit_account != *deposit_account_info.key {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
+        let deposit_nonce =
+            bridge_utils::validate_deposit_account(program_id, &payload_id, deposit_account_info)?;
         let deposit_account_signer_seeds: &[&[_]] =
             &[br"deposit", &payload_id.to_bytes(), &[deposit_nonce]];
 
-        // Create Deposit Account
         invoke_signed(
             &system_instruction::create_account(
                 funder_account_info.key,
@@ -484,7 +435,6 @@ impl Processor {
             &[deposit_account_signer_seeds],
         )?;
 
-        // Init Deposit Account
         let deposit_account_data = Deposit {
             is_initialized: true,
             payload_id,
@@ -529,15 +479,9 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        // Validate Settings Account
-        let (settings_account, _nonce) =
-            Pubkey::find_program_address(&[br"settings", name.as_bytes()], program_id);
-        if settings_account != *settings_account_info.key {
-            return Err(ProgramError::InvalidAccountData);
-        }
+        bridge_utils::validate_settings_account(program_id, &name, settings_account_info)?;
 
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
-
         if settings_account_data.emergency {
             return Err(TokenProxyError::EmergencyEnabled.into());
         }
@@ -547,26 +491,21 @@ impl Processor {
             .as_solana()
             .ok_or(TokenProxyError::InvalidTokenKind)?;
 
-        // Validate Mint Account
         if mint_account != mint_account_info.key {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        // Validate Mint Account
         if vault_account != vault_account_info.key {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        // Unpack Vault Account
         let vault_account_data =
             spl_token::state::Account::unpack(&vault_account_info.data.borrow())?;
 
-        // Validate limits
         if vault_account_data.amount + amount > settings_account_data.deposit_limit {
             return Err(TokenProxyError::DepositLimit.into());
         }
 
-        // Transfer tokens
         invoke(
             &spl_token::instruction::transfer(
                 token_program_info.key,
@@ -584,17 +523,11 @@ impl Processor {
             ],
         )?;
 
-        // Validate Deposit Account
-        let (deposit_account, deposit_nonce) =
-            Pubkey::find_program_address(&[br"deposit", &payload_id.to_bytes()], program_id);
-        if deposit_account != *deposit_account_info.key {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
+        let deposit_nonce =
+            bridge_utils::validate_deposit_account(program_id, &payload_id, deposit_account_info)?;
         let deposit_account_signer_seeds: &[&[_]] =
             &[br"deposit", &payload_id.to_bytes(), &[deposit_nonce]];
 
-        // Create Deposit Account
         invoke_signed(
             &system_instruction::create_account(
                 funder_account_info.key,
@@ -611,7 +544,6 @@ impl Processor {
             &[deposit_account_signer_seeds],
         )?;
 
-        // Init Deposit Account
         let deposit_account_data = Deposit {
             is_initialized: true,
             payload_id,
@@ -658,22 +590,14 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        // Validate Settings Account
-        let (settings_account, _nonce) =
-            Pubkey::find_program_address(&[br"settings", name.as_bytes()], program_id);
-        if settings_account != *settings_account_info.key {
-            return Err(ProgramError::InvalidAccountData);
-        }
+        bridge_utils::validate_settings_account(program_id, &name, settings_account_info)?;
 
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
-
+        let kind = settings_account_data.kind;
         if settings_account_data.emergency {
             return Err(TokenProxyError::EmergencyEnabled.into());
         }
 
-        let kind = settings_account_data.kind;
-
-        // Validate Relay Round Account
         let relay_round_account = round_loader::get_associated_relay_round_address(round_number);
         if relay_round_account != *relay_round_account_info.key {
             return Err(ProgramError::InvalidAccountData);
@@ -681,6 +605,7 @@ impl Processor {
 
         let relay_round_account_data =
             round_loader::RelayRound::unpack(&relay_round_account_info.data.borrow())?;
+        let required_votes = (relay_round_account_data.relays.len() * 2 / 3 + 1) as u32;
 
         if relay_round_account_data.round_number != round_number {
             return Err(TokenProxyError::InvalidRelayRound.into());
@@ -690,19 +615,14 @@ impl Processor {
             return Err(TokenProxyError::RelayRoundExpired.into());
         }
 
-        let required_votes = (relay_round_account_data.relays.len() * 2 / 3 + 1) as u32;
-
-        // Validate Withdrawal Account
-        let (withdrawal_account, withdrawal_nonce) =
-            Pubkey::find_program_address(&[br"withdrawal", &payload_id.to_bytes()], program_id);
-        if withdrawal_account != *withdrawal_account_info.key {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
+        let withdrawal_nonce = bridge_utils::validate_withdraw_account(
+            program_id,
+            &payload_id,
+            withdrawal_account_info,
+        )?;
         let withdrawal_account_signer_seeds: &[&[_]] =
             &[br"withdrawal", &payload_id.to_bytes(), &[withdrawal_nonce]];
 
-        // Create Withdrawal Account
         invoke_signed(
             &system_instruction::create_account(
                 funder_account_info.key,
@@ -719,7 +639,6 @@ impl Processor {
             &[withdrawal_account_signer_seeds],
         )?;
 
-        // Init Withdrawal Account
         let withdrawal_account_data = Withdrawal {
             is_initialized: true,
             status: WithdrawalStatus::New,
@@ -761,20 +680,13 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        // Validate Settings Account
-        let (settings_account, _nonce) =
-            Pubkey::find_program_address(&[br"settings", name.as_bytes()], program_id);
-        if settings_account != *settings_account_info.key {
-            return Err(ProgramError::InvalidAccountData);
-        }
+        bridge_utils::validate_settings_account(program_id, &name, settings_account_info)?;
 
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
-
         if settings_account_data.emergency {
             return Err(TokenProxyError::EmergencyEnabled.into());
         }
 
-        // Validate Relay Round Account
         let relay_round_account = round_loader::get_associated_relay_round_address(round_number);
         if relay_round_account != *relay_round_account_info.key {
             return Err(ProgramError::InvalidAccountData);
@@ -791,10 +703,6 @@ impl Processor {
             return Err(TokenProxyError::RelayRoundExpired.into());
         }
 
-        let relay_round_account_data =
-            round_loader::RelayRound::unpack(&relay_round_account_info.data.borrow())?;
-
-        // Validate Relay Account
         if !relay_round_account_data
             .relays
             .contains(relay_account_info.key)
@@ -802,14 +710,8 @@ impl Processor {
             return Err(TokenProxyError::InvalidRelay.into());
         }
 
-        // Validate Withdrawal Account
-        let (withdrawal_account, _nonce) =
-            Pubkey::find_program_address(&[br"withdrawal", &payload_id.to_bytes()], program_id);
-        if withdrawal_account != *withdrawal_account_info.key {
-            return Err(ProgramError::InvalidAccountData);
-        }
+        bridge_utils::validate_withdraw_account(program_id, &payload_id, withdrawal_account_info)?;
 
-        // Update Withdrawal Account
         let mut withdrawal_account_data =
             Withdrawal::unpack(&withdrawal_account_info.data.borrow())?;
 
@@ -839,12 +741,7 @@ impl Processor {
         let settings_account_info = next_account_info(account_info_iter)?;
         let token_program_info = next_account_info(account_info_iter)?;
 
-        // Validate Settings Account
-        let (settings_account, _nonce) =
-            Pubkey::find_program_address(&[br"settings", name.as_bytes()], program_id);
-        if settings_account != *settings_account_info.key {
-            return Err(ProgramError::InvalidAccountData);
-        }
+        bridge_utils::validate_settings_account(program_id, &name, settings_account_info)?;
 
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
 
@@ -852,21 +749,16 @@ impl Processor {
             return Err(TokenProxyError::EmergencyEnabled.into());
         }
 
-        // Validate Withdrawal Account
-        let (withdrawal_account, _nonce) =
-            Pubkey::find_program_address(&[br"withdrawal", &payload_id.to_bytes()], program_id);
-        if withdrawal_account != *withdrawal_account_info.key {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
-        let mut withdrawal_account_data =
-            Withdrawal::unpack(&withdrawal_account_info.data.borrow())?;
-
-        // Validate connection between Settings and Withdrawal
         let settings_kind = settings_account_data
             .kind
             .as_ever()
             .ok_or(TokenProxyError::InvalidTokenKind)?;
+
+        bridge_utils::validate_withdraw_account(program_id, &payload_id, withdrawal_account_info)?;
+
+        let mut withdrawal_account_data =
+            Withdrawal::unpack(&withdrawal_account_info.data.borrow())?;
+
         let withdrawal_kind = withdrawal_account_data
             .kind
             .as_ever()
@@ -876,18 +768,11 @@ impl Processor {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        // Validate Recipient Account
         if withdrawal_account_data.recipient != *recipient_account_info.key {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        // Validate Mint Account
-        let (mint_account, mint_nonce) =
-            Pubkey::find_program_address(&[br"mint", name.as_bytes()], program_id);
-        if mint_account != *mint_account_info.key {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
+        let mint_nonce = bridge_utils::validate_mint_account(program_id, &name, mint_account_info)?;
         let mint_account_signer_seeds: &[&[_]] = &[br"mint", name.as_bytes(), &[mint_nonce]];
 
         if withdrawal_account_data.status == WithdrawalStatus::New
@@ -895,7 +780,6 @@ impl Processor {
                 >= withdrawal_account_data.required_votes
         {
             if withdrawal_account_data.amount < settings_account_data.withdrawal_limit {
-                // Mint tokens
                 invoke_signed(
                     &spl_token::instruction::mint_to(
                         token_program_info.key,
@@ -942,12 +826,7 @@ impl Processor {
         let settings_account_info = next_account_info(account_info_iter)?;
         let token_program_info = next_account_info(account_info_iter)?;
 
-        // Validate Settings Account
-        let (settings_account, _nonce) =
-            Pubkey::find_program_address(&[br"settings", name.as_bytes()], program_id);
-        if settings_account != *settings_account_info.key {
-            return Err(ProgramError::InvalidAccountData);
-        }
+        bridge_utils::validate_settings_account(program_id, &name, settings_account_info)?;
 
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
 
@@ -955,21 +834,16 @@ impl Processor {
             return Err(TokenProxyError::EmergencyEnabled.into());
         }
 
-        // Validate Withdrawal Account
-        let (withdrawal_account, _nonce) =
-            Pubkey::find_program_address(&[br"withdrawal", &payload_id.to_bytes()], program_id);
-        if withdrawal_account != *withdrawal_account_info.key {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
-        let mut withdrawal_account_data =
-            Withdrawal::unpack(&withdrawal_account_info.data.borrow())?;
-
-        // Validate connection between Settings and Withdrawal
         let settings_kind = settings_account_data
             .kind
             .as_solana()
             .ok_or(TokenProxyError::InvalidTokenKind)?;
+
+        bridge_utils::validate_withdraw_account(program_id, &payload_id, withdrawal_account_info)?;
+
+        let mut withdrawal_account_data =
+            Withdrawal::unpack(&withdrawal_account_info.data.borrow())?;
+
         let withdrawal_kind = withdrawal_account_data
             .kind
             .as_solana()
@@ -979,21 +853,14 @@ impl Processor {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        // Validate Recipient Account
         if withdrawal_account_data.recipient != *recipient_account_info.key {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        // Validate Vault Account
-        let (vault_account, vault_nonce) =
-            Pubkey::find_program_address(&[br"vault", name.as_bytes()], program_id);
-        if vault_account != *vault_account_info.key {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
+        let vault_nonce =
+            bridge_utils::validate_vault_account(program_id, &name, vault_account_info)?;
         let vault_account_signer_seeds: &[&[_]] = &[br"vault", name.as_bytes(), &[vault_nonce]];
 
-        // Unpack Vault Account
         let vault_account_data =
             spl_token::state::Account::unpack(&vault_account_info.data.borrow())?;
 
@@ -1057,12 +924,7 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        // Validate Settings Account
-        let (settings_account, _nonce) =
-            Pubkey::find_program_address(&[br"settings", name.as_bytes()], program_id);
-        if settings_account != *settings_account_info.key {
-            return Err(ProgramError::InvalidAccountData);
-        }
+        bridge_utils::validate_settings_account(program_id, &name, settings_account_info)?;
 
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
 
@@ -1074,12 +936,12 @@ impl Processor {
             return Err(ProgramError::IllegalOwner);
         }
 
-        // Validate Withdrawal Account
-        let (withdrawal_account, _nonce) =
-            Pubkey::find_program_address(&[br"withdrawal", &payload_id.to_bytes()], program_id);
-        if withdrawal_account != *withdrawal_account_info.key {
-            return Err(ProgramError::InvalidAccountData);
-        }
+        let settings_kind = settings_account_data
+            .kind
+            .as_ever()
+            .ok_or(TokenProxyError::InvalidTokenKind)?;
+
+        bridge_utils::validate_withdraw_account(program_id, &payload_id, withdrawal_account_info)?;
 
         let mut withdrawal_account_data =
             Withdrawal::unpack(&withdrawal_account_info.data.borrow())?;
@@ -1088,11 +950,6 @@ impl Processor {
             return Err(TokenProxyError::InvalidWithdrawalStatus.into());
         }
 
-        // Validate connection between Settings and Withdrawal
-        let settings_kind = settings_account_data
-            .kind
-            .as_ever()
-            .ok_or(TokenProxyError::InvalidTokenKind)?;
         let withdrawal_kind = withdrawal_account_data
             .kind
             .as_ever()
@@ -1102,21 +959,13 @@ impl Processor {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        // Validate Recipient Account
         if withdrawal_account_data.recipient != *recipient_account_info.key {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        // Validate Mint Account
-        let (mint_account, mint_nonce) =
-            Pubkey::find_program_address(&[br"mint", name.as_bytes()], program_id);
-        if mint_account != *mint_account_info.key {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
+        let mint_nonce = bridge_utils::validate_mint_account(program_id, &name, mint_account_info)?;
         let mint_account_signer_seeds: &[&[_]] = &[br"mint", name.as_bytes(), &[mint_nonce]];
 
-        // Mint tokens
         invoke_signed(
             &spl_token::instruction::mint_to(
                 token_program_info.key,
@@ -1161,12 +1010,7 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        // Validate Settings Account
-        let (settings_account, _nonce) =
-            Pubkey::find_program_address(&[br"settings", name.as_bytes()], program_id);
-        if settings_account != *settings_account_info.key {
-            return Err(ProgramError::InvalidAccountData);
-        }
+        bridge_utils::validate_settings_account(program_id, &name, settings_account_info)?;
 
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
 
@@ -1178,12 +1022,12 @@ impl Processor {
             return Err(ProgramError::IllegalOwner);
         }
 
-        // Validate Withdrawal Account
-        let (withdrawal_account, _nonce) =
-            Pubkey::find_program_address(&[br"withdrawal", &payload_id.to_bytes()], program_id);
-        if withdrawal_account != *withdrawal_account_info.key {
-            return Err(ProgramError::InvalidAccountData);
-        }
+        let settings_kind = settings_account_data
+            .kind
+            .as_solana()
+            .ok_or(TokenProxyError::InvalidTokenKind)?;
+
+        bridge_utils::validate_withdraw_account(program_id, &payload_id, withdrawal_account_info)?;
 
         let mut withdrawal_account_data =
             Withdrawal::unpack(&withdrawal_account_info.data.borrow())?;
@@ -1192,11 +1036,6 @@ impl Processor {
             return Err(TokenProxyError::InvalidWithdrawalStatus.into());
         }
 
-        // Validate connection between Settings and Withdrawal
-        let settings_kind = settings_account_data
-            .kind
-            .as_solana()
-            .ok_or(TokenProxyError::InvalidTokenKind)?;
         let withdrawal_kind = withdrawal_account_data
             .kind
             .as_solana()
@@ -1230,12 +1069,7 @@ impl Processor {
         let settings_account_info = next_account_info(account_info_iter)?;
         let token_program_info = next_account_info(account_info_iter)?;
 
-        // Validate Settings Account
-        let (settings_account, _nonce) =
-            Pubkey::find_program_address(&[br"settings", name.as_bytes()], program_id);
-        if settings_account != *settings_account_info.key {
-            return Err(ProgramError::InvalidAccountData);
-        }
+        bridge_utils::validate_settings_account(program_id, &name, settings_account_info)?;
 
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
 
@@ -1243,12 +1077,12 @@ impl Processor {
             return Err(TokenProxyError::EmergencyEnabled.into());
         }
 
-        // Validate Withdrawal Account
-        let (withdrawal_account, _nonce) =
-            Pubkey::find_program_address(&[br"withdrawal", &payload_id.to_bytes()], program_id);
-        if withdrawal_account != *withdrawal_account_info.key {
-            return Err(ProgramError::InvalidAccountData);
-        }
+        let settings_kind = settings_account_data
+            .kind
+            .as_solana()
+            .ok_or(TokenProxyError::InvalidTokenKind)?;
+
+        bridge_utils::validate_withdraw_account(program_id, &payload_id, withdrawal_account_info)?;
 
         let mut withdrawal_account_data =
             Withdrawal::unpack(&withdrawal_account_info.data.borrow())?;
@@ -1257,11 +1091,6 @@ impl Processor {
             return Err(TokenProxyError::InvalidWithdrawalStatus.into());
         }
 
-        // Validate connection between Settings and Withdrawal
-        let settings_kind = settings_account_data
-            .kind
-            .as_solana()
-            .ok_or(TokenProxyError::InvalidTokenKind)?;
         let withdrawal_kind = withdrawal_account_data
             .kind
             .as_solana()
@@ -1271,18 +1100,12 @@ impl Processor {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        // Validate Recipient Account
         if withdrawal_account_data.recipient != *recipient_account_info.key {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        // Validate Vault Account
-        let (vault_account, vault_nonce) =
-            Pubkey::find_program_address(&[br"vault", name.as_bytes()], program_id);
-        if vault_account != *vault_account_info.key {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
+        let vault_nonce =
+            bridge_utils::validate_vault_account(program_id, &name, vault_account_info)?;
         let vault_account_signer_seeds: &[&[_]] = &[br"vault", name.as_bytes(), &[vault_nonce]];
 
         let vault_account_data =
@@ -1292,7 +1115,6 @@ impl Processor {
             return Err(TokenProxyError::InsufficientVaultBalance.into());
         }
 
-        // Transfer tokens
         invoke_signed(
             &spl_token::instruction::transfer(
                 token_program_info.key,
@@ -1335,12 +1157,7 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        // Validate Withdrawal Account
-        let (withdrawal_account, _nonce) =
-            Pubkey::find_program_address(&[br"withdrawal", &payload_id.to_bytes()], program_id);
-        if withdrawal_account != *withdrawal_account_info.key {
-            return Err(ProgramError::InvalidAccountData);
-        }
+        bridge_utils::validate_withdraw_account(program_id, &payload_id, withdrawal_account_info)?;
 
         let mut withdrawal_account_data =
             Withdrawal::unpack(&withdrawal_account_info.data.borrow())?;
