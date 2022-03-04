@@ -91,7 +91,7 @@ impl Processor {
                 round_number,
                 amount,
             } => {
-                msg!("Instruction: Withdraw request");
+                msg!("Instruction: Withdraw EVER/SOL request");
                 Self::process_withdraw_request(
                     program_id,
                     accounts,
@@ -106,7 +106,7 @@ impl Processor {
                 payload_id,
                 round_number,
             } => {
-                msg!("Instruction: Confirm Withdraw request");
+                msg!("Instruction: Confirm Withdraw EVER/SOL request");
                 Self::process_confirm_withdraw_request(
                     program_id,
                     accounts,
@@ -171,15 +171,18 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
+        // Validate Initializer Account
         bridge_utils::validate_programdata_account(program_id, programdata_account_info.key)?;
         bridge_utils::validate_initializer_account(
             initializer_account_info.key,
             programdata_account_info,
         )?;
 
+        // Validate Mint Account
         let mint_nonce = bridge_utils::validate_mint_account(program_id, &name, mint_account_info)?;
         let mint_account_signer_seeds: &[&[_]] = &[br"mint", name.as_bytes(), &[mint_nonce]];
 
+        // Create Mint Account
         invoke_signed(
             &system_instruction::create_account(
                 funder_account_info.key,
@@ -196,6 +199,7 @@ impl Processor {
             &[mint_account_signer_seeds],
         )?;
 
+        // Init Mint Account
         invoke_signed(
             &spl_token::instruction::initialize_mint(
                 &spl_token::id(),
@@ -212,11 +216,13 @@ impl Processor {
             &[mint_account_signer_seeds],
         )?;
 
+        // Validate Settings Account
         let settings_nonce =
             bridge_utils::validate_settings_account(program_id, &name, settings_account_info)?;
         let settings_account_signer_seeds: &[&[_]] =
             &[br"settings", name.as_bytes(), &[settings_nonce]];
 
+        // Create Settings Account
         invoke_signed(
             &system_instruction::create_account(
                 funder_account_info.key,
@@ -233,6 +239,7 @@ impl Processor {
             &[settings_account_signer_seeds],
         )?;
 
+        // Init Settings Account
         let settings_account_data = Settings {
             is_initialized: true,
             emergency: false,
@@ -279,16 +286,19 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
+        // Validate Initializer Account
         bridge_utils::validate_programdata_account(program_id, programdata_account_info.key)?;
         bridge_utils::validate_initializer_account(
             initializer_account_info.key,
             programdata_account_info,
         )?;
 
+        // Validate Vault Account
         let vault_nonce =
             bridge_utils::validate_vault_account(program_id, &name, vault_account_info)?;
         let vault_account_signer_seeds: &[&[_]] = &[br"vault", name.as_bytes(), &[vault_nonce]];
 
+        // Create Vault Account
         invoke_signed(
             &system_instruction::create_account(
                 funder_account_info.key,
@@ -305,6 +315,7 @@ impl Processor {
             &[vault_account_signer_seeds],
         )?;
 
+        // Init Vault Account
         invoke_signed(
             &spl_token::instruction::initialize_account(
                 &spl_token::id(),
@@ -321,11 +332,13 @@ impl Processor {
             &[vault_account_signer_seeds],
         )?;
 
+        // Validate Settings Account
         let settings_nonce =
             bridge_utils::validate_settings_account(program_id, &name, settings_account_info)?;
         let settings_account_signer_seeds: &[&[_]] =
             &[br"settings", name.as_bytes(), &[settings_nonce]];
 
+        // Create Settings Account
         invoke_signed(
             &system_instruction::create_account(
                 funder_account_info.key,
@@ -342,6 +355,7 @@ impl Processor {
             &[settings_account_signer_seeds],
         )?;
 
+        // Init Settings Account
         let settings_account_data = Settings {
             is_initialized: true,
             emergency: false,
@@ -388,6 +402,7 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
+        // Validate Settings Account
         bridge_utils::validate_settings_account(program_id, &name, settings_account_info)?;
 
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
@@ -395,8 +410,10 @@ impl Processor {
             return Err(TokenProxyError::EmergencyEnabled.into());
         }
 
+        // Validate Mint Account
         bridge_utils::validate_mint_account(program_id, &name, mint_account_info)?;
 
+        // Burn EVER tokens
         invoke(
             &spl_token::instruction::burn(
                 token_program_info.key,
@@ -414,11 +431,13 @@ impl Processor {
             ],
         )?;
 
+        // Validate Deposit Account
         let deposit_nonce =
             bridge_utils::validate_deposit_account(program_id, &payload_id, deposit_account_info)?;
         let deposit_account_signer_seeds: &[&[_]] =
             &[br"deposit", &payload_id.to_bytes(), &[deposit_nonce]];
 
+        // Create Deposit Account
         invoke_signed(
             &system_instruction::create_account(
                 funder_account_info.key,
@@ -435,6 +454,7 @@ impl Processor {
             &[deposit_account_signer_seeds],
         )?;
 
+        // Init Deposit Account
         let deposit_account_data = Deposit {
             is_initialized: true,
             payload_id,
@@ -479,6 +499,7 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
+        // Validate Settings Account
         bridge_utils::validate_settings_account(program_id, &name, settings_account_info)?;
 
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
@@ -491,10 +512,12 @@ impl Processor {
             .as_solana()
             .ok_or(TokenProxyError::InvalidTokenKind)?;
 
+        // Validate Mint Account
         if mint_account != mint_account_info.key {
             return Err(ProgramError::InvalidAccountData);
         }
 
+        // Validate Vault Account
         if vault_account != vault_account_info.key {
             return Err(ProgramError::InvalidAccountData);
         }
@@ -506,6 +529,7 @@ impl Processor {
             return Err(TokenProxyError::DepositLimit.into());
         }
 
+        // Transfer SOL tokens to Vault Account
         invoke(
             &spl_token::instruction::transfer(
                 token_program_info.key,
@@ -523,11 +547,13 @@ impl Processor {
             ],
         )?;
 
+        // Validate Deposit Account
         let deposit_nonce =
             bridge_utils::validate_deposit_account(program_id, &payload_id, deposit_account_info)?;
         let deposit_account_signer_seeds: &[&[_]] =
             &[br"deposit", &payload_id.to_bytes(), &[deposit_nonce]];
 
+        // Create Deposit Account
         invoke_signed(
             &system_instruction::create_account(
                 funder_account_info.key,
@@ -544,6 +570,7 @@ impl Processor {
             &[deposit_account_signer_seeds],
         )?;
 
+        // Init Deposit Account
         let deposit_account_data = Deposit {
             is_initialized: true,
             payload_id,
@@ -590,6 +617,7 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
+        // Validate Settings Account
         bridge_utils::validate_settings_account(program_id, &name, settings_account_info)?;
 
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
@@ -598,6 +626,7 @@ impl Processor {
             return Err(TokenProxyError::EmergencyEnabled.into());
         }
 
+        // Validate Relay Round Account
         let relay_round_account = round_loader::get_associated_relay_round_address(round_number);
         if relay_round_account != *relay_round_account_info.key {
             return Err(ProgramError::InvalidAccountData);
@@ -615,6 +644,7 @@ impl Processor {
             return Err(TokenProxyError::RelayRoundExpired.into());
         }
 
+        // Validate Withdrawal Account
         let withdrawal_nonce = bridge_utils::validate_withdraw_account(
             program_id,
             &payload_id,
@@ -623,6 +653,7 @@ impl Processor {
         let withdrawal_account_signer_seeds: &[&[_]] =
             &[br"withdrawal", &payload_id.to_bytes(), &[withdrawal_nonce]];
 
+        // Create Withdraw Account
         invoke_signed(
             &system_instruction::create_account(
                 funder_account_info.key,
@@ -639,6 +670,7 @@ impl Processor {
             &[withdrawal_account_signer_seeds],
         )?;
 
+        // Init Withdraw Account
         let withdrawal_account_data = Withdrawal {
             is_initialized: true,
             status: WithdrawalStatus::New,
@@ -647,6 +679,7 @@ impl Processor {
             signers: vec![],
             bounty: 0,
             payload_id,
+            round_number,
             kind,
             required_votes,
             amount,
@@ -680,6 +713,7 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
+        // Validate Settings Account
         bridge_utils::validate_settings_account(program_id, &name, settings_account_info)?;
 
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
@@ -687,6 +721,7 @@ impl Processor {
             return Err(TokenProxyError::EmergencyEnabled.into());
         }
 
+        // Validate Relay Round Account
         let relay_round_account = round_loader::get_associated_relay_round_address(round_number);
         if relay_round_account != *relay_round_account_info.key {
             return Err(ProgramError::InvalidAccountData);
@@ -710,11 +745,17 @@ impl Processor {
             return Err(TokenProxyError::InvalidRelay.into());
         }
 
+        // Validate Withdrawal Account
         bridge_utils::validate_withdraw_account(program_id, &payload_id, withdrawal_account_info)?;
 
         let mut withdrawal_account_data =
             Withdrawal::unpack(&withdrawal_account_info.data.borrow())?;
 
+        if withdrawal_account_data.round_number != round_number {
+            return Err(TokenProxyError::InvalidRelayRound.into());
+        }
+
+        // Add signer
         withdrawal_account_data
             .signers
             .push(*relay_account_info.key);
@@ -741,6 +782,7 @@ impl Processor {
         let settings_account_info = next_account_info(account_info_iter)?;
         let token_program_info = next_account_info(account_info_iter)?;
 
+        // Validate Settings Account
         bridge_utils::validate_settings_account(program_id, &name, settings_account_info)?;
 
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
@@ -754,6 +796,7 @@ impl Processor {
             .as_ever()
             .ok_or(TokenProxyError::InvalidTokenKind)?;
 
+        // Validate Withdrawal Account
         bridge_utils::validate_withdraw_account(program_id, &payload_id, withdrawal_account_info)?;
 
         let mut withdrawal_account_data =
@@ -764,14 +807,17 @@ impl Processor {
             .as_ever()
             .ok_or(TokenProxyError::InvalidTokenKind)?;
 
+        // Validate connection between Settings and Withdrawal Accounts
         if settings_kind != withdrawal_kind {
             return Err(ProgramError::InvalidAccountData);
         }
 
+        // Validate Recipient Account
         if withdrawal_account_data.recipient != *recipient_account_info.key {
             return Err(ProgramError::InvalidAccountData);
         }
 
+        // Validate Mint Account
         let mint_nonce = bridge_utils::validate_mint_account(program_id, &name, mint_account_info)?;
         let mint_account_signer_seeds: &[&[_]] = &[br"mint", name.as_bytes(), &[mint_nonce]];
 
@@ -780,6 +826,7 @@ impl Processor {
                 >= withdrawal_account_data.required_votes
         {
             if withdrawal_account_data.amount < settings_account_data.withdrawal_limit {
+                // Mint EVER tokens to Recipient Account
                 invoke_signed(
                     &spl_token::instruction::mint_to(
                         token_program_info.key,
@@ -826,6 +873,7 @@ impl Processor {
         let settings_account_info = next_account_info(account_info_iter)?;
         let token_program_info = next_account_info(account_info_iter)?;
 
+        // Validate Settings Account
         bridge_utils::validate_settings_account(program_id, &name, settings_account_info)?;
 
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
@@ -839,6 +887,7 @@ impl Processor {
             .as_solana()
             .ok_or(TokenProxyError::InvalidTokenKind)?;
 
+        // Validate Withdrawal Account
         bridge_utils::validate_withdraw_account(program_id, &payload_id, withdrawal_account_info)?;
 
         let mut withdrawal_account_data =
@@ -849,14 +898,17 @@ impl Processor {
             .as_solana()
             .ok_or(TokenProxyError::InvalidTokenKind)?;
 
+        // Validate connection between Settings and Withdrawal Accounts
         if settings_kind != withdrawal_kind {
             return Err(ProgramError::InvalidAccountData);
         }
 
+        // Validate Recipient Account
         if withdrawal_account_data.recipient != *recipient_account_info.key {
             return Err(ProgramError::InvalidAccountData);
         }
 
+        // Validate Vault Account
         let vault_nonce =
             bridge_utils::validate_vault_account(program_id, &name, vault_account_info)?;
         let vault_account_signer_seeds: &[&[_]] = &[br"vault", name.as_bytes(), &[vault_nonce]];
@@ -870,7 +922,7 @@ impl Processor {
         {
             if withdrawal_account_data.amount < settings_account_data.withdrawal_limit {
                 if vault_account_data.amount >= withdrawal_account_data.amount {
-                    // Transfer tokens
+                    // Transfer tokens from Vault Account to Recipient Account
                     invoke_signed(
                         &spl_token::instruction::transfer(
                             token_program_info.key,
@@ -924,6 +976,7 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
+        // Validate Settings Account
         bridge_utils::validate_settings_account(program_id, &name, settings_account_info)?;
 
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
@@ -941,6 +994,7 @@ impl Processor {
             .as_ever()
             .ok_or(TokenProxyError::InvalidTokenKind)?;
 
+        // Validate Withdrawal Account
         bridge_utils::validate_withdraw_account(program_id, &payload_id, withdrawal_account_info)?;
 
         let mut withdrawal_account_data =
@@ -955,17 +1009,21 @@ impl Processor {
             .as_ever()
             .ok_or(TokenProxyError::InvalidTokenKind)?;
 
+        // Validate connection between Settings and Withdrawal Accounts
         if settings_kind != withdrawal_kind {
             return Err(ProgramError::InvalidAccountData);
         }
 
+        // Validate Recipient Account
         if withdrawal_account_data.recipient != *recipient_account_info.key {
             return Err(ProgramError::InvalidAccountData);
         }
 
+        // Validate Mint Account
         let mint_nonce = bridge_utils::validate_mint_account(program_id, &name, mint_account_info)?;
         let mint_account_signer_seeds: &[&[_]] = &[br"mint", name.as_bytes(), &[mint_nonce]];
 
+        // Mint EVER token to Recipient Account
         invoke_signed(
             &spl_token::instruction::mint_to(
                 token_program_info.key,
@@ -1010,6 +1068,7 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
+        // Validate Settings Account
         bridge_utils::validate_settings_account(program_id, &name, settings_account_info)?;
 
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
@@ -1027,6 +1086,7 @@ impl Processor {
             .as_solana()
             .ok_or(TokenProxyError::InvalidTokenKind)?;
 
+        // Validate Withdrawal Account
         bridge_utils::validate_withdraw_account(program_id, &payload_id, withdrawal_account_info)?;
 
         let mut withdrawal_account_data =
@@ -1041,6 +1101,7 @@ impl Processor {
             .as_solana()
             .ok_or(TokenProxyError::InvalidTokenKind)?;
 
+        // Validate connection between Settings and Withdrawal Accounts
         if settings_kind != withdrawal_kind {
             return Err(ProgramError::InvalidAccountData);
         }
@@ -1069,6 +1130,7 @@ impl Processor {
         let settings_account_info = next_account_info(account_info_iter)?;
         let token_program_info = next_account_info(account_info_iter)?;
 
+        // Validate Settings Account
         bridge_utils::validate_settings_account(program_id, &name, settings_account_info)?;
 
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
@@ -1082,6 +1144,7 @@ impl Processor {
             .as_solana()
             .ok_or(TokenProxyError::InvalidTokenKind)?;
 
+        // Validate Withdrawal Account
         bridge_utils::validate_withdraw_account(program_id, &payload_id, withdrawal_account_info)?;
 
         let mut withdrawal_account_data =
@@ -1096,14 +1159,17 @@ impl Processor {
             .as_solana()
             .ok_or(TokenProxyError::InvalidTokenKind)?;
 
+        // Validate connection between Settings and Withdrawal Accounts
         if settings_kind != withdrawal_kind {
             return Err(ProgramError::InvalidAccountData);
         }
 
+        // Validate Recipient Account
         if withdrawal_account_data.recipient != *recipient_account_info.key {
             return Err(ProgramError::InvalidAccountData);
         }
 
+        // Validate Vault Account
         let vault_nonce =
             bridge_utils::validate_vault_account(program_id, &name, vault_account_info)?;
         let vault_account_signer_seeds: &[&[_]] = &[br"vault", name.as_bytes(), &[vault_nonce]];
@@ -1115,6 +1181,7 @@ impl Processor {
             return Err(TokenProxyError::InsufficientVaultBalance.into());
         }
 
+        // Transfer SOL tokens from Vault Account to Recipient Account
         invoke_signed(
             &spl_token::instruction::transfer(
                 token_program_info.key,

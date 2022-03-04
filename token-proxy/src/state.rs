@@ -53,6 +53,7 @@ impl IsInitialized for Deposit {
 pub struct Withdrawal {
     pub is_initialized: bool,
     pub payload_id: Hash,
+    pub round_number: u32,
     pub kind: TokenKind,
     pub author: Pubkey,
     pub recipient: Pubkey,

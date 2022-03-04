@@ -100,7 +100,7 @@ pub enum TokenProxyInstruction {
         amount: u64,
     },
 
-    /// Withdraw EVER request
+    /// Withdraw EVER/SOL request
     ///
     /// # Account references
     ///   0. [WRITE, SIGNER]    Funder account
@@ -116,7 +116,7 @@ pub enum TokenProxyInstruction {
         amount: u64,
     },
 
-    /// Confirm withdraw EVER request
+    /// Confirm withdraw EVER/SOL request
     ///
     /// # Account references
     ///   0. [WRITE, SIGNER]    Funder account

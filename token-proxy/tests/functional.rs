@@ -843,6 +843,7 @@ async fn test_confirm_withdrawal_request() {
     let withdrawal_account_data = Withdrawal {
         is_initialized: true,
         payload_id,
+        round_number,
         kind: TokenKind::Ever { mint: mint_address },
         author: Pubkey::new_unique(),
         recipient: recipient_address,
@@ -1019,6 +1020,7 @@ async fn test_withdrawal_ever() {
     let withdrawal_account_data = Withdrawal {
         is_initialized: true,
         payload_id,
+        round_number: 5,
         kind: TokenKind::Ever { mint: mint_address },
         author: Pubkey::new_unique(),
         recipient: recipient_associated_token_address,
@@ -1230,6 +1232,7 @@ async fn test_withdrawal_sol() {
     let withdrawal_account_data = Withdrawal {
         is_initialized: true,
         payload_id,
+        round_number: 5,
         kind: TokenKind::Solana {
             mint: mint.pubkey(),
             vault: vault_address,
@@ -1418,6 +1421,7 @@ async fn test_approve_withdrawal_ever() {
     let withdrawal_account_data = Withdrawal {
         is_initialized: true,
         payload_id,
+        round_number: 5,
         kind: TokenKind::Ever { mint: mint_address },
         author: Pubkey::new_unique(),
         recipient: recipient_associated_token_address,
@@ -1570,6 +1574,7 @@ async fn test_approve_withdrawal_sol() {
     let withdrawal_account_data = Withdrawal {
         is_initialized: true,
         payload_id,
+        round_number: 5,
         kind: TokenKind::Solana {
             mint,
             vault: vault_address,
@@ -1774,6 +1779,7 @@ async fn test_force_withdrawal_sol() {
     let withdrawal_account_data = Withdrawal {
         is_initialized: true,
         payload_id,
+        round_number: 5,
         kind: TokenKind::Solana {
             mint: mint.pubkey(),
             vault: vault_address,
@@ -1873,7 +1879,7 @@ async fn test_change_bounty_for_withdrawal_sol() {
         },
     );
 
-    // Add Withdrawal Round Account
+    // Add Withdrawal Account
     let author = Keypair::new();
     let payload_id = Hash::new_unique();
     let amount = 10;
@@ -1883,6 +1889,7 @@ async fn test_change_bounty_for_withdrawal_sol() {
     let withdrawal_account_data = Withdrawal {
         is_initialized: true,
         payload_id,
+        round_number: 5,
         kind: TokenKind::Solana {
             mint: Pubkey::new_unique(),
             vault: Pubkey::new_unique(),
