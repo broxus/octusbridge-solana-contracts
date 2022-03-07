@@ -114,18 +114,3 @@ pub fn validate_withdraw_account(
 
     Ok(nonce)
 }
-
-pub fn validate_relay_round_account(
-    program_id: &Pubkey,
-    payload_id: &Hash,
-    account_info: &AccountInfo,
-) -> Result<u8, ProgramError> {
-    let (account, nonce) =
-        Pubkey::find_program_address(&[br"withdrawal", &payload_id.to_bytes()], program_id);
-
-    if account != *account_info.key {
-        return Err(ProgramError::InvalidAccountData);
-    }
-
-    Ok(nonce)
-}
