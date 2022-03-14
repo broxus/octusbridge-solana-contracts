@@ -145,6 +145,24 @@ impl Processor {
                     program_id, accounts, payload_id, bounty,
                 )?;
             }
+            TokenProxyInstruction::ChangeSettings {
+                name,
+                emergency,
+                deposit_limit,
+                withdrawal_limit,
+                withdrawal_daily_limit,
+            } => {
+                msg!("Instruction: Change Settings");
+                Self::process_change_settings(
+                    program_id,
+                    accounts,
+                    &name,
+                    emergency,
+                    deposit_limit,
+                    withdrawal_limit,
+                    withdrawal_daily_limit,
+                )?;
+            }
         };
 
         Ok(())
@@ -1294,6 +1312,46 @@ impl Processor {
         Withdrawal::pack(
             withdrawal_account_data,
             &mut withdrawal_account_info.data.borrow_mut(),
+        )?;
+
+        Ok(())
+    }
+
+    fn process_change_settings(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        name: &str,
+        emergency: bool,
+        deposit_limit: u64,
+        withdrawal_limit: u64,
+        withdrawal_daily_limit: u64,
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+
+        let authority_account_info = next_account_info(account_info_iter)?;
+        let settings_account_info = next_account_info(account_info_iter)?;
+
+        if !authority_account_info.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        // Validate Settings Account
+        bridge_utils::validate_settings_account(program_id, &name, settings_account_info)?;
+
+        let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+
+        if settings_account_data.admin != *authority_account_info.key {
+            return Err(ProgramError::IllegalOwner);
+        }
+
+        settings_account_data.emergency = emergency;
+        settings_account_data.deposit_limit = deposit_limit;
+        settings_account_data.withdrawal_limit = withdrawal_limit;
+        settings_account_data.withdrawal_daily_limit = withdrawal_daily_limit;
+
+        Settings::pack(
+            settings_account_data,
+            &mut settings_account_info.data.borrow_mut(),
         )?;
 
         Ok(())

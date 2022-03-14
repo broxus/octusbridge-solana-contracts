@@ -107,7 +107,6 @@ pub enum TokenProxyInstruction {
     /// Withdraw EVER/SOL request
     ///
     /// # Account references
-    ///   0. [WRITE, SIGNER]    Funder account
     /// ...
     WithdrawRequest {
         /// Mint asset name
@@ -123,7 +122,6 @@ pub enum TokenProxyInstruction {
     /// Confirm withdraw EVER/SOL request
     ///
     /// # Account references
-    ///   0. [WRITE, SIGNER]    Funder account
     /// ...
     ConfirmWithdrawRequest {
         /// Mint asset name
@@ -137,7 +135,6 @@ pub enum TokenProxyInstruction {
     /// Withdraw EVER
     ///
     /// # Account references
-    ///   0. [WRITE, SIGNER]    Funder account
     /// ...
     WithdrawEver {
         /// Mint asset name
@@ -149,7 +146,6 @@ pub enum TokenProxyInstruction {
     /// Withdraw SOL
     ///
     /// # Account references
-    ///   0. [WRITE, SIGNER]    Funder account
     /// ...
     WithdrawSol {
         /// Mint asset name
@@ -161,7 +157,6 @@ pub enum TokenProxyInstruction {
     /// Approve Withdraw Ever
     ///
     /// # Account references
-    ///   0. [WRITE, SIGNER]    Funder account
     /// ...
     ApproveWithdrawEver {
         /// Mint asset name
@@ -173,7 +168,6 @@ pub enum TokenProxyInstruction {
     /// Approve Withdraw SOL
     ///
     /// # Account references
-    ///   0. [WRITE, SIGNER]    Funder account
     /// ...
     ApproveWithdrawSol {
         /// Mint asset name
@@ -185,7 +179,6 @@ pub enum TokenProxyInstruction {
     /// Force Withdraw SOL
     ///
     /// # Account references
-    ///   0. [WRITE, SIGNER]    Funder account
     /// ...
     ForceWithdrawSol {
         /// Mint asset name
@@ -197,12 +190,28 @@ pub enum TokenProxyInstruction {
     /// Change Bounty for Withdraw SOL
     ///
     /// # Account references
-    ///   0. [WRITE, SIGNER]    Funder account
     /// ...
     ChangeBountyForWithdrawSol {
         // Unique transfer hash
         payload_id: Hash,
         // New bounty value
         bounty: u64,
+    },
+
+    /// Change Settings
+    ///
+    /// # Account references
+    /// ...
+    ChangeSettings {
+        /// Token asset name
+        name: String,
+        // Emergency flag
+        emergency: bool,
+        // Deposit limit
+        deposit_limit: u64,
+        // Withdrawal limit
+        withdrawal_limit: u64,
+        // Withdrawal daily limit
+        withdrawal_daily_limit: u64,
     },
 }

@@ -425,7 +425,7 @@ pub fn force_withdrawal_sol(
 }
 
 pub fn change_bounty_for_withdrawal_sol(
-    author_pubkey: &Pubkey,
+    authority_pubkey: &Pubkey,
     payload_id: Hash,
     bounty: u64,
 ) -> Instruction {
@@ -438,8 +438,38 @@ pub fn change_bounty_for_withdrawal_sol(
     Instruction {
         program_id: id(),
         accounts: vec![
-            AccountMeta::new(*author_pubkey, true),
+            AccountMeta::new(*authority_pubkey, true),
             AccountMeta::new(withdrawal_pubkey, false),
+        ],
+        data,
+    }
+}
+
+pub fn change_settings(
+    authority_pubkey: &Pubkey,
+    name: String,
+    emergency: bool,
+    deposit_limit: u64,
+    withdrawal_limit: u64,
+    withdrawal_daily_limit: u64,
+) -> Instruction {
+    let settings_pubkey = get_associated_settings_address(&name);
+
+    let data = TokenProxyInstruction::ChangeSettings {
+        name,
+        emergency,
+        deposit_limit,
+        withdrawal_limit,
+        withdrawal_daily_limit,
+    }
+    .try_to_vec()
+    .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(*authority_pubkey, true),
+            AccountMeta::new(settings_pubkey, false),
         ],
         data,
     }

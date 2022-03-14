@@ -250,30 +250,6 @@ async fn test_deposit_ever() {
     );
 
     // Setup environment
-    let initializer = Keypair::new();
-
-    let programdata_address =
-        Pubkey::find_program_address(&[token_proxy::id().as_ref()], &bpf_loader_upgradeable::id())
-            .0;
-
-    let programdata_data = UpgradeableLoaderState::ProgramData {
-        slot: 0,
-        upgrade_authority_address: Some(initializer.pubkey()),
-    };
-
-    let programdata_data_serialized =
-        bincode::serialize::<UpgradeableLoaderState>(&programdata_data).unwrap();
-
-    program_test.add_account(
-        programdata_address,
-        Account {
-            lamports: Rent::default().minimum_balance(programdata_data_serialized.len()),
-            data: programdata_data_serialized,
-            owner: token_proxy::id(),
-            executable: false,
-            rent_epoch: 0,
-        },
-    );
 
     // Add Mint Account
     let name = "WEVER".to_string();
@@ -426,30 +402,6 @@ async fn test_deposit_sol() {
     );
 
     // Setup environment
-    let initializer = Keypair::new();
-
-    let programdata_address =
-        Pubkey::find_program_address(&[token_proxy::id().as_ref()], &bpf_loader_upgradeable::id())
-            .0;
-
-    let programdata_data = UpgradeableLoaderState::ProgramData {
-        slot: 0,
-        upgrade_authority_address: Some(initializer.pubkey()),
-    };
-
-    let programdata_data_serialized =
-        bincode::serialize::<UpgradeableLoaderState>(&programdata_data).unwrap();
-
-    program_test.add_account(
-        programdata_address,
-        Account {
-            lamports: Rent::default().minimum_balance(programdata_data_serialized.len()),
-            data: programdata_data_serialized,
-            owner: token_proxy::id(),
-            executable: false,
-            rent_epoch: 0,
-        },
-    );
 
     // Add Mint Account
     let mint = Keypair::new();
@@ -621,31 +573,6 @@ async fn test_withdrawal_request() {
     );
 
     // Setup environment
-    let initializer = Keypair::new();
-
-    let programdata_address =
-        Pubkey::find_program_address(&[token_proxy::id().as_ref()], &bpf_loader_upgradeable::id())
-            .0;
-
-    let programdata_data = UpgradeableLoaderState::ProgramData {
-        slot: 0,
-        upgrade_authority_address: Some(initializer.pubkey()),
-    };
-
-    let programdata_data_serialized =
-        bincode::serialize::<UpgradeableLoaderState>(&programdata_data).unwrap();
-
-    program_test.add_account(
-        programdata_address,
-        Account {
-            lamports: Rent::default().minimum_balance(programdata_data_serialized.len()),
-            data: programdata_data_serialized,
-            owner: token_proxy::id(),
-            executable: false,
-            rent_epoch: 0,
-        },
-    );
-
     let name = "WEVER".to_string();
     let decimals = 9;
     let deposit_limit = 10000000;
@@ -765,31 +692,6 @@ async fn test_confirm_withdrawal_request() {
     );
 
     // Setup environment
-    let initializer = Keypair::new();
-
-    let programdata_address =
-        Pubkey::find_program_address(&[token_proxy::id().as_ref()], &bpf_loader_upgradeable::id())
-            .0;
-
-    let programdata_data = UpgradeableLoaderState::ProgramData {
-        slot: 0,
-        upgrade_authority_address: Some(initializer.pubkey()),
-    };
-
-    let programdata_data_serialized =
-        bincode::serialize::<UpgradeableLoaderState>(&programdata_data).unwrap();
-
-    program_test.add_account(
-        programdata_address,
-        Account {
-            lamports: Rent::default().minimum_balance(programdata_data_serialized.len()),
-            data: programdata_data_serialized,
-            owner: token_proxy::id(),
-            executable: false,
-            rent_epoch: 0,
-        },
-    );
-
     let name = "WEVER".to_string();
     let decimals = 9;
     let deposit_limit = 10000000;
@@ -926,30 +828,6 @@ async fn test_withdrawal_ever() {
     );
 
     // Setup environment
-    let initializer = Keypair::new();
-
-    let programdata_address =
-        Pubkey::find_program_address(&[token_proxy::id().as_ref()], &bpf_loader_upgradeable::id())
-            .0;
-
-    let programdata_data = UpgradeableLoaderState::ProgramData {
-        slot: 0,
-        upgrade_authority_address: Some(initializer.pubkey()),
-    };
-
-    let programdata_data_serialized =
-        bincode::serialize::<UpgradeableLoaderState>(&programdata_data).unwrap();
-
-    program_test.add_account(
-        programdata_address,
-        Account {
-            lamports: Rent::default().minimum_balance(programdata_data_serialized.len()),
-            data: programdata_data_serialized,
-            owner: token_proxy::id(),
-            executable: false,
-            rent_epoch: 0,
-        },
-    );
 
     // Add Mint Account
     let name = "WEVER".to_string();
@@ -1115,30 +993,6 @@ async fn test_withdrawal_sol() {
     );
 
     // Setup environment
-    let initializer = Keypair::new();
-
-    let programdata_address =
-        Pubkey::find_program_address(&[token_proxy::id().as_ref()], &bpf_loader_upgradeable::id())
-            .0;
-
-    let programdata_data = UpgradeableLoaderState::ProgramData {
-        slot: 0,
-        upgrade_authority_address: Some(initializer.pubkey()),
-    };
-
-    let programdata_data_serialized =
-        bincode::serialize::<UpgradeableLoaderState>(&programdata_data).unwrap();
-
-    program_test.add_account(
-        programdata_address,
-        Account {
-            lamports: Rent::default().minimum_balance(programdata_data_serialized.len()),
-            data: programdata_data_serialized,
-            owner: token_proxy::id(),
-            executable: false,
-            rent_epoch: 0,
-        },
-    );
 
     // Add Mint Account
     let mint = Keypair::new();
@@ -1335,30 +1189,6 @@ async fn test_approve_withdrawal_ever() {
     );
 
     // Setup environment
-    let initializer = Keypair::new();
-
-    let programdata_address =
-        Pubkey::find_program_address(&[token_proxy::id().as_ref()], &bpf_loader_upgradeable::id())
-            .0;
-
-    let programdata_data = UpgradeableLoaderState::ProgramData {
-        slot: 0,
-        upgrade_authority_address: Some(initializer.pubkey()),
-    };
-
-    let programdata_data_serialized =
-        bincode::serialize::<UpgradeableLoaderState>(&programdata_data).unwrap();
-
-    program_test.add_account(
-        programdata_address,
-        Account {
-            lamports: Rent::default().minimum_balance(programdata_data_serialized.len()),
-            data: programdata_data_serialized,
-            owner: token_proxy::id(),
-            executable: false,
-            rent_epoch: 0,
-        },
-    );
 
     // Add Mint Account
     let name = "WEVER".to_string();
@@ -1534,31 +1364,6 @@ async fn test_approve_withdrawal_sol() {
     );
 
     // Setup environment
-    let initializer = Keypair::new();
-
-    let programdata_address =
-        Pubkey::find_program_address(&[token_proxy::id().as_ref()], &bpf_loader_upgradeable::id())
-            .0;
-
-    let programdata_data = UpgradeableLoaderState::ProgramData {
-        slot: 0,
-        upgrade_authority_address: Some(initializer.pubkey()),
-    };
-
-    let programdata_data_serialized =
-        bincode::serialize::<UpgradeableLoaderState>(&programdata_data).unwrap();
-
-    program_test.add_account(
-        programdata_address,
-        Account {
-            lamports: Rent::default().minimum_balance(programdata_data_serialized.len()),
-            data: programdata_data_serialized,
-            owner: token_proxy::id(),
-            executable: false,
-            rent_epoch: 0,
-        },
-    );
-
     let admin = Keypair::new();
     let mint = Pubkey::new_unique();
 
@@ -1674,30 +1479,6 @@ async fn test_force_withdrawal_sol() {
     );
 
     // Setup environment
-    let initializer = Keypair::new();
-
-    let programdata_address =
-        Pubkey::find_program_address(&[token_proxy::id().as_ref()], &bpf_loader_upgradeable::id())
-            .0;
-
-    let programdata_data = UpgradeableLoaderState::ProgramData {
-        slot: 0,
-        upgrade_authority_address: Some(initializer.pubkey()),
-    };
-
-    let programdata_data_serialized =
-        bincode::serialize::<UpgradeableLoaderState>(&programdata_data).unwrap();
-
-    program_test.add_account(
-        programdata_address,
-        Account {
-            lamports: Rent::default().minimum_balance(programdata_data_serialized.len()),
-            data: programdata_data_serialized,
-            owner: token_proxy::id(),
-            executable: false,
-            rent_epoch: 0,
-        },
-    );
 
     // Add Mint Account
     let mint = Keypair::new();
@@ -1894,30 +1675,6 @@ async fn test_change_bounty_for_withdrawal_sol() {
     );
 
     // Setup environment
-    let initializer = Keypair::new();
-
-    let programdata_address =
-        Pubkey::find_program_address(&[token_proxy::id().as_ref()], &bpf_loader_upgradeable::id())
-            .0;
-
-    let programdata_data = UpgradeableLoaderState::ProgramData {
-        slot: 0,
-        upgrade_authority_address: Some(initializer.pubkey()),
-    };
-
-    let programdata_data_serialized =
-        bincode::serialize::<UpgradeableLoaderState>(&programdata_data).unwrap();
-
-    program_test.add_account(
-        programdata_address,
-        Account {
-            lamports: Rent::default().minimum_balance(programdata_data_serialized.len()),
-            data: programdata_data_serialized,
-            owner: token_proxy::id(),
-            executable: false,
-            rent_epoch: 0,
-        },
-    );
 
     // Add Withdrawal Account
     let author = Keypair::new();
@@ -1983,4 +1740,116 @@ async fn test_change_bounty_for_withdrawal_sol() {
 
     let withdrawal_data = Withdrawal::unpack(withdrawal_info.data()).expect("withdrawal unpack");
     assert_eq!(withdrawal_data.bounty, bounty);
+}
+
+#[tokio::test]
+async fn test_change_settings() {
+    let mut program_test = ProgramTest::new(
+        "token_proxy",
+        token_proxy::id(),
+        processor!(Processor::process),
+    );
+
+    // Setup environment
+
+    // Add Mint Account
+    let name = "WEVER".to_string();
+    let decimals = 9;
+    let deposit_limit = 10000000;
+    let withdrawal_limit = 10000;
+    let withdrawal_daily_limit = 1000;
+    let admin = Keypair::new();
+
+    let mint_address = token_proxy::get_associated_mint_address(&name);
+
+    let mint_account_data = spl_token::state::Mint {
+        is_initialized: true,
+        mint_authority: program_option::COption::Some(mint_address),
+        decimals,
+        ..Default::default()
+    };
+
+    let mut mint_packed = vec![0; spl_token::state::Mint::LEN];
+    spl_token::state::Mint::pack(mint_account_data, &mut mint_packed).unwrap();
+    program_test.add_account(
+        mint_address,
+        Account {
+            lamports: Rent::default().minimum_balance(spl_token::state::Mint::LEN),
+            data: mint_packed,
+            owner: spl_token::id(),
+            executable: false,
+            rent_epoch: 1,
+        },
+    );
+
+    // Add Settings Account
+    let settings_address = token_proxy::get_associated_settings_address(&name);
+
+    let settings_account_data = Settings {
+        is_initialized: true,
+        emergency: false,
+        kind: TokenKind::Ever { mint: mint_address },
+        withdrawal_daily_amount: 0,
+        withdrawal_ttl: 0,
+        decimals,
+        deposit_limit,
+        withdrawal_limit,
+        withdrawal_daily_limit,
+        admin: admin.pubkey(),
+    };
+
+    let mut settings_packed = vec![0; Settings::LEN];
+    Settings::pack(settings_account_data, &mut settings_packed).unwrap();
+    program_test.add_account(
+        settings_address,
+        Account {
+            lamports: Rent::default().minimum_balance(Settings::LEN),
+            data: settings_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Start Program Test
+    let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
+
+    let new_emergency = true;
+    let new_deposit_limit = 10000000;
+    let new_withdrawal_limit = 10000;
+    let new_withdrawal_daily_limit = 1000;
+
+    let mut transaction = Transaction::new_with_payer(
+        &[token_proxy::change_settings(
+            &admin.pubkey(),
+            name,
+            new_emergency,
+            new_deposit_limit,
+            new_withdrawal_limit,
+            new_withdrawal_daily_limit,
+        )],
+        Some(&funder.pubkey()),
+    );
+    transaction.sign(&[&funder, &admin], recent_blockhash);
+
+    banks_client
+        .process_transaction(transaction)
+        .await
+        .expect("process_transaction");
+
+    let settings_info = banks_client
+        .get_account(settings_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let settings_data = Settings::unpack(settings_info.data()).expect("settings unpack");
+
+    assert_eq!(settings_data.emergency, new_emergency);
+    assert_eq!(settings_data.deposit_limit, new_deposit_limit);
+    assert_eq!(settings_data.withdrawal_limit, new_withdrawal_limit);
+    assert_eq!(
+        settings_data.withdrawal_daily_limit,
+        new_withdrawal_daily_limit
+    );
 }
