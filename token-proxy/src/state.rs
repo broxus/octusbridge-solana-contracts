@@ -81,7 +81,6 @@ pub enum TokenKind {
 #[derive(Copy, BorshSerialize, BorshDeserialize, Debug, Clone, PartialEq)]
 pub enum WithdrawalStatus {
     New,
-    Expired,
     Processed,
     Cancelled,
     Pending,
