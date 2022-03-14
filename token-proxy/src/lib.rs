@@ -51,6 +51,7 @@ pub fn initialize_mint(
     decimals: u8,
     deposit_limit: u64,
     withdrawal_limit: u64,
+    withdrawal_daily_limit: u64,
     admin: Pubkey,
 ) -> Instruction {
     let mint_pubkey = get_associated_mint_address(&name);
@@ -62,6 +63,7 @@ pub fn initialize_mint(
         decimals,
         deposit_limit,
         withdrawal_limit,
+        withdrawal_daily_limit,
         admin,
     }
     .try_to_vec()
@@ -91,6 +93,7 @@ pub fn initialize_vault(
     decimals: u8,
     deposit_limit: u64,
     withdrawal_limit: u64,
+    withdrawal_daily_limit: u64,
     admin: Pubkey,
 ) -> Instruction {
     let vault_pubkey = get_associated_vault_address(&name);
@@ -99,9 +102,10 @@ pub fn initialize_vault(
 
     let data = TokenProxyInstruction::InitializeVault {
         name,
+        decimals,
         deposit_limit,
         withdrawal_limit,
-        decimals,
+        withdrawal_daily_limit,
         admin,
     }
     .try_to_vec()
@@ -295,10 +299,11 @@ pub fn withdrawal_ever(to_pubkey: &Pubkey, name: String, payload_id: Hash) -> In
         program_id: id(),
         accounts: vec![
             AccountMeta::new(mint_pubkey, false),
+            AccountMeta::new(settings_pubkey, false),
             AccountMeta::new(withdrawal_pubkey, false),
             AccountMeta::new(recipient_pubkey, false),
-            AccountMeta::new_readonly(settings_pubkey, false),
             AccountMeta::new_readonly(spl_token::id(), false),
+            AccountMeta::new_readonly(sysvar::clock::id(), false),
         ],
         data,
     }
@@ -325,10 +330,11 @@ pub fn withdrawal_sol(
         program_id: id(),
         accounts: vec![
             AccountMeta::new(vault_account, false),
+            AccountMeta::new(settings_pubkey, false),
             AccountMeta::new(withdrawal_pubkey, false),
             AccountMeta::new(recipient_pubkey, false),
-            AccountMeta::new_readonly(settings_pubkey, false),
             AccountMeta::new_readonly(spl_token::id(), false),
+            AccountMeta::new_readonly(sysvar::clock::id(), false),
         ],
         data,
     }

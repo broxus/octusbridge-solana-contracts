@@ -24,6 +24,8 @@ pub enum TokenProxyInstruction {
         deposit_limit: u64,
         // Withdrawal limit
         withdrawal_limit: u64,
+        // Withdrawal daily limit
+        withdrawal_daily_limit: u64,
         // Admin pubkey
         admin: Pubkey,
     },
@@ -49,6 +51,8 @@ pub enum TokenProxyInstruction {
         deposit_limit: u64,
         // Withdrawal limit
         withdrawal_limit: u64,
+        // Withdrawal daily limit
+        withdrawal_daily_limit: u64,
         // Admin pubkey
         admin: Pubkey,
     },

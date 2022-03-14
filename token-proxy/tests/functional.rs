@@ -55,6 +55,7 @@ async fn test_init_mint() {
     let decimals = 9;
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
+    let withdrawal_daily_limit = 1000;
     let admin = Pubkey::new_unique();
     let mut transaction = Transaction::new_with_payer(
         &[token_proxy::initialize_mint(
@@ -64,6 +65,7 @@ async fn test_init_mint() {
             decimals,
             deposit_limit,
             withdrawal_limit,
+            withdrawal_daily_limit,
             admin,
         )],
         Some(&funder.pubkey()),
@@ -153,6 +155,7 @@ async fn test_init_vault() {
     let decimals = 9;
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
+    let withdrawal_daily_limit = 1000;
     let admin = Pubkey::new_unique();
     let mint_account_data = spl_token::state::Mint {
         is_initialized: true,
@@ -186,6 +189,7 @@ async fn test_init_vault() {
             decimals,
             deposit_limit,
             withdrawal_limit,
+            withdrawal_daily_limit,
             admin,
         )],
         Some(&funder.pubkey()),
@@ -276,6 +280,7 @@ async fn test_deposit_ever() {
     let decimals = 9;
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
+    let withdrawal_daily_limit = 1000;
     let admin = Pubkey::new_unique();
 
     let mint_address = token_proxy::get_associated_mint_address(&name);
@@ -346,9 +351,12 @@ async fn test_deposit_ever() {
         is_initialized: true,
         emergency: false,
         kind: TokenKind::Ever { mint: mint_address },
+        withdrawal_daily_amount: 0,
+        withdrawal_ttl: 0,
         decimals,
         deposit_limit,
         withdrawal_limit,
+        withdrawal_daily_limit,
         admin,
     };
 
@@ -450,6 +458,7 @@ async fn test_deposit_sol() {
     let decimals = 9;
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
+    let withdrawal_daily_limit = 1000;
     let admin = Pubkey::new_unique();
 
     let mint_account_data = spl_token::state::Mint {
@@ -544,9 +553,12 @@ async fn test_deposit_sol() {
             mint: mint.pubkey(),
             vault: vault_address,
         },
+        withdrawal_daily_amount: 0,
+        withdrawal_ttl: 0,
         decimals,
         deposit_limit,
         withdrawal_limit,
+        withdrawal_daily_limit,
         admin,
     };
 
@@ -638,6 +650,7 @@ async fn test_withdrawal_request() {
     let decimals = 9;
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
+    let withdrawal_daily_limit = 1000;
     let admin = Pubkey::new_unique();
 
     let mint_address = token_proxy::get_associated_mint_address(&name);
@@ -649,9 +662,12 @@ async fn test_withdrawal_request() {
         is_initialized: true,
         emergency: false,
         kind: TokenKind::Ever { mint: mint_address },
+        withdrawal_daily_amount: 0,
+        withdrawal_ttl: 0,
         decimals,
         deposit_limit,
         withdrawal_limit,
+        withdrawal_daily_limit,
         admin,
     };
 
@@ -778,6 +794,7 @@ async fn test_confirm_withdrawal_request() {
     let decimals = 9;
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
+    let withdrawal_daily_limit = 1000;
     let admin = Pubkey::new_unique();
 
     let mint_address = token_proxy::get_associated_mint_address(&name);
@@ -789,9 +806,12 @@ async fn test_confirm_withdrawal_request() {
         is_initialized: true,
         emergency: false,
         kind: TokenKind::Ever { mint: mint_address },
+        withdrawal_daily_amount: 0,
+        withdrawal_ttl: 0,
         decimals,
         deposit_limit,
         withdrawal_limit,
+        withdrawal_daily_limit,
         admin,
     };
 
@@ -936,6 +956,7 @@ async fn test_withdrawal_ever() {
     let decimals = 9;
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
+    let withdrawal_daily_limit = 1000;
     let admin = Pubkey::new_unique();
 
     let mint_address = token_proxy::get_associated_mint_address(&name);
@@ -967,9 +988,12 @@ async fn test_withdrawal_ever() {
         is_initialized: true,
         emergency: false,
         kind: TokenKind::Ever { mint: mint_address },
+        withdrawal_daily_amount: 0,
+        withdrawal_ttl: 0,
         decimals,
         deposit_limit,
         withdrawal_limit,
+        withdrawal_daily_limit,
         admin,
     };
 
@@ -1123,6 +1147,7 @@ async fn test_withdrawal_sol() {
     let decimals = 9;
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
+    let withdrawal_daily_limit = 1000;
     let admin = Pubkey::new_unique();
 
     let mint_account_data = spl_token::state::Mint {
@@ -1179,9 +1204,12 @@ async fn test_withdrawal_sol() {
             mint: mint.pubkey(),
             vault: vault_address,
         },
+        withdrawal_daily_amount: 0,
+        withdrawal_ttl: 0,
         decimals,
         deposit_limit,
         withdrawal_limit,
+        withdrawal_daily_limit,
         admin,
     };
 
@@ -1337,6 +1365,7 @@ async fn test_approve_withdrawal_ever() {
     let decimals = 9;
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
+    let withdrawal_daily_limit = 1000;
     let admin = Keypair::new();
 
     let mint_address = token_proxy::get_associated_mint_address(&name);
@@ -1368,9 +1397,12 @@ async fn test_approve_withdrawal_ever() {
         is_initialized: true,
         emergency: false,
         kind: TokenKind::Ever { mint: mint_address },
+        withdrawal_daily_amount: 0,
+        withdrawal_ttl: 0,
         decimals,
         deposit_limit,
         withdrawal_limit,
+        withdrawal_daily_limit,
         admin: admin.pubkey(),
     };
 
@@ -1534,6 +1566,7 @@ async fn test_approve_withdrawal_sol() {
     let decimals = 9;
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
+    let withdrawal_daily_limit = 1000;
     let vault_address = token_proxy::get_associated_vault_address(&name);
 
     // Add Settings Account
@@ -1546,9 +1579,12 @@ async fn test_approve_withdrawal_sol() {
             mint,
             vault: vault_address,
         },
+        withdrawal_daily_amount: 0,
+        withdrawal_ttl: 0,
         decimals,
         deposit_limit,
         withdrawal_limit,
+        withdrawal_daily_limit,
         admin: admin.pubkey(),
     };
 
@@ -1670,6 +1706,7 @@ async fn test_force_withdrawal_sol() {
     let decimals = 9;
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
+    let withdrawal_daily_limit = 1000;
     let admin = Pubkey::new_unique();
 
     let mint_account_data = spl_token::state::Mint {
@@ -1726,9 +1763,12 @@ async fn test_force_withdrawal_sol() {
             mint: mint.pubkey(),
             vault: vault_address,
         },
+        withdrawal_daily_amount: 0,
+        withdrawal_ttl: 0,
         decimals,
         deposit_limit,
         withdrawal_limit,
+        withdrawal_daily_limit,
         admin,
     };
 

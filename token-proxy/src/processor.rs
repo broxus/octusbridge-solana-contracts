@@ -14,7 +14,7 @@ use solana_program::{msg, system_instruction};
 
 use crate::{
     Deposit, Settings, TokenKind, TokenProxyError, TokenProxyInstruction, Withdrawal,
-    WithdrawalStatus,
+    WithdrawalStatus, WITHDRAWAL_PERIOD,
 };
 
 pub struct Processor;
@@ -32,6 +32,7 @@ impl Processor {
                 decimals,
                 deposit_limit,
                 withdrawal_limit,
+                withdrawal_daily_limit,
                 admin,
             } => {
                 msg!("Instruction: Initialize Mint");
@@ -42,6 +43,7 @@ impl Processor {
                     decimals,
                     deposit_limit,
                     withdrawal_limit,
+                    withdrawal_daily_limit,
                     admin,
                 )?;
             }
@@ -50,6 +52,7 @@ impl Processor {
                 decimals,
                 deposit_limit,
                 withdrawal_limit,
+                withdrawal_daily_limit,
                 admin,
             } => {
                 msg!("Instruction: Initialize Vault");
@@ -60,6 +63,7 @@ impl Processor {
                     decimals,
                     deposit_limit,
                     withdrawal_limit,
+                    withdrawal_daily_limit,
                     admin,
                 )?;
             }
@@ -153,6 +157,7 @@ impl Processor {
         decimals: u8,
         deposit_limit: u64,
         withdrawal_limit: u64,
+        withdrawal_daily_limit: u64,
         admin: Pubkey,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
@@ -246,9 +251,12 @@ impl Processor {
             kind: TokenKind::Ever {
                 mint: *mint_account_info.key,
             },
+            withdrawal_daily_amount: 0,
+            withdrawal_ttl: 0,
             decimals,
             deposit_limit,
             withdrawal_limit,
+            withdrawal_daily_limit,
             admin,
         };
 
@@ -267,6 +275,7 @@ impl Processor {
         decimals: u8,
         deposit_limit: u64,
         withdrawal_limit: u64,
+        withdrawal_daily_limit: u64,
         admin: Pubkey,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
@@ -363,9 +372,12 @@ impl Processor {
                 mint: *mint_account_info.key,
                 vault: *vault_account_info.key,
             },
+            withdrawal_daily_amount: 0,
+            withdrawal_ttl: 0,
             decimals,
             deposit_limit,
             withdrawal_limit,
+            withdrawal_daily_limit,
             admin,
         };
 
@@ -777,15 +789,17 @@ impl Processor {
         let account_info_iter = &mut accounts.iter();
 
         let mint_account_info = next_account_info(account_info_iter)?;
+        let settings_account_info = next_account_info(account_info_iter)?;
         let withdrawal_account_info = next_account_info(account_info_iter)?;
         let recipient_account_info = next_account_info(account_info_iter)?;
-        let settings_account_info = next_account_info(account_info_iter)?;
         let token_program_info = next_account_info(account_info_iter)?;
+        let clock_info = next_account_info(account_info_iter)?;
+        let clock = Clock::from_account_info(clock_info)?;
 
         // Validate Settings Account
         bridge_utils::validate_settings_account(program_id, &name, settings_account_info)?;
 
-        let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+        let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
 
         if settings_account_data.emergency {
             return Err(TokenProxyError::EmergencyEnabled.into());
@@ -825,7 +839,20 @@ impl Processor {
             && withdrawal_account_data.signers.len() as u32
                 >= withdrawal_account_data.required_votes
         {
-            if withdrawal_account_data.amount < settings_account_data.withdrawal_limit {
+            let current_timestamp = clock.unix_timestamp;
+
+            // If current timestamp has expired
+            if settings_account_data.withdrawal_ttl < current_timestamp {
+                settings_account_data.withdrawal_ttl = current_timestamp + WITHDRAWAL_PERIOD;
+                settings_account_data.withdrawal_daily_amount = 0;
+            }
+
+            settings_account_data.withdrawal_daily_amount += withdrawal_account_data.amount;
+
+            if withdrawal_account_data.amount <= settings_account_data.withdrawal_limit
+                && settings_account_data.withdrawal_daily_amount
+                    <= settings_account_data.withdrawal_daily_limit
+            {
                 // Mint EVER tokens to Recipient Account
                 invoke_signed(
                     &spl_token::instruction::mint_to(
@@ -851,6 +878,11 @@ impl Processor {
             }
         }
 
+        Settings::pack(
+            settings_account_data,
+            &mut settings_account_info.data.borrow_mut(),
+        )?;
+
         Withdrawal::pack(
             withdrawal_account_data,
             &mut withdrawal_account_info.data.borrow_mut(),
@@ -868,15 +900,17 @@ impl Processor {
         let account_info_iter = &mut accounts.iter();
 
         let vault_account_info = next_account_info(account_info_iter)?;
+        let settings_account_info = next_account_info(account_info_iter)?;
         let withdrawal_account_info = next_account_info(account_info_iter)?;
         let recipient_account_info = next_account_info(account_info_iter)?;
-        let settings_account_info = next_account_info(account_info_iter)?;
         let token_program_info = next_account_info(account_info_iter)?;
+        let clock_info = next_account_info(account_info_iter)?;
+        let clock = Clock::from_account_info(clock_info)?;
 
         // Validate Settings Account
         bridge_utils::validate_settings_account(program_id, &name, settings_account_info)?;
 
-        let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+        let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
 
         if settings_account_data.emergency {
             return Err(TokenProxyError::EmergencyEnabled.into());
@@ -920,7 +954,20 @@ impl Processor {
             && withdrawal_account_data.signers.len() as u32
                 >= withdrawal_account_data.required_votes
         {
-            if withdrawal_account_data.amount < settings_account_data.withdrawal_limit {
+            let current_timestamp = clock.unix_timestamp;
+
+            // If current timestamp has expired
+            if settings_account_data.withdrawal_ttl < current_timestamp {
+                settings_account_data.withdrawal_ttl = current_timestamp + WITHDRAWAL_PERIOD;
+                settings_account_data.withdrawal_daily_amount = 0;
+            }
+
+            settings_account_data.withdrawal_daily_amount += withdrawal_account_data.amount;
+
+            if withdrawal_account_data.amount <= settings_account_data.withdrawal_limit
+                && settings_account_data.withdrawal_daily_amount
+                    <= settings_account_data.withdrawal_daily_limit
+            {
                 if vault_account_data.amount >= withdrawal_account_data.amount {
                     // Transfer tokens from Vault Account to Recipient Account
                     invoke_signed(
@@ -948,6 +995,11 @@ impl Processor {
                 withdrawal_account_data.status = WithdrawalStatus::WaitingForApprove;
             }
         }
+
+        Settings::pack(
+            settings_account_data,
+            &mut settings_account_info.data.borrow_mut(),
+        )?;
 
         Withdrawal::pack(
             withdrawal_account_data,

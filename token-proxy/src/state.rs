@@ -8,6 +8,8 @@ use solana_program::pubkey::Pubkey;
 
 use bridge_derive::BridgePack;
 
+pub const WITHDRAWAL_PERIOD: i64 = 86400;
+
 #[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
 #[bridge_pack(length = 500)]
 pub struct Settings {
@@ -18,6 +20,9 @@ pub struct Settings {
     pub emergency: bool,
     pub deposit_limit: u64,
     pub withdrawal_limit: u64,
+    pub withdrawal_daily_limit: u64,
+    pub withdrawal_daily_amount: u64,
+    pub withdrawal_ttl: i64,
 }
 
 impl Sealed for Settings {}
