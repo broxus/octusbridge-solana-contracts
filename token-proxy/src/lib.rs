@@ -18,7 +18,7 @@ pub use self::state::*;
 #[cfg(not(feature = "no-entrypoint"))]
 mod entrypoint;
 
-solana_program::declare_id!("9pLaxnRNgMQY4Wpk9X1EjBVANwEPjwZw36ok8Af6gW1L");
+solana_program::declare_id!("53PYe3yW9YDvm3z5cJJVrycF5XNDiNiPX8zdxeBqoBqe");
 
 pub fn get_associated_vault_address(name: &str) -> Pubkey {
     Pubkey::find_program_address(&[br"vault", name.as_bytes()], &id()).0
@@ -212,10 +212,11 @@ pub fn deposit_sol(
 pub fn withdrawal_request(
     funder_pubkey: &Pubkey,
     author_pubkey: &Pubkey,
-    to_pubkey: &Pubkey,
     name: String,
     payload_id: Hash,
     round_number: u32,
+    sender: EverAddress,
+    recipient: Pubkey,
     amount: u64,
 ) -> Instruction {
     let settings_pubkey = get_associated_settings_address(&name);
@@ -224,12 +225,13 @@ pub fn withdrawal_request(
 
     let mint_pubkey = get_associated_mint_address(&name);
     let recipient_pubkey =
-        spl_associated_token_account::get_associated_token_address(to_pubkey, &mint_pubkey);
+        spl_associated_token_account::get_associated_token_address(&recipient, &mint_pubkey);
 
     let data = TokenProxyInstruction::WithdrawRequest {
         name,
         payload_id,
         round_number,
+        sender,
         amount,
     }
     .try_to_vec()

@@ -12,7 +12,10 @@ use solana_sdk::transaction::Transaction;
 use spl_associated_token_account::get_associated_token_address;
 use spl_token::state::AccountState;
 
-use token_proxy::{Processor, Settings, TokenKind, Withdrawal, WithdrawalStatus};
+use token_proxy::{
+    EverAddress, Processor, Settings, TokenKind, Withdrawal, WithdrawalEvent, WithdrawalMeta,
+    WithdrawalStatus,
+};
 
 #[tokio::test]
 async fn test_init_mint() {
@@ -645,6 +648,10 @@ async fn test_withdrawal_request() {
     let author = Keypair::new();
 
     let payload_id = Hash::new_unique();
+    let sender_address = EverAddress {
+        workchain_id: 0,
+        address: Pubkey::new_unique(),
+    };
     let recipient_address = Pubkey::new_unique();
     let amount = 32;
 
@@ -652,10 +659,11 @@ async fn test_withdrawal_request() {
         &[token_proxy::withdrawal_request(
             &funder.pubkey(),
             &author.pubkey(),
-            &recipient_address,
             name,
             payload_id.clone(),
             round_number,
+            sender_address,
+            recipient_address,
             amount,
         )],
         Some(&funder.pubkey()),
@@ -677,10 +685,13 @@ async fn test_withdrawal_request() {
     let withdrawal_data = Withdrawal::unpack(withdrawal_info.data()).expect("mint unpack");
     assert_eq!(withdrawal_data.is_initialized, true);
     assert_eq!(withdrawal_data.payload_id, payload_id);
-    assert_eq!(withdrawal_data.amount, amount);
+    assert_eq!(withdrawal_data.event.amount, amount);
     assert_eq!(withdrawal_data.signers.len(), 0);
-    assert_eq!(withdrawal_data.kind, TokenKind::Ever { mint: mint_address });
-    assert_eq!(withdrawal_data.status, WithdrawalStatus::New);
+    assert_eq!(
+        withdrawal_data.meta.kind,
+        TokenKind::Ever { mint: mint_address }
+    );
+    assert_eq!(withdrawal_data.meta.status, WithdrawalStatus::New);
 }
 
 #[tokio::test]
@@ -766,14 +777,25 @@ async fn test_confirm_withdrawal_request() {
         is_initialized: true,
         payload_id,
         round_number,
-        kind: TokenKind::Ever { mint: mint_address },
-        author: Pubkey::new_unique(),
-        recipient: recipient_address,
+        event: WithdrawalEvent {
+            is_initialized: true,
+            event_len: 100,
+            decimals,
+            recipient: recipient_address,
+            sender: EverAddress {
+                workchain_id: 0,
+                address: Pubkey::new_unique(),
+            },
+            amount: 10,
+        },
+        meta: WithdrawalMeta {
+            author: Pubkey::new_unique(),
+            kind: TokenKind::Ever { mint: mint_address },
+            status: WithdrawalStatus::New,
+            bounty: 0,
+        },
         required_votes: 1,
         signers: vec![],
-        status: WithdrawalStatus::New,
-        amount: 10,
-        bounty: 0,
     };
 
     let mut withdrawal_packed = vec![0; Withdrawal::LEN];
@@ -923,14 +945,25 @@ async fn test_withdrawal_ever() {
         is_initialized: true,
         payload_id,
         round_number: 5,
-        kind: TokenKind::Ever { mint: mint_address },
-        author: Pubkey::new_unique(),
-        recipient: recipient_associated_token_address,
+        event: WithdrawalEvent {
+            is_initialized: true,
+            event_len: 100,
+            decimals,
+            recipient: recipient_associated_token_address,
+            sender: EverAddress {
+                workchain_id: 0,
+                address: Pubkey::new_unique(),
+            },
+            amount,
+        },
+        meta: WithdrawalMeta {
+            author: Pubkey::new_unique(),
+            kind: TokenKind::Ever { mint: mint_address },
+            status: WithdrawalStatus::New,
+            bounty: 0,
+        },
         required_votes: 0,
         signers: vec![],
-        status: WithdrawalStatus::New,
-        amount,
-        bounty: 0,
     };
 
     let mut withdrawal_packed = vec![0; Withdrawal::LEN];
@@ -1115,17 +1148,28 @@ async fn test_withdrawal_sol() {
         is_initialized: true,
         payload_id,
         round_number: 5,
-        kind: TokenKind::Solana {
-            mint: mint.pubkey(),
-            vault: vault_address,
+        event: WithdrawalEvent {
+            is_initialized: true,
+            event_len: 100,
+            decimals,
+            recipient: recipient_associated_token_address,
+            sender: EverAddress {
+                workchain_id: 0,
+                address: Pubkey::new_unique(),
+            },
+            amount,
         },
-        author: Pubkey::new_unique(),
-        recipient: recipient_associated_token_address,
+        meta: WithdrawalMeta {
+            author: Pubkey::new_unique(),
+            kind: TokenKind::Solana {
+                mint: mint.pubkey(),
+                vault: vault_address,
+            },
+            status: WithdrawalStatus::New,
+            bounty: 0,
+        },
         required_votes: 0,
         signers: vec![],
-        status: WithdrawalStatus::New,
-        amount,
-        bounty: 0,
     };
 
     let mut withdrawal_packed = vec![0; Withdrawal::LEN];
@@ -1284,14 +1328,25 @@ async fn test_approve_withdrawal_ever() {
         is_initialized: true,
         payload_id,
         round_number: 5,
-        kind: TokenKind::Ever { mint: mint_address },
-        author: Pubkey::new_unique(),
-        recipient: recipient_associated_token_address,
+        event: WithdrawalEvent {
+            is_initialized: true,
+            event_len: 100,
+            decimals,
+            recipient: recipient_associated_token_address,
+            sender: EverAddress {
+                workchain_id: 0,
+                address: Pubkey::new_unique(),
+            },
+            amount,
+        },
+        meta: WithdrawalMeta {
+            author: Pubkey::new_unique(),
+            kind: TokenKind::Ever { mint: mint_address },
+            status: WithdrawalStatus::WaitingForApprove,
+            bounty: 0,
+        },
         required_votes: 0,
         signers: vec![],
-        status: WithdrawalStatus::WaitingForApprove,
-        amount,
-        bounty: 0,
     };
 
     let mut withdrawal_packed = vec![0; Withdrawal::LEN];
@@ -1333,7 +1388,7 @@ async fn test_approve_withdrawal_ever() {
         .expect("account");
 
     let withdrawal_data = Withdrawal::unpack(withdrawal_info.data()).expect("withdrawal unpack");
-    assert_eq!(withdrawal_data.status, WithdrawalStatus::Processed);
+    assert_eq!(withdrawal_data.meta.status, WithdrawalStatus::Processed);
 
     let mint_info = banks_client
         .get_account(mint_address)
@@ -1416,17 +1471,28 @@ async fn test_approve_withdrawal_sol() {
         is_initialized: true,
         payload_id,
         round_number: 5,
-        kind: TokenKind::Solana {
-            mint,
-            vault: vault_address,
+        event: WithdrawalEvent {
+            is_initialized: true,
+            event_len: 100,
+            decimals,
+            recipient: Pubkey::new_unique(),
+            sender: EverAddress {
+                workchain_id: 0,
+                address: Pubkey::new_unique(),
+            },
+            amount,
         },
-        author: Pubkey::new_unique(),
-        recipient: Pubkey::new_unique(),
+        meta: WithdrawalMeta {
+            author: Pubkey::new_unique(),
+            kind: TokenKind::Solana {
+                mint,
+                vault: vault_address,
+            },
+            status: WithdrawalStatus::WaitingForApprove,
+            bounty: 0,
+        },
         required_votes: 0,
         signers: vec![],
-        status: WithdrawalStatus::WaitingForApprove,
-        amount,
-        bounty: 0,
     };
 
     let mut withdrawal_packed = vec![0; Withdrawal::LEN];
@@ -1467,7 +1533,7 @@ async fn test_approve_withdrawal_sol() {
         .expect("account");
 
     let withdrawal_data = Withdrawal::unpack(withdrawal_info.data()).expect("settings unpack");
-    assert_eq!(withdrawal_data.status, WithdrawalStatus::Pending);
+    assert_eq!(withdrawal_data.meta.status, WithdrawalStatus::Pending);
 }
 
 #[tokio::test]
@@ -1601,17 +1667,28 @@ async fn test_force_withdrawal_sol() {
         is_initialized: true,
         payload_id,
         round_number: 5,
-        kind: TokenKind::Solana {
-            mint: mint.pubkey(),
-            vault: vault_address,
+        event: WithdrawalEvent {
+            is_initialized: true,
+            event_len: 100,
+            decimals,
+            recipient: recipient_associated_token_address,
+            sender: EverAddress {
+                workchain_id: 0,
+                address: Pubkey::new_unique(),
+            },
+            amount,
         },
-        author: Pubkey::new_unique(),
-        recipient: recipient_associated_token_address,
+        meta: WithdrawalMeta {
+            author: Pubkey::new_unique(),
+            kind: TokenKind::Solana {
+                mint: mint.pubkey(),
+                vault: vault_address,
+            },
+            status: WithdrawalStatus::Pending,
+            bounty: 0,
+        },
         required_votes: 0,
         signers: vec![],
-        status: WithdrawalStatus::Pending,
-        amount,
-        bounty: 0,
     };
 
     let mut withdrawal_packed = vec![0; Withdrawal::LEN];
@@ -1687,17 +1764,28 @@ async fn test_change_bounty_for_withdrawal_sol() {
         is_initialized: true,
         payload_id,
         round_number: 5,
-        kind: TokenKind::Solana {
-            mint: Pubkey::new_unique(),
-            vault: Pubkey::new_unique(),
+        event: WithdrawalEvent {
+            is_initialized: true,
+            event_len: 100,
+            decimals: 9,
+            recipient: Pubkey::new_unique(),
+            sender: EverAddress {
+                workchain_id: 0,
+                address: Pubkey::new_unique(),
+            },
+            amount,
         },
-        author: author.pubkey(),
-        recipient: Pubkey::new_unique(),
+        meta: WithdrawalMeta {
+            author: author.pubkey(),
+            kind: TokenKind::Solana {
+                mint: Pubkey::new_unique(),
+                vault: Pubkey::new_unique(),
+            },
+            status: WithdrawalStatus::Pending,
+            bounty: 0,
+        },
         required_votes: 0,
         signers: vec![],
-        status: WithdrawalStatus::Pending,
-        amount,
-        bounty: 0,
     };
 
     let mut withdrawal_packed = vec![0; Withdrawal::LEN];
@@ -1739,7 +1827,7 @@ async fn test_change_bounty_for_withdrawal_sol() {
         .expect("account");
 
     let withdrawal_data = Withdrawal::unpack(withdrawal_info.data()).expect("withdrawal unpack");
-    assert_eq!(withdrawal_data.bounty, bounty);
+    assert_eq!(withdrawal_data.meta.bounty, bounty);
 }
 
 #[tokio::test]

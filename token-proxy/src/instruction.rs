@@ -1,3 +1,4 @@
+use crate::EverAddress;
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::hash::Hash;
 use solana_program::pubkey::Pubkey;
@@ -115,6 +116,8 @@ pub enum TokenProxyInstruction {
         payload_id: Hash,
         // Current round number
         round_number: u32,
+        // Sender address
+        sender: EverAddress,
         // Deposit amount
         amount: u64,
     },
