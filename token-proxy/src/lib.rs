@@ -44,6 +44,7 @@ pub fn get_program_data_address() -> Pubkey {
     Pubkey::find_program_address(&[id().as_ref()], &bpf_loader_upgradeable::id()).0
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn initialize_mint(
     funder_pubkey: &Pubkey,
     initializer_pubkey: &Pubkey,
@@ -85,6 +86,7 @@ pub fn initialize_mint(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn initialize_vault(
     funder_pubkey: &Pubkey,
     initializer_pubkey: &Pubkey,
@@ -180,7 +182,7 @@ pub fn deposit_sol(
     let settings_pubkey = get_associated_settings_address(&name);
 
     let deposit_pubkey = get_associated_deposit_address(&payload_id);
-    let sender_token_pubkey = get_associated_token_address(sender_pubkey, &mint_pubkey);
+    let sender_token_pubkey = get_associated_token_address(sender_pubkey, mint_pubkey);
 
     let data = TokenProxyInstruction::DepositSol {
         name,
@@ -209,6 +211,7 @@ pub fn deposit_sol(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn withdrawal_request(
     funder_pubkey: &Pubkey,
     author_pubkey: &Pubkey,
@@ -322,7 +325,7 @@ pub fn withdrawal_sol(
 
     let vault_account = get_associated_vault_address(&name);
     let recipient_pubkey =
-        spl_associated_token_account::get_associated_token_address(to_pubkey, &mint_pubkey);
+        spl_associated_token_account::get_associated_token_address(to_pubkey, mint_pubkey);
 
     let data = TokenProxyInstruction::WithdrawSol { name, payload_id }
         .try_to_vec()
@@ -407,7 +410,7 @@ pub fn force_withdrawal_sol(
 
     let vault_account = get_associated_vault_address(&name);
     let recipient_pubkey =
-        spl_associated_token_account::get_associated_token_address(to_pubkey, &mint_pubkey);
+        spl_associated_token_account::get_associated_token_address(to_pubkey, mint_pubkey);
 
     let data = TokenProxyInstruction::ForceWithdrawSol { name, payload_id }
         .try_to_vec()

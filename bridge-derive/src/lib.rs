@@ -28,7 +28,7 @@ fn impl_derive_bridge_pack(input: syn::DeriveInput) -> TokenStream {
             fn pack_into_slice(&self, dst: &mut [u8]) {
                 let mut data = self.try_to_vec().unwrap();
                 let (left, _) = dst.split_at_mut(data.len());
-                left.copy_from_slice(&mut data);
+                left.copy_from_slice(&data);
             }
 
             fn unpack_from_slice(mut src: &[u8]) -> Result<Self, ProgramError> {
@@ -37,5 +37,5 @@ fn impl_derive_bridge_pack(input: syn::DeriveInput) -> TokenStream {
             }
         }
     };
-    output.into()
+    output
 }

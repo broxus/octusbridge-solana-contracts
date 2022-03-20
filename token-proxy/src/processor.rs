@@ -158,7 +158,7 @@ impl Processor {
                 Self::process_change_settings(
                     program_id,
                     accounts,
-                    &name,
+                    name,
                     emergency,
                     deposit_limit,
                     withdrawal_limit,
@@ -170,6 +170,7 @@ impl Processor {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn process_mint_initialize(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
@@ -288,6 +289,7 @@ impl Processor {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn process_vault_initialize(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
@@ -1334,7 +1336,7 @@ impl Processor {
     fn process_change_settings(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        name: &str,
+        name: String,
         emergency: bool,
         deposit_limit: u64,
         withdrawal_limit: u64,
