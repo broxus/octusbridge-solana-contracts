@@ -459,6 +459,36 @@ pub fn force_withdrawal_sol(
     }
 }
 
+pub fn transfer_from_vault(
+    authority_pubkey: &Pubkey,
+    mint_pubkey: &Pubkey,
+    to_pubkey: &Pubkey,
+    name: String,
+    amount: u64,
+) -> Instruction {
+    let settings_pubkey = get_associated_settings_address(&name);
+
+    let vault_pubkey = get_associated_vault_address(&name);
+    let recipient_pubkey =
+        spl_associated_token_account::get_associated_token_address(to_pubkey, mint_pubkey);
+
+    let data = TokenProxyInstruction::TransferFromVault { name, amount }
+        .try_to_vec()
+        .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(*authority_pubkey, true),
+            AccountMeta::new(vault_pubkey, false),
+            AccountMeta::new(recipient_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new_readonly(spl_token::id(), false),
+        ],
+        data,
+    }
+}
+
 pub fn change_bounty_for_withdrawal_sol(
     authority_pubkey: &Pubkey,
     payload_id: Hash,

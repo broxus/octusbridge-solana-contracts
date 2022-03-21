@@ -201,6 +201,17 @@ pub enum TokenProxyInstruction {
         payload_id: Hash,
     },
 
+    /// Transfer from Vault
+    ///
+    /// # Account references
+    /// ...
+    TransferFromVault {
+        /// Mint asset name
+        name: String,
+        // Amount to transfer
+        amount: u64,
+    },
+
     /// Change Bounty for Withdraw SOL
     ///
     /// # Account references

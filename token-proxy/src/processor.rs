@@ -153,6 +153,10 @@ impl Processor {
                 msg!("Instruction: Force Withdraw SOL");
                 Self::process_force_withdraw_sol(program_id, accounts, name, payload_id)?;
             }
+            TokenProxyInstruction::TransferFromVault { name, amount } => {
+                msg!("Instruction: Transfer from Vault");
+                Self::process_transfer_from_vault(program_id, accounts, name, amount)?;
+            }
             TokenProxyInstruction::ChangeBountyForWithdrawSol { payload_id, bounty } => {
                 msg!("Instruction: Change Bounty for Withdraw SOL");
                 Self::process_change_bounty_for_withdraw_sol(
@@ -1382,6 +1386,69 @@ impl Processor {
         Withdrawal::pack(
             withdrawal_account_data,
             &mut withdrawal_account_info.data.borrow_mut(),
+        )?;
+
+        Ok(())
+    }
+
+    fn process_transfer_from_vault(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        name: String,
+        amount: u64,
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+
+        let authority_account_info = next_account_info(account_info_iter)?;
+        let vault_account_info = next_account_info(account_info_iter)?;
+        let recipient_account_info = next_account_info(account_info_iter)?;
+        let settings_account_info = next_account_info(account_info_iter)?;
+        let token_program_info = next_account_info(account_info_iter)?;
+
+        if !authority_account_info.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        // Validate Settings Account
+        bridge_utils::validate_settings_account(program_id, &name, settings_account_info)?;
+
+        let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+
+        if settings_account_data.emergency {
+            return Err(TokenProxyError::EmergencyEnabled.into());
+        }
+
+        if settings_account_data.admin != *authority_account_info.key {
+            return Err(ProgramError::IllegalOwner);
+        }
+
+        // Validate Vault Account
+        let vault_nonce =
+            bridge_utils::validate_vault_account(program_id, &name, vault_account_info)?;
+        let vault_account_signer_seeds: &[&[_]] = &[br"vault", name.as_bytes(), &[vault_nonce]];
+
+        let vault_account_data =
+            spl_token::state::Account::unpack(&vault_account_info.data.borrow())?;
+
+        if vault_account_data.amount < amount {
+            return Err(TokenProxyError::InsufficientVaultBalance.into());
+        }
+
+        invoke_signed(
+            &spl_token::instruction::transfer(
+                token_program_info.key,
+                vault_account_info.key,
+                recipient_account_info.key,
+                vault_account_info.key,
+                &[vault_account_info.key],
+                amount,
+            )?,
+            &[
+                token_program_info.clone(),
+                vault_account_info.clone(),
+                recipient_account_info.clone(),
+            ],
+            &[vault_account_signer_seeds],
         )?;
 
         Ok(())
