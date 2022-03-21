@@ -135,7 +135,7 @@ pub fn deposit_ever(
     sender_pubkey: &Pubkey,
     name: String,
     payload_id: Hash,
-    recipient: Pubkey,
+    recipient: EverAddress,
     amount: u64,
 ) -> Instruction {
     let mint_pubkey = get_associated_mint_address(&name);
@@ -175,7 +175,7 @@ pub fn deposit_sol(
     sender_pubkey: &Pubkey,
     name: String,
     payload_id: Hash,
-    recipient: Pubkey,
+    recipient: EverAddress,
     amount: u64,
 ) -> Instruction {
     let vault_pubkey = get_associated_vault_address(&name);
@@ -394,6 +394,36 @@ pub fn approve_withdrawal_sol(
             AccountMeta::new(*authority_pubkey, true),
             AccountMeta::new(withdrawal_pubkey, false),
             AccountMeta::new_readonly(settings_pubkey, false),
+        ],
+        data,
+    }
+}
+
+pub fn cancel_withdrawal_sol(
+    funder_pubkey: &Pubkey,
+    authority_pubkey: &Pubkey,
+    payload_id: Hash,
+    deposit_payload_id: Hash,
+) -> Instruction {
+    let withdrawal_pubkey = get_associated_withdrawal_address(&payload_id);
+    let deposit_pubkey = get_associated_deposit_address(&deposit_payload_id);
+
+    let data = TokenProxyInstruction::CancelWithdrawSol {
+        payload_id,
+        deposit_payload_id,
+    }
+    .try_to_vec()
+    .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(*funder_pubkey, true),
+            AccountMeta::new(*authority_pubkey, true),
+            AccountMeta::new(withdrawal_pubkey, false),
+            AccountMeta::new(deposit_pubkey, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+            AccountMeta::new_readonly(sysvar::rent::id(), false),
         ],
         data,
     }

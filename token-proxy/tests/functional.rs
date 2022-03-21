@@ -13,8 +13,8 @@ use spl_associated_token_account::get_associated_token_address;
 use spl_token::state::AccountState;
 
 use token_proxy::{
-    EverAddress, Processor, Settings, TokenKind, Withdrawal, WithdrawalEvent, WithdrawalMeta,
-    WithdrawalStatus,
+    get_associated_deposit_address, get_associated_withdrawal_address, Deposit, EverAddress,
+    Processor, Settings, TokenKind, Withdrawal, WithdrawalEvent, WithdrawalMeta, WithdrawalStatus,
 };
 
 #[tokio::test]
@@ -356,7 +356,10 @@ async fn test_deposit_ever() {
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
     let payload_id = Hash::new_unique();
-    let recipient = Pubkey::new_unique();
+    let recipient = EverAddress {
+        workchain_id: 0,
+        address: Pubkey::new_unique(),
+    };
     let amount = 32;
 
     let mut transaction = Transaction::new_with_payer(
@@ -534,7 +537,10 @@ async fn test_deposit_sol() {
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
     let payload_id = Hash::new_unique();
-    let recipient = Pubkey::new_unique();
+    let recipient = EverAddress {
+        workchain_id: 0,
+        address: Pubkey::new_unique(),
+    };
     let amount = 32;
 
     let mut transaction = Transaction::new_with_payer(
@@ -1534,6 +1540,159 @@ async fn test_approve_withdrawal_sol() {
 
     let withdrawal_data = Withdrawal::unpack(withdrawal_info.data()).expect("settings unpack");
     assert_eq!(withdrawal_data.meta.status, WithdrawalStatus::Pending);
+}
+
+#[tokio::test]
+async fn test_cancel_withdrawal_sol() {
+    let mut program_test = ProgramTest::new(
+        "token_proxy",
+        token_proxy::id(),
+        processor!(Processor::process),
+    );
+
+    // Setup environment
+
+    // Add Mint Account
+    let mint = Keypair::new();
+
+    let name = "USDT".to_string();
+    let decimals = 9;
+
+    let mint_account_data = spl_token::state::Mint {
+        is_initialized: true,
+        mint_authority: program_option::COption::Some(mint.pubkey()),
+        decimals,
+        ..Default::default()
+    };
+
+    let mut mint_packed = vec![0; spl_token::state::Mint::LEN];
+    spl_token::state::Mint::pack(mint_account_data, &mut mint_packed).unwrap();
+    program_test.add_account(
+        mint.pubkey(),
+        Account {
+            lamports: Rent::default().minimum_balance(spl_token::state::Mint::LEN),
+            data: mint_packed,
+            owner: spl_token::id(),
+            executable: false,
+            rent_epoch: 1,
+        },
+    );
+
+    // Add Vault Account
+    let vault_address = token_proxy::get_associated_vault_address(&name);
+
+    let vault_account_data = spl_token::state::Account {
+        mint: mint.pubkey(),
+        owner: vault_address,
+        amount: 100,
+        state: AccountState::Initialized,
+        ..Default::default()
+    };
+
+    let mut vault_packed = vec![0; spl_token::state::Account::LEN];
+    spl_token::state::Account::pack(vault_account_data, &mut vault_packed).unwrap();
+    program_test.add_account(
+        vault_address,
+        Account {
+            lamports: Rent::default().minimum_balance(spl_token::state::Account::LEN),
+            data: vault_packed,
+            owner: spl_token::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Withdrawal Round Account
+    let payload_id = Hash::new_unique();
+    let author = Keypair::new();
+    let amount = 10;
+
+    let withdrawal_address = token_proxy::get_associated_withdrawal_address(&payload_id);
+
+    let withdrawal_account_data = Withdrawal {
+        is_initialized: true,
+        payload_id,
+        round_number: 5,
+        event: WithdrawalEvent {
+            is_initialized: true,
+            event_len: 100,
+            decimals,
+            recipient: Pubkey::new_unique(),
+            sender: EverAddress {
+                workchain_id: 0,
+                address: Pubkey::new_unique(),
+            },
+            amount,
+        },
+        meta: WithdrawalMeta {
+            author: author.pubkey(),
+            kind: TokenKind::Solana {
+                mint: mint.pubkey(),
+                vault: vault_address,
+            },
+            status: WithdrawalStatus::Pending,
+            bounty: 0,
+        },
+        required_votes: 0,
+        signers: vec![],
+    };
+
+    let mut withdrawal_packed = vec![0; Withdrawal::LEN];
+    Withdrawal::pack(withdrawal_account_data, &mut withdrawal_packed).unwrap();
+    program_test.add_account(
+        withdrawal_address,
+        Account {
+            lamports: Rent::default().minimum_balance(Withdrawal::LEN),
+            data: withdrawal_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Start Program Test
+    let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
+
+    let deposit_payload_id = Hash::new_unique();
+
+    let mut transaction = Transaction::new_with_payer(
+        &[token_proxy::cancel_withdrawal_sol(
+            &funder.pubkey(),
+            &author.pubkey(),
+            payload_id,
+            deposit_payload_id,
+        )],
+        Some(&funder.pubkey()),
+    );
+    transaction.sign(&[&funder, &author], recent_blockhash);
+
+    banks_client
+        .process_transaction(transaction)
+        .await
+        .expect("process_transaction");
+
+    let withdrawal_address = get_associated_withdrawal_address(&payload_id);
+    let withdrawal_info = banks_client
+        .get_account(withdrawal_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let withdrawal_data = Withdrawal::unpack(withdrawal_info.data()).expect("withdrawal unpack");
+
+    assert_eq!(withdrawal_data.meta.status, WithdrawalStatus::Cancelled);
+
+    let new_deposit_address = get_associated_deposit_address(&deposit_payload_id);
+    let new_deposit_info = banks_client
+        .get_account(new_deposit_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let deposit_data = Deposit::unpack(new_deposit_info.data()).expect("deposit unpack");
+
+    assert_eq!(deposit_data.is_initialized, true);
+    assert_eq!(deposit_data.payload_id, deposit_payload_id);
 }
 
 #[tokio::test]

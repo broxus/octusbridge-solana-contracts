@@ -76,7 +76,7 @@ pub enum TokenProxyInstruction {
         // Unique transfer hash
         payload_id: Hash,
         // Ever recipient address
-        recipient: Pubkey,
+        recipient: EverAddress,
         // Deposit amount
         amount: u64,
     },
@@ -100,7 +100,7 @@ pub enum TokenProxyInstruction {
         // Unique transfer hash
         payload_id: Hash,
         // Ever recipient address
-        recipient: Pubkey,
+        recipient: EverAddress,
         // Deposit amount
         amount: u64,
     },
@@ -177,6 +177,17 @@ pub enum TokenProxyInstruction {
         name: String,
         // Unique transfer hash
         payload_id: Hash,
+    },
+
+    /// Cancel Withdraw SOL
+    ///
+    /// # Account references
+    /// ...
+    CancelWithdrawSol {
+        // Unique transfer hash
+        payload_id: Hash,
+        // Unique transfer hash
+        deposit_payload_id: Hash,
     },
 
     /// Force Withdraw SOL

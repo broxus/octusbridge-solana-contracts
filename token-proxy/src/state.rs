@@ -46,7 +46,7 @@ pub struct Deposit {
     pub payload_id: Hash,
     pub kind: TokenKind,
     pub sender: Pubkey,
-    pub recipient: Pubkey,
+    pub recipient: EverAddress,
     pub decimals: u8,
     pub amount: u64,
 }
@@ -87,7 +87,7 @@ impl IsInitialized for WithdrawalEvent {
     }
 }
 
-#[derive(Debug, BorshSerialize, BorshDeserialize, EnumAsInner, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, BorshSerialize, BorshDeserialize, EnumAsInner, PartialEq, Eq)]
 pub enum TokenKind {
     Ever { mint: Pubkey },
     Solana { mint: Pubkey, vault: Pubkey },

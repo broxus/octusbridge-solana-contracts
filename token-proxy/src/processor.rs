@@ -137,6 +137,18 @@ impl Processor {
                 msg!("Instruction: Approve Withdraw SOL");
                 Self::process_approve_withdraw_sol(program_id, accounts, name, payload_id)?;
             }
+            TokenProxyInstruction::CancelWithdrawSol {
+                payload_id,
+                deposit_payload_id,
+            } => {
+                msg!("Instruction: Cancel Withdraw SOL");
+                Self::process_cancel_withdraw_sol(
+                    program_id,
+                    accounts,
+                    payload_id,
+                    deposit_payload_id,
+                )?;
+            }
             TokenProxyInstruction::ForceWithdrawSol { name, payload_id } => {
                 msg!("Instruction: Force Withdraw SOL");
                 Self::process_force_withdraw_sol(program_id, accounts, name, payload_id)?;
@@ -416,7 +428,7 @@ impl Processor {
         accounts: &[AccountInfo],
         name: String,
         payload_id: Hash,
-        recipient: Pubkey,
+        recipient: EverAddress,
         amount: u64,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
@@ -512,7 +524,7 @@ impl Processor {
         accounts: &[AccountInfo],
         name: String,
         payload_id: Hash,
-        recipient: Pubkey,
+        recipient: EverAddress,
         amount: u64,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
@@ -1192,6 +1204,91 @@ impl Processor {
         }
 
         withdrawal_account_data.meta.status = WithdrawalStatus::Pending;
+
+        Withdrawal::pack(
+            withdrawal_account_data,
+            &mut withdrawal_account_info.data.borrow_mut(),
+        )?;
+
+        Ok(())
+    }
+
+    fn process_cancel_withdraw_sol(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        payload_id: Hash,
+        deposit_payload_id: Hash,
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+
+        let funder_account_info = next_account_info(account_info_iter)?;
+        let authority_account_info = next_account_info(account_info_iter)?;
+        let withdrawal_account_info = next_account_info(account_info_iter)?;
+        let new_deposit_account_info = next_account_info(account_info_iter)?;
+        let system_program_info = next_account_info(account_info_iter)?;
+        let rent_sysvar_info = next_account_info(account_info_iter)?;
+        let rent = &Rent::from_account_info(rent_sysvar_info)?;
+
+        // Validate Withdrawal Account
+        bridge_utils::validate_withdraw_account(program_id, &payload_id, withdrawal_account_info)?;
+
+        let mut withdrawal_account_data =
+            Withdrawal::unpack(&withdrawal_account_info.data.borrow())?;
+
+        if withdrawal_account_data.meta.author != *authority_account_info.key {
+            return Err(ProgramError::IllegalOwner);
+        }
+
+        if withdrawal_account_data.meta.status != WithdrawalStatus::Pending {
+            return Err(TokenProxyError::InvalidWithdrawalStatus.into());
+        }
+
+        withdrawal_account_data.meta.status = WithdrawalStatus::Cancelled;
+
+        // Validate a new Deposit Account
+        let deposit_nonce = bridge_utils::validate_deposit_account(
+            program_id,
+            &deposit_payload_id,
+            new_deposit_account_info,
+        )?;
+        let deposit_account_signer_seeds: &[&[_]] = &[
+            br"deposit",
+            &deposit_payload_id.to_bytes(),
+            &[deposit_nonce],
+        ];
+
+        // Create a new Deposit Account
+        invoke_signed(
+            &system_instruction::create_account(
+                funder_account_info.key,
+                new_deposit_account_info.key,
+                1.max(rent.minimum_balance(Deposit::LEN)),
+                Deposit::LEN as u64,
+                program_id,
+            ),
+            &[
+                funder_account_info.clone(),
+                new_deposit_account_info.clone(),
+                system_program_info.clone(),
+            ],
+            &[deposit_account_signer_seeds],
+        )?;
+
+        // Init Deposit Account
+        let deposit_account_data = Deposit {
+            is_initialized: true,
+            payload_id: deposit_payload_id,
+            kind: withdrawal_account_data.meta.kind,
+            sender: withdrawal_account_data.event.recipient,
+            recipient: withdrawal_account_data.event.sender,
+            decimals: withdrawal_account_data.event.decimals,
+            amount: withdrawal_account_data.event.amount,
+        };
+
+        Deposit::pack(
+            deposit_account_data,
+            &mut new_deposit_account_info.data.borrow_mut(),
+        )?;
 
         Withdrawal::pack(
             withdrawal_account_data,
