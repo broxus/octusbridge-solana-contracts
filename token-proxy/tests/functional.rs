@@ -783,23 +783,21 @@ async fn test_confirm_withdrawal_request() {
         is_initialized: true,
         payload_id,
         round_number,
-        event: WithdrawalEvent {
-            is_initialized: true,
-            event_len: 100,
+        event: WithdrawalEvent::new(
             decimals,
-            recipient: recipient_address,
-            sender: EverAddress {
+            recipient_address,
+            EverAddress {
                 workchain_id: 0,
                 address: Pubkey::new_unique(),
             },
-            amount: 10,
-        },
-        meta: WithdrawalMeta {
-            author: Pubkey::new_unique(),
-            kind: TokenKind::Ever { mint: mint_address },
-            status: WithdrawalStatus::New,
-            bounty: 0,
-        },
+            10,
+        ),
+        meta: WithdrawalMeta::new(
+            Pubkey::new_unique(),
+            TokenKind::Ever { mint: mint_address },
+            WithdrawalStatus::New,
+            0,
+        ),
         required_votes: 1,
         signers: vec![],
     };
@@ -951,23 +949,21 @@ async fn test_withdrawal_ever() {
         is_initialized: true,
         payload_id,
         round_number: 5,
-        event: WithdrawalEvent {
-            is_initialized: true,
-            event_len: 100,
+        event: WithdrawalEvent::new(
             decimals,
-            recipient: recipient_associated_token_address,
-            sender: EverAddress {
+            recipient_associated_token_address,
+            EverAddress {
                 workchain_id: 0,
                 address: Pubkey::new_unique(),
             },
             amount,
-        },
-        meta: WithdrawalMeta {
-            author: Pubkey::new_unique(),
-            kind: TokenKind::Ever { mint: mint_address },
-            status: WithdrawalStatus::New,
-            bounty: 0,
-        },
+        ),
+        meta: WithdrawalMeta::new(
+            Pubkey::new_unique(),
+            TokenKind::Ever { mint: mint_address },
+            WithdrawalStatus::New,
+            0,
+        ),
         required_votes: 0,
         signers: vec![],
     };
@@ -1154,26 +1150,24 @@ async fn test_withdrawal_sol() {
         is_initialized: true,
         payload_id,
         round_number: 5,
-        event: WithdrawalEvent {
-            is_initialized: true,
-            event_len: 100,
+        event: WithdrawalEvent::new(
             decimals,
-            recipient: recipient_associated_token_address,
-            sender: EverAddress {
+            recipient_associated_token_address,
+            EverAddress {
                 workchain_id: 0,
                 address: Pubkey::new_unique(),
             },
             amount,
-        },
-        meta: WithdrawalMeta {
-            author: Pubkey::new_unique(),
-            kind: TokenKind::Solana {
+        ),
+        meta: WithdrawalMeta::new(
+            Pubkey::new_unique(),
+            TokenKind::Solana {
                 mint: mint.pubkey(),
                 vault: vault_address,
             },
-            status: WithdrawalStatus::New,
-            bounty: 0,
-        },
+            WithdrawalStatus::New,
+            0,
+        ),
         required_votes: 0,
         signers: vec![],
     };
@@ -1334,23 +1328,21 @@ async fn test_approve_withdrawal_ever() {
         is_initialized: true,
         payload_id,
         round_number: 5,
-        event: WithdrawalEvent {
-            is_initialized: true,
-            event_len: 100,
+        event: WithdrawalEvent::new(
             decimals,
-            recipient: recipient_associated_token_address,
-            sender: EverAddress {
+            recipient_associated_token_address,
+            EverAddress {
                 workchain_id: 0,
                 address: Pubkey::new_unique(),
             },
             amount,
-        },
-        meta: WithdrawalMeta {
-            author: Pubkey::new_unique(),
-            kind: TokenKind::Ever { mint: mint_address },
-            status: WithdrawalStatus::WaitingForApprove,
-            bounty: 0,
-        },
+        ),
+        meta: WithdrawalMeta::new(
+            Pubkey::new_unique(),
+            TokenKind::Ever { mint: mint_address },
+            WithdrawalStatus::WaitingForApprove,
+            0,
+        ),
         required_votes: 0,
         signers: vec![],
     };
@@ -1477,26 +1469,24 @@ async fn test_approve_withdrawal_sol() {
         is_initialized: true,
         payload_id,
         round_number: 5,
-        event: WithdrawalEvent {
-            is_initialized: true,
-            event_len: 100,
+        event: WithdrawalEvent::new(
             decimals,
-            recipient: Pubkey::new_unique(),
-            sender: EverAddress {
+            Pubkey::new_unique(),
+            EverAddress {
                 workchain_id: 0,
                 address: Pubkey::new_unique(),
             },
             amount,
-        },
-        meta: WithdrawalMeta {
-            author: Pubkey::new_unique(),
-            kind: TokenKind::Solana {
+        ),
+        meta: WithdrawalMeta::new(
+            Pubkey::new_unique(),
+            TokenKind::Solana {
                 mint,
                 vault: vault_address,
             },
-            status: WithdrawalStatus::WaitingForApprove,
-            bounty: 0,
-        },
+            WithdrawalStatus::WaitingForApprove,
+            0,
+        ),
         required_votes: 0,
         signers: vec![],
     };
@@ -1613,26 +1603,24 @@ async fn test_cancel_withdrawal_sol() {
         is_initialized: true,
         payload_id,
         round_number: 5,
-        event: WithdrawalEvent {
-            is_initialized: true,
-            event_len: 100,
+        event: WithdrawalEvent::new(
             decimals,
-            recipient: Pubkey::new_unique(),
-            sender: EverAddress {
+            Pubkey::new_unique(),
+            EverAddress {
                 workchain_id: 0,
                 address: Pubkey::new_unique(),
             },
             amount,
-        },
-        meta: WithdrawalMeta {
-            author: author.pubkey(),
-            kind: TokenKind::Solana {
+        ),
+        meta: WithdrawalMeta::new(
+            author.pubkey(),
+            TokenKind::Solana {
                 mint: mint.pubkey(),
                 vault: vault_address,
             },
-            status: WithdrawalStatus::Pending,
-            bounty: 0,
-        },
+            WithdrawalStatus::Pending,
+            0,
+        ),
         required_votes: 0,
         signers: vec![],
     };
@@ -1826,26 +1814,24 @@ async fn test_force_withdrawal_sol() {
         is_initialized: true,
         payload_id,
         round_number: 5,
-        event: WithdrawalEvent {
-            is_initialized: true,
-            event_len: 100,
+        event: WithdrawalEvent::new(
             decimals,
-            recipient: recipient_associated_token_address,
-            sender: EverAddress {
+            recipient_associated_token_address,
+            EverAddress {
                 workchain_id: 0,
                 address: Pubkey::new_unique(),
             },
             amount,
-        },
-        meta: WithdrawalMeta {
-            author: Pubkey::new_unique(),
-            kind: TokenKind::Solana {
+        ),
+        meta: WithdrawalMeta::new(
+            Pubkey::new_unique(),
+            TokenKind::Solana {
                 mint: mint.pubkey(),
                 vault: vault_address,
             },
-            status: WithdrawalStatus::Pending,
-            bounty: 0,
-        },
+            WithdrawalStatus::Pending,
+            0,
+        ),
         required_votes: 0,
         signers: vec![],
     };
@@ -1915,6 +1901,7 @@ async fn test_change_bounty_for_withdrawal_sol() {
     // Add Withdrawal Account
     let author = Keypair::new();
     let payload_id = Hash::new_unique();
+    let decimals = 9;
     let amount = 10;
 
     let withdrawal_address = token_proxy::get_associated_withdrawal_address(&payload_id);
@@ -1923,26 +1910,24 @@ async fn test_change_bounty_for_withdrawal_sol() {
         is_initialized: true,
         payload_id,
         round_number: 5,
-        event: WithdrawalEvent {
-            is_initialized: true,
-            event_len: 100,
-            decimals: 9,
-            recipient: Pubkey::new_unique(),
-            sender: EverAddress {
+        event: WithdrawalEvent::new(
+            decimals,
+            Pubkey::new_unique(),
+            EverAddress {
                 workchain_id: 0,
                 address: Pubkey::new_unique(),
             },
             amount,
-        },
-        meta: WithdrawalMeta {
-            author: author.pubkey(),
-            kind: TokenKind::Solana {
+        ),
+        meta: WithdrawalMeta::new(
+            author.pubkey(),
+            TokenKind::Solana {
                 mint: Pubkey::new_unique(),
                 vault: Pubkey::new_unique(),
             },
-            status: WithdrawalStatus::Pending,
-            bounty: 0,
-        },
+            WithdrawalStatus::Pending,
+            0,
+        ),
         required_votes: 0,
         signers: vec![],
     };

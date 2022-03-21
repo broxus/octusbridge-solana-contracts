@@ -10,10 +10,22 @@ use bridge_derive::BridgePack;
 
 pub const WITHDRAWAL_PERIOD: i64 = 86400;
 
-const WITHDRAW_EVENT_LEN: usize = 1  // solana receiver address
-    + PUBKEY_BYTES                   // solana decimals
+const WITHDRAW_EVENT_LEN: usize = 1  // decimals
+    + PUBKEY_BYTES                   // solana recipient address
     + PUBKEY_BYTES + 1               // ever sender address
     + 8                              // amount
+;
+
+const WITHDRAW_EVER_META_LEN: usize = PUBKEY_BYTES  // author
+    + 1 + PUBKEY_BYTES                              // kind
+    + 8                                             // bounty
+    + 1                                             // status
+;
+
+const WITHDRAW_SOL_META_LEN: usize = PUBKEY_BYTES   // author
+    + 1 + PUBKEY_BYTES + PUBKEY_BYTES               // kind
+    + 8                                             // bounty
+    + 1                                             // status
 ;
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
@@ -65,10 +77,10 @@ pub struct Withdrawal {
     pub is_initialized: bool,
     pub payload_id: Hash,
     pub round_number: u32,
-    pub event: WithdrawalEvent,
-    pub meta: WithdrawalMeta,
     pub required_votes: u32,
     pub signers: Vec<Pubkey>,
+    pub event: WithdrawalEvent,
+    pub meta: WithdrawalMeta,
 }
 
 impl Sealed for Withdrawal {}
@@ -79,11 +91,70 @@ impl IsInitialized for Withdrawal {
     }
 }
 
-impl Sealed for WithdrawalEvent {}
+#[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
+#[bridge_pack(length = 5000)]
+pub struct WithdrawalPattern {
+    pub is_initialized: bool,
+    pub payload_id: Hash,
+    pub round_number: u32,
+    pub required_votes: u32,
+    pub signers: Vec<Pubkey>,
+    pub event: Vec<u8>,
+    pub meta: Vec<u8>,
+}
 
-impl IsInitialized for WithdrawalEvent {
+impl Sealed for WithdrawalPattern {}
+
+impl IsInitialized for WithdrawalPattern {
     fn is_initialized(&self) -> bool {
         self.is_initialized
+    }
+}
+
+#[derive(Debug, BorshSerialize, BorshDeserialize)]
+pub struct WithdrawalEvent {
+    pub event_len: u32,
+    pub decimals: u8,
+    pub recipient: Pubkey,
+    pub sender: EverAddress,
+    pub amount: u64,
+}
+
+impl WithdrawalEvent {
+    pub fn new(decimals: u8, recipient: Pubkey, sender: EverAddress, amount: u64) -> Self {
+        Self {
+            event_len: WITHDRAW_EVENT_LEN as u32,
+            decimals,
+            recipient,
+            sender,
+            amount,
+        }
+    }
+}
+
+#[derive(Debug, BorshSerialize, BorshDeserialize)]
+pub struct WithdrawalMeta {
+    pub meta_len: u32,
+    pub author: Pubkey,
+    pub kind: TokenKind,
+    pub status: WithdrawalStatus,
+    pub bounty: u64,
+}
+
+impl WithdrawalMeta {
+    pub fn new(author: Pubkey, kind: TokenKind, status: WithdrawalStatus, bounty: u64) -> Self {
+        let meta_len = match kind {
+            TokenKind::Ever { .. } => WITHDRAW_EVER_META_LEN,
+            TokenKind::Solana { .. } => WITHDRAW_SOL_META_LEN,
+        } as u32;
+
+        Self {
+            meta_len,
+            author,
+            kind,
+            status,
+            bounty,
+        }
     }
 }
 
@@ -100,37 +171,6 @@ pub enum WithdrawalStatus {
     Cancelled,
     Pending,
     WaitingForApprove,
-}
-
-#[derive(Debug, BorshSerialize, BorshDeserialize)]
-pub struct WithdrawalEvent {
-    pub is_initialized: bool,
-    pub event_len: u32,
-    pub decimals: u8,
-    pub recipient: Pubkey,
-    pub sender: EverAddress,
-    pub amount: u64,
-}
-
-impl WithdrawalEvent {
-    pub fn new(decimals: u8, recipient: Pubkey, sender: EverAddress, amount: u64) -> Self {
-        Self {
-            is_initialized: true,
-            event_len: WITHDRAW_EVENT_LEN as u32,
-            decimals,
-            recipient,
-            sender,
-            amount,
-        }
-    }
-}
-
-#[derive(Debug, BorshSerialize, BorshDeserialize)]
-pub struct WithdrawalMeta {
-    pub author: Pubkey,
-    pub kind: TokenKind,
-    pub status: WithdrawalStatus,
-    pub bounty: u64,
 }
 
 #[derive(Debug, Clone, Copy, Default, BorshSerialize, BorshDeserialize)]

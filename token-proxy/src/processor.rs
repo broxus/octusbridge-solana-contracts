@@ -14,7 +14,7 @@ use solana_program::{msg, system_instruction};
 
 use crate::{
     Deposit, EverAddress, Settings, TokenKind, TokenProxyError, TokenProxyInstruction, Withdrawal,
-    WithdrawalEvent, WithdrawalMeta, WithdrawalStatus, WITHDRAWAL_PERIOD,
+    WithdrawalEvent, WithdrawalMeta, WithdrawalPattern, WithdrawalStatus, WITHDRAWAL_PERIOD,
 };
 
 pub struct Processor;
@@ -722,20 +722,15 @@ impl Processor {
             is_initialized: true,
             payload_id,
             round_number,
+            signers: vec![],
+            required_votes,
             event: WithdrawalEvent::new(
                 settings_account_data.decimals,
                 *recipient_account_info.key,
                 sender,
                 amount,
             ),
-            meta: WithdrawalMeta {
-                author: *authority_account_info.key,
-                status: WithdrawalStatus::New,
-                bounty: 0,
-                kind,
-            },
-            signers: vec![],
-            required_votes,
+            meta: WithdrawalMeta::new(*authority_account_info.key, kind, WithdrawalStatus::New, 0),
         };
 
         Withdrawal::pack(
@@ -802,7 +797,7 @@ impl Processor {
         bridge_utils::validate_withdraw_account(program_id, &payload_id, withdrawal_account_info)?;
 
         let mut withdrawal_account_data =
-            Withdrawal::unpack(&withdrawal_account_info.data.borrow())?;
+            WithdrawalPattern::unpack(&withdrawal_account_info.data.borrow())?;
 
         if withdrawal_account_data.round_number != round_number {
             return Err(TokenProxyError::InvalidRelayRound.into());
@@ -813,7 +808,7 @@ impl Processor {
             .signers
             .push(*relay_account_info.key);
 
-        Withdrawal::pack(
+        WithdrawalPattern::pack(
             withdrawal_account_data,
             &mut withdrawal_account_info.data.borrow_mut(),
         )?;
