@@ -1422,6 +1422,11 @@ impl Processor {
             return Err(ProgramError::IllegalOwner);
         }
 
+        let (_, _) = settings_account_data
+            .kind
+            .as_solana()
+            .ok_or(TokenProxyError::InvalidTokenKind)?;
+
         // Validate Vault Account
         let vault_nonce =
             bridge_utils::validate_vault_account(program_id, &name, vault_account_info)?;
