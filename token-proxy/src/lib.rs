@@ -15,6 +15,14 @@ pub use self::instruction::*;
 pub use self::processor::*;
 pub use self::state::*;
 
+#[cfg(feature = "wasm")]
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+extern crate wasm_bindgen;
+
+#[cfg(feature = "wasm")]
+#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
+pub mod wasm;
+
 #[cfg(not(feature = "no-entrypoint"))]
 mod entrypoint;
 
