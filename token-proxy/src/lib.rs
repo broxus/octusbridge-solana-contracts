@@ -26,7 +26,7 @@ pub mod wasm;
 #[cfg(not(feature = "no-entrypoint"))]
 mod entrypoint;
 
-solana_program::declare_id!("53PYe3yW9YDvm3z5cJJVrycF5XNDiNiPX8zdxeBqoBqe");
+solana_program::declare_id!("DqqsutJd5sjtP6ZHbscN2bu98u2JRgRyMJGRimffHCv4");
 
 pub fn get_associated_vault_address(name: &str) -> Pubkey {
     Pubkey::find_program_address(&[br"vault", name.as_bytes()], &id()).0
