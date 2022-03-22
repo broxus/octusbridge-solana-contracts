@@ -1,15 +1,17 @@
 use std::str::FromStr;
 
 use borsh::BorshSerialize;
+use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
 use solana_program::hash::Hash;
 use solana_program::instruction::{AccountMeta, Instruction};
+use solana_program::program_pack::Pack;
 use solana_program::pubkey::Pubkey;
 
 use crate::{
     get_associated_mint_address, get_associated_settings_address,
-    get_associated_withdrawal_address, id, TokenProxyInstruction,
+    get_associated_withdrawal_address, id, TokenProxyInstruction, WithdrawalEvent, WithdrawalMeta,
 };
 
 #[wasm_bindgen(js_name = "approveWithdrawalEver")]
@@ -77,4 +79,32 @@ pub fn approve_withdrawal_sol_ix(
     };
 
     return JsValue::from_serde(&ix).unwrap();
+}
+
+#[wasm_bindgen(js_name = "unpackWithdrawal")]
+pub fn unpack_withdrawal(data: Vec<u8>) -> JsValue {
+    let withdrawal = crate::Withdrawal::unpack(&data).unwrap();
+
+    let w = Withdrawal {
+        is_initialized: withdrawal.is_initialized,
+        payload_id: withdrawal.payload_id,
+        round_number: withdrawal.round_number,
+        required_votes: withdrawal.required_votes,
+        signers: withdrawal.signers,
+        event: withdrawal.event,
+        meta: withdrawal.meta,
+    };
+
+    return JsValue::from_serde(&w).unwrap();
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct Withdrawal {
+    pub is_initialized: bool,
+    pub payload_id: Hash,
+    pub round_number: u32,
+    pub required_votes: u32,
+    pub signers: Vec<Pubkey>,
+    pub event: WithdrawalEvent,
+    pub meta: WithdrawalMeta,
 }

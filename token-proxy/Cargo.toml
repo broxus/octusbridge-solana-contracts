@@ -15,6 +15,7 @@ borsh = "0.9"
 enum-as-inner = "0.3"
 solana-program = "1.9"
 thiserror = "1.0"
+serde = { version = "1.0", features = ["derive"] }
 spl-token = {version = "3.2", features = ["no-entrypoint"]}
 spl-associated-token-account = {version = "1.0", features = ["no-entrypoint"]}
 wasm-bindgen = { version = "0.2.79", features = ["serde-serialize"], optional = true }

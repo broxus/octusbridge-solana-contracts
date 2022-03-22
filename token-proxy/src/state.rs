@@ -1,5 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use enum_as_inner::EnumAsInner;
+use serde::{Deserialize, Serialize};
 
 use solana_program::hash::Hash;
 use solana_program::program_error::ProgramError;
@@ -111,7 +112,7 @@ impl IsInitialized for WithdrawalPattern {
     }
 }
 
-#[derive(Debug, BorshSerialize, BorshDeserialize)]
+#[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 pub struct WithdrawalEvent {
     pub event_len: u32,
     pub decimals: u8,
@@ -132,7 +133,7 @@ impl WithdrawalEvent {
     }
 }
 
-#[derive(Debug, BorshSerialize, BorshDeserialize)]
+#[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 pub struct WithdrawalMeta {
     pub meta_len: u32,
     pub author: Pubkey,
@@ -158,13 +159,26 @@ impl WithdrawalMeta {
     }
 }
 
-#[derive(Debug, Copy, Clone, BorshSerialize, BorshDeserialize, EnumAsInner, PartialEq, Eq)]
+#[derive(
+    Debug,
+    Copy,
+    Clone,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    EnumAsInner,
+    PartialEq,
+    Eq,
+)]
 pub enum TokenKind {
     Ever { mint: Pubkey },
     Solana { mint: Pubkey, vault: Pubkey },
 }
 
-#[derive(Copy, BorshSerialize, BorshDeserialize, Debug, Clone, PartialEq)]
+#[derive(
+    Copy, BorshSerialize, BorshDeserialize, Serialize, Deserialize, Debug, Clone, PartialEq,
+)]
 pub enum WithdrawalStatus {
     New,
     Processed,
@@ -173,7 +187,7 @@ pub enum WithdrawalStatus {
     WaitingForApprove,
 }
 
-#[derive(Debug, Clone, Copy, Default, BorshSerialize, BorshDeserialize)]
+#[derive(Debug, Clone, Copy, Default, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 pub struct EverAddress {
     pub workchain_id: i8,
     pub address: Pubkey,
