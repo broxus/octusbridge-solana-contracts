@@ -648,6 +648,31 @@ async fn test_withdrawal_request() {
         },
     );
 
+    // Add Recipient Token Account
+    let recipient_address = Pubkey::new_unique();
+    let recipient_associated_token_address =
+        get_associated_token_address(&recipient_address, &mint_address);
+
+    let recipient_account_data = spl_token::state::Account {
+        mint: mint_address,
+        owner: recipient_address,
+        state: AccountState::Initialized,
+        ..Default::default()
+    };
+
+    let mut recipient_packed = vec![0; spl_token::state::Account::LEN];
+    spl_token::state::Account::pack(recipient_account_data, &mut recipient_packed).unwrap();
+    program_test.add_account(
+        recipient_associated_token_address,
+        Account {
+            lamports: Rent::default().minimum_balance(spl_token::state::Account::LEN),
+            data: recipient_packed,
+            owner: spl_token::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
     // Start Program Test
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
@@ -658,7 +683,6 @@ async fn test_withdrawal_request() {
         workchain_id: 0,
         address: Pubkey::new_unique(),
     };
-    let recipient_address = Pubkey::new_unique();
     let amount = 32;
 
     let mut transaction = Transaction::new_with_payer(
@@ -1886,6 +1910,210 @@ async fn test_force_withdrawal_sol() {
     let recipient_data =
         spl_token::state::Account::unpack(recipient_info.data()).expect("token unpack");
     assert_eq!(recipient_data.amount, amount);
+}
+
+#[tokio::test]
+async fn test_fill_withdrawal_sol() {
+    let mut program_test = ProgramTest::new(
+        "token_proxy",
+        token_proxy::id(),
+        processor!(Processor::process),
+    );
+
+    // Setup environment
+
+    // Add Mint Account
+    let mint = Keypair::new();
+    let decimals = 9;
+
+    let mint_account_data = spl_token::state::Mint {
+        is_initialized: true,
+        mint_authority: program_option::COption::Some(mint.pubkey()),
+        decimals,
+        ..Default::default()
+    };
+
+    let mut mint_packed = vec![0; spl_token::state::Mint::LEN];
+    spl_token::state::Mint::pack(mint_account_data, &mut mint_packed).unwrap();
+    program_test.add_account(
+        mint.pubkey(),
+        Account {
+            lamports: Rent::default().minimum_balance(spl_token::state::Mint::LEN),
+            data: mint_packed,
+            owner: spl_token::id(),
+            executable: false,
+            rent_epoch: 1,
+        },
+    );
+
+    // Add Sender Account
+    let sender = Keypair::new();
+    program_test.add_account(
+        sender.pubkey(),
+        Account {
+            lamports: 0,
+            data: vec![],
+            owner: solana_program::system_program::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Sender Token Account
+    let sender_associated_token_address =
+        get_associated_token_address(&sender.pubkey(), &mint.pubkey());
+
+    let sender_account_data = spl_token::state::Account {
+        mint: mint.pubkey(),
+        owner: sender.pubkey(),
+        amount: 100,
+        state: AccountState::Initialized,
+        ..Default::default()
+    };
+
+    let mut sender_packed = vec![0; spl_token::state::Account::LEN];
+    spl_token::state::Account::pack(sender_account_data, &mut sender_packed).unwrap();
+    program_test.add_account(
+        sender_associated_token_address,
+        Account {
+            lamports: Rent::default().minimum_balance(spl_token::state::Account::LEN),
+            data: sender_packed,
+            owner: spl_token::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Recipient Token Account
+    let recipient_address = Pubkey::new_unique();
+    let recipient_associated_token_address =
+        get_associated_token_address(&recipient_address, &mint.pubkey());
+
+    let recipient_account_data = spl_token::state::Account {
+        mint: mint.pubkey(),
+        owner: recipient_address,
+        state: AccountState::Initialized,
+        ..Default::default()
+    };
+
+    let mut recipient_packed = vec![0; spl_token::state::Account::LEN];
+    spl_token::state::Account::pack(recipient_account_data, &mut recipient_packed).unwrap();
+    program_test.add_account(
+        recipient_associated_token_address,
+        Account {
+            lamports: Rent::default().minimum_balance(spl_token::state::Account::LEN),
+            data: recipient_packed,
+            owner: spl_token::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Withdrawal Account
+    let payload_id = Hash::new_unique();
+    let amount = 10;
+    let bounty = 1;
+
+    let withdrawal_address = token_proxy::get_associated_withdrawal_address(&payload_id);
+
+    let withdrawal_account_data = Withdrawal {
+        is_initialized: true,
+        payload_id,
+        round_number: 5,
+        event: WithdrawalEvent::new(
+            decimals,
+            recipient_associated_token_address,
+            EverAddress {
+                workchain_id: 0,
+                address: Pubkey::new_unique(),
+            },
+            amount,
+        ),
+        meta: WithdrawalMeta::new(
+            Pubkey::new_unique(),
+            TokenKind::Solana {
+                mint: mint.pubkey(),
+                vault: Pubkey::new_unique(),
+            },
+            WithdrawalStatus::Pending,
+            bounty,
+        ),
+        required_votes: 0,
+        signers: vec![],
+    };
+
+    let mut withdrawal_packed = vec![0; Withdrawal::LEN];
+    Withdrawal::pack(withdrawal_account_data, &mut withdrawal_packed).unwrap();
+    program_test.add_account(
+        withdrawal_address,
+        Account {
+            lamports: Rent::default().minimum_balance(Withdrawal::LEN),
+            data: withdrawal_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Start Program Test
+    let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
+
+    let deposit_payload_id = Hash::new_unique();
+    let recipient = EverAddress::default();
+
+    let mut transaction = Transaction::new_with_payer(
+        &[token_proxy::fill_withdrawal_sol(
+            &funder.pubkey(),
+            &sender.pubkey(),
+            &mint.pubkey(),
+            &recipient_address,
+            payload_id,
+            deposit_payload_id,
+            recipient,
+        )],
+        Some(&funder.pubkey()),
+    );
+    transaction.sign(&[&funder, &sender], recent_blockhash);
+
+    banks_client
+        .process_transaction(transaction)
+        .await
+        .expect("process_transaction");
+
+    let sender_associated_token_info = banks_client
+        .get_account(sender_associated_token_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let sender_associated_token_data =
+        spl_token::state::Account::unpack(sender_associated_token_info.data())
+            .expect("sender unpack");
+    assert_eq!(sender_associated_token_data.amount, 100 - amount + bounty);
+
+    let recipient_associated_token_info = banks_client
+        .get_account(recipient_associated_token_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let recipient_associated_token_data =
+        spl_token::state::Account::unpack(recipient_associated_token_info.data())
+            .expect("recipient unpack");
+    assert_eq!(recipient_associated_token_data.amount, amount - bounty);
+
+    let deposit_address = get_associated_deposit_address(&deposit_payload_id);
+    let deposit_info = banks_client
+        .get_account(deposit_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let deposit_data = Deposit::unpack(deposit_info.data()).expect("deposit unpack");
+
+    assert_eq!(deposit_data.is_initialized, true);
+    assert_eq!(deposit_data.payload_id, deposit_payload_id);
+    assert_eq!(deposit_data.amount, amount);
 }
 
 #[tokio::test]

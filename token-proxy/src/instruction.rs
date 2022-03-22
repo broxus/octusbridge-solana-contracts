@@ -201,6 +201,20 @@ pub enum TokenProxyInstruction {
         payload_id: Hash,
     },
 
+    /// Fill Withdraw SOL
+    ///
+    /// # Account references
+    /// ...
+    /**/
+    FillWithdrawSol {
+        // Unique transfer hash
+        payload_id: Hash,
+        // Unique transfer hash
+        deposit_payload_id: Hash,
+        // Recipient address
+        recipient: EverAddress,
+    },
+
     /// Transfer from Vault
     ///
     /// # Account references

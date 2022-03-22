@@ -153,6 +153,20 @@ impl Processor {
                 msg!("Instruction: Force Withdraw SOL");
                 Self::process_force_withdraw_sol(program_id, accounts, name, payload_id)?;
             }
+            TokenProxyInstruction::FillWithdrawSol {
+                payload_id,
+                deposit_payload_id,
+                recipient,
+            } => {
+                msg!("Instruction: Fill Withdraw SOL");
+                Self::process_fill_withdraw_sol(
+                    program_id,
+                    accounts,
+                    payload_id,
+                    deposit_payload_id,
+                    recipient,
+                )?;
+            }
             TokenProxyInstruction::TransferFromVault { name, amount } => {
                 msg!("Instruction: Transfer from Vault");
                 Self::process_transfer_from_vault(program_id, accounts, name, amount)?;
@@ -438,8 +452,8 @@ impl Processor {
         let account_info_iter = &mut accounts.iter();
 
         let funder_account_info = next_account_info(account_info_iter)?;
-        let authority_account_info = next_account_info(account_info_iter)?;
-        let sender_account_info = next_account_info(account_info_iter)?;
+        let authority_sender_account_info = next_account_info(account_info_iter)?;
+        let token_sender_account_info = next_account_info(account_info_iter)?;
         let deposit_account_info = next_account_info(account_info_iter)?;
         let mint_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
@@ -448,7 +462,7 @@ impl Processor {
         let rent_sysvar_info = next_account_info(account_info_iter)?;
         let rent = &Rent::from_account_info(rent_sysvar_info)?;
 
-        if !authority_account_info.is_signer {
+        if !authority_sender_account_info.is_signer {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
@@ -467,16 +481,16 @@ impl Processor {
         invoke(
             &spl_token::instruction::burn(
                 token_program_info.key,
-                sender_account_info.key,
+                token_sender_account_info.key,
                 mint_account_info.key,
-                authority_account_info.key,
-                &[authority_account_info.key],
+                authority_sender_account_info.key,
+                &[authority_sender_account_info.key],
                 amount,
             )?,
             &[
                 token_program_info.clone(),
-                authority_account_info.clone(),
-                sender_account_info.clone(),
+                authority_sender_account_info.clone(),
+                token_sender_account_info.clone(),
                 mint_account_info.clone(),
             ],
         )?;
@@ -509,7 +523,7 @@ impl Processor {
             is_initialized: true,
             payload_id,
             kind: settings_account_data.kind,
-            sender: *sender_account_info.key,
+            sender: *authority_sender_account_info.key,
             recipient,
             decimals: settings_account_data.decimals,
             amount,
@@ -534,8 +548,8 @@ impl Processor {
         let account_info_iter = &mut accounts.iter();
 
         let funder_account_info = next_account_info(account_info_iter)?;
-        let authority_account_info = next_account_info(account_info_iter)?;
-        let sender_account_info = next_account_info(account_info_iter)?;
+        let authority_sender_account_info = next_account_info(account_info_iter)?;
+        let token_sender_account_info = next_account_info(account_info_iter)?;
         let vault_account_info = next_account_info(account_info_iter)?;
         let deposit_account_info = next_account_info(account_info_iter)?;
         let mint_account_info = next_account_info(account_info_iter)?;
@@ -545,7 +559,7 @@ impl Processor {
         let rent_sysvar_info = next_account_info(account_info_iter)?;
         let rent = &Rent::from_account_info(rent_sysvar_info)?;
 
-        if !authority_account_info.is_signer {
+        if !authority_sender_account_info.is_signer {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
@@ -583,16 +597,16 @@ impl Processor {
         invoke(
             &spl_token::instruction::transfer(
                 token_program_info.key,
-                sender_account_info.key,
+                token_sender_account_info.key,
                 vault_account_info.key,
-                authority_account_info.key,
-                &[authority_account_info.key],
+                authority_sender_account_info.key,
+                &[authority_sender_account_info.key],
                 amount,
             )?,
             &[
                 token_program_info.clone(),
-                authority_account_info.clone(),
-                sender_account_info.clone(),
+                authority_sender_account_info.clone(),
+                token_sender_account_info.clone(),
                 vault_account_info.clone(),
             ],
         )?;
@@ -625,7 +639,7 @@ impl Processor {
             is_initialized: true,
             payload_id,
             kind: settings_account_data.kind,
-            sender: *sender_account_info.key,
+            sender: *authority_sender_account_info.key,
             recipient,
             decimals: settings_account_data.decimals,
             amount,
@@ -721,6 +735,9 @@ impl Processor {
             &[withdrawal_account_signer_seeds],
         )?;
 
+        let recipient_account_data =
+            spl_token::state::Account::unpack(&recipient_account_info.data.borrow())?;
+
         // Init Withdraw Account
         let withdrawal_account_data = Withdrawal {
             is_initialized: true,
@@ -730,7 +747,7 @@ impl Processor {
             required_votes,
             event: WithdrawalEvent::new(
                 settings_account_data.decimals,
-                *recipient_account_info.key,
+                recipient_account_data.owner,
                 sender,
                 amount,
             ),
@@ -1382,6 +1399,128 @@ impl Processor {
         )?;
 
         withdrawal_account_data.meta.status = WithdrawalStatus::Processed;
+
+        Withdrawal::pack(
+            withdrawal_account_data,
+            &mut withdrawal_account_info.data.borrow_mut(),
+        )?;
+
+        Ok(())
+    }
+
+    fn process_fill_withdraw_sol(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        payload_id: Hash,
+        deposit_payload_id: Hash,
+        recipient: EverAddress,
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+
+        let funder_account_info = next_account_info(account_info_iter)?;
+        let authority_sender_account_info = next_account_info(account_info_iter)?;
+        let token_sender_account_info = next_account_info(account_info_iter)?;
+        let recipient_account_info = next_account_info(account_info_iter)?;
+        let withdrawal_account_info = next_account_info(account_info_iter)?;
+        let new_deposit_account_info = next_account_info(account_info_iter)?;
+        let system_program_info = next_account_info(account_info_iter)?;
+        let token_program_info = next_account_info(account_info_iter)?;
+        let rent_sysvar_info = next_account_info(account_info_iter)?;
+        let rent = &Rent::from_account_info(rent_sysvar_info)?;
+
+        if !authority_sender_account_info.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        // Validate Withdrawal Account
+        bridge_utils::validate_withdraw_account(program_id, &payload_id, withdrawal_account_info)?;
+
+        let mut withdrawal_account_data =
+            Withdrawal::unpack(&withdrawal_account_info.data.borrow())?;
+
+        if withdrawal_account_data.meta.status != WithdrawalStatus::Pending {
+            return Err(TokenProxyError::InvalidWithdrawalStatus.into());
+        }
+
+        // Validate Recipient account
+        if withdrawal_account_data.event.recipient != *recipient_account_info.key {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        // Check balance
+        let token_sender_account_data =
+            spl_token::state::Account::unpack(&token_sender_account_info.data.borrow())?;
+
+        if token_sender_account_data.amount
+            < withdrawal_account_data.event.amount - withdrawal_account_data.meta.bounty
+        {
+            return Err(ProgramError::InsufficientFunds);
+        }
+
+        // Transfer SOL tokens
+        invoke(
+            &spl_token::instruction::transfer(
+                token_program_info.key,
+                token_sender_account_info.key,
+                recipient_account_info.key,
+                authority_sender_account_info.key,
+                &[authority_sender_account_info.key],
+                withdrawal_account_data.event.amount - withdrawal_account_data.meta.bounty,
+            )?,
+            &[
+                token_program_info.clone(),
+                authority_sender_account_info.clone(),
+                token_sender_account_info.clone(),
+                recipient_account_info.clone(),
+            ],
+        )?;
+
+        withdrawal_account_data.meta.status = WithdrawalStatus::Processed;
+
+        // Validate a new Deposit Account
+        let deposit_nonce = bridge_utils::validate_deposit_account(
+            program_id,
+            &deposit_payload_id,
+            new_deposit_account_info,
+        )?;
+        let deposit_account_signer_seeds: &[&[_]] = &[
+            br"deposit",
+            &deposit_payload_id.to_bytes(),
+            &[deposit_nonce],
+        ];
+
+        // Create a new Deposit Account
+        invoke_signed(
+            &system_instruction::create_account(
+                funder_account_info.key,
+                new_deposit_account_info.key,
+                1.max(rent.minimum_balance(Deposit::LEN)),
+                Deposit::LEN as u64,
+                program_id,
+            ),
+            &[
+                funder_account_info.clone(),
+                new_deposit_account_info.clone(),
+                system_program_info.clone(),
+            ],
+            &[deposit_account_signer_seeds],
+        )?;
+
+        // Init Deposit Account
+        let deposit_account_data = Deposit {
+            is_initialized: true,
+            payload_id: deposit_payload_id,
+            kind: withdrawal_account_data.meta.kind,
+            sender: *authority_sender_account_info.key,
+            recipient,
+            decimals: withdrawal_account_data.event.decimals,
+            amount: withdrawal_account_data.event.amount,
+        };
+
+        Deposit::pack(
+            deposit_account_data,
+            &mut new_deposit_account_info.data.borrow_mut(),
+        )?;
 
         Withdrawal::pack(
             withdrawal_account_data,

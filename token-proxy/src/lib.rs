@@ -459,6 +459,50 @@ pub fn force_withdrawal_sol(
     }
 }
 
+pub fn fill_withdrawal_sol(
+    funder_pubkey: &Pubkey,
+    authority_sender_pubkey: &Pubkey,
+    mint_pubkey: &Pubkey,
+    to_pubkey: &Pubkey,
+    payload_id: Hash,
+    deposit_payload_id: Hash,
+    recipient: EverAddress,
+) -> Instruction {
+    let sender_pubkey = spl_associated_token_account::get_associated_token_address(
+        authority_sender_pubkey,
+        mint_pubkey,
+    );
+    let recipient_pubkey =
+        spl_associated_token_account::get_associated_token_address(to_pubkey, mint_pubkey);
+
+    let withdrawal_pubkey = get_associated_withdrawal_address(&payload_id);
+    let new_deposit_pubkey = get_associated_deposit_address(&deposit_payload_id);
+
+    let data = TokenProxyInstruction::FillWithdrawSol {
+        payload_id,
+        deposit_payload_id,
+        recipient,
+    }
+    .try_to_vec()
+    .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(*funder_pubkey, true),
+            AccountMeta::new(*authority_sender_pubkey, true),
+            AccountMeta::new(sender_pubkey, false),
+            AccountMeta::new(recipient_pubkey, false),
+            AccountMeta::new(withdrawal_pubkey, false),
+            AccountMeta::new(new_deposit_pubkey, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+            AccountMeta::new_readonly(spl_token::id(), false),
+            AccountMeta::new_readonly(sysvar::rent::id(), false),
+        ],
+        data,
+    }
+}
+
 pub fn transfer_from_vault(
     authority_pubkey: &Pubkey,
     mint_pubkey: &Pubkey,
