@@ -24,7 +24,7 @@ pub mod wasm;
 #[cfg(not(feature = "no-entrypoint"))]
 mod entrypoint;
 
-solana_program::declare_id!("4mTYQNUNZMrc9wvcQhyYdFKX4wBjmgytLtHWeyzZue5i");
+solana_program::declare_id!("4UfA4eQHLzhPuQX1BWRGo1cNedGpyg9LSdRKnPqRHnqn");
 
 pub fn get_associated_settings_address() -> Pubkey {
     Pubkey::find_program_address(&[b"settings"], &id()).0
