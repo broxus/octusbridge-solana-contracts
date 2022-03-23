@@ -8,11 +8,112 @@ use solana_program::hash::Hash;
 use solana_program::instruction::{AccountMeta, Instruction};
 use solana_program::program_pack::Pack;
 use solana_program::pubkey::Pubkey;
+use solana_program::{system_program, sysvar};
 
 use crate::{
-    get_associated_mint_address, get_associated_settings_address,
-    get_associated_withdrawal_address, id, TokenProxyInstruction, WithdrawalEvent, WithdrawalMeta,
+    get_associated_mint_address, get_associated_settings_address, get_associated_vault_address,
+    get_associated_withdrawal_address, get_program_data_address, id, TokenProxyInstruction,
+    WithdrawalEvent, WithdrawalMeta,
 };
+
+#[wasm_bindgen(js_name = "initializeMint")]
+pub fn initialize_mint_ix(
+    funder_pubkey: String,
+    initializer_pubkey: String,
+    name: String,
+    decimals: u8,
+    deposit_limit: u64,
+    withdrawal_limit: u64,
+    withdrawal_daily_limit: u64,
+    admin: String,
+) -> JsValue {
+    let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).unwrap();
+    let initializer_pubkey = Pubkey::from_str(initializer_pubkey.as_str()).unwrap();
+    let admin = Pubkey::from_str(admin.as_str()).unwrap();
+
+    let mint_pubkey = get_associated_mint_address(&name);
+    let settings_pubkey = get_associated_settings_address(&name);
+    let program_data_pubkey = get_program_data_address();
+
+    let data = TokenProxyInstruction::InitializeMint {
+        name,
+        decimals,
+        deposit_limit,
+        withdrawal_limit,
+        withdrawal_daily_limit,
+        admin,
+    }
+    .try_to_vec()
+    .expect("pack");
+
+    let ix = Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(funder_pubkey, true),
+            AccountMeta::new(initializer_pubkey, true),
+            AccountMeta::new(mint_pubkey, false),
+            AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new_readonly(program_data_pubkey, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+            AccountMeta::new_readonly(spl_token::id(), false),
+            AccountMeta::new_readonly(sysvar::rent::id(), false),
+        ],
+        data,
+    };
+
+    return JsValue::from_serde(&ix).unwrap();
+}
+
+#[wasm_bindgen(js_name = "initializeVault")]
+pub fn initialize_vault_ix(
+    funder_pubkey: String,
+    initializer_pubkey: String,
+    mint_pubkey: String,
+    name: String,
+    decimals: u8,
+    deposit_limit: u64,
+    withdrawal_limit: u64,
+    withdrawal_daily_limit: u64,
+    admin: String,
+) -> JsValue {
+    let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).unwrap();
+    let initializer_pubkey = Pubkey::from_str(initializer_pubkey.as_str()).unwrap();
+    let mint_pubkey = Pubkey::from_str(mint_pubkey.as_str()).unwrap();
+    let admin = Pubkey::from_str(admin.as_str()).unwrap();
+
+    let vault_pubkey = get_associated_vault_address(&name);
+    let settings_pubkey = get_associated_settings_address(&name);
+    let program_data_pubkey = get_program_data_address();
+
+    let data = TokenProxyInstruction::InitializeVault {
+        name,
+        decimals,
+        deposit_limit,
+        withdrawal_limit,
+        withdrawal_daily_limit,
+        admin,
+    }
+    .try_to_vec()
+    .expect("pack");
+
+    let ix = Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(funder_pubkey, true),
+            AccountMeta::new(initializer_pubkey, true),
+            AccountMeta::new(mint_pubkey, false),
+            AccountMeta::new(vault_pubkey, false),
+            AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new_readonly(program_data_pubkey, false),
+            AccountMeta::new_readonly(spl_token::id(), false),
+            AccountMeta::new_readonly(system_program::id(), false),
+            AccountMeta::new_readonly(sysvar::rent::id(), false),
+        ],
+        data,
+    };
+
+    return JsValue::from_serde(&ix).unwrap();
+}
 
 #[wasm_bindgen(js_name = "approveWithdrawalEver")]
 pub fn approve_withdrawal_ever_ix(
