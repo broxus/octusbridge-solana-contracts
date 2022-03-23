@@ -1906,10 +1906,12 @@ dependencies = [
  "borsh",
  "bridge-derive",
  "bridge-utils",
+ "serde",
  "solana-program",
  "solana-program-test",
  "solana-sdk",
  "thiserror",
+ "wasm-bindgen",
 ]
 
 [[package]]
