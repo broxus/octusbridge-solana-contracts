@@ -12,8 +12,8 @@ use solana_program::{system_program, sysvar};
 
 use crate::{
     get_associated_mint_address, get_associated_settings_address, get_associated_vault_address,
-    get_associated_withdrawal_address, get_program_data_address, id, TokenProxyInstruction,
-    WithdrawalEvent, WithdrawalMeta,
+    get_associated_withdrawal_address, get_program_data_address, id, TokenKind,
+    TokenProxyInstruction, WithdrawalEvent, WithdrawalMeta,
 };
 
 #[wasm_bindgen(js_name = "initializeMint")]
@@ -182,6 +182,26 @@ pub fn approve_withdrawal_sol_ix(
     return JsValue::from_serde(&ix).unwrap();
 }
 
+#[wasm_bindgen(js_name = "unpackSettings")]
+pub fn unpack_settings(data: Vec<u8>) -> JsValue {
+    let settings = crate::Settings::unpack(&data).unwrap();
+
+    let s = Settings {
+        is_initialized: settings.is_initialized,
+        kind: settings.kind,
+        admin: settings.admin,
+        decimals: settings.decimals,
+        emergency: settings.emergency,
+        deposit_limit: settings.deposit_limit,
+        withdrawal_limit: settings.withdrawal_limit,
+        withdrawal_daily_limit: settings.withdrawal_daily_limit,
+        withdrawal_daily_amount: settings.withdrawal_daily_amount,
+        withdrawal_ttl: settings.withdrawal_ttl,
+    };
+
+    return JsValue::from_serde(&s).unwrap();
+}
+
 #[wasm_bindgen(js_name = "unpackWithdrawal")]
 pub fn unpack_withdrawal(data: Vec<u8>) -> JsValue {
     let withdrawal = crate::Withdrawal::unpack(&data).unwrap();
@@ -197,6 +217,20 @@ pub fn unpack_withdrawal(data: Vec<u8>) -> JsValue {
     };
 
     return JsValue::from_serde(&w).unwrap();
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct Settings {
+    pub is_initialized: bool,
+    pub kind: TokenKind,
+    pub admin: Pubkey,
+    pub decimals: u8,
+    pub emergency: bool,
+    pub deposit_limit: u64,
+    pub withdrawal_limit: u64,
+    pub withdrawal_daily_limit: u64,
+    pub withdrawal_daily_amount: u64,
+    pub withdrawal_ttl: i64,
 }
 
 #[derive(Serialize, Deserialize)]
