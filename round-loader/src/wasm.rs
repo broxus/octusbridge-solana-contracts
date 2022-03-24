@@ -15,7 +15,7 @@ use crate::{
 };
 
 #[wasm_bindgen(js_name = "initialize")]
-pub fn initialize_mint_ix(
+pub fn initialize_ix(
     funder_pubkey: String,
     creator_pubkey: String,
     round: u32,

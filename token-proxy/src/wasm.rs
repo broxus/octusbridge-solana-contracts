@@ -182,6 +182,43 @@ pub fn approve_withdrawal_sol_ix(
     return JsValue::from_serde(&ix).unwrap();
 }
 
+#[wasm_bindgen(js_name = "confirmWithdrawRequest")]
+pub fn confirm_withdraw_request_ix(
+    authority_pubkey: String,
+    name: String,
+    payload_id: String,
+    round_number: u32,
+) -> JsValue {
+    let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).unwrap();
+    let payload_id = Hash::from_str(payload_id.as_str()).unwrap();
+
+    let settings_pubkey = get_associated_settings_address(&name);
+    let withdrawal_pubkey = get_associated_withdrawal_address(&payload_id);
+    let relay_round_pubkey = round_loader::get_associated_relay_round_address(round_number);
+
+    let data = TokenProxyInstruction::ConfirmWithdrawRequest {
+        name,
+        payload_id,
+        round_number,
+    }
+    .try_to_vec()
+    .expect("pack");
+
+    let ix = Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(authority_pubkey, true),
+            AccountMeta::new(withdrawal_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new_readonly(relay_round_pubkey, false),
+            AccountMeta::new_readonly(sysvar::clock::id(), false),
+        ],
+        data,
+    };
+
+    return JsValue::from_serde(&ix).unwrap();
+}
+
 #[wasm_bindgen(js_name = "unpackSettings")]
 pub fn unpack_settings(data: Vec<u8>) -> JsValue {
     let settings = crate::Settings::unpack(&data).unwrap();
