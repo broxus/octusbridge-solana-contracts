@@ -118,6 +118,8 @@ pub enum TokenProxyInstruction {
         round_number: u32,
         // Sender address
         sender: EverAddress,
+        // Withdraw timestamp
+        timestamp: i64,
         // Deposit amount
         amount: u64,
     },

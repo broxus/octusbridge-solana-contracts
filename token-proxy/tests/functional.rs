@@ -683,6 +683,7 @@ async fn test_withdrawal_request() {
         workchain_id: 0,
         address: Pubkey::new_unique(),
     };
+    let timestamp = 0;
     let amount = 32;
 
     let mut transaction = Transaction::new_with_payer(
@@ -694,6 +695,7 @@ async fn test_withdrawal_request() {
             round_number,
             sender_address,
             recipient_address,
+            timestamp,
             amount,
         )],
         Some(&funder.pubkey()),
@@ -814,6 +816,7 @@ async fn test_confirm_withdrawal_request() {
                 workchain_id: 0,
                 address: Pubkey::new_unique(),
             },
+            0,
             10,
         ),
         meta: WithdrawalMeta::new(
@@ -980,6 +983,7 @@ async fn test_withdrawal_ever() {
                 workchain_id: 0,
                 address: Pubkey::new_unique(),
             },
+            0,
             amount,
         ),
         meta: WithdrawalMeta::new(
@@ -1181,6 +1185,7 @@ async fn test_withdrawal_sol() {
                 workchain_id: 0,
                 address: Pubkey::new_unique(),
             },
+            0,
             amount,
         ),
         meta: WithdrawalMeta::new(
@@ -1359,6 +1364,7 @@ async fn test_approve_withdrawal_ever() {
                 workchain_id: 0,
                 address: Pubkey::new_unique(),
             },
+            0,
             amount,
         ),
         meta: WithdrawalMeta::new(
@@ -1500,6 +1506,7 @@ async fn test_approve_withdrawal_sol() {
                 workchain_id: 0,
                 address: Pubkey::new_unique(),
             },
+            0,
             amount,
         ),
         meta: WithdrawalMeta::new(
@@ -1634,6 +1641,7 @@ async fn test_cancel_withdrawal_sol() {
                 workchain_id: 0,
                 address: Pubkey::new_unique(),
             },
+            0,
             amount,
         ),
         meta: WithdrawalMeta::new(
@@ -1845,6 +1853,7 @@ async fn test_force_withdrawal_sol() {
                 workchain_id: 0,
                 address: Pubkey::new_unique(),
             },
+            0,
             amount,
         ),
         meta: WithdrawalMeta::new(
@@ -2027,6 +2036,7 @@ async fn test_fill_withdrawal_sol() {
                 workchain_id: 0,
                 address: Pubkey::new_unique(),
             },
+            0,
             amount,
         ),
         meta: WithdrawalMeta::new(
@@ -2308,6 +2318,7 @@ async fn test_change_bounty_for_withdrawal_sol() {
                 workchain_id: 0,
                 address: Pubkey::new_unique(),
             },
+            0,
             amount,
         ),
         meta: WithdrawalMeta::new(

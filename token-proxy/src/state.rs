@@ -14,6 +14,7 @@ pub const WITHDRAWAL_PERIOD: i64 = 86400;
 const WITHDRAW_EVENT_LEN: usize = 1  // decimals
     + PUBKEY_BYTES                   // solana recipient address
     + PUBKEY_BYTES + 1               // ever sender address
+    + 8                              // timestamp
     + 8                              // amount
 ;
 
@@ -118,16 +119,24 @@ pub struct WithdrawalEvent {
     pub decimals: u8,
     pub recipient: Pubkey,
     pub sender: EverAddress,
+    pub timestamp: i64,
     pub amount: u64,
 }
 
 impl WithdrawalEvent {
-    pub fn new(decimals: u8, recipient: Pubkey, sender: EverAddress, amount: u64) -> Self {
+    pub fn new(
+        decimals: u8,
+        recipient: Pubkey,
+        sender: EverAddress,
+        timestamp: i64,
+        amount: u64,
+    ) -> Self {
         Self {
             event_len: WITHDRAW_EVENT_LEN as u32,
             decimals,
             recipient,
             sender,
+            timestamp,
             amount,
         }
     }

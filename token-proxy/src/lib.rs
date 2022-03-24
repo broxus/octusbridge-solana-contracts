@@ -228,6 +228,7 @@ pub fn withdrawal_request(
     round_number: u32,
     sender: EverAddress,
     recipient: Pubkey,
+    timestamp: i64,
     amount: u64,
 ) -> Instruction {
     let settings_pubkey = get_associated_settings_address(&name);
@@ -243,6 +244,7 @@ pub fn withdrawal_request(
         payload_id,
         round_number,
         sender,
+        timestamp,
         amount,
     }
     .try_to_vec()

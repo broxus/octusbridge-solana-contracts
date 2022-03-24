@@ -94,6 +94,7 @@ impl Processor {
                 payload_id,
                 round_number,
                 sender,
+                timestamp,
                 amount,
             } => {
                 msg!("Instruction: Withdraw EVER/SOL request");
@@ -104,6 +105,7 @@ impl Processor {
                     payload_id,
                     round_number,
                     sender,
+                    timestamp,
                     amount,
                 )?;
             }
@@ -660,6 +662,7 @@ impl Processor {
         payload_id: Hash,
         round_number: u32,
         sender: EverAddress,
+        timestamp: i64,
         amount: u64,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
@@ -749,6 +752,7 @@ impl Processor {
                 settings_account_data.decimals,
                 recipient_account_data.owner,
                 sender,
+                timestamp,
                 amount,
             ),
             meta: WithdrawalMeta::new(*authority_account_info.key, kind, WithdrawalStatus::New, 0),
