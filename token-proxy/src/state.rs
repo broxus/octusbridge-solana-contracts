@@ -194,6 +194,7 @@ pub enum WithdrawalStatus {
     Cancelled,
     Pending,
     WaitingForApprove,
+    WaitingForRelease,
 }
 
 #[derive(Debug, Clone, Copy, Default, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]

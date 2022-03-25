@@ -129,12 +129,21 @@ pub enum TokenProxyInstruction {
     /// # Account references
     /// ...
     ConfirmWithdrawRequest {
-        /// Mint asset name
-        name: String,
         // Unique transfer hash
         payload_id: Hash,
         // Current round number
         round_number: u32,
+    },
+
+    /// Update withdraw status
+    ///
+    /// # Account references
+    /// ...
+    UpdateWithdrawStatus {
+        /// Mint asset name
+        name: String,
+        // Unique transfer hash
+        payload_id: Hash,
     },
 
     /// Withdraw EVER

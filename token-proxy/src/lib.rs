@@ -269,16 +269,13 @@ pub fn withdrawal_request(
 
 pub fn confirm_withdrawal_request(
     relay_pubkey: &Pubkey,
-    name: String,
     payload_id: Hash,
     round_number: u32,
 ) -> Instruction {
-    let settings_pubkey = get_associated_settings_address(&name);
     let withdrawal_pubkey = get_associated_withdrawal_address(&payload_id);
     let relay_round_pubkey = round_loader::get_associated_relay_round_address(round_number);
 
     let data = TokenProxyInstruction::ConfirmWithdrawRequest {
-        name,
         payload_id,
         round_number,
     }
@@ -290,8 +287,26 @@ pub fn confirm_withdrawal_request(
         accounts: vec![
             AccountMeta::new(*relay_pubkey, true),
             AccountMeta::new(withdrawal_pubkey, false),
-            AccountMeta::new_readonly(settings_pubkey, false),
             AccountMeta::new_readonly(relay_round_pubkey, false),
+            AccountMeta::new_readonly(sysvar::clock::id(), false),
+        ],
+        data,
+    }
+}
+
+pub fn update_withdrawal_status(name: String, payload_id: Hash) -> Instruction {
+    let settings_pubkey = get_associated_settings_address(&name);
+    let withdrawal_pubkey = get_associated_withdrawal_address(&payload_id);
+
+    let data = TokenProxyInstruction::UpdateWithdrawStatus { name, payload_id }
+        .try_to_vec()
+        .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new(withdrawal_pubkey, false),
             AccountMeta::new_readonly(sysvar::clock::id(), false),
         ],
         data,
@@ -314,11 +329,10 @@ pub fn withdrawal_ever(to_pubkey: &Pubkey, name: String, payload_id: Hash) -> In
         program_id: id(),
         accounts: vec![
             AccountMeta::new(mint_pubkey, false),
-            AccountMeta::new(settings_pubkey, false),
             AccountMeta::new(withdrawal_pubkey, false),
             AccountMeta::new(recipient_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
             AccountMeta::new_readonly(spl_token::id(), false),
-            AccountMeta::new_readonly(sysvar::clock::id(), false),
         ],
         data,
     }
@@ -345,11 +359,10 @@ pub fn withdrawal_sol(
         program_id: id(),
         accounts: vec![
             AccountMeta::new(vault_account, false),
-            AccountMeta::new(settings_pubkey, false),
             AccountMeta::new(withdrawal_pubkey, false),
             AccountMeta::new(recipient_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
             AccountMeta::new_readonly(spl_token::id(), false),
-            AccountMeta::new_readonly(sysvar::clock::id(), false),
         ],
         data,
     }
