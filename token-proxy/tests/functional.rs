@@ -1098,7 +1098,7 @@ async fn test_withdrawal_ever() {
         round_number: 5,
         event: WithdrawalEvent::new(
             decimals,
-            recipient_associated_token_address,
+            recipient_address,
             EverAddress {
                 workchain_id: 0,
                 address: Pubkey::new_unique(),
@@ -1300,7 +1300,7 @@ async fn test_withdrawal_sol() {
         round_number: 5,
         event: WithdrawalEvent::new(
             decimals,
-            recipient_associated_token_address,
+            recipient_address,
             EverAddress {
                 workchain_id: 0,
                 address: Pubkey::new_unique(),
@@ -1479,7 +1479,7 @@ async fn test_approve_withdrawal_ever() {
         round_number: 5,
         event: WithdrawalEvent::new(
             decimals,
-            recipient_associated_token_address,
+            recipient_address,
             EverAddress {
                 workchain_id: 0,
                 address: Pubkey::new_unique(),
@@ -1968,7 +1968,7 @@ async fn test_force_withdrawal_sol() {
         round_number: 5,
         event: WithdrawalEvent::new(
             decimals,
-            recipient_associated_token_address,
+            recipient_address,
             EverAddress {
                 workchain_id: 0,
                 address: Pubkey::new_unique(),
@@ -2151,7 +2151,7 @@ async fn test_fill_withdrawal_sol() {
         round_number: 5,
         event: WithdrawalEvent::new(
             decimals,
-            recipient_associated_token_address,
+            recipient_address,
             EverAddress {
                 workchain_id: 0,
                 address: Pubkey::new_unique(),

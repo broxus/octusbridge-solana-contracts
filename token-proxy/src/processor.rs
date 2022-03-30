@@ -740,9 +740,6 @@ impl Processor {
             &[withdrawal_account_signer_seeds],
         )?;
 
-        let recipient_account_data =
-            spl_token::state::Account::unpack(&recipient_account_info.data.borrow())?;
-
         // Init Withdraw Account
         let withdrawal_account_data = Withdrawal {
             is_initialized: true,
@@ -752,7 +749,7 @@ impl Processor {
             required_votes,
             event: WithdrawalEvent::new(
                 settings_account_data.decimals,
-                recipient_account_data.owner,
+                *recipient_account_info.key,
                 sender,
                 timestamp,
                 amount,
@@ -779,8 +776,6 @@ impl Processor {
         let relay_account_info = next_account_info(account_info_iter)?;
         let withdrawal_account_info = next_account_info(account_info_iter)?;
         let relay_round_account_info = next_account_info(account_info_iter)?;
-        let clock_info = next_account_info(account_info_iter)?;
-        let clock = Clock::from_account_info(clock_info)?;
 
         if !relay_account_info.is_signer {
             return Err(ProgramError::MissingRequiredSignature);
@@ -797,10 +792,6 @@ impl Processor {
 
         if relay_round_account_data.round_number != round_number {
             return Err(TokenProxyError::InvalidRelayRound.into());
-        }
-
-        if relay_round_account_data.round_ttl <= clock.unix_timestamp {
-            return Err(TokenProxyError::RelayRoundExpired.into());
         }
 
         if !relay_round_account_data
@@ -905,7 +896,7 @@ impl Processor {
 
         let mint_account_info = next_account_info(account_info_iter)?;
         let withdrawal_account_info = next_account_info(account_info_iter)?;
-        let recipient_account_info = next_account_info(account_info_iter)?;
+        let recipient_token_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
         let token_program_info = next_account_info(account_info_iter)?;
 
@@ -941,7 +932,10 @@ impl Processor {
         }
 
         // Validate Recipient Account
-        if withdrawal_account_data.event.recipient != *recipient_account_info.key {
+        let recipient_token_account_data =
+            spl_token::state::Account::unpack(&recipient_token_account_info.data.borrow())?;
+
+        if withdrawal_account_data.event.recipient != recipient_token_account_data.owner {
             return Err(ProgramError::InvalidAccountData);
         }
 
@@ -959,7 +953,7 @@ impl Processor {
             &spl_token::instruction::mint_to(
                 token_program_info.key,
                 mint_account_info.key,
-                recipient_account_info.key,
+                recipient_token_account_info.key,
                 mint_account_info.key,
                 &[mint_account_info.key],
                 withdrawal_account_data.event.amount,
@@ -967,7 +961,7 @@ impl Processor {
             &[
                 token_program_info.clone(),
                 mint_account_info.clone(),
-                recipient_account_info.clone(),
+                recipient_token_account_info.clone(),
                 mint_account_info.clone(),
             ],
             &[mint_account_signer_seeds],
@@ -993,7 +987,7 @@ impl Processor {
 
         let vault_account_info = next_account_info(account_info_iter)?;
         let withdrawal_account_info = next_account_info(account_info_iter)?;
-        let recipient_account_info = next_account_info(account_info_iter)?;
+        let recipient_token_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
         let token_program_info = next_account_info(account_info_iter)?;
 
@@ -1029,7 +1023,10 @@ impl Processor {
         }
 
         // Validate Recipient Account
-        if withdrawal_account_data.event.recipient != *recipient_account_info.key {
+        let recipient_token_account_data =
+            spl_token::state::Account::unpack(&recipient_token_account_info.data.borrow())?;
+
+        if withdrawal_account_data.event.recipient != recipient_token_account_data.owner {
             return Err(ProgramError::InvalidAccountData);
         }
 
@@ -1052,7 +1049,7 @@ impl Processor {
                 &spl_token::instruction::transfer(
                     token_program_info.key,
                     vault_account_info.key,
-                    recipient_account_info.key,
+                    recipient_token_account_info.key,
                     vault_account_info.key,
                     &[vault_account_info.key],
                     withdrawal_account_data.event.amount,
@@ -1060,7 +1057,7 @@ impl Processor {
                 &[
                     token_program_info.clone(),
                     vault_account_info.clone(),
-                    recipient_account_info.clone(),
+                    recipient_token_account_info.clone(),
                 ],
                 &[vault_account_signer_seeds],
             )?;
@@ -1089,7 +1086,7 @@ impl Processor {
         let authority_account_info = next_account_info(account_info_iter)?;
         let mint_account_info = next_account_info(account_info_iter)?;
         let withdrawal_account_info = next_account_info(account_info_iter)?;
-        let recipient_account_info = next_account_info(account_info_iter)?;
+        let recipient_token_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
         let token_program_info = next_account_info(account_info_iter)?;
 
@@ -1137,7 +1134,10 @@ impl Processor {
         }
 
         // Validate Recipient Account
-        if withdrawal_account_data.event.recipient != *recipient_account_info.key {
+        let recipient_token_account_data =
+            spl_token::state::Account::unpack(&recipient_token_account_info.data.borrow())?;
+
+        if withdrawal_account_data.event.recipient != recipient_token_account_data.owner {
             return Err(ProgramError::InvalidAccountData);
         }
 
@@ -1150,7 +1150,7 @@ impl Processor {
             &spl_token::instruction::mint_to(
                 token_program_info.key,
                 mint_account_info.key,
-                recipient_account_info.key,
+                recipient_token_account_info.key,
                 mint_account_info.key,
                 &[mint_account_info.key],
                 withdrawal_account_data.event.amount,
@@ -1158,7 +1158,7 @@ impl Processor {
             &[
                 token_program_info.clone(),
                 mint_account_info.clone(),
-                recipient_account_info.clone(),
+                recipient_token_account_info.clone(),
                 mint_account_info.clone(),
             ],
             &[mint_account_signer_seeds],
@@ -1334,7 +1334,7 @@ impl Processor {
 
         let vault_account_info = next_account_info(account_info_iter)?;
         let withdrawal_account_info = next_account_info(account_info_iter)?;
-        let recipient_account_info = next_account_info(account_info_iter)?;
+        let recipient_token_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
         let token_program_info = next_account_info(account_info_iter)?;
 
@@ -1374,7 +1374,10 @@ impl Processor {
         }
 
         // Validate Recipient Account
-        if withdrawal_account_data.event.recipient != *recipient_account_info.key {
+        let recipient_token_account_data =
+            spl_token::state::Account::unpack(&recipient_token_account_info.data.borrow())?;
+
+        if withdrawal_account_data.event.recipient != recipient_token_account_data.owner {
             return Err(ProgramError::InvalidAccountData);
         }
 
@@ -1395,7 +1398,7 @@ impl Processor {
             &spl_token::instruction::transfer(
                 token_program_info.key,
                 vault_account_info.key,
-                recipient_account_info.key,
+                recipient_token_account_info.key,
                 vault_account_info.key,
                 &[vault_account_info.key],
                 withdrawal_account_data.event.amount,
@@ -1403,7 +1406,7 @@ impl Processor {
             &[
                 token_program_info.clone(),
                 vault_account_info.clone(),
-                recipient_account_info.clone(),
+                recipient_token_account_info.clone(),
             ],
             &[vault_account_signer_seeds],
         )?;
@@ -1430,7 +1433,7 @@ impl Processor {
         let funder_account_info = next_account_info(account_info_iter)?;
         let authority_sender_account_info = next_account_info(account_info_iter)?;
         let token_sender_account_info = next_account_info(account_info_iter)?;
-        let recipient_account_info = next_account_info(account_info_iter)?;
+        let recipient_token_account_info = next_account_info(account_info_iter)?;
         let withdrawal_account_info = next_account_info(account_info_iter)?;
         let new_deposit_account_info = next_account_info(account_info_iter)?;
         let system_program_info = next_account_info(account_info_iter)?;
@@ -1453,7 +1456,10 @@ impl Processor {
         }
 
         // Validate Recipient account
-        if withdrawal_account_data.event.recipient != *recipient_account_info.key {
+        let recipient_token_account_data =
+            spl_token::state::Account::unpack(&recipient_token_account_info.data.borrow())?;
+
+        if withdrawal_account_data.event.recipient != recipient_token_account_data.owner {
             return Err(ProgramError::InvalidAccountData);
         }
 
@@ -1472,7 +1478,7 @@ impl Processor {
             &spl_token::instruction::transfer(
                 token_program_info.key,
                 token_sender_account_info.key,
-                recipient_account_info.key,
+                recipient_token_account_info.key,
                 authority_sender_account_info.key,
                 &[authority_sender_account_info.key],
                 withdrawal_account_data.event.amount - withdrawal_account_data.meta.bounty,
@@ -1481,7 +1487,7 @@ impl Processor {
                 token_program_info.clone(),
                 authority_sender_account_info.clone(),
                 token_sender_account_info.clone(),
-                recipient_account_info.clone(),
+                recipient_token_account_info.clone(),
             ],
         )?;
 
@@ -1550,7 +1556,7 @@ impl Processor {
 
         let authority_account_info = next_account_info(account_info_iter)?;
         let vault_account_info = next_account_info(account_info_iter)?;
-        let recipient_account_info = next_account_info(account_info_iter)?;
+        let recipient_token_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
         let token_program_info = next_account_info(account_info_iter)?;
 
@@ -1562,10 +1568,6 @@ impl Processor {
         bridge_utils::validate_settings_account(program_id, &name, settings_account_info)?;
 
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
-
-        if settings_account_data.emergency {
-            return Err(TokenProxyError::EmergencyEnabled.into());
-        }
 
         if settings_account_data.admin != *authority_account_info.key {
             return Err(ProgramError::IllegalOwner);
@@ -1592,7 +1594,7 @@ impl Processor {
             &spl_token::instruction::transfer(
                 token_program_info.key,
                 vault_account_info.key,
-                recipient_account_info.key,
+                recipient_token_account_info.key,
                 vault_account_info.key,
                 &[vault_account_info.key],
                 amount,
@@ -1600,7 +1602,7 @@ impl Processor {
             &[
                 token_program_info.clone(),
                 vault_account_info.clone(),
-                recipient_account_info.clone(),
+                recipient_token_account_info.clone(),
             ],
             &[vault_account_signer_seeds],
         )?;

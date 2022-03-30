@@ -227,17 +227,13 @@ pub fn withdrawal_request(
     payload_id: Hash,
     round_number: u32,
     sender: EverAddress,
-    recipient: Pubkey,
+    recipient_pubkey: Pubkey,
     timestamp: i64,
     amount: u64,
 ) -> Instruction {
     let settings_pubkey = get_associated_settings_address(&name);
     let withdrawal_pubkey = get_associated_withdrawal_address(&payload_id);
     let relay_round_pubkey = round_loader::get_associated_relay_round_address(round_number);
-
-    let mint_pubkey = get_associated_mint_address(&name);
-    let recipient_pubkey =
-        spl_associated_token_account::get_associated_token_address(&recipient, &mint_pubkey);
 
     let data = TokenProxyInstruction::WithdrawRequest {
         name,
@@ -288,7 +284,6 @@ pub fn confirm_withdrawal_request(
             AccountMeta::new(*relay_pubkey, true),
             AccountMeta::new(withdrawal_pubkey, false),
             AccountMeta::new_readonly(relay_round_pubkey, false),
-            AccountMeta::new_readonly(sysvar::clock::id(), false),
         ],
         data,
     }
@@ -318,7 +313,7 @@ pub fn withdrawal_ever(to_pubkey: &Pubkey, name: String, payload_id: Hash) -> In
     let withdrawal_pubkey = get_associated_withdrawal_address(&payload_id);
 
     let mint_pubkey = get_associated_mint_address(&name);
-    let recipient_pubkey =
+    let recipient_token_pubkey =
         spl_associated_token_account::get_associated_token_address(to_pubkey, &mint_pubkey);
 
     let data = TokenProxyInstruction::WithdrawEver { name, payload_id }
@@ -330,7 +325,7 @@ pub fn withdrawal_ever(to_pubkey: &Pubkey, name: String, payload_id: Hash) -> In
         accounts: vec![
             AccountMeta::new(mint_pubkey, false),
             AccountMeta::new(withdrawal_pubkey, false),
-            AccountMeta::new(recipient_pubkey, false),
+            AccountMeta::new(recipient_token_pubkey, false),
             AccountMeta::new_readonly(settings_pubkey, false),
             AccountMeta::new_readonly(spl_token::id(), false),
         ],
@@ -348,7 +343,7 @@ pub fn withdrawal_sol(
     let withdrawal_pubkey = get_associated_withdrawal_address(&payload_id);
 
     let vault_account = get_associated_vault_address(&name);
-    let recipient_pubkey =
+    let recipient_token_pubkey =
         spl_associated_token_account::get_associated_token_address(to_pubkey, mint_pubkey);
 
     let data = TokenProxyInstruction::WithdrawSol { name, payload_id }
@@ -360,7 +355,7 @@ pub fn withdrawal_sol(
         accounts: vec![
             AccountMeta::new(vault_account, false),
             AccountMeta::new(withdrawal_pubkey, false),
-            AccountMeta::new(recipient_pubkey, false),
+            AccountMeta::new(recipient_token_pubkey, false),
             AccountMeta::new_readonly(settings_pubkey, false),
             AccountMeta::new_readonly(spl_token::id(), false),
         ],
@@ -378,7 +373,7 @@ pub fn approve_withdrawal_ever(
     let withdrawal_pubkey = get_associated_withdrawal_address(&payload_id);
 
     let mint_pubkey = get_associated_mint_address(&name);
-    let recipient_pubkey =
+    let recipient_token_pubkey =
         spl_associated_token_account::get_associated_token_address(to_pubkey, &mint_pubkey);
 
     let data = TokenProxyInstruction::ApproveWithdrawEver { name, payload_id }
@@ -391,7 +386,7 @@ pub fn approve_withdrawal_ever(
             AccountMeta::new(*authority_pubkey, true),
             AccountMeta::new(mint_pubkey, false),
             AccountMeta::new(withdrawal_pubkey, false),
-            AccountMeta::new(recipient_pubkey, false),
+            AccountMeta::new(recipient_token_pubkey, false),
             AccountMeta::new_readonly(settings_pubkey, false),
             AccountMeta::new_readonly(spl_token::id(), false),
         ],
@@ -462,7 +457,7 @@ pub fn force_withdrawal_sol(
     let withdrawal_pubkey = get_associated_withdrawal_address(&payload_id);
 
     let vault_account = get_associated_vault_address(&name);
-    let recipient_pubkey =
+    let recipient_token_pubkey =
         spl_associated_token_account::get_associated_token_address(to_pubkey, mint_pubkey);
 
     let data = TokenProxyInstruction::ForceWithdrawSol { name, payload_id }
@@ -474,7 +469,7 @@ pub fn force_withdrawal_sol(
         accounts: vec![
             AccountMeta::new(vault_account, false),
             AccountMeta::new(withdrawal_pubkey, false),
-            AccountMeta::new(recipient_pubkey, false),
+            AccountMeta::new(recipient_token_pubkey, false),
             AccountMeta::new_readonly(settings_pubkey, false),
             AccountMeta::new_readonly(spl_token::id(), false),
         ],
@@ -495,7 +490,7 @@ pub fn fill_withdrawal_sol(
         authority_sender_pubkey,
         mint_pubkey,
     );
-    let recipient_pubkey =
+    let recipient_token_pubkey =
         spl_associated_token_account::get_associated_token_address(to_pubkey, mint_pubkey);
 
     let withdrawal_pubkey = get_associated_withdrawal_address(&payload_id);
@@ -515,7 +510,7 @@ pub fn fill_withdrawal_sol(
             AccountMeta::new(*funder_pubkey, true),
             AccountMeta::new(*authority_sender_pubkey, true),
             AccountMeta::new(sender_pubkey, false),
-            AccountMeta::new(recipient_pubkey, false),
+            AccountMeta::new(recipient_token_pubkey, false),
             AccountMeta::new(withdrawal_pubkey, false),
             AccountMeta::new(new_deposit_pubkey, false),
             AccountMeta::new_readonly(system_program::id(), false),
@@ -536,7 +531,7 @@ pub fn transfer_from_vault(
     let settings_pubkey = get_associated_settings_address(&name);
 
     let vault_pubkey = get_associated_vault_address(&name);
-    let recipient_pubkey =
+    let recipient_token_pubkey =
         spl_associated_token_account::get_associated_token_address(to_pubkey, mint_pubkey);
 
     let data = TokenProxyInstruction::TransferFromVault { name, amount }
@@ -548,7 +543,7 @@ pub fn transfer_from_vault(
         accounts: vec![
             AccountMeta::new(*authority_pubkey, true),
             AccountMeta::new(vault_pubkey, false),
-            AccountMeta::new(recipient_pubkey, false),
+            AccountMeta::new(recipient_token_pubkey, false),
             AccountMeta::new_readonly(settings_pubkey, false),
             AccountMeta::new_readonly(spl_token::id(), false),
         ],
