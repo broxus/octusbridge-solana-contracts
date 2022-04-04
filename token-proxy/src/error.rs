@@ -20,6 +20,8 @@ pub enum TokenProxyError {
     InvalidWithdrawalStatus,
     #[error("Insufficient vault balance")]
     InsufficientVaultBalance,
+    #[error("Relay already voted")]
+    RelayAlreadyVoted,
 }
 
 impl From<TokenProxyError> for ProgramError {

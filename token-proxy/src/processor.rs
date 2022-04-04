@@ -811,6 +811,13 @@ impl Processor {
             return Err(TokenProxyError::InvalidRelayRound.into());
         }
 
+        if withdrawal_account_data
+            .signers
+            .contains(relay_account_info.key)
+        {
+            return Err(TokenProxyError::RelayAlreadyVoted.into());
+        }
+
         // Add signer
         withdrawal_account_data
             .signers
