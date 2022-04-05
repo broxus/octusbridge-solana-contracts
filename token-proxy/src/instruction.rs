@@ -112,16 +112,18 @@ pub enum TokenProxyInstruction {
     WithdrawRequest {
         /// Mint asset name
         name: String,
-        // Unique transfer hash
-        payload_id: Hash,
         // Current round number
         round_number: u32,
         // Sender address
         sender: EverAddress,
-        // Withdraw timestamp
-        timestamp: i64,
+        // Ever deployed event timestamp
+        event_timestamp: u32,
+        // Ever deployed event transaction_lt
+        event_transaction_lt: u64,
         // Deposit amount
         amount: u64,
+        // Nonce
+        nonce: u8,
     },
 
     /// Confirm withdraw EVER/SOL request

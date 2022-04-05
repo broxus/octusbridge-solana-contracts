@@ -228,8 +228,10 @@ pub fn withdrawal_request(
     round_number: u32,
     sender: EverAddress,
     recipient_pubkey: Pubkey,
-    timestamp: i64,
+    event_timestamp: u32,
+    event_transaction_lt: u64,
     amount: u64,
+    nonce: u8,
 ) -> Instruction {
     let settings_pubkey = get_associated_settings_address(&name);
     let withdrawal_pubkey = get_associated_withdrawal_address(&payload_id);
@@ -237,11 +239,12 @@ pub fn withdrawal_request(
 
     let data = TokenProxyInstruction::WithdrawRequest {
         name,
-        payload_id,
         round_number,
         sender,
-        timestamp,
+        event_timestamp,
+        event_transaction_lt,
         amount,
+        nonce,
     }
     .try_to_vec()
     .expect("pack");

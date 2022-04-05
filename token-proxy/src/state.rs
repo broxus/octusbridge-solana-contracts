@@ -77,12 +77,13 @@ impl IsInitialized for Deposit {
 #[bridge_pack(length = 5000)]
 pub struct Withdrawal {
     pub is_initialized: bool,
-    pub payload_id: Hash,
     pub round_number: u32,
     pub required_votes: u32,
     pub signers: Vec<Pubkey>,
-    pub event: WithdrawalEvent,
-    pub meta: WithdrawalMeta,
+    pub event_timestamp: u32,
+    pub event_transaction_lt: u64,
+    pub event: WithdrawalEventWithLen,
+    pub meta: WithdrawalMetaWithLen,
 }
 
 impl Sealed for Withdrawal {}
@@ -90,6 +91,12 @@ impl Sealed for Withdrawal {}
 impl IsInitialized for Withdrawal {
     fn is_initialized(&self) -> bool {
         self.is_initialized
+    }
+}
+
+impl Withdrawal {
+    pub fn payload_id(&self) -> Hash {
+        todo!()
     }
 }
 
@@ -101,6 +108,8 @@ pub struct WithdrawalPattern {
     pub round_number: u32,
     pub required_votes: u32,
     pub signers: Vec<Pubkey>,
+    pub event_timestamp: u32,
+    pub event_transaction_lt: u64,
     pub event: Vec<u8>,
     pub meta: Vec<u8>,
 }
@@ -115,55 +124,69 @@ impl IsInitialized for WithdrawalPattern {
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 pub struct WithdrawalEvent {
-    pub event_len: u32,
     pub decimals: u8,
     pub recipient: Pubkey,
     pub sender: EverAddress,
-    pub timestamp: i64,
     pub amount: u64,
+    pub nonce: u8,
 }
 
-impl WithdrawalEvent {
+#[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+pub struct WithdrawalEventWithLen {
+    pub len: u32,
+    pub data: WithdrawalEvent,
+}
+
+impl WithdrawalEventWithLen {
     pub fn new(
         decimals: u8,
         recipient: Pubkey,
         sender: EverAddress,
-        timestamp: i64,
         amount: u64,
+        nonce: u8,
     ) -> Self {
         Self {
-            event_len: WITHDRAW_EVENT_LEN as u32,
-            decimals,
-            recipient,
-            sender,
-            timestamp,
-            amount,
+            len: WITHDRAW_EVENT_LEN as u32,
+            data: WithdrawalEvent {
+                decimals,
+                recipient,
+                sender,
+                amount,
+                nonce,
+            },
         }
     }
 }
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 pub struct WithdrawalMeta {
-    pub meta_len: u32,
     pub author: Pubkey,
     pub kind: TokenKind,
     pub status: WithdrawalStatus,
     pub bounty: u64,
 }
 
-impl WithdrawalMeta {
+#[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+pub struct WithdrawalMetaWithLen {
+    pub len: u32,
+    pub data: WithdrawalMeta,
+}
+
+impl WithdrawalMetaWithLen {
     pub fn new(author: Pubkey, kind: TokenKind, status: WithdrawalStatus, bounty: u64) -> Self {
-        let meta_len = match kind {
+        let len = match kind {
             TokenKind::Ever { .. } => WITHDRAW_EVER_META_LEN,
             TokenKind::Solana { .. } => WITHDRAW_SOL_META_LEN,
         } as u32;
 
         Self {
-            meta_len,
-            author,
-            kind,
-            status,
-            bounty,
+            len,
+            data: WithdrawalMeta {
+                author,
+                kind,
+                status,
+                bounty,
+            },
         }
     }
 }
