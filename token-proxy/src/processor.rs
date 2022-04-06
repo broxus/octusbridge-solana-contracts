@@ -1,4 +1,4 @@
-use borsh::{BorshDeserialize, BorshSerialize};
+use borsh::BorshDeserialize;
 
 use solana_program::account_info::{next_account_info, AccountInfo};
 use solana_program::clock::Clock;
@@ -14,8 +14,8 @@ use solana_program::{msg, system_instruction};
 
 use crate::{
     Deposit, EverAddress, Settings, TokenKind, TokenProxyError, TokenProxyInstruction, Withdrawal,
-    WithdrawalEvent, WithdrawalEventWithLen, WithdrawalMetaWithLen, WithdrawalPattern,
-    WithdrawalStatus, WITHDRAWAL_PERIOD,
+    WithdrawalEventWithLen, WithdrawalMetaWithLen, WithdrawalPattern, WithdrawalStatus,
+    WITHDRAWAL_PERIOD,
 };
 
 pub struct Processor;
@@ -94,10 +94,9 @@ impl Processor {
                 name,
                 round_number,
                 sender,
-                event_timestamp,
+                event_configuration,
                 event_transaction_lt,
                 amount,
-                nonce,
             } => {
                 msg!("Instruction: Withdraw EVER/SOL request");
                 Self::process_withdraw_request(
@@ -105,63 +104,127 @@ impl Processor {
                     accounts,
                     name,
                     round_number,
-                    sender,
-                    event_timestamp,
+                    event_configuration,
                     event_transaction_lt,
+                    sender,
                     amount,
-                    nonce,
                 )?;
             }
             TokenProxyInstruction::ConfirmWithdrawRequest {
-                payload_id,
                 round_number,
+                event_configuration,
+                event_transaction_lt,
             } => {
                 msg!("Instruction: Confirm Withdraw EVER/SOL request");
                 Self::process_confirm_withdraw_request(
                     program_id,
                     accounts,
-                    payload_id,
                     round_number,
+                    event_configuration,
+                    event_transaction_lt,
                 )?;
             }
-            TokenProxyInstruction::UpdateWithdrawStatus { name, payload_id } => {
+            TokenProxyInstruction::UpdateWithdrawStatus {
+                name,
+                event_configuration,
+                event_transaction_lt,
+            } => {
                 msg!("Instruction: Update Withdraw status");
-                Self::process_update_withdraw_status(program_id, accounts, name, payload_id)?;
+                Self::process_update_withdraw_status(
+                    program_id,
+                    accounts,
+                    name,
+                    event_configuration,
+                    event_transaction_lt,
+                )?;
             }
-            TokenProxyInstruction::WithdrawEver { name, payload_id } => {
+            TokenProxyInstruction::WithdrawEver {
+                name,
+                event_configuration,
+                event_transaction_lt,
+            } => {
                 msg!("Instruction: Withdraw EVER");
-                Self::process_withdraw_ever(program_id, accounts, name, payload_id)?;
+                Self::process_withdraw_ever(
+                    program_id,
+                    accounts,
+                    name,
+                    event_configuration,
+                    event_transaction_lt,
+                )?;
             }
-            TokenProxyInstruction::WithdrawSol { name, payload_id } => {
+            TokenProxyInstruction::WithdrawSol {
+                name,
+                event_configuration,
+                event_transaction_lt,
+            } => {
                 msg!("Instruction: Withdraw SOL");
-                Self::process_withdraw_sol(program_id, accounts, name, payload_id)?;
+                Self::process_withdraw_sol(
+                    program_id,
+                    accounts,
+                    name,
+                    event_configuration,
+                    event_transaction_lt,
+                )?;
             }
-            TokenProxyInstruction::ApproveWithdrawEver { name, payload_id } => {
+            TokenProxyInstruction::ApproveWithdrawEver {
+                name,
+                event_configuration,
+                event_transaction_lt,
+            } => {
                 msg!("Instruction: Approve Withdraw EVER");
-                Self::process_approve_withdraw_ever(program_id, accounts, name, payload_id)?;
+                Self::process_approve_withdraw_ever(
+                    program_id,
+                    accounts,
+                    name,
+                    event_configuration,
+                    event_transaction_lt,
+                )?;
             }
-            TokenProxyInstruction::ApproveWithdrawSol { name, payload_id } => {
+            TokenProxyInstruction::ApproveWithdrawSol {
+                name,
+                event_configuration,
+                event_transaction_lt,
+            } => {
                 msg!("Instruction: Approve Withdraw SOL");
-                Self::process_approve_withdraw_sol(program_id, accounts, name, payload_id)?;
+                Self::process_approve_withdraw_sol(
+                    program_id,
+                    accounts,
+                    name,
+                    event_configuration,
+                    event_transaction_lt,
+                )?;
             }
             TokenProxyInstruction::CancelWithdrawSol {
-                payload_id,
+                event_configuration,
+                event_transaction_lt,
                 deposit_payload_id,
             } => {
                 msg!("Instruction: Cancel Withdraw SOL");
                 Self::process_cancel_withdraw_sol(
                     program_id,
                     accounts,
-                    payload_id,
+                    event_configuration,
+                    event_transaction_lt,
                     deposit_payload_id,
                 )?;
             }
-            TokenProxyInstruction::ForceWithdrawSol { name, payload_id } => {
+            TokenProxyInstruction::ForceWithdrawSol {
+                name,
+                event_configuration,
+                event_transaction_lt,
+            } => {
                 msg!("Instruction: Force Withdraw SOL");
-                Self::process_force_withdraw_sol(program_id, accounts, name, payload_id)?;
+                Self::process_force_withdraw_sol(
+                    program_id,
+                    accounts,
+                    name,
+                    event_configuration,
+                    event_transaction_lt,
+                )?;
             }
             TokenProxyInstruction::FillWithdrawSol {
-                payload_id,
+                event_configuration,
+                event_transaction_lt,
                 deposit_payload_id,
                 recipient,
             } => {
@@ -169,7 +232,8 @@ impl Processor {
                 Self::process_fill_withdraw_sol(
                     program_id,
                     accounts,
-                    payload_id,
+                    event_configuration,
+                    event_transaction_lt,
                     deposit_payload_id,
                     recipient,
                 )?;
@@ -178,10 +242,18 @@ impl Processor {
                 msg!("Instruction: Transfer from Vault");
                 Self::process_transfer_from_vault(program_id, accounts, name, amount)?;
             }
-            TokenProxyInstruction::ChangeBountyForWithdrawSol { payload_id, bounty } => {
+            TokenProxyInstruction::ChangeBountyForWithdrawSol {
+                event_configuration,
+                event_transaction_lt,
+                bounty,
+            } => {
                 msg!("Instruction: Change Bounty for Withdraw SOL");
                 Self::process_change_bounty_for_withdraw_sol(
-                    program_id, accounts, payload_id, bounty,
+                    program_id,
+                    accounts,
+                    event_configuration,
+                    event_transaction_lt,
+                    bounty,
                 )?;
             }
             TokenProxyInstruction::ChangeSettings {
@@ -665,11 +737,10 @@ impl Processor {
         accounts: &[AccountInfo],
         name: String,
         round_number: u32,
-        sender: EverAddress,
-        event_timestamp: u32,
+        event_configuration: String,
         event_transaction_lt: u64,
+        sender: EverAddress,
         amount: u64,
-        nonce: u8,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -718,24 +789,19 @@ impl Processor {
             return Err(TokenProxyError::RelayRoundExpired.into());
         }
 
-        let withdrawal_event = WithdrawalEvent {
-            decimals: settings_account_data.decimals,
-            recipient: *recipient_account_info.key,
-            sender,
-            amount,
-            nonce,
-        };
-
-        let payload_id = solana_program::hash::hash(&withdrawal_event.try_to_vec()?);
-
         // Validate Withdrawal Account
         let withdrawal_nonce = bridge_utils::validate_withdraw_account(
             program_id,
-            &payload_id,
+            &event_configuration,
+            event_transaction_lt,
             withdrawal_account_info,
         )?;
-        let withdrawal_account_signer_seeds: &[&[_]] =
-            &[br"withdrawal", &payload_id.to_bytes(), &[withdrawal_nonce]];
+        let withdrawal_account_signer_seeds: &[&[_]] = &[
+            br"withdrawal",
+            event_configuration.as_bytes(),
+            &event_transaction_lt.to_le_bytes(),
+            &[withdrawal_nonce],
+        ];
 
         // Create Withdraw Account
         invoke_signed(
@@ -760,14 +826,11 @@ impl Processor {
             round_number,
             signers: vec![],
             required_votes,
-            event_timestamp,
-            event_transaction_lt,
             event: WithdrawalEventWithLen::new(
                 settings_account_data.decimals,
                 *recipient_account_info.key,
                 sender,
                 amount,
-                nonce,
             ),
             meta: WithdrawalMetaWithLen::new(
                 *authority_account_info.key,
@@ -788,8 +851,9 @@ impl Processor {
     fn process_confirm_withdraw_request(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        payload_id: Hash,
         round_number: u32,
+        event_configuration: String,
+        event_transaction_lt: u64,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -822,7 +886,12 @@ impl Processor {
         }
 
         // Validate Withdrawal Account
-        bridge_utils::validate_withdraw_account(program_id, &payload_id, withdrawal_account_info)?;
+        bridge_utils::validate_withdraw_account(
+            program_id,
+            &event_configuration,
+            event_transaction_lt,
+            withdrawal_account_info,
+        )?;
 
         let mut withdrawal_account_data =
             WithdrawalPattern::unpack(&withdrawal_account_info.data.borrow())?;
@@ -855,7 +924,8 @@ impl Processor {
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         name: String,
-        payload_id: Hash,
+        event_configuration: String,
+        event_transaction_lt: u64,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -870,7 +940,12 @@ impl Processor {
         let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
 
         // Validate Withdrawal Account
-        bridge_utils::validate_withdraw_account(program_id, &payload_id, withdrawal_account_info)?;
+        bridge_utils::validate_withdraw_account(
+            program_id,
+            &event_configuration,
+            event_transaction_lt,
+            withdrawal_account_info,
+        )?;
 
         let mut withdrawal_account_data =
             Withdrawal::unpack(&withdrawal_account_info.data.borrow())?;
@@ -918,7 +993,8 @@ impl Processor {
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         name: String,
-        payload_id: Hash,
+        event_configuration: String,
+        event_transaction_lt: u64,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -943,7 +1019,12 @@ impl Processor {
             .ok_or(TokenProxyError::InvalidTokenKind)?;
 
         // Validate Withdrawal Account
-        bridge_utils::validate_withdraw_account(program_id, &payload_id, withdrawal_account_info)?;
+        bridge_utils::validate_withdraw_account(
+            program_id,
+            &event_configuration,
+            event_transaction_lt,
+            withdrawal_account_info,
+        )?;
 
         let mut withdrawal_account_data =
             Withdrawal::unpack(&withdrawal_account_info.data.borrow())?;
@@ -1010,7 +1091,8 @@ impl Processor {
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         name: String,
-        payload_id: Hash,
+        event_configuration: String,
+        event_transaction_lt: u64,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -1035,7 +1117,12 @@ impl Processor {
             .ok_or(TokenProxyError::InvalidTokenKind)?;
 
         // Validate Withdrawal Account
-        bridge_utils::validate_withdraw_account(program_id, &payload_id, withdrawal_account_info)?;
+        bridge_utils::validate_withdraw_account(
+            program_id,
+            &event_configuration,
+            event_transaction_lt,
+            withdrawal_account_info,
+        )?;
 
         let mut withdrawal_account_data =
             Withdrawal::unpack(&withdrawal_account_info.data.borrow())?;
@@ -1109,7 +1196,8 @@ impl Processor {
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         name: String,
-        payload_id: Hash,
+        event_configuration: String,
+        event_transaction_lt: u64,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -1143,7 +1231,12 @@ impl Processor {
             .ok_or(TokenProxyError::InvalidTokenKind)?;
 
         // Validate Withdrawal Account
-        bridge_utils::validate_withdraw_account(program_id, &payload_id, withdrawal_account_info)?;
+        bridge_utils::validate_withdraw_account(
+            program_id,
+            &event_configuration,
+            event_transaction_lt,
+            withdrawal_account_info,
+        )?;
 
         let mut withdrawal_account_data =
             Withdrawal::unpack(&withdrawal_account_info.data.borrow())?;
@@ -1209,7 +1302,8 @@ impl Processor {
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         name: String,
-        payload_id: Hash,
+        event_configuration: String,
+        event_transaction_lt: u64,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -1240,7 +1334,12 @@ impl Processor {
             .ok_or(TokenProxyError::InvalidTokenKind)?;
 
         // Validate Withdrawal Account
-        bridge_utils::validate_withdraw_account(program_id, &payload_id, withdrawal_account_info)?;
+        bridge_utils::validate_withdraw_account(
+            program_id,
+            &event_configuration,
+            event_transaction_lt,
+            withdrawal_account_info,
+        )?;
 
         let mut withdrawal_account_data =
             Withdrawal::unpack(&withdrawal_account_info.data.borrow())?;
@@ -1274,7 +1373,8 @@ impl Processor {
     fn process_cancel_withdraw_sol(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        payload_id: Hash,
+        event_configuration: String,
+        event_transaction_lt: u64,
         deposit_payload_id: Hash,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
@@ -1288,7 +1388,12 @@ impl Processor {
         let rent = &Rent::from_account_info(rent_sysvar_info)?;
 
         // Validate Withdrawal Account
-        bridge_utils::validate_withdraw_account(program_id, &payload_id, withdrawal_account_info)?;
+        bridge_utils::validate_withdraw_account(
+            program_id,
+            &event_configuration,
+            event_transaction_lt,
+            withdrawal_account_info,
+        )?;
 
         let mut withdrawal_account_data =
             Withdrawal::unpack(&withdrawal_account_info.data.borrow())?;
@@ -1360,7 +1465,8 @@ impl Processor {
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         name: String,
-        payload_id: Hash,
+        event_configuration: String,
+        event_transaction_lt: u64,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -1385,7 +1491,12 @@ impl Processor {
             .ok_or(TokenProxyError::InvalidTokenKind)?;
 
         // Validate Withdrawal Account
-        bridge_utils::validate_withdraw_account(program_id, &payload_id, withdrawal_account_info)?;
+        bridge_utils::validate_withdraw_account(
+            program_id,
+            &event_configuration,
+            event_transaction_lt,
+            withdrawal_account_info,
+        )?;
 
         let mut withdrawal_account_data =
             Withdrawal::unpack(&withdrawal_account_info.data.borrow())?;
@@ -1457,7 +1568,8 @@ impl Processor {
     fn process_fill_withdraw_sol(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        payload_id: Hash,
+        event_configuration: String,
+        event_transaction_lt: u64,
         deposit_payload_id: Hash,
         recipient: EverAddress,
     ) -> ProgramResult {
@@ -1479,7 +1591,12 @@ impl Processor {
         }
 
         // Validate Withdrawal Account
-        bridge_utils::validate_withdraw_account(program_id, &payload_id, withdrawal_account_info)?;
+        bridge_utils::validate_withdraw_account(
+            program_id,
+            &event_configuration,
+            event_transaction_lt,
+            withdrawal_account_info,
+        )?;
 
         let mut withdrawal_account_data =
             Withdrawal::unpack(&withdrawal_account_info.data.borrow())?;
@@ -1647,7 +1764,8 @@ impl Processor {
     fn process_change_bounty_for_withdraw_sol(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        payload_id: Hash,
+        event_configuration: String,
+        event_transaction_lt: u64,
         bounty: u64,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
@@ -1659,7 +1777,12 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        bridge_utils::validate_withdraw_account(program_id, &payload_id, withdrawal_account_info)?;
+        bridge_utils::validate_withdraw_account(
+            program_id,
+            &event_configuration,
+            event_transaction_lt,
+            withdrawal_account_info,
+        )?;
 
         let mut withdrawal_account_data =
             Withdrawal::unpack(&withdrawal_account_info.data.borrow())?;

@@ -17,7 +17,7 @@ pub enum TokenProxyInstruction {
     ///   6. []                 Token program
     ///   7. []                 The rent sysvar
     InitializeMint {
-        /// Mint asset name
+        // Mint asset name
         name: String,
         /// Number of base 10 digits to the right of the decimal place.
         decimals: u8,
@@ -44,7 +44,7 @@ pub enum TokenProxyInstruction {
     ///   7. []                 Token program
     ///   8. []                 The rent sysvar
     InitializeVault {
-        /// Vault asset name
+        // Vault asset name
         name: String,
         /// Number of base 10 digits to the right of the decimal place.
         decimals: u8,
@@ -71,7 +71,7 @@ pub enum TokenProxyInstruction {
     ///   7. []                 Token program
     ///   8. []                 The rent sysvar
     DepositEver {
-        /// Mint asset name
+        // Mint asset name
         name: String,
         // Unique transfer hash
         payload_id: Hash,
@@ -95,7 +95,7 @@ pub enum TokenProxyInstruction {
     ///   8. []                 Token program
     ///   9. []                 The rent sysvar
     DepositSol {
-        /// Vault asset name
+        // Vault asset name
         name: String,
         // Unique transfer hash
         payload_id: Hash,
@@ -110,20 +110,18 @@ pub enum TokenProxyInstruction {
     /// # Account references
     /// ...
     WithdrawRequest {
-        /// Mint asset name
+        // Mint asset name
         name: String,
         // Current round number
         round_number: u32,
-        // Sender address
-        sender: EverAddress,
-        // Ever deployed event timestamp
-        event_timestamp: u32,
+        // EVER->SOL event configuration
+        event_configuration: String,
         // Ever deployed event transaction_lt
         event_transaction_lt: u64,
+        // Sender address
+        sender: EverAddress,
         // Deposit amount
         amount: u64,
-        // Nonce
-        nonce: u8,
     },
 
     /// Confirm withdraw EVER/SOL request
@@ -131,10 +129,12 @@ pub enum TokenProxyInstruction {
     /// # Account references
     /// ...
     ConfirmWithdrawRequest {
-        // Unique transfer hash
-        payload_id: Hash,
         // Current round number
         round_number: u32,
+        // EVER->SOL event configuration
+        event_configuration: String,
+        // Ever deployed event transaction_lt
+        event_transaction_lt: u64,
     },
 
     /// Update withdraw status
@@ -142,10 +142,12 @@ pub enum TokenProxyInstruction {
     /// # Account references
     /// ...
     UpdateWithdrawStatus {
-        /// Mint asset name
+        // Mint asset name
         name: String,
-        // Unique transfer hash
-        payload_id: Hash,
+        // EVER->SOL event configuration
+        event_configuration: String,
+        // Ever deployed event transaction_lt
+        event_transaction_lt: u64,
     },
 
     /// Withdraw EVER
@@ -155,8 +157,10 @@ pub enum TokenProxyInstruction {
     WithdrawEver {
         /// Mint asset name
         name: String,
-        // Unique transfer hash
-        payload_id: Hash,
+        // EVER->SOL event configuration
+        event_configuration: String,
+        // Ever deployed event transaction_lt
+        event_transaction_lt: u64,
     },
 
     /// Withdraw SOL
@@ -166,8 +170,10 @@ pub enum TokenProxyInstruction {
     WithdrawSol {
         /// Mint asset name
         name: String,
-        // Unique transfer hash
-        payload_id: Hash,
+        // EVER->SOL event configuration
+        event_configuration: String,
+        // Ever deployed event transaction_lt
+        event_transaction_lt: u64,
     },
 
     /// Approve Withdraw Ever
@@ -177,8 +183,10 @@ pub enum TokenProxyInstruction {
     ApproveWithdrawEver {
         /// Mint asset name
         name: String,
-        // Unique transfer hash
-        payload_id: Hash,
+        // EVER->SOL event configuration
+        event_configuration: String,
+        // Ever deployed event transaction_lt
+        event_transaction_lt: u64,
     },
 
     /// Approve Withdraw SOL
@@ -188,8 +196,10 @@ pub enum TokenProxyInstruction {
     ApproveWithdrawSol {
         /// Mint asset name
         name: String,
-        // Unique transfer hash
-        payload_id: Hash,
+        // EVER->SOL event configuration
+        event_configuration: String,
+        // Ever deployed event transaction_lt
+        event_transaction_lt: u64,
     },
 
     /// Cancel Withdraw SOL
@@ -197,8 +207,10 @@ pub enum TokenProxyInstruction {
     /// # Account references
     /// ...
     CancelWithdrawSol {
-        // Unique transfer hash
-        payload_id: Hash,
+        // EVER->SOL event configuration
+        event_configuration: String,
+        // Ever deployed event transaction_lt
+        event_transaction_lt: u64,
         // Unique transfer hash
         deposit_payload_id: Hash,
     },
@@ -208,10 +220,12 @@ pub enum TokenProxyInstruction {
     /// # Account references
     /// ...
     ForceWithdrawSol {
-        /// Mint asset name
+        // Mint asset name
         name: String,
-        // Unique transfer hash
-        payload_id: Hash,
+        // EVER->SOL event configuration
+        event_configuration: String,
+        // Ever deployed event transaction_lt
+        event_transaction_lt: u64,
     },
 
     /// Fill Withdraw SOL
@@ -220,8 +234,10 @@ pub enum TokenProxyInstruction {
     /// ...
     /**/
     FillWithdrawSol {
-        // Unique transfer hash
-        payload_id: Hash,
+        // EVER->SOL event configuration
+        event_configuration: String,
+        // Ever deployed event transaction_lt
+        event_transaction_lt: u64,
         // Unique transfer hash
         deposit_payload_id: Hash,
         // Recipient address
@@ -233,7 +249,7 @@ pub enum TokenProxyInstruction {
     /// # Account references
     /// ...
     TransferFromVault {
-        /// Mint asset name
+        // Mint asset name
         name: String,
         // Amount to transfer
         amount: u64,
@@ -244,8 +260,10 @@ pub enum TokenProxyInstruction {
     /// # Account references
     /// ...
     ChangeBountyForWithdrawSol {
-        // Unique transfer hash
-        payload_id: Hash,
+        // EVER->SOL event configuration
+        event_configuration: String,
+        // Ever deployed event transaction_lt
+        event_transaction_lt: u64,
         // New bounty value
         bounty: u64,
     },
@@ -255,7 +273,7 @@ pub enum TokenProxyInstruction {
     /// # Account references
     /// ...
     ChangeSettings {
-        /// Token asset name
+        // Token asset name
         name: String,
         // Emergency flag
         emergency: bool,

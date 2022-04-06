@@ -9,11 +9,13 @@ mod error;
 mod instruction;
 mod processor;
 mod state;
+mod types;
 
 pub use self::error::*;
 pub use self::instruction::*;
 pub use self::processor::*;
 pub use self::state::*;
+pub use self::types::*;
 
 #[cfg(feature = "wasm")]
 #[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
@@ -44,8 +46,19 @@ pub fn get_associated_deposit_address(payload_id: &Hash) -> Pubkey {
     Pubkey::find_program_address(&[br"deposit", &payload_id.to_bytes()], &id()).0
 }
 
-pub fn get_associated_withdrawal_address(payload_id: &Hash) -> Pubkey {
-    Pubkey::find_program_address(&[br"withdrawal", &payload_id.to_bytes()], &id()).0
+pub fn get_associated_withdrawal_address(
+    event_configuration: &str,
+    event_transaction_lt: u64,
+) -> Pubkey {
+    Pubkey::find_program_address(
+        &[
+            br"withdrawal",
+            &event_configuration.as_bytes(),
+            &event_transaction_lt.to_le_bytes(),
+        ],
+        &id(),
+    )
+    .0
 }
 
 pub fn get_program_data_address() -> Pubkey {
@@ -224,27 +237,25 @@ pub fn withdrawal_request(
     funder_pubkey: &Pubkey,
     author_pubkey: &Pubkey,
     name: String,
-    payload_id: Hash,
     round_number: u32,
+    event_configuration: String,
+    event_transaction_lt: u64,
     sender: EverAddress,
     recipient_pubkey: Pubkey,
-    event_timestamp: u32,
-    event_transaction_lt: u64,
     amount: u64,
-    nonce: u8,
 ) -> Instruction {
     let settings_pubkey = get_associated_settings_address(&name);
-    let withdrawal_pubkey = get_associated_withdrawal_address(&payload_id);
+    let withdrawal_pubkey =
+        get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
     let relay_round_pubkey = round_loader::get_associated_relay_round_address(round_number);
 
     let data = TokenProxyInstruction::WithdrawRequest {
         name,
         round_number,
-        sender,
-        event_timestamp,
+        event_configuration,
         event_transaction_lt,
+        sender,
         amount,
-        nonce,
     }
     .try_to_vec()
     .expect("pack");
@@ -268,14 +279,17 @@ pub fn withdrawal_request(
 
 pub fn confirm_withdrawal_request(
     relay_pubkey: &Pubkey,
-    payload_id: Hash,
     round_number: u32,
+    event_configuration: String,
+    event_transaction_lt: u64,
 ) -> Instruction {
-    let withdrawal_pubkey = get_associated_withdrawal_address(&payload_id);
+    let withdrawal_pubkey =
+        get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
     let relay_round_pubkey = round_loader::get_associated_relay_round_address(round_number);
 
     let data = TokenProxyInstruction::ConfirmWithdrawRequest {
-        payload_id,
+        event_configuration,
+        event_transaction_lt,
         round_number,
     }
     .try_to_vec()
@@ -292,13 +306,22 @@ pub fn confirm_withdrawal_request(
     }
 }
 
-pub fn update_withdrawal_status(name: String, payload_id: Hash) -> Instruction {
+pub fn update_withdrawal_status(
+    name: String,
+    event_configuration: String,
+    event_transaction_lt: u64,
+) -> Instruction {
     let settings_pubkey = get_associated_settings_address(&name);
-    let withdrawal_pubkey = get_associated_withdrawal_address(&payload_id);
+    let withdrawal_pubkey =
+        get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
 
-    let data = TokenProxyInstruction::UpdateWithdrawStatus { name, payload_id }
-        .try_to_vec()
-        .expect("pack");
+    let data = TokenProxyInstruction::UpdateWithdrawStatus {
+        name,
+        event_configuration,
+        event_transaction_lt,
+    }
+    .try_to_vec()
+    .expect("pack");
 
     Instruction {
         program_id: id(),
@@ -311,17 +334,27 @@ pub fn update_withdrawal_status(name: String, payload_id: Hash) -> Instruction {
     }
 }
 
-pub fn withdrawal_ever(to_pubkey: &Pubkey, name: String, payload_id: Hash) -> Instruction {
+pub fn withdrawal_ever(
+    to_pubkey: &Pubkey,
+    name: String,
+    event_configuration: String,
+    event_transaction_lt: u64,
+) -> Instruction {
     let settings_pubkey = get_associated_settings_address(&name);
-    let withdrawal_pubkey = get_associated_withdrawal_address(&payload_id);
+    let withdrawal_pubkey =
+        get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
 
     let mint_pubkey = get_associated_mint_address(&name);
     let recipient_token_pubkey =
         spl_associated_token_account::get_associated_token_address(to_pubkey, &mint_pubkey);
 
-    let data = TokenProxyInstruction::WithdrawEver { name, payload_id }
-        .try_to_vec()
-        .expect("pack");
+    let data = TokenProxyInstruction::WithdrawEver {
+        name,
+        event_configuration,
+        event_transaction_lt,
+    }
+    .try_to_vec()
+    .expect("pack");
 
     Instruction {
         program_id: id(),
@@ -340,18 +373,24 @@ pub fn withdrawal_sol(
     mint_pubkey: &Pubkey,
     to_pubkey: &Pubkey,
     name: String,
-    payload_id: Hash,
+    event_configuration: String,
+    event_transaction_lt: u64,
 ) -> Instruction {
     let settings_pubkey = get_associated_settings_address(&name);
-    let withdrawal_pubkey = get_associated_withdrawal_address(&payload_id);
+    let withdrawal_pubkey =
+        get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
 
     let vault_account = get_associated_vault_address(&name);
     let recipient_token_pubkey =
         spl_associated_token_account::get_associated_token_address(to_pubkey, mint_pubkey);
 
-    let data = TokenProxyInstruction::WithdrawSol { name, payload_id }
-        .try_to_vec()
-        .expect("pack");
+    let data = TokenProxyInstruction::WithdrawSol {
+        name,
+        event_configuration,
+        event_transaction_lt,
+    }
+    .try_to_vec()
+    .expect("pack");
 
     Instruction {
         program_id: id(),
@@ -370,18 +409,24 @@ pub fn approve_withdrawal_ever(
     authority_pubkey: &Pubkey,
     to_pubkey: &Pubkey,
     name: String,
-    payload_id: Hash,
+    event_configuration: String,
+    event_transaction_lt: u64,
 ) -> Instruction {
     let settings_pubkey = get_associated_settings_address(&name);
-    let withdrawal_pubkey = get_associated_withdrawal_address(&payload_id);
+    let withdrawal_pubkey =
+        get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
 
     let mint_pubkey = get_associated_mint_address(&name);
     let recipient_token_pubkey =
         spl_associated_token_account::get_associated_token_address(to_pubkey, &mint_pubkey);
 
-    let data = TokenProxyInstruction::ApproveWithdrawEver { name, payload_id }
-        .try_to_vec()
-        .expect("pack");
+    let data = TokenProxyInstruction::ApproveWithdrawEver {
+        name,
+        event_configuration,
+        event_transaction_lt,
+    }
+    .try_to_vec()
+    .expect("pack");
 
     Instruction {
         program_id: id(),
@@ -400,14 +445,20 @@ pub fn approve_withdrawal_ever(
 pub fn approve_withdrawal_sol(
     authority_pubkey: &Pubkey,
     name: String,
-    payload_id: Hash,
+    event_configuration: String,
+    event_transaction_lt: u64,
 ) -> Instruction {
     let settings_pubkey = get_associated_settings_address(&name);
-    let withdrawal_pubkey = get_associated_withdrawal_address(&payload_id);
+    let withdrawal_pubkey =
+        get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
 
-    let data = TokenProxyInstruction::ApproveWithdrawSol { name, payload_id }
-        .try_to_vec()
-        .expect("pack");
+    let data = TokenProxyInstruction::ApproveWithdrawSol {
+        name,
+        event_configuration,
+        event_transaction_lt,
+    }
+    .try_to_vec()
+    .expect("pack");
 
     Instruction {
         program_id: id(),
@@ -423,14 +474,17 @@ pub fn approve_withdrawal_sol(
 pub fn cancel_withdrawal_sol(
     funder_pubkey: &Pubkey,
     authority_pubkey: &Pubkey,
-    payload_id: Hash,
+    event_configuration: String,
+    event_transaction_lt: u64,
     deposit_payload_id: Hash,
 ) -> Instruction {
-    let withdrawal_pubkey = get_associated_withdrawal_address(&payload_id);
+    let withdrawal_pubkey =
+        get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
     let deposit_pubkey = get_associated_deposit_address(&deposit_payload_id);
 
     let data = TokenProxyInstruction::CancelWithdrawSol {
-        payload_id,
+        event_configuration,
+        event_transaction_lt,
         deposit_payload_id,
     }
     .try_to_vec()
@@ -454,18 +508,24 @@ pub fn force_withdrawal_sol(
     mint_pubkey: &Pubkey,
     to_pubkey: &Pubkey,
     name: String,
-    payload_id: Hash,
+    event_configuration: String,
+    event_transaction_lt: u64,
 ) -> Instruction {
     let settings_pubkey = get_associated_settings_address(&name);
-    let withdrawal_pubkey = get_associated_withdrawal_address(&payload_id);
+    let withdrawal_pubkey =
+        get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
 
     let vault_account = get_associated_vault_address(&name);
     let recipient_token_pubkey =
         spl_associated_token_account::get_associated_token_address(to_pubkey, mint_pubkey);
 
-    let data = TokenProxyInstruction::ForceWithdrawSol { name, payload_id }
-        .try_to_vec()
-        .expect("pack");
+    let data = TokenProxyInstruction::ForceWithdrawSol {
+        name,
+        event_configuration,
+        event_transaction_lt,
+    }
+    .try_to_vec()
+    .expect("pack");
 
     Instruction {
         program_id: id(),
@@ -485,7 +545,8 @@ pub fn fill_withdrawal_sol(
     authority_sender_pubkey: &Pubkey,
     mint_pubkey: &Pubkey,
     to_pubkey: &Pubkey,
-    payload_id: Hash,
+    event_configuration: String,
+    event_transaction_lt: u64,
     deposit_payload_id: Hash,
     recipient: EverAddress,
 ) -> Instruction {
@@ -496,11 +557,13 @@ pub fn fill_withdrawal_sol(
     let recipient_token_pubkey =
         spl_associated_token_account::get_associated_token_address(to_pubkey, mint_pubkey);
 
-    let withdrawal_pubkey = get_associated_withdrawal_address(&payload_id);
+    let withdrawal_pubkey =
+        get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
     let new_deposit_pubkey = get_associated_deposit_address(&deposit_payload_id);
 
     let data = TokenProxyInstruction::FillWithdrawSol {
-        payload_id,
+        event_configuration,
+        event_transaction_lt,
         deposit_payload_id,
         recipient,
     }
@@ -556,14 +619,20 @@ pub fn transfer_from_vault(
 
 pub fn change_bounty_for_withdrawal_sol(
     authority_pubkey: &Pubkey,
-    payload_id: Hash,
+    event_configuration: String,
+    event_transaction_lt: u64,
     bounty: u64,
 ) -> Instruction {
-    let withdrawal_pubkey = get_associated_withdrawal_address(&payload_id);
+    let withdrawal_pubkey =
+        get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
 
-    let data = TokenProxyInstruction::ChangeBountyForWithdrawSol { payload_id, bounty }
-        .try_to_vec()
-        .expect("pack");
+    let data = TokenProxyInstruction::ChangeBountyForWithdrawSol {
+        event_configuration,
+        event_transaction_lt,
+        bounty,
+    }
+    .try_to_vec()
+    .expect("pack");
 
     Instruction {
         program_id: id(),

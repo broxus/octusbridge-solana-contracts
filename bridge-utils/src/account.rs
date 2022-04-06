@@ -102,11 +102,18 @@ pub fn validate_deposit_account(
 
 pub fn validate_withdraw_account(
     program_id: &Pubkey,
-    payload_id: &Hash,
+    event_configuration: &str,
+    event_transaction_lt: u64,
     account_info: &AccountInfo,
 ) -> Result<u8, ProgramError> {
-    let (account, nonce) =
-        Pubkey::find_program_address(&[br"withdrawal", &payload_id.to_bytes()], program_id);
+    let (account, nonce) = Pubkey::find_program_address(
+        &[
+            br"withdrawal",
+            event_configuration.as_bytes(),
+            &event_transaction_lt.to_le_bytes(),
+        ],
+        program_id,
+    );
 
     if account != *account_info.key {
         return Err(ProgramError::InvalidAccountData);

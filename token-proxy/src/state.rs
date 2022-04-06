@@ -1,4 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
+use bridge_derive::BridgePack;
 use enum_as_inner::EnumAsInner;
 use serde::{Deserialize, Serialize};
 
@@ -7,7 +8,7 @@ use solana_program::program_error::ProgramError;
 use solana_program::program_pack::{IsInitialized, Pack, Sealed};
 use solana_program::pubkey::{Pubkey, PUBKEY_BYTES};
 
-use bridge_derive::BridgePack;
+use crate::EverAddress;
 
 pub const WITHDRAWAL_PERIOD: i64 = 86400;
 
@@ -80,8 +81,6 @@ pub struct Withdrawal {
     pub round_number: u32,
     pub required_votes: u32,
     pub signers: Vec<Pubkey>,
-    pub event_timestamp: u32,
-    pub event_transaction_lt: u64,
     pub event: WithdrawalEventWithLen,
     pub meta: WithdrawalMetaWithLen,
 }
@@ -108,8 +107,6 @@ pub struct WithdrawalPattern {
     pub round_number: u32,
     pub required_votes: u32,
     pub signers: Vec<Pubkey>,
-    pub event_timestamp: u32,
-    pub event_transaction_lt: u64,
     pub event: Vec<u8>,
     pub meta: Vec<u8>,
 }
@@ -128,7 +125,6 @@ pub struct WithdrawalEvent {
     pub recipient: Pubkey,
     pub sender: EverAddress,
     pub amount: u64,
-    pub nonce: u8,
 }
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
@@ -138,13 +134,7 @@ pub struct WithdrawalEventWithLen {
 }
 
 impl WithdrawalEventWithLen {
-    pub fn new(
-        decimals: u8,
-        recipient: Pubkey,
-        sender: EverAddress,
-        amount: u64,
-        nonce: u8,
-    ) -> Self {
+    pub fn new(decimals: u8, recipient: Pubkey, sender: EverAddress, amount: u64) -> Self {
         Self {
             len: WITHDRAW_EVENT_LEN as u32,
             data: WithdrawalEvent {
@@ -152,7 +142,6 @@ impl WithdrawalEventWithLen {
                 recipient,
                 sender,
                 amount,
-                nonce,
             },
         }
     }
@@ -218,10 +207,4 @@ pub enum WithdrawalStatus {
     Pending,
     WaitingForApprove,
     WaitingForRelease,
-}
-
-#[derive(Debug, Clone, Copy, Default, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
-pub struct EverAddress {
-    pub workchain_id: i8,
-    pub address: Pubkey,
 }
