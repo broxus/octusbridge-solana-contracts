@@ -7,6 +7,7 @@ edition = "2021"
 [features]
 no-entrypoint = []
 test-bpf = []
+bindings = ["ton_types"]
 wasm = ["no-entrypoint", "wasm-bindgen"]
 
 [dependencies]
@@ -17,10 +18,9 @@ solana-program = "1.10"
 serde = { version = "1.0", features = ["derive"] }
 spl-token = {version = "3.2", features = ["no-entrypoint"]}
 spl-associated-token-account = {version = "1.0", features = ["no-entrypoint"]}
+ton_types = { git = "https://github.com/broxus/ton-labs-types", optional = true }
 thiserror = "1.0"
 wasm-bindgen = { version = "0.2.79", features = ["serde-serialize"], optional = true }
-
-#ton_block = { git = "https://github.com/broxus/ton-labs-block" }
 
 bridge-derive = { path = "../bridge-derive" }
 bridge-utils = { path = "../bridge-utils" }

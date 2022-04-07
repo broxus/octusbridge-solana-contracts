@@ -735,6 +735,7 @@ impl Processor {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn process_withdraw_request(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
@@ -943,29 +944,28 @@ impl Processor {
         let mut withdrawal_account_data =
             Withdrawal::unpack(&withdrawal_account_info.data.borrow())?;
 
-        if withdrawal_account_data.signers.len() as u32 >= withdrawal_account_data.required_votes {
-            if withdrawal_account_data.meta.data.status == WithdrawalStatus::New {
-                let current_timestamp = clock.unix_timestamp;
+        if withdrawal_account_data.signers.len() as u32 >= withdrawal_account_data.required_votes
+            && withdrawal_account_data.meta.data.status == WithdrawalStatus::New
+        {
+            let current_timestamp = clock.unix_timestamp;
 
-                // If current timestamp has expired
-                if settings_account_data.withdrawal_ttl < current_timestamp {
-                    settings_account_data.withdrawal_ttl = current_timestamp + WITHDRAWAL_PERIOD;
-                    settings_account_data.withdrawal_daily_amount = 0;
-                }
+            // If current timestamp has expired
+            if settings_account_data.withdrawal_ttl < current_timestamp {
+                settings_account_data.withdrawal_ttl = current_timestamp + WITHDRAWAL_PERIOD;
+                settings_account_data.withdrawal_daily_amount = 0;
+            }
 
-                if settings_account_data.withdrawal_limit
-                    >= withdrawal_account_data.event.data.amount
-                    && settings_account_data.withdrawal_daily_limit
-                        >= settings_account_data.withdrawal_daily_amount
-                            + withdrawal_account_data.event.data.amount
-                {
-                    settings_account_data.withdrawal_daily_amount +=
-                        withdrawal_account_data.event.data.amount;
+            if settings_account_data.withdrawal_limit >= withdrawal_account_data.event.data.amount
+                && settings_account_data.withdrawal_daily_limit
+                    >= settings_account_data.withdrawal_daily_amount
+                        + withdrawal_account_data.event.data.amount
+            {
+                settings_account_data.withdrawal_daily_amount +=
+                    withdrawal_account_data.event.data.amount;
 
-                    withdrawal_account_data.meta.data.status = WithdrawalStatus::WaitingForRelease;
-                } else {
-                    withdrawal_account_data.meta.data.status = WithdrawalStatus::WaitingForApprove;
-                }
+                withdrawal_account_data.meta.data.status = WithdrawalStatus::WaitingForRelease;
+            } else {
+                withdrawal_account_data.meta.data.status = WithdrawalStatus::WaitingForApprove;
             }
         }
 

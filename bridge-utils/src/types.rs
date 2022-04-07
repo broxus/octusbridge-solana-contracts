@@ -15,6 +15,18 @@ pub struct MsgAddrStd {
 #[derive(Clone, Copy, PartialEq, Eq, Debug, BorshSerialize, BorshDeserialize)]
 pub struct UInt256([u8; 32]);
 
+impl From<[u8; 32]> for UInt256 {
+    fn from(data: [u8; 32]) -> Self {
+        UInt256(data)
+    }
+}
+
+impl From<&[u8; 32]> for UInt256 {
+    fn from(data: &[u8; 32]) -> Self {
+        UInt256(*data)
+    }
+}
+
 impl UInt256 {
     pub const fn as_slice(&self) -> &[u8; 32] {
         &self.0
