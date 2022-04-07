@@ -13,8 +13,7 @@ pub const WITHDRAWAL_PERIOD: i64 = 86400;
 
 const WITHDRAW_EVENT_LEN: usize = 1  // decimals
     + PUBKEY_BYTES                   // solana recipient address
-    + PUBKEY_BYTES + 1               // ever sender address
-    + 8                              // timestamp
+    + PUBKEY_BYTES + 1 + 1           // ever sender address
     + 8                              // amount
 ;
 
@@ -102,7 +101,6 @@ impl Withdrawal {
 #[bridge_pack(length = 5000)]
 pub struct WithdrawalPattern {
     pub is_initialized: bool,
-    pub payload_id: Hash,
     pub round_number: u32,
     pub required_votes: u32,
     pub signers: Vec<Vote>,
@@ -208,7 +206,7 @@ pub enum WithdrawalStatus {
     WaitingForRelease,
 }
 
-#[derive(Debug, Copy, Clone, BorshSerialize, BorshDeserialize)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, BorshSerialize, BorshDeserialize)]
 pub enum Vote {
     None,
     Confirm,

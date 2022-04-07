@@ -1,6 +1,8 @@
 #![cfg(feature = "test-bpf")]
 
+use bridge_utils::EverAddress;
 use round_loader::RelayRound;
+
 use solana_program::bpf_loader_upgradeable::UpgradeableLoaderState;
 use solana_program::hash::Hash;
 use solana_program::rent::Rent;
@@ -13,8 +15,9 @@ use spl_associated_token_account::get_associated_token_address;
 use spl_token::state::AccountState;
 
 use token_proxy::{
-    get_associated_deposit_address, get_associated_withdrawal_address, Deposit, EverAddress,
-    Processor, Settings, TokenKind, Withdrawal, WithdrawalEvent, WithdrawalMeta, WithdrawalStatus,
+    get_associated_deposit_address, get_associated_withdrawal_address, Deposit, Processor,
+    Settings, TokenKind, Withdrawal, WithdrawalEventWithLen, WithdrawalMetaWithLen,
+    WithdrawalStatus,
 };
 
 #[tokio::test]
@@ -356,10 +359,7 @@ async fn test_deposit_ever() {
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
     let payload_id = Hash::new_unique();
-    let recipient = EverAddress {
-        workchain_id: 0,
-        address: Pubkey::new_unique(),
-    };
+    let recipient = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 32;
 
     let mut transaction = Transaction::new_with_payer(
@@ -537,10 +537,7 @@ async fn test_deposit_sol() {
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
     let payload_id = Hash::new_unique();
-    let recipient = EverAddress {
-        workchain_id: 0,
-        address: Pubkey::new_unique(),
-    };
+    let recipient = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 32;
 
     let mut transaction = Transaction::new_with_payer(
@@ -622,16 +619,17 @@ async fn test_withdrawal_request() {
 
     // Add Relay Round Account
     let round_number = 12;
+    let relays = vec![
+        Pubkey::new_unique(),
+        Pubkey::new_unique(),
+        Pubkey::new_unique(),
+    ];
     let settings_address = round_loader::get_associated_relay_round_address(round_number);
 
     let relay_round_account_data = RelayRound {
         is_initialized: true,
         round_ttl: 1946154867,
-        relays: vec![
-            Pubkey::new_unique(),
-            Pubkey::new_unique(),
-            Pubkey::new_unique(),
-        ],
+        relays: relays.clone(),
         round_number,
     };
 
@@ -678,12 +676,10 @@ async fn test_withdrawal_request() {
 
     let author = Keypair::new();
 
-    let payload_id = Hash::new_unique();
-    let sender_address = EverAddress {
-        workchain_id: 0,
-        address: Pubkey::new_unique(),
-    };
-    let timestamp = 0;
+    let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
+
+    let event_configuration = ton_types::UInt256::new();
+    let event_transaction_lt = 123;
     let amount = 32;
 
     let mut transaction = Transaction::new_with_payer(
@@ -691,11 +687,11 @@ async fn test_withdrawal_request() {
             &funder.pubkey(),
             &author.pubkey(),
             name,
-            payload_id.clone(),
             round_number,
+            &event_configuration,
+            event_transaction_lt,
             sender_address,
             recipient_address,
-            timestamp,
             amount,
         )],
         Some(&funder.pubkey()),
@@ -707,7 +703,8 @@ async fn test_withdrawal_request() {
         .await
         .expect("process_transaction");
 
-    let withdrawal_address = token_proxy::get_associated_withdrawal_address(&payload_id);
+    let withdrawal_address =
+        token_proxy::get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
     let withdrawal_info = banks_client
         .get_account(withdrawal_address)
         .await
@@ -715,15 +712,20 @@ async fn test_withdrawal_request() {
         .expect("account");
 
     let withdrawal_data = Withdrawal::unpack(withdrawal_info.data()).expect("mint unpack");
+
     assert_eq!(withdrawal_data.is_initialized, true);
-    assert_eq!(withdrawal_data.payload_id, payload_id);
-    assert_eq!(withdrawal_data.event.amount, amount);
-    assert_eq!(withdrawal_data.signers.len(), 0);
+    assert_eq!(withdrawal_data.event.data.amount, amount);
+    assert_eq!(withdrawal_data.meta.data.status, WithdrawalStatus::New);
+
     assert_eq!(
-        withdrawal_data.meta.kind,
+        withdrawal_data.meta.data.kind,
         TokenKind::Ever { mint: mint_address }
     );
-    assert_eq!(withdrawal_data.meta.status, WithdrawalStatus::New);
+
+    assert_eq!(withdrawal_data.signers.len(), relays.len());
+    for (i, _) in relays.iter().enumerate() {
+        assert_eq!(withdrawal_data.signers[i], token_proxy::Vote::None);
+    }
 }
 
 #[tokio::test]
@@ -800,33 +802,26 @@ async fn test_confirm_withdrawal_request() {
     );
 
     // Add Withdrawal Round Account
-    let payload_id = Hash::new_unique();
+    let event_configuration = ton_types::UInt256::new();
+    let event_transaction_lt = 123;
     let recipient_address = Pubkey::new_unique();
+    let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
 
-    let withdrawal_address = token_proxy::get_associated_withdrawal_address(&payload_id);
+    let withdrawal_address =
+        token_proxy::get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
 
     let withdrawal_account_data = Withdrawal {
         is_initialized: true,
-        payload_id,
         round_number,
-        event: WithdrawalEvent::new(
-            decimals,
-            recipient_address,
-            EverAddress {
-                workchain_id: 0,
-                address: Pubkey::new_unique(),
-            },
-            0,
-            10,
-        ),
-        meta: WithdrawalMeta::new(
+        event: WithdrawalEventWithLen::new(decimals, recipient_address, sender_address, 10),
+        meta: WithdrawalMetaWithLen::new(
             Pubkey::new_unique(),
             TokenKind::Ever { mint: mint_address },
             WithdrawalStatus::New,
             0,
         ),
         required_votes: 1,
-        signers: vec![],
+        signers: vec![token_proxy::Vote::None],
     };
 
     let mut withdrawal_packed = vec![0; Withdrawal::LEN];
@@ -848,8 +843,10 @@ async fn test_confirm_withdrawal_request() {
     let mut transaction = Transaction::new_with_payer(
         &[token_proxy::confirm_withdrawal_request(
             &relay.pubkey(),
-            payload_id.clone(),
             round_number,
+            &event_configuration,
+            event_transaction_lt,
+            token_proxy::Vote::Confirm,
         )],
         Some(&funder.pubkey()),
     );
@@ -860,7 +857,8 @@ async fn test_confirm_withdrawal_request() {
         .await
         .expect("process_transaction");
 
-    let withdrawal_address = token_proxy::get_associated_withdrawal_address(&payload_id);
+    let withdrawal_address =
+        token_proxy::get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
     let withdrawal_info = banks_client
         .get_account(withdrawal_address)
         .await
@@ -868,7 +866,7 @@ async fn test_confirm_withdrawal_request() {
         .expect("account");
 
     let withdrawal_data = Withdrawal::unpack(withdrawal_info.data()).expect("mint unpack");
-    assert_eq!(withdrawal_data.signers.len(), 1);
+    assert_eq!(withdrawal_data.signers[0], token_proxy::Vote::Confirm);
 }
 
 #[tokio::test]
@@ -918,27 +916,20 @@ async fn test_update_withdrawal_status() {
         },
     );
 
-    // Add Withdrawal Round Account
-    let payload_id = Hash::new_unique();
+    // Add Withdrawal Account
+    let event_configuration = ton_types::UInt256::new();
+    let event_transaction_lt = 123;
     let recipient_address = Pubkey::new_unique();
+    let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
 
-    let withdrawal_address = token_proxy::get_associated_withdrawal_address(&payload_id);
+    let withdrawal_address =
+        token_proxy::get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
 
     let withdrawal_account_data = Withdrawal {
         is_initialized: true,
-        payload_id,
         round_number: 5,
-        event: WithdrawalEvent::new(
-            decimals,
-            recipient_address,
-            EverAddress {
-                workchain_id: 0,
-                address: Pubkey::new_unique(),
-            },
-            0,
-            10,
-        ),
-        meta: WithdrawalMeta::new(
+        event: WithdrawalEventWithLen::new(decimals, recipient_address, sender_address, 10),
+        meta: WithdrawalMetaWithLen::new(
             Pubkey::new_unique(),
             TokenKind::Ever { mint: mint_address },
             WithdrawalStatus::New,
@@ -967,7 +958,8 @@ async fn test_update_withdrawal_status() {
     let mut transaction = Transaction::new_with_payer(
         &[token_proxy::update_withdrawal_status(
             name,
-            payload_id.clone(),
+            &event_configuration,
+            event_transaction_lt,
         )],
         Some(&funder.pubkey()),
     );
@@ -978,7 +970,8 @@ async fn test_update_withdrawal_status() {
         .await
         .expect("process_transaction");
 
-    let withdrawal_address = token_proxy::get_associated_withdrawal_address(&payload_id);
+    let withdrawal_address =
+        token_proxy::get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
     let withdrawal_info = banks_client
         .get_account(withdrawal_address)
         .await
@@ -987,7 +980,7 @@ async fn test_update_withdrawal_status() {
 
     let withdrawal_data = Withdrawal::unpack(withdrawal_info.data()).expect("mint unpack");
     assert_eq!(
-        withdrawal_data.meta.status,
+        withdrawal_data.meta.data.status,
         WithdrawalStatus::WaitingForRelease
     );
 }
@@ -1086,27 +1079,20 @@ async fn test_withdrawal_ever() {
         },
     );
 
-    // Add Withdrawal Round Account
-    let payload_id = Hash::new_unique();
+    // Add Withdrawal Account
+    let event_configuration = ton_types::UInt256::new();
+    let event_transaction_lt = 123;
+    let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 10;
 
-    let withdrawal_address = token_proxy::get_associated_withdrawal_address(&payload_id);
+    let withdrawal_address =
+        token_proxy::get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
 
     let withdrawal_account_data = Withdrawal {
         is_initialized: true,
-        payload_id,
         round_number: 5,
-        event: WithdrawalEvent::new(
-            decimals,
-            recipient_address,
-            EverAddress {
-                workchain_id: 0,
-                address: Pubkey::new_unique(),
-            },
-            0,
-            amount,
-        ),
-        meta: WithdrawalMeta::new(
+        event: WithdrawalEventWithLen::new(decimals, recipient_address, sender_address, amount),
+        meta: WithdrawalMetaWithLen::new(
             Pubkey::new_unique(),
             TokenKind::Ever { mint: mint_address },
             WithdrawalStatus::WaitingForRelease,
@@ -1136,7 +1122,8 @@ async fn test_withdrawal_ever() {
         &[token_proxy::withdrawal_ever(
             &recipient_address,
             name,
-            payload_id,
+            &event_configuration,
+            event_transaction_lt,
         )],
         Some(&funder.pubkey()),
     );
@@ -1288,27 +1275,20 @@ async fn test_withdrawal_sol() {
         },
     );
 
-    // Add Withdrawal Round Account
-    let payload_id = Hash::new_unique();
+    // Add Withdrawal Account
+    let event_configuration = ton_types::UInt256::new();
+    let event_transaction_lt = 123;
+    let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 10;
 
-    let withdrawal_address = token_proxy::get_associated_withdrawal_address(&payload_id);
+    let withdrawal_address =
+        token_proxy::get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
 
     let withdrawal_account_data = Withdrawal {
         is_initialized: true,
-        payload_id,
         round_number: 5,
-        event: WithdrawalEvent::new(
-            decimals,
-            recipient_address,
-            EverAddress {
-                workchain_id: 0,
-                address: Pubkey::new_unique(),
-            },
-            0,
-            amount,
-        ),
-        meta: WithdrawalMeta::new(
+        event: WithdrawalEventWithLen::new(decimals, recipient_address, sender_address, amount),
+        meta: WithdrawalMetaWithLen::new(
             Pubkey::new_unique(),
             TokenKind::Solana {
                 mint: mint.pubkey(),
@@ -1342,7 +1322,8 @@ async fn test_withdrawal_sol() {
             &mint.pubkey(),
             &recipient_address,
             name,
-            payload_id,
+            &event_configuration,
+            event_transaction_lt,
         )],
         Some(&funder.pubkey()),
     );
@@ -1468,26 +1449,19 @@ async fn test_approve_withdrawal_ever() {
     );
 
     // Add Withdrawal Round Account
-    let payload_id = Hash::new_unique();
+    let event_configuration = ton_types::UInt256::new();
+    let event_transaction_lt = 123;
+    let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 10;
 
-    let withdrawal_address = token_proxy::get_associated_withdrawal_address(&payload_id);
+    let withdrawal_address =
+        token_proxy::get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
 
     let withdrawal_account_data = Withdrawal {
         is_initialized: true,
-        payload_id,
         round_number: 5,
-        event: WithdrawalEvent::new(
-            decimals,
-            recipient_address,
-            EverAddress {
-                workchain_id: 0,
-                address: Pubkey::new_unique(),
-            },
-            0,
-            amount,
-        ),
-        meta: WithdrawalMeta::new(
+        event: WithdrawalEventWithLen::new(decimals, recipient_address, sender_address, amount),
+        meta: WithdrawalMetaWithLen::new(
             Pubkey::new_unique(),
             TokenKind::Ever { mint: mint_address },
             WithdrawalStatus::WaitingForApprove,
@@ -1518,7 +1492,8 @@ async fn test_approve_withdrawal_ever() {
             &admin.pubkey(),
             &recipient_address,
             name,
-            payload_id,
+            &event_configuration,
+            event_transaction_lt,
         )],
         Some(&funder.pubkey()),
     );
@@ -1536,7 +1511,10 @@ async fn test_approve_withdrawal_ever() {
         .expect("account");
 
     let withdrawal_data = Withdrawal::unpack(withdrawal_info.data()).expect("withdrawal unpack");
-    assert_eq!(withdrawal_data.meta.status, WithdrawalStatus::Processed);
+    assert_eq!(
+        withdrawal_data.meta.data.status,
+        WithdrawalStatus::Processed
+    );
 
     let mint_info = banks_client
         .get_account(mint_address)
@@ -1610,26 +1588,19 @@ async fn test_approve_withdrawal_sol() {
     );
 
     // Add Withdrawal Round Account
-    let payload_id = Hash::new_unique();
+    let event_configuration = ton_types::UInt256::new();
+    let event_transaction_lt = 123;
+    let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 10;
 
-    let withdrawal_address = token_proxy::get_associated_withdrawal_address(&payload_id);
+    let withdrawal_address =
+        token_proxy::get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
 
     let withdrawal_account_data = Withdrawal {
         is_initialized: true,
-        payload_id,
         round_number: 5,
-        event: WithdrawalEvent::new(
-            decimals,
-            Pubkey::new_unique(),
-            EverAddress {
-                workchain_id: 0,
-                address: Pubkey::new_unique(),
-            },
-            0,
-            amount,
-        ),
-        meta: WithdrawalMeta::new(
+        event: WithdrawalEventWithLen::new(decimals, Pubkey::new_unique(), sender_address, amount),
+        meta: WithdrawalMetaWithLen::new(
             Pubkey::new_unique(),
             TokenKind::Solana {
                 mint,
@@ -1662,7 +1633,8 @@ async fn test_approve_withdrawal_sol() {
         &[token_proxy::approve_withdrawal_sol(
             &admin.pubkey(),
             name,
-            payload_id,
+            &event_configuration,
+            event_transaction_lt,
         )],
         Some(&funder.pubkey()),
     );
@@ -1680,7 +1652,7 @@ async fn test_approve_withdrawal_sol() {
         .expect("account");
 
     let withdrawal_data = Withdrawal::unpack(withdrawal_info.data()).expect("settings unpack");
-    assert_eq!(withdrawal_data.meta.status, WithdrawalStatus::Pending);
+    assert_eq!(withdrawal_data.meta.data.status, WithdrawalStatus::Pending);
 }
 
 #[tokio::test]
@@ -1744,27 +1716,20 @@ async fn test_cancel_withdrawal_sol() {
     );
 
     // Add Withdrawal Round Account
-    let payload_id = Hash::new_unique();
     let author = Keypair::new();
+    let event_configuration = ton_types::UInt256::new();
+    let event_transaction_lt = 123;
+    let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 10;
 
-    let withdrawal_address = token_proxy::get_associated_withdrawal_address(&payload_id);
+    let withdrawal_address =
+        token_proxy::get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
 
     let withdrawal_account_data = Withdrawal {
         is_initialized: true,
-        payload_id,
         round_number: 5,
-        event: WithdrawalEvent::new(
-            decimals,
-            Pubkey::new_unique(),
-            EverAddress {
-                workchain_id: 0,
-                address: Pubkey::new_unique(),
-            },
-            0,
-            amount,
-        ),
-        meta: WithdrawalMeta::new(
+        event: WithdrawalEventWithLen::new(decimals, Pubkey::new_unique(), sender_address, amount),
+        meta: WithdrawalMetaWithLen::new(
             author.pubkey(),
             TokenKind::Solana {
                 mint: mint.pubkey(),
@@ -1799,7 +1764,8 @@ async fn test_cancel_withdrawal_sol() {
         &[token_proxy::cancel_withdrawal_sol(
             &funder.pubkey(),
             &author.pubkey(),
-            payload_id,
+            &event_configuration,
+            event_transaction_lt,
             deposit_payload_id,
         )],
         Some(&funder.pubkey()),
@@ -1811,7 +1777,8 @@ async fn test_cancel_withdrawal_sol() {
         .await
         .expect("process_transaction");
 
-    let withdrawal_address = get_associated_withdrawal_address(&payload_id);
+    let withdrawal_address =
+        get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
     let withdrawal_info = banks_client
         .get_account(withdrawal_address)
         .await
@@ -1820,7 +1787,10 @@ async fn test_cancel_withdrawal_sol() {
 
     let withdrawal_data = Withdrawal::unpack(withdrawal_info.data()).expect("withdrawal unpack");
 
-    assert_eq!(withdrawal_data.meta.status, WithdrawalStatus::Cancelled);
+    assert_eq!(
+        withdrawal_data.meta.data.status,
+        WithdrawalStatus::Cancelled
+    );
 
     let new_deposit_address = get_associated_deposit_address(&deposit_payload_id);
     let new_deposit_info = banks_client
@@ -1957,26 +1927,19 @@ async fn test_force_withdrawal_sol() {
     );
 
     // Add Withdrawal Round Account
-    let payload_id = Hash::new_unique();
+    let event_configuration = ton_types::UInt256::new();
+    let event_transaction_lt = 123;
+    let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 10;
 
-    let withdrawal_address = token_proxy::get_associated_withdrawal_address(&payload_id);
+    let withdrawal_address =
+        token_proxy::get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
 
     let withdrawal_account_data = Withdrawal {
         is_initialized: true,
-        payload_id,
         round_number: 5,
-        event: WithdrawalEvent::new(
-            decimals,
-            recipient_address,
-            EverAddress {
-                workchain_id: 0,
-                address: Pubkey::new_unique(),
-            },
-            0,
-            amount,
-        ),
-        meta: WithdrawalMeta::new(
+        event: WithdrawalEventWithLen::new(decimals, recipient_address, sender_address, amount),
+        meta: WithdrawalMetaWithLen::new(
             Pubkey::new_unique(),
             TokenKind::Solana {
                 mint: mint.pubkey(),
@@ -2010,7 +1973,8 @@ async fn test_force_withdrawal_sol() {
             &mint.pubkey(),
             &recipient_address,
             name,
-            payload_id,
+            &event_configuration,
+            event_transaction_lt,
         )],
         Some(&funder.pubkey()),
     );
@@ -2139,27 +2103,20 @@ async fn test_fill_withdrawal_sol() {
     );
 
     // Add Withdrawal Account
-    let payload_id = Hash::new_unique();
+    let event_configuration = ton_types::UInt256::new();
+    let event_transaction_lt = 123;
+    let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 10;
     let bounty = 1;
 
-    let withdrawal_address = token_proxy::get_associated_withdrawal_address(&payload_id);
+    let withdrawal_address =
+        token_proxy::get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
 
     let withdrawal_account_data = Withdrawal {
         is_initialized: true,
-        payload_id,
         round_number: 5,
-        event: WithdrawalEvent::new(
-            decimals,
-            recipient_address,
-            EverAddress {
-                workchain_id: 0,
-                address: Pubkey::new_unique(),
-            },
-            0,
-            amount,
-        ),
-        meta: WithdrawalMeta::new(
+        event: WithdrawalEventWithLen::new(decimals, recipient_address, sender_address, amount),
+        meta: WithdrawalMetaWithLen::new(
             Pubkey::new_unique(),
             TokenKind::Solana {
                 mint: mint.pubkey(),
@@ -2189,7 +2146,7 @@ async fn test_fill_withdrawal_sol() {
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
     let deposit_payload_id = Hash::new_unique();
-    let recipient = EverAddress::default();
+    let recipient = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
 
     let mut transaction = Transaction::new_with_payer(
         &[token_proxy::fill_withdrawal_sol(
@@ -2197,7 +2154,8 @@ async fn test_fill_withdrawal_sol() {
             &sender.pubkey(),
             &mint.pubkey(),
             &recipient_address,
-            payload_id,
+            &event_configuration,
+            event_transaction_lt,
             deposit_payload_id,
             recipient,
         )],
@@ -2421,27 +2379,21 @@ async fn test_change_bounty_for_withdrawal_sol() {
 
     // Add Withdrawal Account
     let author = Keypair::new();
-    let payload_id = Hash::new_unique();
+    let event_configuration = ton_types::UInt256::new();
+    let event_transaction_lt = 123;
+    let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
+
     let decimals = 9;
     let amount = 10;
 
-    let withdrawal_address = token_proxy::get_associated_withdrawal_address(&payload_id);
+    let withdrawal_address =
+        token_proxy::get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
 
     let withdrawal_account_data = Withdrawal {
         is_initialized: true,
-        payload_id,
         round_number: 5,
-        event: WithdrawalEvent::new(
-            decimals,
-            Pubkey::new_unique(),
-            EverAddress {
-                workchain_id: 0,
-                address: Pubkey::new_unique(),
-            },
-            0,
-            amount,
-        ),
-        meta: WithdrawalMeta::new(
+        event: WithdrawalEventWithLen::new(decimals, Pubkey::new_unique(), sender_address, amount),
+        meta: WithdrawalMetaWithLen::new(
             author.pubkey(),
             TokenKind::Solana {
                 mint: Pubkey::new_unique(),
@@ -2474,7 +2426,8 @@ async fn test_change_bounty_for_withdrawal_sol() {
     let mut transaction = Transaction::new_with_payer(
         &[token_proxy::change_bounty_for_withdrawal_sol(
             &author.pubkey(),
-            payload_id,
+            &event_configuration,
+            event_transaction_lt,
             bounty,
         )],
         Some(&funder.pubkey()),
@@ -2493,7 +2446,7 @@ async fn test_change_bounty_for_withdrawal_sol() {
         .expect("account");
 
     let withdrawal_data = Withdrawal::unpack(withdrawal_info.data()).expect("withdrawal unpack");
-    assert_eq!(withdrawal_data.meta.bounty, bounty);
+    assert_eq!(withdrawal_data.meta.data.bounty, bounty);
 }
 
 #[tokio::test]

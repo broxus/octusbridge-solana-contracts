@@ -117,7 +117,7 @@ impl Processor {
                 event_transaction_lt,
                 vote,
             } => {
-                msg!("Instruction: Confirm Withdraw EVER/SOL request");
+                msg!("Instruction: Vote for Withdraw EVER/SOL request");
                 Self::process_vote_for_withdraw_request(
                     program_id,
                     accounts,
