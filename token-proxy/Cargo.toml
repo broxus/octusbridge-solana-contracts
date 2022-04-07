@@ -7,7 +7,7 @@ edition = "2021"
 [features]
 no-entrypoint = []
 test-bpf = ["bindings"]
-bindings = ["ton_types"]
+bindings = ["ton_types", "no-entrypoint"]
 wasm = ["no-entrypoint", "wasm-bindgen"]
 
 [dependencies]
