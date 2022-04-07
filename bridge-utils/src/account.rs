@@ -5,6 +5,8 @@ use solana_program::hash::Hash;
 use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
 
+use crate::UInt256;
+
 pub fn validate_programdata_account(
     program_id: &Pubkey,
     programdata_account: &Pubkey,
@@ -102,14 +104,14 @@ pub fn validate_deposit_account(
 
 pub fn validate_withdraw_account(
     program_id: &Pubkey,
-    event_configuration: &str,
+    event_configuration: UInt256,
     event_transaction_lt: u64,
     account_info: &AccountInfo,
 ) -> Result<u8, ProgramError> {
     let (account, nonce) = Pubkey::find_program_address(
         &[
             br"withdrawal",
-            event_configuration.as_bytes(),
+            event_configuration.as_slice(),
             &event_transaction_lt.to_le_bytes(),
         ],
         program_id,

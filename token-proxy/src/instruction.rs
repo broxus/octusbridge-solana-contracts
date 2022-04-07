@@ -1,5 +1,6 @@
-use crate::EverAddress;
 use borsh::{BorshDeserialize, BorshSerialize};
+use bridge_utils::{EverAddress, UInt256};
+
 use solana_program::hash::Hash;
 use solana_program::pubkey::Pubkey;
 
@@ -115,7 +116,7 @@ pub enum TokenProxyInstruction {
         // Current round number
         round_number: u32,
         // EVER->SOL event configuration
-        event_configuration: String,
+        event_configuration: UInt256,
         // Ever deployed event transaction_lt
         event_transaction_lt: u64,
         // Sender address
@@ -132,7 +133,7 @@ pub enum TokenProxyInstruction {
         // Current round number
         round_number: u32,
         // EVER->SOL event configuration
-        event_configuration: String,
+        event_configuration: UInt256,
         // Ever deployed event transaction_lt
         event_transaction_lt: u64,
     },
@@ -145,7 +146,7 @@ pub enum TokenProxyInstruction {
         // Mint asset name
         name: String,
         // EVER->SOL event configuration
-        event_configuration: String,
+        event_configuration: UInt256,
         // Ever deployed event transaction_lt
         event_transaction_lt: u64,
     },
@@ -158,7 +159,7 @@ pub enum TokenProxyInstruction {
         /// Mint asset name
         name: String,
         // EVER->SOL event configuration
-        event_configuration: String,
+        event_configuration: UInt256,
         // Ever deployed event transaction_lt
         event_transaction_lt: u64,
     },
@@ -171,7 +172,7 @@ pub enum TokenProxyInstruction {
         /// Mint asset name
         name: String,
         // EVER->SOL event configuration
-        event_configuration: String,
+        event_configuration: UInt256,
         // Ever deployed event transaction_lt
         event_transaction_lt: u64,
     },
@@ -184,7 +185,7 @@ pub enum TokenProxyInstruction {
         /// Mint asset name
         name: String,
         // EVER->SOL event configuration
-        event_configuration: String,
+        event_configuration: UInt256,
         // Ever deployed event transaction_lt
         event_transaction_lt: u64,
     },
@@ -197,7 +198,7 @@ pub enum TokenProxyInstruction {
         /// Mint asset name
         name: String,
         // EVER->SOL event configuration
-        event_configuration: String,
+        event_configuration: UInt256,
         // Ever deployed event transaction_lt
         event_transaction_lt: u64,
     },
@@ -208,7 +209,7 @@ pub enum TokenProxyInstruction {
     /// ...
     CancelWithdrawSol {
         // EVER->SOL event configuration
-        event_configuration: String,
+        event_configuration: UInt256,
         // Ever deployed event transaction_lt
         event_transaction_lt: u64,
         // Unique transfer hash
@@ -223,7 +224,7 @@ pub enum TokenProxyInstruction {
         // Mint asset name
         name: String,
         // EVER->SOL event configuration
-        event_configuration: String,
+        event_configuration: UInt256,
         // Ever deployed event transaction_lt
         event_transaction_lt: u64,
     },
@@ -235,7 +236,7 @@ pub enum TokenProxyInstruction {
     /**/
     FillWithdrawSol {
         // EVER->SOL event configuration
-        event_configuration: String,
+        event_configuration: UInt256,
         // Ever deployed event transaction_lt
         event_transaction_lt: u64,
         // Unique transfer hash
@@ -261,7 +262,7 @@ pub enum TokenProxyInstruction {
     /// ...
     ChangeBountyForWithdrawSol {
         // EVER->SOL event configuration
-        event_configuration: String,
+        event_configuration: UInt256,
         // Ever deployed event transaction_lt
         event_transaction_lt: u64,
         // New bounty value

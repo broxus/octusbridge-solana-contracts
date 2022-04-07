@@ -1,4 +1,5 @@
 use borsh::BorshDeserialize;
+use bridge_utils::{EverAddress, UInt256};
 
 use solana_program::account_info::{next_account_info, AccountInfo};
 use solana_program::clock::Clock;
@@ -13,7 +14,7 @@ use solana_program::sysvar::Sysvar;
 use solana_program::{msg, system_instruction};
 
 use crate::{
-    Deposit, EverAddress, Settings, TokenKind, TokenProxyError, TokenProxyInstruction, Withdrawal,
+    Deposit, Settings, TokenKind, TokenProxyError, TokenProxyInstruction, Withdrawal,
     WithdrawalEventWithLen, WithdrawalMetaWithLen, WithdrawalPattern, WithdrawalStatus,
     WITHDRAWAL_PERIOD,
 };
@@ -737,7 +738,7 @@ impl Processor {
         accounts: &[AccountInfo],
         name: String,
         round_number: u32,
-        event_configuration: String,
+        event_configuration: UInt256,
         event_transaction_lt: u64,
         sender: EverAddress,
         amount: u64,
@@ -792,13 +793,13 @@ impl Processor {
         // Validate Withdrawal Account
         let withdrawal_nonce = bridge_utils::validate_withdraw_account(
             program_id,
-            &event_configuration,
+            event_configuration,
             event_transaction_lt,
             withdrawal_account_info,
         )?;
         let withdrawal_account_signer_seeds: &[&[_]] = &[
             br"withdrawal",
-            event_configuration.as_bytes(),
+            event_configuration.as_slice(),
             &event_transaction_lt.to_le_bytes(),
             &[withdrawal_nonce],
         ];
@@ -852,7 +853,7 @@ impl Processor {
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         round_number: u32,
-        event_configuration: String,
+        event_configuration: UInt256,
         event_transaction_lt: u64,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
@@ -888,7 +889,7 @@ impl Processor {
         // Validate Withdrawal Account
         bridge_utils::validate_withdraw_account(
             program_id,
-            &event_configuration,
+            event_configuration,
             event_transaction_lt,
             withdrawal_account_info,
         )?;
@@ -924,7 +925,7 @@ impl Processor {
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         name: String,
-        event_configuration: String,
+        event_configuration: UInt256,
         event_transaction_lt: u64,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
@@ -942,7 +943,7 @@ impl Processor {
         // Validate Withdrawal Account
         bridge_utils::validate_withdraw_account(
             program_id,
-            &event_configuration,
+            event_configuration,
             event_transaction_lt,
             withdrawal_account_info,
         )?;
@@ -993,7 +994,7 @@ impl Processor {
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         name: String,
-        event_configuration: String,
+        event_configuration: UInt256,
         event_transaction_lt: u64,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
@@ -1021,7 +1022,7 @@ impl Processor {
         // Validate Withdrawal Account
         bridge_utils::validate_withdraw_account(
             program_id,
-            &event_configuration,
+            event_configuration,
             event_transaction_lt,
             withdrawal_account_info,
         )?;
@@ -1091,7 +1092,7 @@ impl Processor {
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         name: String,
-        event_configuration: String,
+        event_configuration: UInt256,
         event_transaction_lt: u64,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
@@ -1119,7 +1120,7 @@ impl Processor {
         // Validate Withdrawal Account
         bridge_utils::validate_withdraw_account(
             program_id,
-            &event_configuration,
+            event_configuration,
             event_transaction_lt,
             withdrawal_account_info,
         )?;
@@ -1196,7 +1197,7 @@ impl Processor {
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         name: String,
-        event_configuration: String,
+        event_configuration: UInt256,
         event_transaction_lt: u64,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
@@ -1233,7 +1234,7 @@ impl Processor {
         // Validate Withdrawal Account
         bridge_utils::validate_withdraw_account(
             program_id,
-            &event_configuration,
+            event_configuration,
             event_transaction_lt,
             withdrawal_account_info,
         )?;
@@ -1302,7 +1303,7 @@ impl Processor {
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         name: String,
-        event_configuration: String,
+        event_configuration: UInt256,
         event_transaction_lt: u64,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
@@ -1336,7 +1337,7 @@ impl Processor {
         // Validate Withdrawal Account
         bridge_utils::validate_withdraw_account(
             program_id,
-            &event_configuration,
+            event_configuration,
             event_transaction_lt,
             withdrawal_account_info,
         )?;
@@ -1373,7 +1374,7 @@ impl Processor {
     fn process_cancel_withdraw_sol(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        event_configuration: String,
+        event_configuration: UInt256,
         event_transaction_lt: u64,
         deposit_payload_id: Hash,
     ) -> ProgramResult {
@@ -1390,7 +1391,7 @@ impl Processor {
         // Validate Withdrawal Account
         bridge_utils::validate_withdraw_account(
             program_id,
-            &event_configuration,
+            event_configuration,
             event_transaction_lt,
             withdrawal_account_info,
         )?;
@@ -1465,7 +1466,7 @@ impl Processor {
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         name: String,
-        event_configuration: String,
+        event_configuration: UInt256,
         event_transaction_lt: u64,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
@@ -1493,7 +1494,7 @@ impl Processor {
         // Validate Withdrawal Account
         bridge_utils::validate_withdraw_account(
             program_id,
-            &event_configuration,
+            event_configuration,
             event_transaction_lt,
             withdrawal_account_info,
         )?;
@@ -1568,7 +1569,7 @@ impl Processor {
     fn process_fill_withdraw_sol(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        event_configuration: String,
+        event_configuration: UInt256,
         event_transaction_lt: u64,
         deposit_payload_id: Hash,
         recipient: EverAddress,
@@ -1593,7 +1594,7 @@ impl Processor {
         // Validate Withdrawal Account
         bridge_utils::validate_withdraw_account(
             program_id,
-            &event_configuration,
+            event_configuration,
             event_transaction_lt,
             withdrawal_account_info,
         )?;
@@ -1764,7 +1765,7 @@ impl Processor {
     fn process_change_bounty_for_withdraw_sol(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        event_configuration: String,
+        event_configuration: UInt256,
         event_transaction_lt: u64,
         bounty: u64,
     ) -> ProgramResult {
@@ -1779,7 +1780,7 @@ impl Processor {
 
         bridge_utils::validate_withdraw_account(
             program_id,
-            &event_configuration,
+            event_configuration,
             event_transaction_lt,
             withdrawal_account_info,
         )?;

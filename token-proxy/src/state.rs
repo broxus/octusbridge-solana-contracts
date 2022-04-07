@@ -1,5 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use bridge_derive::BridgePack;
+use bridge_utils::EverAddress;
 use enum_as_inner::EnumAsInner;
 use serde::{Deserialize, Serialize};
 
@@ -7,8 +8,6 @@ use solana_program::hash::Hash;
 use solana_program::program_error::ProgramError;
 use solana_program::program_pack::{IsInitialized, Pack, Sealed};
 use solana_program::pubkey::{Pubkey, PUBKEY_BYTES};
-
-use crate::EverAddress;
 
 pub const WITHDRAWAL_PERIOD: i64 = 86400;
 
