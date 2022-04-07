@@ -281,15 +281,17 @@ pub fn confirm_withdrawal_request(
     round_number: u32,
     event_configuration: UInt256,
     event_transaction_lt: u64,
+    vote: Vote,
 ) -> Instruction {
     let withdrawal_pubkey =
         get_associated_withdrawal_address(event_configuration, event_transaction_lt);
     let relay_round_pubkey = round_loader::get_associated_relay_round_address(round_number);
 
-    let data = TokenProxyInstruction::ConfirmWithdrawRequest {
+    let data = TokenProxyInstruction::VoteForWithdrawRequest {
         event_configuration,
         event_transaction_lt,
         round_number,
+        vote,
     }
     .try_to_vec()
     .expect("pack");

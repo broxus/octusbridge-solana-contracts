@@ -4,6 +4,8 @@ use bridge_utils::{EverAddress, UInt256};
 use solana_program::hash::Hash;
 use solana_program::pubkey::Pubkey;
 
+use crate::Vote;
+
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub enum TokenProxyInstruction {
     /// Initialize Mint Account
@@ -125,17 +127,19 @@ pub enum TokenProxyInstruction {
         amount: u64,
     },
 
-    /// Confirm withdraw EVER/SOL request
+    /// Vote for withdraw EVER/SOL request
     ///
     /// # Account references
     /// ...
-    ConfirmWithdrawRequest {
+    VoteForWithdrawRequest {
         // Current round number
         round_number: u32,
         // EVER->SOL event configuration
         event_configuration: UInt256,
         // Ever deployed event transaction_lt
         event_transaction_lt: u64,
+        // Vote type
+        vote: Vote,
     },
 
     /// Update withdraw status

@@ -79,7 +79,7 @@ pub struct Withdrawal {
     pub is_initialized: bool,
     pub round_number: u32,
     pub required_votes: u32,
-    pub signers: Vec<Pubkey>,
+    pub signers: Vec<Vote>,
     pub event: WithdrawalEventWithLen,
     pub meta: WithdrawalMetaWithLen,
 }
@@ -105,7 +105,7 @@ pub struct WithdrawalPattern {
     pub payload_id: Hash,
     pub round_number: u32,
     pub required_votes: u32,
-    pub signers: Vec<Pubkey>,
+    pub signers: Vec<Vote>,
     pub event: Vec<u8>,
     pub meta: Vec<u8>,
 }
@@ -206,4 +206,11 @@ pub enum WithdrawalStatus {
     Pending,
     WaitingForApprove,
     WaitingForRelease,
+}
+
+#[derive(Debug, Copy, Clone, BorshSerialize, BorshDeserialize)]
+pub enum Vote {
+    None,
+    Confirm,
+    Reject,
 }

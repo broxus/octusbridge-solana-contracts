@@ -14,7 +14,7 @@ use solana_program::sysvar::Sysvar;
 use solana_program::{msg, system_instruction};
 
 use crate::{
-    Deposit, Settings, TokenKind, TokenProxyError, TokenProxyInstruction, Withdrawal,
+    Deposit, Settings, TokenKind, TokenProxyError, TokenProxyInstruction, Vote, Withdrawal,
     WithdrawalEventWithLen, WithdrawalMetaWithLen, WithdrawalPattern, WithdrawalStatus,
     WITHDRAWAL_PERIOD,
 };
@@ -111,18 +111,20 @@ impl Processor {
                     amount,
                 )?;
             }
-            TokenProxyInstruction::ConfirmWithdrawRequest {
+            TokenProxyInstruction::VoteForWithdrawRequest {
                 round_number,
                 event_configuration,
                 event_transaction_lt,
+                vote,
             } => {
                 msg!("Instruction: Confirm Withdraw EVER/SOL request");
-                Self::process_confirm_withdraw_request(
+                Self::process_vote_for_withdraw_request(
                     program_id,
                     accounts,
                     round_number,
                     event_configuration,
                     event_transaction_lt,
+                    vote,
                 )?;
             }
             TokenProxyInstruction::UpdateWithdrawStatus {
@@ -825,7 +827,7 @@ impl Processor {
         let withdrawal_account_data = Withdrawal {
             is_initialized: true,
             round_number,
-            signers: vec![],
+            signers: vec![Vote::None; relay_round_account_data.relays.len()],
             required_votes,
             event: WithdrawalEventWithLen::new(
                 settings_account_data.decimals,
@@ -849,12 +851,13 @@ impl Processor {
         Ok(())
     }
 
-    fn process_confirm_withdraw_request(
+    fn process_vote_for_withdraw_request(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         round_number: u32,
         event_configuration: UInt256,
         event_transaction_lt: u64,
+        vote: Vote,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -879,13 +882,6 @@ impl Processor {
             return Err(TokenProxyError::InvalidRelayRound.into());
         }
 
-        if !relay_round_account_data
-            .relays
-            .contains(relay_account_info.key)
-        {
-            return Err(TokenProxyError::InvalidRelay.into());
-        }
-
         // Validate Withdrawal Account
         bridge_utils::validate_withdraw_account(
             program_id,
@@ -901,17 +897,13 @@ impl Processor {
             return Err(TokenProxyError::InvalidRelayRound.into());
         }
 
-        if withdrawal_account_data
-            .signers
-            .contains(relay_account_info.key)
-        {
-            return Err(TokenProxyError::RelayAlreadyVoted.into());
-        }
-
-        // Add signer
-        withdrawal_account_data
-            .signers
-            .push(*relay_account_info.key);
+        // Vote for withdraw request
+        let index = relay_round_account_data
+            .relays
+            .iter()
+            .position(|pubkey| pubkey == relay_account_info.key)
+            .ok_or(TokenProxyError::InvalidRelay)?;
+        withdrawal_account_data.signers[index] = vote;
 
         WithdrawalPattern::pack(
             withdrawal_account_data,
