@@ -944,7 +944,14 @@ impl Processor {
         let mut withdrawal_account_data =
             Withdrawal::unpack(&withdrawal_account_info.data.borrow())?;
 
-        if withdrawal_account_data.signers.len() as u32 >= withdrawal_account_data.required_votes
+        // Do we have enough signers.
+        let sig_count = withdrawal_account_data
+            .signers
+            .iter()
+            .filter(|vote| **vote == Vote::Confirm)
+            .count() as u32;
+
+        if sig_count >= withdrawal_account_data.required_votes
             && withdrawal_account_data.meta.data.status == WithdrawalStatus::New
         {
             let current_timestamp = clock.unix_timestamp;
