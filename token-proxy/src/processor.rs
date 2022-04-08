@@ -15,8 +15,8 @@ use solana_program::{msg, system_instruction};
 
 use crate::{
     Deposit, Settings, TokenKind, TokenProxyError, TokenProxyInstruction, Vote, Withdrawal,
-    WithdrawalEventWithLen, WithdrawalMetaWithLen, WithdrawalPattern, WithdrawalStatus,
-    WITHDRAWAL_PERIOD,
+    WithdrawalToken, WithdrawalTokenEventWithLen, WithdrawalTokenMetaWithLen,
+    WithdrawalTokenStatus, WITHDRAWAL_TOKEN_PERIOD,
 };
 
 pub struct Processor;
@@ -793,7 +793,7 @@ impl Processor {
             return Err(TokenProxyError::RelayRoundExpired.into());
         }
 
-        // Validate Withdrawal Account
+        // Validate Withdrawal Token Account
         let withdrawal_nonce = bridge_utils::validate_withdraw_account(
             program_id,
             event_configuration,
@@ -812,8 +812,8 @@ impl Processor {
             &system_instruction::create_account(
                 funder_account_info.key,
                 withdrawal_account_info.key,
-                1.max(rent.minimum_balance(Withdrawal::LEN)),
-                Withdrawal::LEN as u64,
+                1.max(rent.minimum_balance(WithdrawalToken::LEN)),
+                WithdrawalToken::LEN as u64,
                 program_id,
             ),
             &[
@@ -825,26 +825,26 @@ impl Processor {
         )?;
 
         // Init Withdraw Account
-        let withdrawal_account_data = Withdrawal {
+        let withdrawal_account_data = WithdrawalToken {
             is_initialized: true,
             round_number,
             signers: vec![Vote::None; relay_round_account_data.relays.len()],
             required_votes,
-            event: WithdrawalEventWithLen::new(
+            event: WithdrawalTokenEventWithLen::new(
                 settings_account_data.decimals,
                 *recipient_account_info.key,
                 sender,
                 amount,
             ),
-            meta: WithdrawalMetaWithLen::new(
+            meta: WithdrawalTokenMetaWithLen::new(
                 *authority_account_info.key,
                 kind,
-                WithdrawalStatus::New,
+                WithdrawalTokenStatus::New,
                 0,
             ),
         };
 
-        Withdrawal::pack(
+        WithdrawalToken::pack(
             withdrawal_account_data,
             &mut withdrawal_account_info.data.borrow_mut(),
         )?;
@@ -892,7 +892,7 @@ impl Processor {
         )?;
 
         let mut withdrawal_account_data =
-            WithdrawalPattern::unpack(&withdrawal_account_info.data.borrow())?;
+            Withdrawal::unpack(&withdrawal_account_info.data.borrow())?;
 
         if withdrawal_account_data.round_number != round_number {
             return Err(TokenProxyError::InvalidRelayRound.into());
@@ -906,7 +906,7 @@ impl Processor {
             .ok_or(TokenProxyError::InvalidRelay)?;
         withdrawal_account_data.signers[index] = vote;
 
-        WithdrawalPattern::pack(
+        Withdrawal::pack(
             withdrawal_account_data,
             &mut withdrawal_account_info.data.borrow_mut(),
         )?;
@@ -942,7 +942,7 @@ impl Processor {
         )?;
 
         let mut withdrawal_account_data =
-            Withdrawal::unpack(&withdrawal_account_info.data.borrow())?;
+            WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
 
         // Do we have enough signers.
         let sig_count = withdrawal_account_data
@@ -952,13 +952,13 @@ impl Processor {
             .count() as u32;
 
         if sig_count >= withdrawal_account_data.required_votes
-            && withdrawal_account_data.meta.data.status == WithdrawalStatus::New
+            && withdrawal_account_data.meta.data.status == WithdrawalTokenStatus::New
         {
             let current_timestamp = clock.unix_timestamp;
 
             // If current timestamp has expired
             if settings_account_data.withdrawal_ttl < current_timestamp {
-                settings_account_data.withdrawal_ttl = current_timestamp + WITHDRAWAL_PERIOD;
+                settings_account_data.withdrawal_ttl = current_timestamp + WITHDRAWAL_TOKEN_PERIOD;
                 settings_account_data.withdrawal_daily_amount = 0;
             }
 
@@ -970,9 +970,9 @@ impl Processor {
                 settings_account_data.withdrawal_daily_amount +=
                     withdrawal_account_data.event.data.amount;
 
-                withdrawal_account_data.meta.data.status = WithdrawalStatus::WaitingForRelease;
+                withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::WaitingForRelease;
             } else {
-                withdrawal_account_data.meta.data.status = WithdrawalStatus::WaitingForApprove;
+                withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::WaitingForApprove;
             }
         }
 
@@ -981,7 +981,7 @@ impl Processor {
             &mut settings_account_info.data.borrow_mut(),
         )?;
 
-        Withdrawal::pack(
+        WithdrawalToken::pack(
             withdrawal_account_data,
             &mut withdrawal_account_info.data.borrow_mut(),
         )?;
@@ -1027,7 +1027,7 @@ impl Processor {
         )?;
 
         let mut withdrawal_account_data =
-            Withdrawal::unpack(&withdrawal_account_info.data.borrow())?;
+            WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
 
         let withdrawal_kind = withdrawal_account_data
             .meta
@@ -1054,7 +1054,7 @@ impl Processor {
         let mint_account_signer_seeds: &[&[_]] = &[br"mint", name.as_bytes(), &[mint_nonce]];
 
         // Validate status
-        if withdrawal_account_data.meta.data.status != WithdrawalStatus::WaitingForRelease {
+        if withdrawal_account_data.meta.data.status != WithdrawalTokenStatus::WaitingForRelease {
             return Err(TokenProxyError::InvalidWithdrawalStatus.into());
         }
 
@@ -1077,9 +1077,9 @@ impl Processor {
             &[mint_account_signer_seeds],
         )?;
 
-        withdrawal_account_data.meta.data.status = WithdrawalStatus::Processed;
+        withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Processed;
 
-        Withdrawal::pack(
+        WithdrawalToken::pack(
             withdrawal_account_data,
             &mut withdrawal_account_info.data.borrow_mut(),
         )?;
@@ -1125,7 +1125,7 @@ impl Processor {
         )?;
 
         let mut withdrawal_account_data =
-            Withdrawal::unpack(&withdrawal_account_info.data.borrow())?;
+            WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
 
         let withdrawal_kind = withdrawal_account_data
             .meta
@@ -1148,7 +1148,7 @@ impl Processor {
         }
 
         // Validate status
-        if withdrawal_account_data.meta.data.status != WithdrawalStatus::WaitingForRelease {
+        if withdrawal_account_data.meta.data.status != WithdrawalTokenStatus::WaitingForRelease {
             return Err(TokenProxyError::InvalidWithdrawalStatus.into());
         }
 
@@ -1179,12 +1179,12 @@ impl Processor {
                 &[vault_account_signer_seeds],
             )?;
 
-            withdrawal_account_data.meta.data.status = WithdrawalStatus::Processed;
+            withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Processed;
         } else {
-            withdrawal_account_data.meta.data.status = WithdrawalStatus::Pending;
+            withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Pending;
         }
 
-        Withdrawal::pack(
+        WithdrawalToken::pack(
             withdrawal_account_data,
             &mut withdrawal_account_info.data.borrow_mut(),
         )?;
@@ -1239,9 +1239,9 @@ impl Processor {
         )?;
 
         let mut withdrawal_account_data =
-            Withdrawal::unpack(&withdrawal_account_info.data.borrow())?;
+            WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
 
-        if withdrawal_account_data.meta.data.status != WithdrawalStatus::WaitingForApprove {
+        if withdrawal_account_data.meta.data.status != WithdrawalTokenStatus::WaitingForApprove {
             return Err(TokenProxyError::InvalidWithdrawalStatus.into());
         }
 
@@ -1288,9 +1288,9 @@ impl Processor {
             &[mint_account_signer_seeds],
         )?;
 
-        withdrawal_account_data.meta.data.status = WithdrawalStatus::Processed;
+        withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Processed;
 
-        Withdrawal::pack(
+        WithdrawalToken::pack(
             withdrawal_account_data,
             &mut withdrawal_account_info.data.borrow_mut(),
         )?;
@@ -1342,9 +1342,9 @@ impl Processor {
         )?;
 
         let mut withdrawal_account_data =
-            Withdrawal::unpack(&withdrawal_account_info.data.borrow())?;
+            WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
 
-        if withdrawal_account_data.meta.data.status != WithdrawalStatus::WaitingForApprove {
+        if withdrawal_account_data.meta.data.status != WithdrawalTokenStatus::WaitingForApprove {
             return Err(TokenProxyError::InvalidWithdrawalStatus.into());
         }
 
@@ -1360,9 +1360,9 @@ impl Processor {
             return Err(ProgramError::InvalidAccountData);
         }
 
-        withdrawal_account_data.meta.data.status = WithdrawalStatus::Pending;
+        withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Pending;
 
-        Withdrawal::pack(
+        WithdrawalToken::pack(
             withdrawal_account_data,
             &mut withdrawal_account_info.data.borrow_mut(),
         )?;
@@ -1396,17 +1396,17 @@ impl Processor {
         )?;
 
         let mut withdrawal_account_data =
-            Withdrawal::unpack(&withdrawal_account_info.data.borrow())?;
+            WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
 
         if withdrawal_account_data.meta.data.author != *authority_account_info.key {
             return Err(ProgramError::IllegalOwner);
         }
 
-        if withdrawal_account_data.meta.data.status != WithdrawalStatus::Pending {
+        if withdrawal_account_data.meta.data.status != WithdrawalTokenStatus::Pending {
             return Err(TokenProxyError::InvalidWithdrawalStatus.into());
         }
 
-        withdrawal_account_data.meta.data.status = WithdrawalStatus::Cancelled;
+        withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Cancelled;
 
         // Validate a new Deposit Account
         let deposit_nonce = bridge_utils::validate_deposit_account(
@@ -1453,7 +1453,7 @@ impl Processor {
             &mut new_deposit_account_info.data.borrow_mut(),
         )?;
 
-        Withdrawal::pack(
+        WithdrawalToken::pack(
             withdrawal_account_data,
             &mut withdrawal_account_info.data.borrow_mut(),
         )?;
@@ -1499,9 +1499,9 @@ impl Processor {
         )?;
 
         let mut withdrawal_account_data =
-            Withdrawal::unpack(&withdrawal_account_info.data.borrow())?;
+            WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
 
-        if withdrawal_account_data.meta.data.status != WithdrawalStatus::Pending {
+        if withdrawal_account_data.meta.data.status != WithdrawalTokenStatus::Pending {
             return Err(TokenProxyError::InvalidWithdrawalStatus.into());
         }
 
@@ -1555,9 +1555,9 @@ impl Processor {
             &[vault_account_signer_seeds],
         )?;
 
-        withdrawal_account_data.meta.data.status = WithdrawalStatus::Processed;
+        withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Processed;
 
-        Withdrawal::pack(
+        WithdrawalToken::pack(
             withdrawal_account_data,
             &mut withdrawal_account_info.data.borrow_mut(),
         )?;
@@ -1599,9 +1599,9 @@ impl Processor {
         )?;
 
         let mut withdrawal_account_data =
-            Withdrawal::unpack(&withdrawal_account_info.data.borrow())?;
+            WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
 
-        if withdrawal_account_data.meta.data.status != WithdrawalStatus::Pending {
+        if withdrawal_account_data.meta.data.status != WithdrawalTokenStatus::Pending {
             return Err(TokenProxyError::InvalidWithdrawalStatus.into());
         }
 
@@ -1642,7 +1642,7 @@ impl Processor {
             ],
         )?;
 
-        withdrawal_account_data.meta.data.status = WithdrawalStatus::Processed;
+        withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Processed;
 
         // Validate a new Deposit Account
         let deposit_nonce = bridge_utils::validate_deposit_account(
@@ -1689,7 +1689,7 @@ impl Processor {
             &mut new_deposit_account_info.data.borrow_mut(),
         )?;
 
-        Withdrawal::pack(
+        WithdrawalToken::pack(
             withdrawal_account_data,
             &mut withdrawal_account_info.data.borrow_mut(),
         )?;
@@ -1785,9 +1785,9 @@ impl Processor {
         )?;
 
         let mut withdrawal_account_data =
-            Withdrawal::unpack(&withdrawal_account_info.data.borrow())?;
+            WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
 
-        if withdrawal_account_data.meta.data.status != WithdrawalStatus::Pending {
+        if withdrawal_account_data.meta.data.status != WithdrawalTokenStatus::Pending {
             return Err(TokenProxyError::InvalidWithdrawalStatus.into());
         }
 
@@ -1797,7 +1797,7 @@ impl Processor {
 
         withdrawal_account_data.meta.data.bounty = bounty;
 
-        Withdrawal::pack(
+        WithdrawalToken::pack(
             withdrawal_account_data,
             &mut withdrawal_account_info.data.borrow_mut(),
         )?;

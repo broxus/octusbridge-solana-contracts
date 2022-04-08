@@ -9,9 +9,9 @@ use solana_program::program_error::ProgramError;
 use solana_program::program_pack::{IsInitialized, Pack, Sealed};
 use solana_program::pubkey::{Pubkey, PUBKEY_BYTES};
 
-pub const WITHDRAWAL_PERIOD: i64 = 86400;
+pub const WITHDRAWAL_TOKEN_PERIOD: i64 = 86400;
 
-const WITHDRAW_EVENT_LEN: usize = 1  // decimals
+const WITHDRAW_TOKEN_EVENT_LEN: usize = 1  // decimals
     + PUBKEY_BYTES                   // solana recipient address
     + PUBKEY_BYTES + 1 + 1           // ever sender address
     + 8                              // amount
@@ -79,8 +79,8 @@ pub struct Withdrawal {
     pub round_number: u32,
     pub required_votes: u32,
     pub signers: Vec<Vote>,
-    pub event: WithdrawalEventWithLen,
-    pub meta: WithdrawalMetaWithLen,
+    pub event: Vec<u8>,
+    pub meta: Vec<u8>,
 }
 
 impl Sealed for Withdrawal {}
@@ -91,33 +91,27 @@ impl IsInitialized for Withdrawal {
     }
 }
 
-impl Withdrawal {
-    pub fn payload_id(&self) -> Hash {
-        todo!()
-    }
-}
-
 #[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
 #[bridge_pack(length = 5000)]
-pub struct WithdrawalPattern {
+pub struct WithdrawalToken {
     pub is_initialized: bool,
     pub round_number: u32,
     pub required_votes: u32,
     pub signers: Vec<Vote>,
-    pub event: Vec<u8>,
-    pub meta: Vec<u8>,
+    pub event: WithdrawalTokenEventWithLen,
+    pub meta: WithdrawalTokenMetaWithLen,
 }
 
-impl Sealed for WithdrawalPattern {}
+impl Sealed for WithdrawalToken {}
 
-impl IsInitialized for WithdrawalPattern {
+impl IsInitialized for WithdrawalToken {
     fn is_initialized(&self) -> bool {
         self.is_initialized
     }
 }
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
-pub struct WithdrawalEvent {
+pub struct WithdrawalTokenEvent {
     pub decimals: u8,
     pub recipient: Pubkey,
     pub sender: EverAddress,
@@ -125,16 +119,16 @@ pub struct WithdrawalEvent {
 }
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
-pub struct WithdrawalEventWithLen {
+pub struct WithdrawalTokenEventWithLen {
     pub len: u32,
-    pub data: WithdrawalEvent,
+    pub data: WithdrawalTokenEvent,
 }
 
-impl WithdrawalEventWithLen {
+impl WithdrawalTokenEventWithLen {
     pub fn new(decimals: u8, recipient: Pubkey, sender: EverAddress, amount: u64) -> Self {
         Self {
-            len: WITHDRAW_EVENT_LEN as u32,
-            data: WithdrawalEvent {
+            len: WITHDRAW_TOKEN_EVENT_LEN as u32,
+            data: WithdrawalTokenEvent {
                 decimals,
                 recipient,
                 sender,
@@ -145,21 +139,26 @@ impl WithdrawalEventWithLen {
 }
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
-pub struct WithdrawalMeta {
+pub struct WithdrawalTokenMeta {
     pub author: Pubkey,
     pub kind: TokenKind,
-    pub status: WithdrawalStatus,
+    pub status: WithdrawalTokenStatus,
     pub bounty: u64,
 }
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
-pub struct WithdrawalMetaWithLen {
+pub struct WithdrawalTokenMetaWithLen {
     pub len: u32,
-    pub data: WithdrawalMeta,
+    pub data: WithdrawalTokenMeta,
 }
 
-impl WithdrawalMetaWithLen {
-    pub fn new(author: Pubkey, kind: TokenKind, status: WithdrawalStatus, bounty: u64) -> Self {
+impl WithdrawalTokenMetaWithLen {
+    pub fn new(
+        author: Pubkey,
+        kind: TokenKind,
+        status: WithdrawalTokenStatus,
+        bounty: u64,
+    ) -> Self {
         let len = match kind {
             TokenKind::Ever { .. } => WITHDRAW_EVER_META_LEN,
             TokenKind::Solana { .. } => WITHDRAW_SOL_META_LEN,
@@ -167,7 +166,7 @@ impl WithdrawalMetaWithLen {
 
         Self {
             len,
-            data: WithdrawalMeta {
+            data: WithdrawalTokenMeta {
                 author,
                 kind,
                 status,
@@ -197,7 +196,7 @@ pub enum TokenKind {
 #[derive(
     Copy, BorshSerialize, BorshDeserialize, Serialize, Deserialize, Debug, Clone, PartialEq,
 )]
-pub enum WithdrawalStatus {
+pub enum WithdrawalTokenStatus {
     New,
     Processed,
     Cancelled,

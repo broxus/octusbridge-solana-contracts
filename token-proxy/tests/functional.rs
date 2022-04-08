@@ -16,8 +16,8 @@ use spl_token::state::AccountState;
 
 use token_proxy::{
     get_associated_deposit_address, get_associated_withdrawal_address, Deposit, Processor,
-    Settings, TokenKind, Withdrawal, WithdrawalEventWithLen, WithdrawalMetaWithLen,
-    WithdrawalStatus,
+    Settings, TokenKind, WithdrawalToken, WithdrawalTokenEventWithLen, WithdrawalTokenMetaWithLen,
+    WithdrawalTokenStatus,
 };
 
 #[tokio::test]
@@ -675,11 +675,9 @@ async fn test_withdrawal_request() {
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
     let author = Keypair::new();
-
-    let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
-
     let event_configuration = ton_types::UInt256::new();
     let event_transaction_lt = 123;
+    let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 32;
 
     let mut transaction = Transaction::new_with_payer(
@@ -711,11 +709,11 @@ async fn test_withdrawal_request() {
         .expect("get_account")
         .expect("account");
 
-    let withdrawal_data = Withdrawal::unpack(withdrawal_info.data()).expect("mint unpack");
+    let withdrawal_data = WithdrawalToken::unpack(withdrawal_info.data()).expect("mint unpack");
 
     assert_eq!(withdrawal_data.is_initialized, true);
     assert_eq!(withdrawal_data.event.data.amount, amount);
-    assert_eq!(withdrawal_data.meta.data.status, WithdrawalStatus::New);
+    assert_eq!(withdrawal_data.meta.data.status, WithdrawalTokenStatus::New);
 
     assert_eq!(
         withdrawal_data.meta.data.kind,
@@ -810,26 +808,26 @@ async fn test_confirm_withdrawal_request() {
     let withdrawal_address =
         token_proxy::get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
 
-    let withdrawal_account_data = Withdrawal {
+    let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
         round_number,
-        event: WithdrawalEventWithLen::new(decimals, recipient_address, sender_address, 10),
-        meta: WithdrawalMetaWithLen::new(
+        event: WithdrawalTokenEventWithLen::new(decimals, recipient_address, sender_address, 10),
+        meta: WithdrawalTokenMetaWithLen::new(
             Pubkey::new_unique(),
             TokenKind::Ever { mint: mint_address },
-            WithdrawalStatus::New,
+            WithdrawalTokenStatus::New,
             0,
         ),
         required_votes: 1,
         signers: vec![token_proxy::Vote::None],
     };
 
-    let mut withdrawal_packed = vec![0; Withdrawal::LEN];
-    Withdrawal::pack(withdrawal_account_data, &mut withdrawal_packed).unwrap();
+    let mut withdrawal_packed = vec![0; WithdrawalToken::LEN];
+    WithdrawalToken::pack(withdrawal_account_data, &mut withdrawal_packed).unwrap();
     program_test.add_account(
         withdrawal_address,
         Account {
-            lamports: Rent::default().minimum_balance(Withdrawal::LEN),
+            lamports: Rent::default().minimum_balance(WithdrawalToken::LEN),
             data: withdrawal_packed,
             owner: token_proxy::id(),
             executable: false,
@@ -865,7 +863,7 @@ async fn test_confirm_withdrawal_request() {
         .expect("get_account")
         .expect("account");
 
-    let withdrawal_data = Withdrawal::unpack(withdrawal_info.data()).expect("mint unpack");
+    let withdrawal_data = WithdrawalToken::unpack(withdrawal_info.data()).expect("mint unpack");
     assert_eq!(withdrawal_data.signers[0], token_proxy::Vote::Confirm);
 }
 
@@ -925,26 +923,26 @@ async fn test_update_withdrawal_status() {
     let withdrawal_address =
         token_proxy::get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
 
-    let withdrawal_account_data = Withdrawal {
+    let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
         round_number: 5,
-        event: WithdrawalEventWithLen::new(decimals, recipient_address, sender_address, 10),
-        meta: WithdrawalMetaWithLen::new(
+        event: WithdrawalTokenEventWithLen::new(decimals, recipient_address, sender_address, 10),
+        meta: WithdrawalTokenMetaWithLen::new(
             Pubkey::new_unique(),
             TokenKind::Ever { mint: mint_address },
-            WithdrawalStatus::New,
+            WithdrawalTokenStatus::New,
             0,
         ),
         required_votes: 0,
         signers: vec![],
     };
 
-    let mut withdrawal_packed = vec![0; Withdrawal::LEN];
-    Withdrawal::pack(withdrawal_account_data, &mut withdrawal_packed).unwrap();
+    let mut withdrawal_packed = vec![0; WithdrawalToken::LEN];
+    WithdrawalToken::pack(withdrawal_account_data, &mut withdrawal_packed).unwrap();
     program_test.add_account(
         withdrawal_address,
         Account {
-            lamports: Rent::default().minimum_balance(Withdrawal::LEN),
+            lamports: Rent::default().minimum_balance(WithdrawalToken::LEN),
             data: withdrawal_packed,
             owner: token_proxy::id(),
             executable: false,
@@ -978,10 +976,10 @@ async fn test_update_withdrawal_status() {
         .expect("get_account")
         .expect("account");
 
-    let withdrawal_data = Withdrawal::unpack(withdrawal_info.data()).expect("mint unpack");
+    let withdrawal_data = WithdrawalToken::unpack(withdrawal_info.data()).expect("mint unpack");
     assert_eq!(
         withdrawal_data.meta.data.status,
-        WithdrawalStatus::WaitingForRelease
+        WithdrawalTokenStatus::WaitingForRelease
     );
 }
 
@@ -1088,26 +1086,31 @@ async fn test_withdrawal_ever() {
     let withdrawal_address =
         token_proxy::get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
 
-    let withdrawal_account_data = Withdrawal {
+    let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
         round_number: 5,
-        event: WithdrawalEventWithLen::new(decimals, recipient_address, sender_address, amount),
-        meta: WithdrawalMetaWithLen::new(
+        event: WithdrawalTokenEventWithLen::new(
+            decimals,
+            recipient_address,
+            sender_address,
+            amount,
+        ),
+        meta: WithdrawalTokenMetaWithLen::new(
             Pubkey::new_unique(),
             TokenKind::Ever { mint: mint_address },
-            WithdrawalStatus::WaitingForRelease,
+            WithdrawalTokenStatus::WaitingForRelease,
             0,
         ),
         required_votes: 0,
         signers: vec![],
     };
 
-    let mut withdrawal_packed = vec![0; Withdrawal::LEN];
-    Withdrawal::pack(withdrawal_account_data, &mut withdrawal_packed).unwrap();
+    let mut withdrawal_packed = vec![0; WithdrawalToken::LEN];
+    WithdrawalToken::pack(withdrawal_account_data, &mut withdrawal_packed).unwrap();
     program_test.add_account(
         withdrawal_address,
         Account {
-            lamports: Rent::default().minimum_balance(Withdrawal::LEN),
+            lamports: Rent::default().minimum_balance(WithdrawalToken::LEN),
             data: withdrawal_packed,
             owner: token_proxy::id(),
             executable: false,
@@ -1284,29 +1287,34 @@ async fn test_withdrawal_sol() {
     let withdrawal_address =
         token_proxy::get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
 
-    let withdrawal_account_data = Withdrawal {
+    let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
         round_number: 5,
-        event: WithdrawalEventWithLen::new(decimals, recipient_address, sender_address, amount),
-        meta: WithdrawalMetaWithLen::new(
+        event: WithdrawalTokenEventWithLen::new(
+            decimals,
+            recipient_address,
+            sender_address,
+            amount,
+        ),
+        meta: WithdrawalTokenMetaWithLen::new(
             Pubkey::new_unique(),
             TokenKind::Solana {
                 mint: mint.pubkey(),
                 vault: vault_address,
             },
-            WithdrawalStatus::WaitingForRelease,
+            WithdrawalTokenStatus::WaitingForRelease,
             0,
         ),
         required_votes: 0,
         signers: vec![],
     };
 
-    let mut withdrawal_packed = vec![0; Withdrawal::LEN];
-    Withdrawal::pack(withdrawal_account_data, &mut withdrawal_packed).unwrap();
+    let mut withdrawal_packed = vec![0; WithdrawalToken::LEN];
+    WithdrawalToken::pack(withdrawal_account_data, &mut withdrawal_packed).unwrap();
     program_test.add_account(
         withdrawal_address,
         Account {
-            lamports: Rent::default().minimum_balance(Withdrawal::LEN),
+            lamports: Rent::default().minimum_balance(WithdrawalToken::LEN),
             data: withdrawal_packed,
             owner: token_proxy::id(),
             executable: false,
@@ -1457,26 +1465,31 @@ async fn test_approve_withdrawal_ever() {
     let withdrawal_address =
         token_proxy::get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
 
-    let withdrawal_account_data = Withdrawal {
+    let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
         round_number: 5,
-        event: WithdrawalEventWithLen::new(decimals, recipient_address, sender_address, amount),
-        meta: WithdrawalMetaWithLen::new(
+        event: WithdrawalTokenEventWithLen::new(
+            decimals,
+            recipient_address,
+            sender_address,
+            amount,
+        ),
+        meta: WithdrawalTokenMetaWithLen::new(
             Pubkey::new_unique(),
             TokenKind::Ever { mint: mint_address },
-            WithdrawalStatus::WaitingForApprove,
+            WithdrawalTokenStatus::WaitingForApprove,
             0,
         ),
         required_votes: 0,
         signers: vec![],
     };
 
-    let mut withdrawal_packed = vec![0; Withdrawal::LEN];
-    Withdrawal::pack(withdrawal_account_data, &mut withdrawal_packed).unwrap();
+    let mut withdrawal_packed = vec![0; WithdrawalToken::LEN];
+    WithdrawalToken::pack(withdrawal_account_data, &mut withdrawal_packed).unwrap();
     program_test.add_account(
         withdrawal_address,
         Account {
-            lamports: Rent::default().minimum_balance(Withdrawal::LEN),
+            lamports: Rent::default().minimum_balance(WithdrawalToken::LEN),
             data: withdrawal_packed,
             owner: token_proxy::id(),
             executable: false,
@@ -1510,10 +1523,11 @@ async fn test_approve_withdrawal_ever() {
         .expect("get_account")
         .expect("account");
 
-    let withdrawal_data = Withdrawal::unpack(withdrawal_info.data()).expect("withdrawal unpack");
+    let withdrawal_data =
+        WithdrawalToken::unpack(withdrawal_info.data()).expect("withdrawal unpack");
     assert_eq!(
         withdrawal_data.meta.data.status,
-        WithdrawalStatus::Processed
+        WithdrawalTokenStatus::Processed
     );
 
     let mint_info = banks_client
@@ -1596,29 +1610,34 @@ async fn test_approve_withdrawal_sol() {
     let withdrawal_address =
         token_proxy::get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
 
-    let withdrawal_account_data = Withdrawal {
+    let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
         round_number: 5,
-        event: WithdrawalEventWithLen::new(decimals, Pubkey::new_unique(), sender_address, amount),
-        meta: WithdrawalMetaWithLen::new(
+        event: WithdrawalTokenEventWithLen::new(
+            decimals,
+            Pubkey::new_unique(),
+            sender_address,
+            amount,
+        ),
+        meta: WithdrawalTokenMetaWithLen::new(
             Pubkey::new_unique(),
             TokenKind::Solana {
                 mint,
                 vault: vault_address,
             },
-            WithdrawalStatus::WaitingForApprove,
+            WithdrawalTokenStatus::WaitingForApprove,
             0,
         ),
         required_votes: 0,
         signers: vec![],
     };
 
-    let mut withdrawal_packed = vec![0; Withdrawal::LEN];
-    Withdrawal::pack(withdrawal_account_data, &mut withdrawal_packed).unwrap();
+    let mut withdrawal_packed = vec![0; WithdrawalToken::LEN];
+    WithdrawalToken::pack(withdrawal_account_data, &mut withdrawal_packed).unwrap();
     program_test.add_account(
         withdrawal_address,
         Account {
-            lamports: Rent::default().minimum_balance(Withdrawal::LEN),
+            lamports: Rent::default().minimum_balance(WithdrawalToken::LEN),
             data: withdrawal_packed,
             owner: token_proxy::id(),
             executable: false,
@@ -1651,8 +1670,11 @@ async fn test_approve_withdrawal_sol() {
         .expect("get_account")
         .expect("account");
 
-    let withdrawal_data = Withdrawal::unpack(withdrawal_info.data()).expect("settings unpack");
-    assert_eq!(withdrawal_data.meta.data.status, WithdrawalStatus::Pending);
+    let withdrawal_data = WithdrawalToken::unpack(withdrawal_info.data()).expect("settings unpack");
+    assert_eq!(
+        withdrawal_data.meta.data.status,
+        WithdrawalTokenStatus::Pending
+    );
 }
 
 #[tokio::test]
@@ -1725,29 +1747,34 @@ async fn test_cancel_withdrawal_sol() {
     let withdrawal_address =
         token_proxy::get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
 
-    let withdrawal_account_data = Withdrawal {
+    let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
         round_number: 5,
-        event: WithdrawalEventWithLen::new(decimals, Pubkey::new_unique(), sender_address, amount),
-        meta: WithdrawalMetaWithLen::new(
+        event: WithdrawalTokenEventWithLen::new(
+            decimals,
+            Pubkey::new_unique(),
+            sender_address,
+            amount,
+        ),
+        meta: WithdrawalTokenMetaWithLen::new(
             author.pubkey(),
             TokenKind::Solana {
                 mint: mint.pubkey(),
                 vault: vault_address,
             },
-            WithdrawalStatus::Pending,
+            WithdrawalTokenStatus::Pending,
             0,
         ),
         required_votes: 0,
         signers: vec![],
     };
 
-    let mut withdrawal_packed = vec![0; Withdrawal::LEN];
-    Withdrawal::pack(withdrawal_account_data, &mut withdrawal_packed).unwrap();
+    let mut withdrawal_packed = vec![0; WithdrawalToken::LEN];
+    WithdrawalToken::pack(withdrawal_account_data, &mut withdrawal_packed).unwrap();
     program_test.add_account(
         withdrawal_address,
         Account {
-            lamports: Rent::default().minimum_balance(Withdrawal::LEN),
+            lamports: Rent::default().minimum_balance(WithdrawalToken::LEN),
             data: withdrawal_packed,
             owner: token_proxy::id(),
             executable: false,
@@ -1785,11 +1812,12 @@ async fn test_cancel_withdrawal_sol() {
         .expect("get_account")
         .expect("account");
 
-    let withdrawal_data = Withdrawal::unpack(withdrawal_info.data()).expect("withdrawal unpack");
+    let withdrawal_data =
+        WithdrawalToken::unpack(withdrawal_info.data()).expect("withdrawal unpack");
 
     assert_eq!(
         withdrawal_data.meta.data.status,
-        WithdrawalStatus::Cancelled
+        WithdrawalTokenStatus::Cancelled
     );
 
     let new_deposit_address = get_associated_deposit_address(&deposit_payload_id);
@@ -1935,29 +1963,34 @@ async fn test_force_withdrawal_sol() {
     let withdrawal_address =
         token_proxy::get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
 
-    let withdrawal_account_data = Withdrawal {
+    let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
         round_number: 5,
-        event: WithdrawalEventWithLen::new(decimals, recipient_address, sender_address, amount),
-        meta: WithdrawalMetaWithLen::new(
+        event: WithdrawalTokenEventWithLen::new(
+            decimals,
+            recipient_address,
+            sender_address,
+            amount,
+        ),
+        meta: WithdrawalTokenMetaWithLen::new(
             Pubkey::new_unique(),
             TokenKind::Solana {
                 mint: mint.pubkey(),
                 vault: vault_address,
             },
-            WithdrawalStatus::Pending,
+            WithdrawalTokenStatus::Pending,
             0,
         ),
         required_votes: 0,
         signers: vec![],
     };
 
-    let mut withdrawal_packed = vec![0; Withdrawal::LEN];
-    Withdrawal::pack(withdrawal_account_data, &mut withdrawal_packed).unwrap();
+    let mut withdrawal_packed = vec![0; WithdrawalToken::LEN];
+    WithdrawalToken::pack(withdrawal_account_data, &mut withdrawal_packed).unwrap();
     program_test.add_account(
         withdrawal_address,
         Account {
-            lamports: Rent::default().minimum_balance(Withdrawal::LEN),
+            lamports: Rent::default().minimum_balance(WithdrawalToken::LEN),
             data: withdrawal_packed,
             owner: token_proxy::id(),
             executable: false,
@@ -2112,29 +2145,34 @@ async fn test_fill_withdrawal_sol() {
     let withdrawal_address =
         token_proxy::get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
 
-    let withdrawal_account_data = Withdrawal {
+    let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
         round_number: 5,
-        event: WithdrawalEventWithLen::new(decimals, recipient_address, sender_address, amount),
-        meta: WithdrawalMetaWithLen::new(
+        event: WithdrawalTokenEventWithLen::new(
+            decimals,
+            recipient_address,
+            sender_address,
+            amount,
+        ),
+        meta: WithdrawalTokenMetaWithLen::new(
             Pubkey::new_unique(),
             TokenKind::Solana {
                 mint: mint.pubkey(),
                 vault: Pubkey::new_unique(),
             },
-            WithdrawalStatus::Pending,
+            WithdrawalTokenStatus::Pending,
             bounty,
         ),
         required_votes: 0,
         signers: vec![],
     };
 
-    let mut withdrawal_packed = vec![0; Withdrawal::LEN];
-    Withdrawal::pack(withdrawal_account_data, &mut withdrawal_packed).unwrap();
+    let mut withdrawal_packed = vec![0; WithdrawalToken::LEN];
+    WithdrawalToken::pack(withdrawal_account_data, &mut withdrawal_packed).unwrap();
     program_test.add_account(
         withdrawal_address,
         Account {
-            lamports: Rent::default().minimum_balance(Withdrawal::LEN),
+            lamports: Rent::default().minimum_balance(WithdrawalToken::LEN),
             data: withdrawal_packed,
             owner: token_proxy::id(),
             executable: false,
@@ -2389,29 +2427,34 @@ async fn test_change_bounty_for_withdrawal_sol() {
     let withdrawal_address =
         token_proxy::get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
 
-    let withdrawal_account_data = Withdrawal {
+    let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
         round_number: 5,
-        event: WithdrawalEventWithLen::new(decimals, Pubkey::new_unique(), sender_address, amount),
-        meta: WithdrawalMetaWithLen::new(
+        event: WithdrawalTokenEventWithLen::new(
+            decimals,
+            Pubkey::new_unique(),
+            sender_address,
+            amount,
+        ),
+        meta: WithdrawalTokenMetaWithLen::new(
             author.pubkey(),
             TokenKind::Solana {
                 mint: Pubkey::new_unique(),
                 vault: Pubkey::new_unique(),
             },
-            WithdrawalStatus::Pending,
+            WithdrawalTokenStatus::Pending,
             0,
         ),
         required_votes: 0,
         signers: vec![],
     };
 
-    let mut withdrawal_packed = vec![0; Withdrawal::LEN];
-    Withdrawal::pack(withdrawal_account_data, &mut withdrawal_packed).unwrap();
+    let mut withdrawal_packed = vec![0; WithdrawalToken::LEN];
+    WithdrawalToken::pack(withdrawal_account_data, &mut withdrawal_packed).unwrap();
     program_test.add_account(
         withdrawal_address,
         Account {
-            lamports: Rent::default().minimum_balance(Withdrawal::LEN),
+            lamports: Rent::default().minimum_balance(WithdrawalToken::LEN),
             data: withdrawal_packed,
             owner: token_proxy::id(),
             executable: false,
@@ -2445,7 +2488,8 @@ async fn test_change_bounty_for_withdrawal_sol() {
         .expect("get_account")
         .expect("account");
 
-    let withdrawal_data = Withdrawal::unpack(withdrawal_info.data()).expect("withdrawal unpack");
+    let withdrawal_data =
+        WithdrawalToken::unpack(withdrawal_info.data()).expect("withdrawal unpack");
     assert_eq!(withdrawal_data.meta.data.bounty, bounty);
 }
 
