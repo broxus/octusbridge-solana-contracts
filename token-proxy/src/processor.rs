@@ -4,7 +4,6 @@ use bridge_utils::{EverAddress, UInt256};
 use solana_program::account_info::{next_account_info, AccountInfo};
 use solana_program::clock::Clock;
 use solana_program::entrypoint::ProgramResult;
-use solana_program::hash::Hash;
 use solana_program::program::{invoke, invoke_signed};
 use solana_program::program_error::ProgramError;
 use solana_program::program_pack::Pack;
@@ -14,9 +13,10 @@ use solana_program::sysvar::Sysvar;
 use solana_program::{msg, system_instruction};
 
 use crate::{
-    Deposit, Settings, TokenKind, TokenProxyError, TokenProxyInstruction, Vote, Withdrawal,
-    WithdrawalToken, WithdrawalTokenEventWithLen, WithdrawalTokenMetaWithLen,
-    WithdrawalTokenStatus, WITHDRAWAL_TOKEN_PERIOD,
+    Deposit, DepositToken, DepositTokenEventWithLen, DepositTokenMetaWithLen, Settings, TokenKind,
+    TokenProxyError, TokenProxyInstruction, Vote, Withdrawal, WithdrawalToken,
+    WithdrawalTokenEventWithLen, WithdrawalTokenMetaWithLen, WithdrawalTokenStatus,
+    WITHDRAWAL_TOKEN_PERIOD,
 };
 
 pub struct Processor;
@@ -71,24 +71,34 @@ impl Processor {
             }
             TokenProxyInstruction::DepositEver {
                 name,
-                payload_id,
                 recipient,
                 amount,
+                deposit_seed,
             } => {
                 msg!("Instruction: Deposit EVER");
                 Self::process_deposit_ever(
-                    program_id, accounts, name, payload_id, recipient, amount,
+                    program_id,
+                    accounts,
+                    name,
+                    recipient,
+                    amount,
+                    deposit_seed,
                 )?;
             }
             TokenProxyInstruction::DepositSol {
                 name,
-                payload_id,
                 recipient,
                 amount,
+                deposit_seed,
             } => {
                 msg!("Instruction: Deposit SOL");
                 Self::process_deposit_sol(
-                    program_id, accounts, name, payload_id, recipient, amount,
+                    program_id,
+                    accounts,
+                    name,
+                    recipient,
+                    amount,
+                    deposit_seed,
                 )?;
             }
             TokenProxyInstruction::WithdrawRequest {
@@ -200,7 +210,7 @@ impl Processor {
             TokenProxyInstruction::CancelWithdrawSol {
                 event_configuration,
                 event_transaction_lt,
-                deposit_payload_id,
+                deposit_seed,
             } => {
                 msg!("Instruction: Cancel Withdraw SOL");
                 Self::process_cancel_withdraw_sol(
@@ -208,7 +218,7 @@ impl Processor {
                     accounts,
                     event_configuration,
                     event_transaction_lt,
-                    deposit_payload_id,
+                    deposit_seed,
                 )?;
             }
             TokenProxyInstruction::ForceWithdrawSol {
@@ -228,8 +238,8 @@ impl Processor {
             TokenProxyInstruction::FillWithdrawSol {
                 event_configuration,
                 event_transaction_lt,
-                deposit_payload_id,
                 recipient,
+                deposit_seed,
             } => {
                 msg!("Instruction: Fill Withdraw SOL");
                 Self::process_fill_withdraw_sol(
@@ -237,8 +247,8 @@ impl Processor {
                     accounts,
                     event_configuration,
                     event_transaction_lt,
-                    deposit_payload_id,
                     recipient,
+                    deposit_seed,
                 )?;
             }
             TokenProxyInstruction::TransferFromVault { name, amount } => {
@@ -527,9 +537,9 @@ impl Processor {
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         name: String,
-        payload_id: Hash,
         recipient: EverAddress,
         amount: u64,
+        deposit_seed: u64,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -579,9 +589,9 @@ impl Processor {
 
         // Validate Deposit Account
         let deposit_nonce =
-            bridge_utils::validate_deposit_account(program_id, &payload_id, deposit_account_info)?;
+            bridge_utils::validate_deposit_account(program_id, deposit_seed, deposit_account_info)?;
         let deposit_account_signer_seeds: &[&[_]] =
-            &[br"deposit", &payload_id.to_bytes(), &[deposit_nonce]];
+            &[br"deposit", &deposit_seed.to_le_bytes(), &[deposit_nonce]];
 
         // Create Deposit Account
         invoke_signed(
@@ -601,17 +611,18 @@ impl Processor {
         )?;
 
         // Init Deposit Account
-        let deposit_account_data = Deposit {
+        let deposit_account_data = DepositToken {
             is_initialized: true,
-            payload_id,
-            kind: settings_account_data.kind,
-            sender: *authority_sender_account_info.key,
-            recipient,
-            decimals: settings_account_data.decimals,
-            amount,
+            event: DepositTokenEventWithLen::new(
+                settings_account_data.decimals,
+                recipient,
+                *authority_sender_account_info.key,
+                amount,
+            ),
+            meta: DepositTokenMetaWithLen::new(settings_account_data.kind),
         };
 
-        Deposit::pack(
+        DepositToken::pack(
             deposit_account_data,
             &mut deposit_account_info.data.borrow_mut(),
         )?;
@@ -623,9 +634,9 @@ impl Processor {
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         name: String,
-        payload_id: Hash,
         recipient: EverAddress,
         amount: u64,
+        deposit_seed: u64,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -695,9 +706,9 @@ impl Processor {
 
         // Validate Deposit Account
         let deposit_nonce =
-            bridge_utils::validate_deposit_account(program_id, &payload_id, deposit_account_info)?;
+            bridge_utils::validate_deposit_account(program_id, deposit_seed, deposit_account_info)?;
         let deposit_account_signer_seeds: &[&[_]] =
-            &[br"deposit", &payload_id.to_bytes(), &[deposit_nonce]];
+            &[br"deposit", &deposit_seed.to_le_bytes(), &[deposit_nonce]];
 
         // Create Deposit Account
         invoke_signed(
@@ -717,17 +728,18 @@ impl Processor {
         )?;
 
         // Init Deposit Account
-        let deposit_account_data = Deposit {
+        let deposit_account_data = DepositToken {
             is_initialized: true,
-            payload_id,
-            kind: settings_account_data.kind,
-            sender: *authority_sender_account_info.key,
-            recipient,
-            decimals: settings_account_data.decimals,
-            amount,
+            event: DepositTokenEventWithLen::new(
+                settings_account_data.decimals,
+                recipient,
+                *authority_sender_account_info.key,
+                amount,
+            ),
+            meta: DepositTokenMetaWithLen::new(settings_account_data.kind),
         };
 
-        Deposit::pack(
+        DepositToken::pack(
             deposit_account_data,
             &mut deposit_account_info.data.borrow_mut(),
         )?;
@@ -1375,7 +1387,7 @@ impl Processor {
         accounts: &[AccountInfo],
         event_configuration: UInt256,
         event_transaction_lt: u64,
-        deposit_payload_id: Hash,
+        deposit_seed: u64,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -1411,14 +1423,11 @@ impl Processor {
         // Validate a new Deposit Account
         let deposit_nonce = bridge_utils::validate_deposit_account(
             program_id,
-            &deposit_payload_id,
+            deposit_seed,
             new_deposit_account_info,
         )?;
-        let deposit_account_signer_seeds: &[&[_]] = &[
-            br"deposit",
-            &deposit_payload_id.to_bytes(),
-            &[deposit_nonce],
-        ];
+        let deposit_account_signer_seeds: &[&[_]] =
+            &[br"deposit", &deposit_seed.to_le_bytes(), &[deposit_nonce]];
 
         // Create a new Deposit Account
         invoke_signed(
@@ -1438,17 +1447,18 @@ impl Processor {
         )?;
 
         // Init Deposit Account
-        let deposit_account_data = Deposit {
+        let deposit_account_data = DepositToken {
             is_initialized: true,
-            payload_id: deposit_payload_id,
-            kind: withdrawal_account_data.meta.data.kind,
-            sender: withdrawal_account_data.event.data.recipient,
-            recipient: withdrawal_account_data.event.data.sender,
-            decimals: withdrawal_account_data.event.data.decimals,
-            amount: withdrawal_account_data.event.data.amount,
+            event: DepositTokenEventWithLen::new(
+                withdrawal_account_data.event.data.decimals,
+                withdrawal_account_data.event.data.sender,
+                withdrawal_account_data.event.data.recipient,
+                withdrawal_account_data.event.data.amount,
+            ),
+            meta: DepositTokenMetaWithLen::new(withdrawal_account_data.meta.data.kind),
         };
 
-        Deposit::pack(
+        DepositToken::pack(
             deposit_account_data,
             &mut new_deposit_account_info.data.borrow_mut(),
         )?;
@@ -1570,8 +1580,8 @@ impl Processor {
         accounts: &[AccountInfo],
         event_configuration: UInt256,
         event_transaction_lt: u64,
-        deposit_payload_id: Hash,
         recipient: EverAddress,
+        deposit_seed: u64,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -1647,14 +1657,11 @@ impl Processor {
         // Validate a new Deposit Account
         let deposit_nonce = bridge_utils::validate_deposit_account(
             program_id,
-            &deposit_payload_id,
+            deposit_seed,
             new_deposit_account_info,
         )?;
-        let deposit_account_signer_seeds: &[&[_]] = &[
-            br"deposit",
-            &deposit_payload_id.to_bytes(),
-            &[deposit_nonce],
-        ];
+        let deposit_account_signer_seeds: &[&[_]] =
+            &[br"deposit", &deposit_seed.to_le_bytes(), &[deposit_nonce]];
 
         // Create a new Deposit Account
         invoke_signed(
@@ -1674,17 +1681,18 @@ impl Processor {
         )?;
 
         // Init Deposit Account
-        let deposit_account_data = Deposit {
+        let deposit_account_data = DepositToken {
             is_initialized: true,
-            payload_id: deposit_payload_id,
-            kind: withdrawal_account_data.meta.data.kind,
-            sender: *authority_sender_account_info.key,
-            recipient,
-            decimals: withdrawal_account_data.event.data.decimals,
-            amount: withdrawal_account_data.event.data.amount,
+            event: DepositTokenEventWithLen::new(
+                withdrawal_account_data.event.data.decimals,
+                recipient,
+                *authority_sender_account_info.key,
+                withdrawal_account_data.event.data.amount,
+            ),
+            meta: DepositTokenMetaWithLen::new(withdrawal_account_data.meta.data.kind),
         };
 
-        Deposit::pack(
+        DepositToken::pack(
             deposit_account_data,
             &mut new_deposit_account_info.data.borrow_mut(),
         )?;

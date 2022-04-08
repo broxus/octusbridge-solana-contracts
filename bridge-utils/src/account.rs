@@ -1,7 +1,6 @@
 use solana_program::account_info::AccountInfo;
 use solana_program::bpf_loader_upgradeable;
 use solana_program::bpf_loader_upgradeable::UpgradeableLoaderState;
-use solana_program::hash::Hash;
 use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
 
@@ -89,11 +88,11 @@ pub fn validate_settings_account(
 
 pub fn validate_deposit_account(
     program_id: &Pubkey,
-    payload_id: &Hash,
+    deposit_seed: u64,
     account_info: &AccountInfo,
 ) -> Result<u8, ProgramError> {
     let (account, nonce) =
-        Pubkey::find_program_address(&[br"deposit", &payload_id.to_bytes()], program_id);
+        Pubkey::find_program_address(&[br"deposit", &deposit_seed.to_le_bytes()], program_id);
 
     if account != *account_info.key {
         return Err(ProgramError::InvalidAccountData);

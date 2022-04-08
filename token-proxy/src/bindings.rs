@@ -2,7 +2,6 @@ use borsh::BorshSerialize;
 use bridge_utils::EverAddress;
 use ton_types::UInt256;
 
-use solana_program::hash::Hash;
 use solana_program::instruction::{AccountMeta, Instruction};
 use solana_program::pubkey::Pubkey;
 use solana_program::{bpf_loader_upgradeable, system_program, sysvar};
@@ -26,8 +25,8 @@ pub fn get_associated_settings_address(name: &str) -> Pubkey {
 }
 
 #[allow(dead_code)]
-pub fn get_associated_deposit_address(payload_id: &Hash) -> Pubkey {
-    Pubkey::find_program_address(&[br"deposit", &payload_id.to_bytes()], &id()).0
+pub fn get_associated_deposit_address(deposit_seed: u64) -> Pubkey {
+    Pubkey::find_program_address(&[br"deposit", &deposit_seed.to_le_bytes()], &id()).0
 }
 
 #[allow(dead_code)]
@@ -144,20 +143,20 @@ pub fn deposit_ever(
     funder_pubkey: &Pubkey,
     sender_pubkey: &Pubkey,
     name: String,
-    payload_id: Hash,
     recipient: EverAddress,
     amount: u64,
+    deposit_seed: u64,
 ) -> Instruction {
     let mint_pubkey = get_associated_mint_address(&name);
     let settings_pubkey = get_associated_settings_address(&name);
     let sender_token_pubkey = get_associated_token_address(sender_pubkey, &mint_pubkey);
-    let deposit_pubkey = get_associated_deposit_address(&payload_id);
+    let deposit_pubkey = get_associated_deposit_address(deposit_seed);
 
     let data = TokenProxyInstruction::DepositEver {
         name,
-        payload_id,
         recipient,
         amount,
+        deposit_seed,
     }
     .try_to_vec()
     .expect("pack");
@@ -185,21 +184,21 @@ pub fn deposit_sol(
     mint_pubkey: &Pubkey,
     sender_pubkey: &Pubkey,
     name: String,
-    payload_id: Hash,
     recipient: EverAddress,
     amount: u64,
+    deposit_seed: u64,
 ) -> Instruction {
     let vault_pubkey = get_associated_vault_address(&name);
     let settings_pubkey = get_associated_settings_address(&name);
 
-    let deposit_pubkey = get_associated_deposit_address(&payload_id);
+    let deposit_pubkey = get_associated_deposit_address(deposit_seed);
     let sender_token_pubkey = get_associated_token_address(sender_pubkey, mint_pubkey);
 
     let data = TokenProxyInstruction::DepositSol {
         name,
-        payload_id,
         recipient,
         amount,
+        deposit_seed,
     }
     .try_to_vec()
     .expect("pack");
@@ -483,17 +482,17 @@ pub fn cancel_withdrawal_sol(
     authority_pubkey: &Pubkey,
     event_configuration: &UInt256,
     event_transaction_lt: u64,
-    deposit_payload_id: Hash,
+    deposit_seed: u64,
 ) -> Instruction {
     let withdrawal_pubkey =
         get_associated_withdrawal_address(event_configuration, event_transaction_lt);
-    let deposit_pubkey = get_associated_deposit_address(&deposit_payload_id);
+    let deposit_pubkey = get_associated_deposit_address(deposit_seed);
 
     let event_configuration = bridge_utils::UInt256::from(event_configuration.as_slice());
     let data = TokenProxyInstruction::CancelWithdrawSol {
         event_configuration,
         event_transaction_lt,
-        deposit_payload_id,
+        deposit_seed,
     }
     .try_to_vec()
     .expect("pack");
@@ -559,7 +558,7 @@ pub fn fill_withdrawal_sol(
     to_pubkey: &Pubkey,
     event_configuration: &UInt256,
     event_transaction_lt: u64,
-    deposit_payload_id: Hash,
+    deposit_seed: u64,
     recipient: EverAddress,
 ) -> Instruction {
     let sender_pubkey = spl_associated_token_account::get_associated_token_address(
@@ -571,13 +570,13 @@ pub fn fill_withdrawal_sol(
 
     let withdrawal_pubkey =
         get_associated_withdrawal_address(event_configuration, event_transaction_lt);
-    let new_deposit_pubkey = get_associated_deposit_address(&deposit_payload_id);
+    let new_deposit_pubkey = get_associated_deposit_address(deposit_seed);
 
     let event_configuration = bridge_utils::UInt256::from(event_configuration.as_slice());
     let data = TokenProxyInstruction::FillWithdrawSol {
         event_configuration,
         event_transaction_lt,
-        deposit_payload_id,
+        deposit_seed,
         recipient,
     }
     .try_to_vec()

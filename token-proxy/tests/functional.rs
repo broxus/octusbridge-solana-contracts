@@ -1,10 +1,10 @@
 #![cfg(feature = "test-bpf")]
 
 use bridge_utils::EverAddress;
+use rand::Rng;
 use round_loader::RelayRound;
 
 use solana_program::bpf_loader_upgradeable::UpgradeableLoaderState;
-use solana_program::hash::Hash;
 use solana_program::rent::Rent;
 use solana_program::{bpf_loader_upgradeable, program_option, program_pack::Pack, pubkey::Pubkey};
 use solana_program_test::{processor, tokio, ProgramTest};
@@ -15,7 +15,7 @@ use spl_associated_token_account::get_associated_token_address;
 use spl_token::state::AccountState;
 
 use token_proxy::{
-    get_associated_deposit_address, get_associated_withdrawal_address, Deposit, Processor,
+    get_associated_deposit_address, get_associated_withdrawal_address, DepositToken, Processor,
     Settings, TokenKind, WithdrawalToken, WithdrawalTokenEventWithLen, WithdrawalTokenMetaWithLen,
     WithdrawalTokenStatus,
 };
@@ -358,7 +358,7 @@ async fn test_deposit_ever() {
     // Start Program Test
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
-    let payload_id = Hash::new_unique();
+    let deposit_seed = rand::thread_rng().gen::<u64>();
     let recipient = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 32;
 
@@ -367,9 +367,9 @@ async fn test_deposit_ever() {
             &funder.pubkey(),
             &sender.pubkey(),
             name,
-            payload_id,
             recipient,
             amount,
+            deposit_seed,
         )],
         Some(&funder.pubkey()),
     );
@@ -536,7 +536,7 @@ async fn test_deposit_sol() {
     // Start Program Test
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
-    let payload_id = Hash::new_unique();
+    let deposit_seed = rand::thread_rng().gen::<u64>();
     let recipient = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 32;
 
@@ -546,9 +546,9 @@ async fn test_deposit_sol() {
             &mint.pubkey(),
             &sender.pubkey(),
             name.clone(),
-            payload_id,
             recipient,
             amount,
+            deposit_seed,
         )],
         Some(&funder.pubkey()),
     );
@@ -1785,7 +1785,7 @@ async fn test_cancel_withdrawal_sol() {
     // Start Program Test
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
-    let deposit_payload_id = Hash::new_unique();
+    let deposit_seed = rand::thread_rng().gen::<u64>();
 
     let mut transaction = Transaction::new_with_payer(
         &[token_proxy::cancel_withdrawal_sol(
@@ -1793,7 +1793,7 @@ async fn test_cancel_withdrawal_sol() {
             &author.pubkey(),
             &event_configuration,
             event_transaction_lt,
-            deposit_payload_id,
+            deposit_seed,
         )],
         Some(&funder.pubkey()),
     );
@@ -1820,17 +1820,16 @@ async fn test_cancel_withdrawal_sol() {
         WithdrawalTokenStatus::Cancelled
     );
 
-    let new_deposit_address = get_associated_deposit_address(&deposit_payload_id);
+    let new_deposit_address = get_associated_deposit_address(deposit_seed);
     let new_deposit_info = banks_client
         .get_account(new_deposit_address)
         .await
         .expect("get_account")
         .expect("account");
 
-    let deposit_data = Deposit::unpack(new_deposit_info.data()).expect("deposit unpack");
-
+    let deposit_data = DepositToken::unpack(new_deposit_info.data()).expect("deposit unpack");
     assert_eq!(deposit_data.is_initialized, true);
-    assert_eq!(deposit_data.payload_id, deposit_payload_id);
+    assert_eq!(deposit_data.event.data.amount, amount);
 }
 
 #[tokio::test]
@@ -2183,7 +2182,7 @@ async fn test_fill_withdrawal_sol() {
     // Start Program Test
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
-    let deposit_payload_id = Hash::new_unique();
+    let deposit_seed = rand::thread_rng().gen::<u64>();
     let recipient = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
 
     let mut transaction = Transaction::new_with_payer(
@@ -2194,7 +2193,7 @@ async fn test_fill_withdrawal_sol() {
             &recipient_address,
             &event_configuration,
             event_transaction_lt,
-            deposit_payload_id,
+            deposit_seed,
             recipient,
         )],
         Some(&funder.pubkey()),
@@ -2228,18 +2227,17 @@ async fn test_fill_withdrawal_sol() {
             .expect("recipient unpack");
     assert_eq!(recipient_associated_token_data.amount, amount - bounty);
 
-    let deposit_address = get_associated_deposit_address(&deposit_payload_id);
+    let deposit_address = get_associated_deposit_address(deposit_seed);
     let deposit_info = banks_client
         .get_account(deposit_address)
         .await
         .expect("get_account")
         .expect("account");
 
-    let deposit_data = Deposit::unpack(deposit_info.data()).expect("deposit unpack");
+    let deposit_data = DepositToken::unpack(deposit_info.data()).expect("deposit unpack");
 
     assert_eq!(deposit_data.is_initialized, true);
-    assert_eq!(deposit_data.payload_id, deposit_payload_id);
-    assert_eq!(deposit_data.amount, amount);
+    assert_eq!(deposit_data.event.data.amount, amount);
 }
 
 #[tokio::test]

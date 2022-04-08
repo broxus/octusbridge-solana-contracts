@@ -4,30 +4,39 @@ use bridge_utils::EverAddress;
 use enum_as_inner::EnumAsInner;
 use serde::{Deserialize, Serialize};
 
-use solana_program::hash::Hash;
 use solana_program::program_error::ProgramError;
 use solana_program::program_pack::{IsInitialized, Pack, Sealed};
 use solana_program::pubkey::{Pubkey, PUBKEY_BYTES};
 
 pub const WITHDRAWAL_TOKEN_PERIOD: i64 = 86400;
 
-const WITHDRAW_TOKEN_EVENT_LEN: usize = 1  // decimals
-    + PUBKEY_BYTES                   // solana recipient address
-    + PUBKEY_BYTES + 1 + 1           // ever sender address
-    + 8                              // amount
+const WITHDRAW_TOKEN_EVENT_LEN: usize = 1   // decimals
+    + PUBKEY_BYTES                          // solana recipient address
+    + PUBKEY_BYTES + 1 + 1                  // ever sender address
+    + 8                                     // amount
 ;
 
 const WITHDRAW_EVER_META_LEN: usize = PUBKEY_BYTES  // author
-    + 1 + PUBKEY_BYTES                              // kind
+    + 1 + PUBKEY_BYTES                              // ever kind
     + 8                                             // bounty
     + 1                                             // status
 ;
 
 const WITHDRAW_SOL_META_LEN: usize = PUBKEY_BYTES   // author
-    + 1 + PUBKEY_BYTES + PUBKEY_BYTES               // kind
+    + 1 + PUBKEY_BYTES + PUBKEY_BYTES               // sol kind
     + 8                                             // bounty
     + 1                                             // status
 ;
+
+const DEPOSIT_TOKEN_EVENT_LEN: usize = 1    // decimals
+    + PUBKEY_BYTES + 1 + 1                  // ever recipient address
+    + PUBKEY_BYTES                          // solana sender address
+    + 8                                     // amount
+;
+
+const DEPOSIT_EVER_META_LEN: usize = 1 + PUBKEY_BYTES; // ever kind
+
+const DEPOSIT_SOL_META_LEN: usize = 1 + PUBKEY_BYTES + PUBKEY_BYTES; // sol kind
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
 #[bridge_pack(length = 500)]
@@ -56,12 +65,8 @@ impl IsInitialized for Settings {
 #[bridge_pack(length = 500)]
 pub struct Deposit {
     pub is_initialized: bool,
-    pub payload_id: Hash,
-    pub kind: TokenKind,
-    pub sender: Pubkey,
-    pub recipient: EverAddress,
-    pub decimals: u8,
-    pub amount: u64,
+    pub event: Vec<u8>,
+    pub meta: Vec<u8>,
 }
 
 impl Sealed for Deposit {}
@@ -69,6 +74,75 @@ impl Sealed for Deposit {}
 impl IsInitialized for Deposit {
     fn is_initialized(&self) -> bool {
         self.is_initialized
+    }
+}
+
+#[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
+#[bridge_pack(length = 500)]
+pub struct DepositToken {
+    pub is_initialized: bool,
+    pub event: DepositTokenEventWithLen,
+    pub meta: DepositTokenMetaWithLen,
+}
+
+impl Sealed for DepositToken {}
+
+impl IsInitialized for DepositToken {
+    fn is_initialized(&self) -> bool {
+        self.is_initialized
+    }
+}
+
+#[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+pub struct DepositTokenEvent {
+    pub decimals: u8,
+    pub recipient: EverAddress,
+    pub sender: Pubkey,
+    pub amount: u64,
+}
+
+#[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+pub struct DepositTokenEventWithLen {
+    pub len: u32,
+    pub data: DepositTokenEvent,
+}
+
+impl DepositTokenEventWithLen {
+    pub fn new(decimals: u8, recipient: EverAddress, sender: Pubkey, amount: u64) -> Self {
+        Self {
+            len: DEPOSIT_TOKEN_EVENT_LEN as u32,
+            data: DepositTokenEvent {
+                decimals,
+                recipient,
+                sender,
+                amount,
+            },
+        }
+    }
+}
+
+#[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+pub struct DepositTokenMeta {
+    pub kind: TokenKind,
+}
+
+#[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+pub struct DepositTokenMetaWithLen {
+    pub len: u32,
+    pub data: DepositTokenMeta,
+}
+
+impl DepositTokenMetaWithLen {
+    pub fn new(kind: TokenKind) -> Self {
+        let len = match kind {
+            TokenKind::Ever { .. } => DEPOSIT_EVER_META_LEN,
+            TokenKind::Solana { .. } => DEPOSIT_SOL_META_LEN,
+        } as u32;
+
+        Self {
+            len,
+            data: DepositTokenMeta { kind },
+        }
     }
 }
 

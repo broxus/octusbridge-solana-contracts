@@ -3049,6 +3049,7 @@ dependencies = [
  "bridge-derive",
  "bridge-utils",
  "enum-as-inner",
+ "rand 0.8.5",
  "round-loader",
  "serde",
  "solana-program",

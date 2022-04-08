@@ -1,7 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use bridge_utils::{EverAddress, UInt256};
 
-use solana_program::hash::Hash;
 use solana_program::pubkey::Pubkey;
 
 use crate::Vote;
@@ -76,12 +75,12 @@ pub enum TokenProxyInstruction {
     DepositEver {
         // Mint asset name
         name: String,
-        // Unique transfer hash
-        payload_id: Hash,
         // Ever recipient address
         recipient: EverAddress,
         // Deposit amount
         amount: u64,
+        // Deposit seed
+        deposit_seed: u64,
     },
 
     /// Deposit SOL
@@ -100,12 +99,12 @@ pub enum TokenProxyInstruction {
     DepositSol {
         // Vault asset name
         name: String,
-        // Unique transfer hash
-        payload_id: Hash,
         // Ever recipient address
         recipient: EverAddress,
         // Deposit amount
         amount: u64,
+        // Deposit seed
+        deposit_seed: u64,
     },
 
     /// Withdraw EVER/SOL request
@@ -216,8 +215,8 @@ pub enum TokenProxyInstruction {
         event_configuration: UInt256,
         // Ever deployed event transaction_lt
         event_transaction_lt: u64,
-        // Unique transfer hash
-        deposit_payload_id: Hash,
+        // Deposit seed
+        deposit_seed: u64,
     },
 
     /// Force Withdraw SOL
@@ -243,10 +242,10 @@ pub enum TokenProxyInstruction {
         event_configuration: UInt256,
         // Ever deployed event transaction_lt
         event_transaction_lt: u64,
-        // Unique transfer hash
-        deposit_payload_id: Hash,
         // Recipient address
         recipient: EverAddress,
+        // Deposit seed
+        deposit_seed: u64,
     },
 
     /// Transfer from Vault
