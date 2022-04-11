@@ -269,7 +269,7 @@ pub fn withdrawal_request(
 }
 
 #[allow(dead_code)]
-pub fn confirm_withdrawal_request(
+pub fn vote_for_withdrawal_request(
     relay_pubkey: &Pubkey,
     round_number: u32,
     event_configuration: &UInt256,

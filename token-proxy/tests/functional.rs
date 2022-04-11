@@ -839,7 +839,7 @@ async fn test_confirm_withdrawal_request() {
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
     let mut transaction = Transaction::new_with_payer(
-        &[token_proxy::confirm_withdrawal_request(
+        &[token_proxy::vote_for_withdrawal_request(
             &relay.pubkey(),
             round_number,
             &event_configuration,
