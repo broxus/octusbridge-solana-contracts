@@ -13,10 +13,9 @@ use solana_program::sysvar::Sysvar;
 use solana_program::{msg, system_instruction};
 
 use crate::{
-    Deposit, DepositToken, DepositTokenEventWithLen, DepositTokenMetaWithLen, Settings, TokenKind,
-    TokenProxyError, TokenProxyInstruction, Vote, Withdrawal, WithdrawalToken,
-    WithdrawalTokenEventWithLen, WithdrawalTokenMetaWithLen, WithdrawalTokenStatus,
-    WITHDRAWAL_TOKEN_PERIOD,
+    Deposit, DepositToken, DepositTokenEventWithLen, Settings, TokenKind, TokenProxyError,
+    TokenProxyInstruction, Vote, Withdrawal, WithdrawalToken, WithdrawalTokenEventWithLen,
+    WithdrawalTokenMetaWithLen, WithdrawalTokenStatus, WITHDRAWAL_TOKEN_PERIOD,
 };
 
 pub struct Processor;
@@ -613,13 +612,13 @@ impl Processor {
         // Init Deposit Account
         let deposit_account_data = DepositToken {
             is_initialized: true,
+            kind: settings_account_data.kind,
             event: DepositTokenEventWithLen::new(
                 settings_account_data.decimals,
                 recipient,
                 *authority_sender_account_info.key,
                 amount,
             ),
-            meta: DepositTokenMetaWithLen::new(settings_account_data.kind),
         };
 
         DepositToken::pack(
@@ -730,13 +729,13 @@ impl Processor {
         // Init Deposit Account
         let deposit_account_data = DepositToken {
             is_initialized: true,
+            kind: settings_account_data.kind,
             event: DepositTokenEventWithLen::new(
                 settings_account_data.decimals,
                 recipient,
                 *authority_sender_account_info.key,
                 amount,
             ),
-            meta: DepositTokenMetaWithLen::new(settings_account_data.kind),
         };
 
         DepositToken::pack(
@@ -839,6 +838,7 @@ impl Processor {
         // Init Withdraw Account
         let withdrawal_account_data = WithdrawalToken {
             is_initialized: true,
+            kind,
             round_number,
             signers: vec![Vote::None; relay_round_account_data.relays.len()],
             required_votes,
@@ -850,7 +850,6 @@ impl Processor {
             ),
             meta: WithdrawalTokenMetaWithLen::new(
                 *authority_account_info.key,
-                kind,
                 WithdrawalTokenStatus::New,
                 0,
             ),
@@ -1042,8 +1041,6 @@ impl Processor {
             WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
 
         let withdrawal_kind = withdrawal_account_data
-            .meta
-            .data
             .kind
             .as_ever()
             .ok_or(TokenProxyError::InvalidTokenKind)?;
@@ -1140,8 +1137,6 @@ impl Processor {
             WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
 
         let withdrawal_kind = withdrawal_account_data
-            .meta
-            .data
             .kind
             .as_solana()
             .ok_or(TokenProxyError::InvalidTokenKind)?;
@@ -1258,8 +1253,6 @@ impl Processor {
         }
 
         let withdrawal_kind = withdrawal_account_data
-            .meta
-            .data
             .kind
             .as_ever()
             .ok_or(TokenProxyError::InvalidTokenKind)?;
@@ -1361,8 +1354,6 @@ impl Processor {
         }
 
         let withdrawal_kind = withdrawal_account_data
-            .meta
-            .data
             .kind
             .as_solana()
             .ok_or(TokenProxyError::InvalidTokenKind)?;
@@ -1449,13 +1440,13 @@ impl Processor {
         // Init Deposit Account
         let deposit_account_data = DepositToken {
             is_initialized: true,
+            kind: withdrawal_account_data.kind,
             event: DepositTokenEventWithLen::new(
                 withdrawal_account_data.event.data.decimals,
                 withdrawal_account_data.event.data.sender,
                 withdrawal_account_data.event.data.recipient,
                 withdrawal_account_data.event.data.amount,
             ),
-            meta: DepositTokenMetaWithLen::new(withdrawal_account_data.meta.data.kind),
         };
 
         DepositToken::pack(
@@ -1516,8 +1507,6 @@ impl Processor {
         }
 
         let withdrawal_kind = withdrawal_account_data
-            .meta
-            .data
             .kind
             .as_solana()
             .ok_or(TokenProxyError::InvalidTokenKind)?;
@@ -1683,13 +1672,13 @@ impl Processor {
         // Init Deposit Account
         let deposit_account_data = DepositToken {
             is_initialized: true,
+            kind: withdrawal_account_data.kind,
             event: DepositTokenEventWithLen::new(
                 withdrawal_account_data.event.data.decimals,
                 recipient,
                 *authority_sender_account_info.key,
                 withdrawal_account_data.event.data.amount,
             ),
-            meta: DepositTokenMetaWithLen::new(withdrawal_account_data.meta.data.kind),
         };
 
         DepositToken::pack(

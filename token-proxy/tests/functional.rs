@@ -715,10 +715,7 @@ async fn test_withdrawal_request() {
     assert_eq!(withdrawal_data.event.data.amount, amount);
     assert_eq!(withdrawal_data.meta.data.status, WithdrawalTokenStatus::New);
 
-    assert_eq!(
-        withdrawal_data.meta.data.kind,
-        TokenKind::Ever { mint: mint_address }
-    );
+    assert_eq!(withdrawal_data.kind, TokenKind::Ever { mint: mint_address });
 
     assert_eq!(withdrawal_data.signers.len(), relays.len());
     for (i, _) in relays.iter().enumerate() {
@@ -810,14 +807,10 @@ async fn test_confirm_withdrawal_request() {
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
+        kind: TokenKind::Ever { mint: mint_address },
         round_number,
         event: WithdrawalTokenEventWithLen::new(decimals, recipient_address, sender_address, 10),
-        meta: WithdrawalTokenMetaWithLen::new(
-            Pubkey::new_unique(),
-            TokenKind::Ever { mint: mint_address },
-            WithdrawalTokenStatus::New,
-            0,
-        ),
+        meta: WithdrawalTokenMetaWithLen::new(Pubkey::new_unique(), WithdrawalTokenStatus::New, 0),
         required_votes: 1,
         signers: vec![token_proxy::Vote::None],
     };
@@ -925,14 +918,10 @@ async fn test_update_withdrawal_status() {
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
+        kind: TokenKind::Ever { mint: mint_address },
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(decimals, recipient_address, sender_address, 10),
-        meta: WithdrawalTokenMetaWithLen::new(
-            Pubkey::new_unique(),
-            TokenKind::Ever { mint: mint_address },
-            WithdrawalTokenStatus::New,
-            0,
-        ),
+        meta: WithdrawalTokenMetaWithLen::new(Pubkey::new_unique(), WithdrawalTokenStatus::New, 0),
         required_votes: 0,
         signers: vec![],
     };
@@ -1088,6 +1077,7 @@ async fn test_withdrawal_ever() {
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
+        kind: TokenKind::Ever { mint: mint_address },
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(
             decimals,
@@ -1097,7 +1087,6 @@ async fn test_withdrawal_ever() {
         ),
         meta: WithdrawalTokenMetaWithLen::new(
             Pubkey::new_unique(),
-            TokenKind::Ever { mint: mint_address },
             WithdrawalTokenStatus::WaitingForRelease,
             0,
         ),
@@ -1289,6 +1278,10 @@ async fn test_withdrawal_sol() {
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
+        kind: TokenKind::Solana {
+            mint: mint.pubkey(),
+            vault: vault_address,
+        },
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(
             decimals,
@@ -1298,10 +1291,6 @@ async fn test_withdrawal_sol() {
         ),
         meta: WithdrawalTokenMetaWithLen::new(
             Pubkey::new_unique(),
-            TokenKind::Solana {
-                mint: mint.pubkey(),
-                vault: vault_address,
-            },
             WithdrawalTokenStatus::WaitingForRelease,
             0,
         ),
@@ -1467,6 +1456,7 @@ async fn test_approve_withdrawal_ever() {
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
+        kind: TokenKind::Ever { mint: mint_address },
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(
             decimals,
@@ -1476,7 +1466,6 @@ async fn test_approve_withdrawal_ever() {
         ),
         meta: WithdrawalTokenMetaWithLen::new(
             Pubkey::new_unique(),
-            TokenKind::Ever { mint: mint_address },
             WithdrawalTokenStatus::WaitingForApprove,
             0,
         ),
@@ -1612,6 +1601,10 @@ async fn test_approve_withdrawal_sol() {
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
+        kind: TokenKind::Solana {
+            mint,
+            vault: vault_address,
+        },
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(
             decimals,
@@ -1621,10 +1614,6 @@ async fn test_approve_withdrawal_sol() {
         ),
         meta: WithdrawalTokenMetaWithLen::new(
             Pubkey::new_unique(),
-            TokenKind::Solana {
-                mint,
-                vault: vault_address,
-            },
             WithdrawalTokenStatus::WaitingForApprove,
             0,
         ),
@@ -1749,6 +1738,10 @@ async fn test_cancel_withdrawal_sol() {
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
+        kind: TokenKind::Solana {
+            mint: mint.pubkey(),
+            vault: vault_address,
+        },
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(
             decimals,
@@ -1756,15 +1749,7 @@ async fn test_cancel_withdrawal_sol() {
             sender_address,
             amount,
         ),
-        meta: WithdrawalTokenMetaWithLen::new(
-            author.pubkey(),
-            TokenKind::Solana {
-                mint: mint.pubkey(),
-                vault: vault_address,
-            },
-            WithdrawalTokenStatus::Pending,
-            0,
-        ),
+        meta: WithdrawalTokenMetaWithLen::new(author.pubkey(), WithdrawalTokenStatus::Pending, 0),
         required_votes: 0,
         signers: vec![],
     };
@@ -1964,6 +1949,10 @@ async fn test_force_withdrawal_sol() {
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
+        kind: TokenKind::Solana {
+            mint: mint.pubkey(),
+            vault: vault_address,
+        },
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(
             decimals,
@@ -1973,10 +1962,6 @@ async fn test_force_withdrawal_sol() {
         ),
         meta: WithdrawalTokenMetaWithLen::new(
             Pubkey::new_unique(),
-            TokenKind::Solana {
-                mint: mint.pubkey(),
-                vault: vault_address,
-            },
             WithdrawalTokenStatus::Pending,
             0,
         ),
@@ -2146,6 +2131,10 @@ async fn test_fill_withdrawal_sol() {
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
+        kind: TokenKind::Solana {
+            mint: mint.pubkey(),
+            vault: Pubkey::new_unique(),
+        },
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(
             decimals,
@@ -2155,10 +2144,6 @@ async fn test_fill_withdrawal_sol() {
         ),
         meta: WithdrawalTokenMetaWithLen::new(
             Pubkey::new_unique(),
-            TokenKind::Solana {
-                mint: mint.pubkey(),
-                vault: Pubkey::new_unique(),
-            },
             WithdrawalTokenStatus::Pending,
             bounty,
         ),
@@ -2427,6 +2412,10 @@ async fn test_change_bounty_for_withdrawal_sol() {
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
+        kind: TokenKind::Solana {
+            mint: Pubkey::new_unique(),
+            vault: Pubkey::new_unique(),
+        },
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(
             decimals,
@@ -2434,15 +2423,7 @@ async fn test_change_bounty_for_withdrawal_sol() {
             sender_address,
             amount,
         ),
-        meta: WithdrawalTokenMetaWithLen::new(
-            author.pubkey(),
-            TokenKind::Solana {
-                mint: Pubkey::new_unique(),
-                vault: Pubkey::new_unique(),
-            },
-            WithdrawalTokenStatus::Pending,
-            0,
-        ),
+        meta: WithdrawalTokenMetaWithLen::new(author.pubkey(), WithdrawalTokenStatus::Pending, 0),
         required_votes: 0,
         signers: vec![],
     };
