@@ -16,7 +16,14 @@ const WITHDRAW_TOKEN_EVENT_LEN: usize = 1   // decimals
     + 8                                     // amount
 ;
 
-const WITHDRAW_TOKEN_META_LEN: usize = PUBKEY_BYTES // author
+const WITHDRAW_EVER_META_LEN: usize = PUBKEY_BYTES  // author
+    + 1 + PUBKEY_BYTES                              // ever kind
+    + 8                                             // bounty
+    + 1                                             // status
+;
+
+const WITHDRAW_SOL_META_LEN: usize = PUBKEY_BYTES   // author
+    + 1 + PUBKEY_BYTES + PUBKEY_BYTES               // sol kind
     + 8                                             // bounty
     + 1                                             // status
 ;
@@ -26,6 +33,10 @@ const DEPOSIT_TOKEN_EVENT_LEN: usize = 1    // decimals
     + PUBKEY_BYTES                          // solana sender address
     + 8                                     // amount
 ;
+
+const DEPOSIT_EVER_META_LEN: usize = 1 + PUBKEY_BYTES; // ever kind
+
+const DEPOSIT_SOL_META_LEN: usize = 1 + PUBKEY_BYTES + PUBKEY_BYTES; // sol kind
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
 #[bridge_pack(length = 500)]
@@ -54,8 +65,8 @@ impl IsInitialized for Settings {
 #[bridge_pack(length = 500)]
 pub struct Deposit {
     pub is_initialized: bool,
-    pub kind: TokenKind,
     pub event: Vec<u8>,
+    pub meta: Vec<u8>,
 }
 
 impl Sealed for Deposit {}
@@ -70,8 +81,8 @@ impl IsInitialized for Deposit {
 #[bridge_pack(length = 500)]
 pub struct DepositToken {
     pub is_initialized: bool,
-    pub kind: TokenKind,
     pub event: DepositTokenEventWithLen,
+    pub meta: DepositTokenMetaWithLen,
 }
 
 impl Sealed for DepositToken {}
@@ -110,11 +121,35 @@ impl DepositTokenEventWithLen {
     }
 }
 
+#[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+pub struct DepositTokenMeta {
+    pub kind: TokenKind,
+}
+
+#[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+pub struct DepositTokenMetaWithLen {
+    pub len: u32,
+    pub data: DepositTokenMeta,
+}
+
+impl DepositTokenMetaWithLen {
+    pub fn new(kind: TokenKind) -> Self {
+        let len = match kind {
+            TokenKind::Ever { .. } => DEPOSIT_EVER_META_LEN,
+            TokenKind::Solana { .. } => DEPOSIT_SOL_META_LEN,
+        } as u32;
+
+        Self {
+            len,
+            data: DepositTokenMeta { kind },
+        }
+    }
+}
+
 #[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
 #[bridge_pack(length = 5000)]
 pub struct Withdrawal {
     pub is_initialized: bool,
-    pub kind: TokenKind,
     pub round_number: u32,
     pub required_votes: u32,
     pub signers: Vec<Vote>,
@@ -134,7 +169,6 @@ impl IsInitialized for Withdrawal {
 #[bridge_pack(length = 5000)]
 pub struct WithdrawalToken {
     pub is_initialized: bool,
-    pub kind: TokenKind,
     pub round_number: u32,
     pub required_votes: u32,
     pub signers: Vec<Vote>,
@@ -181,6 +215,7 @@ impl WithdrawalTokenEventWithLen {
 #[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 pub struct WithdrawalTokenMeta {
     pub author: Pubkey,
+    pub kind: TokenKind,
     pub status: WithdrawalTokenStatus,
     pub bounty: u64,
 }
@@ -192,11 +227,22 @@ pub struct WithdrawalTokenMetaWithLen {
 }
 
 impl WithdrawalTokenMetaWithLen {
-    pub fn new(author: Pubkey, status: WithdrawalTokenStatus, bounty: u64) -> Self {
+    pub fn new(
+        author: Pubkey,
+        kind: TokenKind,
+        status: WithdrawalTokenStatus,
+        bounty: u64,
+    ) -> Self {
+        let len = match kind {
+            TokenKind::Ever { .. } => WITHDRAW_EVER_META_LEN,
+            TokenKind::Solana { .. } => WITHDRAW_SOL_META_LEN,
+        } as u32;
+
         Self {
-            len: WITHDRAW_TOKEN_META_LEN as u32,
+            len,
             data: WithdrawalTokenMeta {
                 author,
+                kind,
                 status,
                 bounty,
             },
