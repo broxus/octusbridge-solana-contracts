@@ -1,6 +1,6 @@
 #![cfg(feature = "test-bpf")]
 
-use borsh::{BorshDeserialize, BorshSerialize};
+use borsh::BorshSerialize;
 
 use bridge_utils::{RelayRound, Vote};
 use solana_program::bpf_loader_upgradeable::UpgradeableLoaderState;
@@ -15,8 +15,8 @@ use solana_sdk::transaction::Transaction;
 
 use round_loader::{
     get_associated_proposal_address, get_associated_relay_round_address,
-    get_associated_settings_address, Processor, RelayRoundProposal, RelayRoundProposalEvent,
-    RelayRoundProposalEventWithLen, Settings,
+    get_associated_settings_address, Processor, RelayRoundProposal, RelayRoundProposalEventWithLen,
+    Settings,
 };
 
 #[tokio::test]
