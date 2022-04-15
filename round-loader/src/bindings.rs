@@ -10,7 +10,7 @@ use crate::{id, RoundLoaderInstruction};
 
 pub fn get_associated_settings_address() -> Pubkey {
     let program_id = &id();
-    bridge_utils::get_associated_settings_address(program_id)
+    bridge_utils::get_associated_settings_address(program_id, None)
 }
 
 pub fn get_program_data_address() -> Pubkey {
@@ -45,7 +45,7 @@ pub fn initialize(
 ) -> Instruction {
     let program_id = &id();
 
-    let setting_pubkey = bridge_utils::get_associated_settings_address(program_id);
+    let setting_pubkey = bridge_utils::get_associated_settings_address(program_id, None);
     let program_data_pubkey = bridge_utils::get_program_data_address(program_id);
     let relay_round_pubkey =
         bridge_utils::get_associated_relay_round_address(program_id, round_number);
@@ -152,7 +152,7 @@ pub fn finalize_proposal(
         event_configuration,
         event_transaction_lt,
     );
-    let setting_pubkey = bridge_utils::get_associated_settings_address(program_id);
+    let setting_pubkey = bridge_utils::get_associated_settings_address(program_id, None);
     let relay_round_pubkey =
         bridge_utils::get_associated_relay_round_address(program_id, round_number);
 
@@ -224,7 +224,7 @@ pub fn execute_proposal(
     let program_id = &id();
     let event_configuration = bridge_utils::UInt256::from(event_configuration.as_slice());
 
-    let setting_pubkey = bridge_utils::get_associated_settings_address(program_id);
+    let setting_pubkey = bridge_utils::get_associated_settings_address(program_id, None);
 
     let proposal_pubkey = bridge_utils::get_associated_proposal_address(
         program_id,

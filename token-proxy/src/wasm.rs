@@ -10,11 +10,7 @@ use solana_program::program_pack::Pack;
 use solana_program::pubkey::Pubkey;
 use solana_program::{system_program, sysvar};
 
-use crate::{
-    get_associated_mint_address, get_associated_settings_address, get_associated_vault_address,
-    get_associated_withdrawal_address, get_program_data_address, id, TokenKind,
-    TokenProxyInstruction, WithdrawalEvent, WithdrawalMeta,
-};
+use crate::*;
 
 #[wasm_bindgen(js_name = "initializeMint")]
 pub fn initialize_mint_ix(

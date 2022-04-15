@@ -220,7 +220,8 @@ async fn test_create_proposal() {
     let new_round_number = round_number + 1;
     let new_round_end = 1759950990;
     let write_data =
-        RelayRoundProposalEventWithLen::new(new_round_number, new_relays.clone(), new_round_end);
+        RelayRoundProposalEventWithLen::new(new_round_number, new_relays.clone(), new_round_end)
+            .unwrap();
 
     let chunk_size = 800;
 

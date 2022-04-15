@@ -1,6 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use bridge_derive::BridgePack;
-use bridge_utils::EverAddress;
+use bridge_utils::{EverAddress, Vote};
 use enum_as_inner::EnumAsInner;
 use serde::{Deserialize, Serialize};
 
@@ -10,33 +10,20 @@ use solana_program::pubkey::{Pubkey, PUBKEY_BYTES};
 
 pub const WITHDRAWAL_TOKEN_PERIOD: i64 = 86400;
 
-const WITHDRAW_TOKEN_EVENT_LEN: usize = 1   // decimals
-    + PUBKEY_BYTES                          // solana recipient address
-    + PUBKEY_BYTES + 1 + 1                  // ever sender address
-    + 8                                     // amount
+const WITHDRAWAL_TOKEN_EVENT_LEN: usize = PUBKEY_BYTES + 1 + 1  // ever sender address
+    + 8                                                         // amount
+    + PUBKEY_BYTES                                              // solana recipient address
 ;
 
-const WITHDRAW_EVER_META_LEN: usize = PUBKEY_BYTES  // author
-    + 1 + PUBKEY_BYTES                              // ever kind
-    + 8                                             // bounty
-    + 1                                             // status
+const WITHDRAWAL_TOKEN_META_LEN: usize = PUBKEY_BYTES   // author
+    + 1                                                 // status
+    + 8                                                 // bounty
 ;
 
-const WITHDRAW_SOL_META_LEN: usize = PUBKEY_BYTES   // author
-    + 1 + PUBKEY_BYTES + PUBKEY_BYTES               // sol kind
-    + 8                                             // bounty
-    + 1                                             // status
-;
-
-const DEPOSIT_TOKEN_EVENT_LEN: usize = 1    // decimals
+const DEPOSIT_TOKEN_EVENT_LEN: usize = 8    // amount
     + PUBKEY_BYTES + 1 + 1                  // ever recipient address
     + PUBKEY_BYTES                          // solana sender address
-    + 8                                     // amount
 ;
-
-const DEPOSIT_EVER_META_LEN: usize = 1 + PUBKEY_BYTES; // ever kind
-
-const DEPOSIT_SOL_META_LEN: usize = 1 + PUBKEY_BYTES + PUBKEY_BYTES; // sol kind
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
 #[bridge_pack(length = 500)]
@@ -44,7 +31,6 @@ pub struct Settings {
     pub is_initialized: bool,
     pub kind: TokenKind,
     pub admin: Pubkey,
-    pub decimals: u8,
     pub emergency: bool,
     pub deposit_limit: u64,
     pub withdrawal_limit: u64,
@@ -95,10 +81,9 @@ impl IsInitialized for DepositToken {
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 pub struct DepositTokenEvent {
-    pub decimals: u8,
-    pub recipient: EverAddress,
-    pub sender: Pubkey,
+    pub sender_address: Pubkey,
     pub amount: u64,
+    pub recipient_address: EverAddress,
 }
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
@@ -108,14 +93,13 @@ pub struct DepositTokenEventWithLen {
 }
 
 impl DepositTokenEventWithLen {
-    pub fn new(decimals: u8, recipient: EverAddress, sender: Pubkey, amount: u64) -> Self {
+    pub fn new(sender_address: Pubkey, amount: u64, recipient_address: EverAddress) -> Self {
         Self {
             len: DEPOSIT_TOKEN_EVENT_LEN as u32,
             data: DepositTokenEvent {
-                decimals,
-                recipient,
-                sender,
+                sender_address,
                 amount,
+                recipient_address,
             },
         }
     }
@@ -123,7 +107,7 @@ impl DepositTokenEventWithLen {
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 pub struct DepositTokenMeta {
-    pub kind: TokenKind,
+    pub token_symbol: String,
 }
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
@@ -133,35 +117,11 @@ pub struct DepositTokenMetaWithLen {
 }
 
 impl DepositTokenMetaWithLen {
-    pub fn new(kind: TokenKind) -> Self {
-        let len = match kind {
-            TokenKind::Ever { .. } => DEPOSIT_EVER_META_LEN,
-            TokenKind::Solana { .. } => DEPOSIT_SOL_META_LEN,
-        } as u32;
-
-        Self {
-            len,
-            data: DepositTokenMeta { kind },
-        }
-    }
-}
-
-#[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
-#[bridge_pack(length = 5000)]
-pub struct Withdrawal {
-    pub is_initialized: bool,
-    pub round_number: u32,
-    pub required_votes: u32,
-    pub signers: Vec<Vote>,
-    pub event: Vec<u8>,
-    pub meta: Vec<u8>,
-}
-
-impl Sealed for Withdrawal {}
-
-impl IsInitialized for Withdrawal {
-    fn is_initialized(&self) -> bool {
-        self.is_initialized
+    pub fn new(token_symbol: String) -> Result<Self, ProgramError> {
+        Ok(Self {
+            len: token_symbol.try_to_vec()?.len() as u32,
+            data: DepositTokenMeta { token_symbol },
+        })
     }
 }
 
@@ -171,9 +131,9 @@ pub struct WithdrawalToken {
     pub is_initialized: bool,
     pub round_number: u32,
     pub required_votes: u32,
-    pub signers: Vec<Vote>,
     pub event: WithdrawalTokenEventWithLen,
     pub meta: WithdrawalTokenMetaWithLen,
+    pub signers: Vec<Vote>,
 }
 
 impl Sealed for WithdrawalToken {}
@@ -186,10 +146,10 @@ impl IsInitialized for WithdrawalToken {
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 pub struct WithdrawalTokenEvent {
-    pub decimals: u8,
-    pub recipient: Pubkey,
-    pub sender: EverAddress,
+    pub sender_address: EverAddress,
     pub amount: u64,
+    pub recipient_address: Pubkey,
+    pub token_symbol: String,
 }
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
@@ -199,23 +159,27 @@ pub struct WithdrawalTokenEventWithLen {
 }
 
 impl WithdrawalTokenEventWithLen {
-    pub fn new(decimals: u8, recipient: Pubkey, sender: EverAddress, amount: u64) -> Self {
-        Self {
-            len: WITHDRAW_TOKEN_EVENT_LEN as u32,
+    pub fn new(
+        sender_address: EverAddress,
+        amount: u64,
+        recipient_address: Pubkey,
+        token_symbol: String,
+    ) -> Result<Self, ProgramError> {
+        Ok(Self {
+            len: (WITHDRAWAL_TOKEN_EVENT_LEN + token_symbol.try_to_vec()?.len()) as u32,
             data: WithdrawalTokenEvent {
-                decimals,
-                recipient,
-                sender,
+                sender_address,
                 amount,
+                recipient_address,
+                token_symbol,
             },
-        }
+        })
     }
 }
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 pub struct WithdrawalTokenMeta {
     pub author: Pubkey,
-    pub kind: TokenKind,
     pub status: WithdrawalTokenStatus,
     pub bounty: u64,
 }
@@ -227,22 +191,11 @@ pub struct WithdrawalTokenMetaWithLen {
 }
 
 impl WithdrawalTokenMetaWithLen {
-    pub fn new(
-        author: Pubkey,
-        kind: TokenKind,
-        status: WithdrawalTokenStatus,
-        bounty: u64,
-    ) -> Self {
-        let len = match kind {
-            TokenKind::Ever { .. } => WITHDRAW_EVER_META_LEN,
-            TokenKind::Solana { .. } => WITHDRAW_SOL_META_LEN,
-        } as u32;
-
+    pub fn new(author: Pubkey, status: WithdrawalTokenStatus, bounty: u64) -> Self {
         Self {
-            len,
+            len: WITHDRAWAL_TOKEN_META_LEN as u32,
             data: WithdrawalTokenMeta {
                 author,
-                kind,
                 status,
                 bounty,
             },
@@ -277,11 +230,4 @@ pub enum WithdrawalTokenStatus {
     Pending,
     WaitingForApprove,
     WaitingForRelease,
-}
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq, BorshSerialize, BorshDeserialize)]
-pub enum Vote {
-    None,
-    Confirm,
-    Reject,
 }

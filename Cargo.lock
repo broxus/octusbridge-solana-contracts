@@ -270,6 +270,7 @@ version = "0.1.0"
 dependencies = [
  "bincode",
  "borsh",
+ "bridge-derive",
  "serde",
  "solana-program",
  "spl-associated-token-account",
@@ -2037,6 +2038,7 @@ dependencies = [
  "solana-program-test",
  "solana-sdk",
  "thiserror",
+ "ton_types",
  "wasm-bindgen",
 ]
 

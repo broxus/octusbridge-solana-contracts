@@ -1,8 +1,7 @@
 #![cfg(feature = "test-bpf")]
 
-use bridge_utils::EverAddress;
+use bridge_utils::{EverAddress, Proposal, RelayRound, Vote};
 use rand::Rng;
-use round_loader::RelayRound;
 
 use solana_program::bpf_loader_upgradeable::UpgradeableLoaderState;
 use solana_program::rent::Rent;
@@ -14,11 +13,7 @@ use solana_sdk::transaction::Transaction;
 use spl_associated_token_account::get_associated_token_address;
 use spl_token::state::AccountState;
 
-use token_proxy::{
-    get_associated_deposit_address, get_associated_withdrawal_address, DepositToken, Processor,
-    Settings, TokenKind, WithdrawalToken, WithdrawalTokenEventWithLen, WithdrawalTokenMetaWithLen,
-    WithdrawalTokenStatus,
-};
+use token_proxy::*;
 
 #[tokio::test]
 async fn test_init_mint() {
@@ -114,7 +109,6 @@ async fn test_init_mint() {
     assert_eq!(settings_data.is_initialized, true);
     assert_eq!(settings_data.emergency, false);
     assert_eq!(settings_data.kind, TokenKind::Ever { mint: mint_address });
-    assert_eq!(settings_data.decimals, decimals);
     assert_eq!(settings_data.deposit_limit, deposit_limit);
     assert_eq!(settings_data.withdrawal_limit, withdrawal_limit);
     assert_eq!(settings_data.admin, admin);
@@ -192,7 +186,6 @@ async fn test_init_vault() {
             &initializer.pubkey(),
             &mint.pubkey(),
             name.clone(),
-            decimals,
             deposit_limit,
             withdrawal_limit,
             withdrawal_daily_limit,
@@ -241,7 +234,6 @@ async fn test_init_vault() {
             vault: vault_address,
         }
     );
-    assert_eq!(settings_data.decimals, decimals);
     assert_eq!(settings_data.deposit_limit, deposit_limit);
     assert_eq!(settings_data.withdrawal_limit, withdrawal_limit);
     assert_eq!(settings_data.admin, admin);
@@ -335,7 +327,6 @@ async fn test_deposit_ever() {
         kind: TokenKind::Ever { mint: mint_address },
         withdrawal_daily_amount: 0,
         withdrawal_ttl: 0,
-        decimals,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
@@ -366,7 +357,7 @@ async fn test_deposit_ever() {
         &[token_proxy::deposit_ever(
             &funder.pubkey(),
             &sender.pubkey(),
-            name,
+            name.clone(),
             recipient,
             amount,
             deposit_seed,
@@ -397,6 +388,18 @@ async fn test_deposit_ever() {
 
     let sender_data = spl_token::state::Account::unpack(sender_info.data()).expect("token unpack");
     assert_eq!(sender_data.amount, 100 - amount);
+
+    let deposit_address = get_associated_deposit_address(deposit_seed);
+    let deposit_info = banks_client
+        .get_account(deposit_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let deposit_data = DepositToken::unpack(deposit_info.data()).expect("deposit unpack");
+    assert_eq!(deposit_data.event.data.sender_address, sender.pubkey());
+    assert_eq!(deposit_data.event.data.amount, amount);
+    assert_eq!(deposit_data.meta.data.token_symbol, name);
 }
 
 #[tokio::test]
@@ -513,7 +516,6 @@ async fn test_deposit_sol() {
         },
         withdrawal_daily_amount: 0,
         withdrawal_ttl: 0,
-        decimals,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
@@ -568,6 +570,18 @@ async fn test_deposit_sol() {
 
     let vault_data = spl_token::state::Account::unpack(vault_info.data()).expect("mint unpack");
     assert_eq!(vault_data.amount, amount);
+
+    let deposit_address = get_associated_deposit_address(deposit_seed);
+    let deposit_info = banks_client
+        .get_account(deposit_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let deposit_data = DepositToken::unpack(deposit_info.data()).expect("deposit unpack");
+    assert_eq!(deposit_data.event.data.sender_address, sender.pubkey());
+    assert_eq!(deposit_data.event.data.amount, amount);
+    assert_eq!(deposit_data.meta.data.token_symbol, name);
 }
 
 #[tokio::test]
@@ -580,7 +594,6 @@ async fn test_withdrawal_request() {
 
     // Setup environment
     let name = "WEVER".to_string();
-    let decimals = 9;
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
     let withdrawal_daily_limit = 1000;
@@ -597,7 +610,6 @@ async fn test_withdrawal_request() {
         kind: TokenKind::Ever { mint: mint_address },
         withdrawal_daily_amount: 0,
         withdrawal_ttl: 0,
-        decimals,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
@@ -624,23 +636,25 @@ async fn test_withdrawal_request() {
         Pubkey::new_unique(),
         Pubkey::new_unique(),
     ];
-    let settings_address = round_loader::get_associated_relay_round_address(round_number);
+    let relay_round_address =
+        bridge_utils::get_associated_relay_round_address(&round_loader::id(), round_number);
 
-    let relay_round_account_data = RelayRound {
+    let relay_round_data = RelayRound {
         is_initialized: true,
-        round_ttl: 1946154867,
+        round_end: 1946154867,
         relays: relays.clone(),
         round_number,
     };
 
     let mut relay_round_packed = vec![0; RelayRound::LEN];
-    RelayRound::pack(relay_round_account_data, &mut relay_round_packed).unwrap();
+    RelayRound::pack(relay_round_data, &mut relay_round_packed).unwrap();
+
     program_test.add_account(
-        settings_address,
+        relay_round_address,
         Account {
             lamports: Rent::default().minimum_balance(RelayRound::LEN),
             data: relay_round_packed,
-            owner: token_proxy::id(),
+            owner: round_loader::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -715,19 +729,14 @@ async fn test_withdrawal_request() {
     assert_eq!(withdrawal_data.event.data.amount, amount);
     assert_eq!(withdrawal_data.meta.data.status, WithdrawalTokenStatus::New);
 
-    assert_eq!(
-        withdrawal_data.meta.data.kind,
-        TokenKind::Ever { mint: mint_address }
-    );
-
     assert_eq!(withdrawal_data.signers.len(), relays.len());
     for (i, _) in relays.iter().enumerate() {
-        assert_eq!(withdrawal_data.signers[i], token_proxy::Vote::None);
+        assert_eq!(withdrawal_data.signers[i], Vote::None);
     }
 }
 
 #[tokio::test]
-async fn test_confirm_withdrawal_request() {
+async fn test_vote_for_withdrawal_request() {
     let mut program_test = ProgramTest::new(
         "token_proxy",
         token_proxy::id(),
@@ -736,7 +745,6 @@ async fn test_confirm_withdrawal_request() {
 
     // Setup environment
     let name = "WEVER".to_string();
-    let decimals = 9;
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
     let withdrawal_daily_limit = 1000;
@@ -753,7 +761,6 @@ async fn test_confirm_withdrawal_request() {
         kind: TokenKind::Ever { mint: mint_address },
         withdrawal_daily_amount: 0,
         withdrawal_ttl: 0,
-        decimals,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
@@ -774,15 +781,16 @@ async fn test_confirm_withdrawal_request() {
     );
 
     // Add Relay Round Account
-    let relay = Keypair::new();
+    let relays = vec![Keypair::new(), Keypair::new(), Keypair::new()];
 
     let round_number = 12;
-    let settings_address = round_loader::get_associated_relay_round_address(round_number);
+    let settings_address =
+        bridge_utils::get_associated_relay_round_address(&round_loader::id(), round_number);
 
     let relay_round_account_data = RelayRound {
         is_initialized: true,
-        round_ttl: 1946154867,
-        relays: vec![relay.pubkey()],
+        round_end: 1946154867,
+        relays: relays.iter().map(|pair| pair.pubkey()).collect(),
         round_number,
     };
 
@@ -804,6 +812,7 @@ async fn test_confirm_withdrawal_request() {
     let event_transaction_lt = 123;
     let recipient_address = Pubkey::new_unique();
     let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
+    let amount = 10;
 
     let withdrawal_address =
         token_proxy::get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
@@ -811,15 +820,11 @@ async fn test_confirm_withdrawal_request() {
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
         round_number,
-        event: WithdrawalTokenEventWithLen::new(decimals, recipient_address, sender_address, 10),
-        meta: WithdrawalTokenMetaWithLen::new(
-            Pubkey::new_unique(),
-            TokenKind::Ever { mint: mint_address },
-            WithdrawalTokenStatus::New,
-            0,
-        ),
-        required_votes: 1,
-        signers: vec![token_proxy::Vote::None],
+        event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address, name)
+            .unwrap(),
+        meta: WithdrawalTokenMetaWithLen::new(Pubkey::new_unique(), WithdrawalTokenStatus::New, 0),
+        required_votes: relays.len() as u32,
+        signers: relays.iter().map(|_| Vote::None).collect(),
     };
 
     let mut withdrawal_packed = vec![0; WithdrawalToken::LEN];
@@ -838,22 +843,25 @@ async fn test_confirm_withdrawal_request() {
     // Start Program Test
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
-    let mut transaction = Transaction::new_with_payer(
-        &[token_proxy::vote_for_withdrawal_request(
-            &relay.pubkey(),
-            round_number,
-            &event_configuration,
-            event_transaction_lt,
-            token_proxy::Vote::Confirm,
-        )],
-        Some(&funder.pubkey()),
-    );
-    transaction.sign(&[&funder, &relay], recent_blockhash);
+    // Vote for withdrawal request
+    for relay in &relays {
+        let mut transaction = Transaction::new_with_payer(
+            &[token_proxy::vote_for_withdrawal_request(
+                &relay.pubkey(),
+                round_number,
+                &event_configuration,
+                event_transaction_lt,
+                bridge_utils::Vote::Confirm,
+            )],
+            Some(&funder.pubkey()),
+        );
+        transaction.sign(&[&funder, &relay], recent_blockhash);
 
-    banks_client
-        .process_transaction(transaction)
-        .await
-        .expect("process_transaction");
+        banks_client
+            .process_transaction(transaction)
+            .await
+            .expect("process_transaction");
+    }
 
     let withdrawal_address =
         token_proxy::get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
@@ -863,8 +871,11 @@ async fn test_confirm_withdrawal_request() {
         .expect("get_account")
         .expect("account");
 
-    let withdrawal_data = WithdrawalToken::unpack(withdrawal_info.data()).expect("mint unpack");
-    assert_eq!(withdrawal_data.signers[0], token_proxy::Vote::Confirm);
+    let withdrawal_data = Proposal::unpack(withdrawal_info.data()).expect("mint unpack");
+    assert_eq!(withdrawal_data.signers.len(), relays.len());
+    for (i, _) in relays.iter().enumerate() {
+        assert_eq!(withdrawal_data.signers[i], Vote::Confirm);
+    }
 }
 
 #[tokio::test]
@@ -877,7 +888,6 @@ async fn test_update_withdrawal_status() {
 
     // Setup environment
     let name = "WEVER".to_string();
-    let decimals = 9;
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
     let withdrawal_daily_limit = 1000;
@@ -894,7 +904,6 @@ async fn test_update_withdrawal_status() {
         kind: TokenKind::Ever { mint: mint_address },
         withdrawal_daily_amount: 0,
         withdrawal_ttl: 0,
-        decimals,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
@@ -919,6 +928,7 @@ async fn test_update_withdrawal_status() {
     let event_transaction_lt = 123;
     let recipient_address = Pubkey::new_unique();
     let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
+    let amount = 10;
 
     let withdrawal_address =
         token_proxy::get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
@@ -926,13 +936,14 @@ async fn test_update_withdrawal_status() {
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
         round_number: 5,
-        event: WithdrawalTokenEventWithLen::new(decimals, recipient_address, sender_address, 10),
-        meta: WithdrawalTokenMetaWithLen::new(
-            Pubkey::new_unique(),
-            TokenKind::Ever { mint: mint_address },
-            WithdrawalTokenStatus::New,
-            0,
-        ),
+        event: WithdrawalTokenEventWithLen::new(
+            sender_address,
+            amount,
+            recipient_address,
+            name.clone(),
+        )
+        .unwrap(),
+        meta: WithdrawalTokenMetaWithLen::new(Pubkey::new_unique(), WithdrawalTokenStatus::New, 0),
         required_votes: 0,
         signers: vec![],
     };
@@ -1032,7 +1043,6 @@ async fn test_withdrawal_ever() {
         kind: TokenKind::Ever { mint: mint_address },
         withdrawal_daily_amount: 0,
         withdrawal_ttl: 0,
-        decimals,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
@@ -1090,14 +1100,14 @@ async fn test_withdrawal_ever() {
         is_initialized: true,
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(
-            decimals,
-            recipient_address,
             sender_address,
             amount,
-        ),
+            recipient_address,
+            name.clone(),
+        )
+        .unwrap(),
         meta: WithdrawalTokenMetaWithLen::new(
             Pubkey::new_unique(),
-            TokenKind::Ever { mint: mint_address },
             WithdrawalTokenStatus::WaitingForRelease,
             0,
         ),
@@ -1233,7 +1243,6 @@ async fn test_withdrawal_sol() {
         },
         withdrawal_daily_amount: 0,
         withdrawal_ttl: 0,
-        decimals,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
@@ -1291,17 +1300,14 @@ async fn test_withdrawal_sol() {
         is_initialized: true,
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(
-            decimals,
-            recipient_address,
             sender_address,
             amount,
-        ),
+            recipient_address,
+            name.clone(),
+        )
+        .unwrap(),
         meta: WithdrawalTokenMetaWithLen::new(
             Pubkey::new_unique(),
-            TokenKind::Solana {
-                mint: mint.pubkey(),
-                vault: vault_address,
-            },
             WithdrawalTokenStatus::WaitingForRelease,
             0,
         ),
@@ -1411,7 +1417,6 @@ async fn test_approve_withdrawal_ever() {
         kind: TokenKind::Ever { mint: mint_address },
         withdrawal_daily_amount: 0,
         withdrawal_ttl: 0,
-        decimals,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
@@ -1469,14 +1474,14 @@ async fn test_approve_withdrawal_ever() {
         is_initialized: true,
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(
-            decimals,
-            recipient_address,
             sender_address,
             amount,
-        ),
+            recipient_address,
+            name.clone(),
+        )
+        .unwrap(),
         meta: WithdrawalTokenMetaWithLen::new(
             Pubkey::new_unique(),
-            TokenKind::Ever { mint: mint_address },
             WithdrawalTokenStatus::WaitingForApprove,
             0,
         ),
@@ -1563,7 +1568,6 @@ async fn test_approve_withdrawal_sol() {
     let mint = Pubkey::new_unique();
 
     let name = "USDT".to_string();
-    let decimals = 9;
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
     let withdrawal_daily_limit = 1000;
@@ -1581,7 +1585,6 @@ async fn test_approve_withdrawal_sol() {
         },
         withdrawal_daily_amount: 0,
         withdrawal_ttl: 0,
-        decimals,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
@@ -1614,17 +1617,14 @@ async fn test_approve_withdrawal_sol() {
         is_initialized: true,
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(
-            decimals,
-            Pubkey::new_unique(),
             sender_address,
             amount,
-        ),
+            Pubkey::new_unique(),
+            name.clone(),
+        )
+        .unwrap(),
         meta: WithdrawalTokenMetaWithLen::new(
             Pubkey::new_unique(),
-            TokenKind::Solana {
-                mint,
-                vault: vault_address,
-            },
             WithdrawalTokenStatus::WaitingForApprove,
             0,
         ),
@@ -1750,21 +1750,9 @@ async fn test_cancel_withdrawal_sol() {
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
         round_number: 5,
-        event: WithdrawalTokenEventWithLen::new(
-            decimals,
-            Pubkey::new_unique(),
-            sender_address,
-            amount,
-        ),
-        meta: WithdrawalTokenMetaWithLen::new(
-            author.pubkey(),
-            TokenKind::Solana {
-                mint: mint.pubkey(),
-                vault: vault_address,
-            },
-            WithdrawalTokenStatus::Pending,
-            0,
-        ),
+        event: WithdrawalTokenEventWithLen::new(sender_address, amount, Pubkey::new_unique(), name)
+            .unwrap(),
+        meta: WithdrawalTokenMetaWithLen::new(author.pubkey(), WithdrawalTokenStatus::Pending, 0),
         required_votes: 0,
         signers: vec![],
     };
@@ -1908,7 +1896,6 @@ async fn test_force_withdrawal_sol() {
         },
         withdrawal_daily_amount: 0,
         withdrawal_ttl: 0,
-        decimals,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
@@ -1966,17 +1953,14 @@ async fn test_force_withdrawal_sol() {
         is_initialized: true,
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(
-            decimals,
-            recipient_address,
             sender_address,
             amount,
-        ),
+            recipient_address,
+            name.clone(),
+        )
+        .unwrap(),
         meta: WithdrawalTokenMetaWithLen::new(
             Pubkey::new_unique(),
-            TokenKind::Solana {
-                mint: mint.pubkey(),
-                vault: vault_address,
-            },
             WithdrawalTokenStatus::Pending,
             0,
         ),
@@ -2148,17 +2132,14 @@ async fn test_fill_withdrawal_sol() {
         is_initialized: true,
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(
-            decimals,
-            recipient_address,
             sender_address,
             amount,
-        ),
+            recipient_address,
+            "USDT".to_string(),
+        )
+        .unwrap(),
         meta: WithdrawalTokenMetaWithLen::new(
             Pubkey::new_unique(),
-            TokenKind::Solana {
-                mint: mint.pubkey(),
-                vault: Pubkey::new_unique(),
-            },
             WithdrawalTokenStatus::Pending,
             bounty,
         ),
@@ -2316,7 +2297,6 @@ async fn test_transfer_from_vault() {
         },
         withdrawal_daily_amount: 0,
         withdrawal_ttl: 0,
-        decimals,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
@@ -2419,7 +2399,6 @@ async fn test_change_bounty_for_withdrawal_sol() {
     let event_transaction_lt = 123;
     let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
 
-    let decimals = 9;
     let amount = 10;
 
     let withdrawal_address =
@@ -2429,20 +2408,13 @@ async fn test_change_bounty_for_withdrawal_sol() {
         is_initialized: true,
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(
-            decimals,
-            Pubkey::new_unique(),
             sender_address,
             amount,
-        ),
-        meta: WithdrawalTokenMetaWithLen::new(
-            author.pubkey(),
-            TokenKind::Solana {
-                mint: Pubkey::new_unique(),
-                vault: Pubkey::new_unique(),
-            },
-            WithdrawalTokenStatus::Pending,
-            0,
-        ),
+            Pubkey::new_unique(),
+            "USDT".to_string(),
+        )
+        .unwrap(),
+        meta: WithdrawalTokenMetaWithLen::new(author.pubkey(), WithdrawalTokenStatus::Pending, 0),
         required_votes: 0,
         signers: vec![],
     };
@@ -2540,7 +2512,6 @@ async fn test_change_settings() {
         kind: TokenKind::Ever { mint: mint_address },
         withdrawal_daily_amount: 0,
         withdrawal_ttl: 0,
-        decimals,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,

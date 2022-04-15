@@ -73,15 +73,15 @@ pub struct RelayRoundProposalEventWithLen {
 }
 
 impl RelayRoundProposalEventWithLen {
-    pub fn new(round_num: u32, relays: Vec<Pubkey>, round_end: u32) -> Self {
-        Self {
-            len: 4 + relays.try_to_vec().unwrap().len() as u32 + 4,
+    pub fn new(round_num: u32, relays: Vec<Pubkey>, round_end: u32) -> Result<Self, ProgramError> {
+        Ok(Self {
+            len: 4 + relays.try_to_vec()?.len() as u32 + 4,
             data: RelayRoundProposalEvent {
                 round_num,
                 relays,
                 round_end,
             },
-        }
+        })
     }
 }
 

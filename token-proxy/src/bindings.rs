@@ -1,5 +1,5 @@
 use borsh::BorshSerialize;
-use bridge_utils::EverAddress;
+use bridge_utils::{EverAddress, Vote};
 use ton_types::UInt256;
 
 use solana_program::instruction::{AccountMeta, Instruction};
@@ -7,21 +7,24 @@ use solana_program::pubkey::Pubkey;
 use solana_program::{bpf_loader_upgradeable, system_program, sysvar};
 use spl_associated_token_account::get_associated_token_address;
 
-use crate::{id, TokenProxyInstruction, Vote};
+use crate::{id, TokenProxyInstruction};
 
 #[allow(dead_code)]
 pub fn get_associated_vault_address(name: &str) -> Pubkey {
-    Pubkey::find_program_address(&[br"vault", name.as_bytes()], &id()).0
+    let program_id = &id();
+    bridge_utils::get_associated_vault_address(program_id, name)
 }
 
 #[allow(dead_code)]
 pub fn get_associated_mint_address(name: &str) -> Pubkey {
-    Pubkey::find_program_address(&[br"mint", name.as_bytes()], &id()).0
+    let program_id = &id();
+    bridge_utils::get_associated_mint_address(program_id, name)
 }
 
 #[allow(dead_code)]
 pub fn get_associated_settings_address(name: &str) -> Pubkey {
-    Pubkey::find_program_address(&[br"settings", name.as_bytes()], &id()).0
+    let program_id = &id();
+    bridge_utils::get_associated_settings_address(program_id, Some(name))
 }
 
 #[allow(dead_code)]
@@ -62,9 +65,11 @@ pub fn initialize_mint(
     withdrawal_daily_limit: u64,
     admin: Pubkey,
 ) -> Instruction {
-    let mint_pubkey = get_associated_mint_address(&name);
-    let settings_pubkey = get_associated_settings_address(&name);
-    let program_data_pubkey = get_program_data_address();
+    let program_id = &id();
+
+    let mint_pubkey = bridge_utils::get_associated_mint_address(program_id, &name);
+    let settings_pubkey = bridge_utils::get_associated_settings_address(program_id, Some(&name));
+    let program_data_pubkey = bridge_utils::get_program_data_address(program_id);
 
     let data = TokenProxyInstruction::InitializeMint {
         name,
@@ -100,19 +105,19 @@ pub fn initialize_vault(
     initializer_pubkey: &Pubkey,
     mint_pubkey: &Pubkey,
     name: String,
-    decimals: u8,
     deposit_limit: u64,
     withdrawal_limit: u64,
     withdrawal_daily_limit: u64,
     admin: Pubkey,
 ) -> Instruction {
-    let vault_pubkey = get_associated_vault_address(&name);
-    let settings_pubkey = get_associated_settings_address(&name);
-    let program_data_pubkey = get_program_data_address();
+    let program_id = &id();
+
+    let vault_pubkey = bridge_utils::get_associated_vault_address(program_id, &name);
+    let settings_pubkey = bridge_utils::get_associated_settings_address(program_id, Some(&name));
+    let program_data_pubkey = bridge_utils::get_program_data_address(program_id);
 
     let data = TokenProxyInstruction::InitializeVault {
         name,
-        decimals,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
@@ -230,14 +235,14 @@ pub fn withdrawal_request(
     round_number: u32,
     event_configuration: &UInt256,
     event_transaction_lt: u64,
-    sender: EverAddress,
-    recipient_pubkey: Pubkey,
+    sender_address: EverAddress,
+    recipient_address: Pubkey,
     amount: u64,
 ) -> Instruction {
-    let settings_pubkey = get_associated_settings_address(&name);
     let withdrawal_pubkey =
         get_associated_withdrawal_address(event_configuration, event_transaction_lt);
-    let relay_round_pubkey = round_loader::get_associated_relay_round_address(round_number);
+    let relay_round_pubkey =
+        bridge_utils::get_associated_relay_round_address(&round_loader::id(), round_number);
 
     let event_configuration = bridge_utils::UInt256::from(event_configuration.as_slice());
     let data = TokenProxyInstruction::WithdrawRequest {
@@ -245,7 +250,8 @@ pub fn withdrawal_request(
         round_number,
         event_configuration,
         event_transaction_lt,
-        sender,
+        sender_address,
+        recipient_address,
         amount,
     }
     .try_to_vec()
@@ -257,8 +263,6 @@ pub fn withdrawal_request(
             AccountMeta::new(*funder_pubkey, true),
             AccountMeta::new(*author_pubkey, true),
             AccountMeta::new(withdrawal_pubkey, false),
-            AccountMeta::new_readonly(recipient_pubkey, false),
-            AccountMeta::new_readonly(settings_pubkey, false),
             AccountMeta::new_readonly(relay_round_pubkey, false),
             AccountMeta::new_readonly(system_program::id(), false),
             AccountMeta::new_readonly(sysvar::clock::id(), false),
@@ -278,7 +282,8 @@ pub fn vote_for_withdrawal_request(
 ) -> Instruction {
     let withdrawal_pubkey =
         get_associated_withdrawal_address(event_configuration, event_transaction_lt);
-    let relay_round_pubkey = round_loader::get_associated_relay_round_address(round_number);
+    let relay_round_pubkey =
+        bridge_utils::get_associated_relay_round_address(&round_loader::id(), round_number);
 
     let event_configuration = bridge_utils::UInt256::from(event_configuration.as_slice());
     let data = TokenProxyInstruction::VoteForWithdrawRequest {
@@ -313,7 +318,6 @@ pub fn update_withdrawal_status(
 
     let event_configuration = bridge_utils::UInt256::from(event_configuration.as_slice());
     let data = TokenProxyInstruction::UpdateWithdrawStatus {
-        name,
         event_configuration,
         event_transaction_lt,
     }
@@ -348,7 +352,6 @@ pub fn withdrawal_ever(
 
     let event_configuration = bridge_utils::UInt256::from(event_configuration.as_slice());
     let data = TokenProxyInstruction::WithdrawEver {
-        name,
         event_configuration,
         event_transaction_lt,
     }
@@ -386,7 +389,6 @@ pub fn withdrawal_sol(
 
     let event_configuration = bridge_utils::UInt256::from(event_configuration.as_slice());
     let data = TokenProxyInstruction::WithdrawSol {
-        name,
         event_configuration,
         event_transaction_lt,
     }
@@ -424,7 +426,6 @@ pub fn approve_withdrawal_ever(
 
     let event_configuration = bridge_utils::UInt256::from(event_configuration.as_slice());
     let data = TokenProxyInstruction::ApproveWithdrawEver {
-        name,
         event_configuration,
         event_transaction_lt,
     }
@@ -458,7 +459,6 @@ pub fn approve_withdrawal_sol(
 
     let event_configuration = bridge_utils::UInt256::from(event_configuration.as_slice());
     let data = TokenProxyInstruction::ApproveWithdrawSol {
-        name,
         event_configuration,
         event_transaction_lt,
     }
@@ -529,7 +529,6 @@ pub fn force_withdrawal_sol(
 
     let event_configuration = bridge_utils::UInt256::from(event_configuration.as_slice());
     let data = TokenProxyInstruction::ForceWithdrawSol {
-        name,
         event_configuration,
         event_transaction_lt,
     }
