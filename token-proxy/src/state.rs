@@ -48,7 +48,7 @@ impl IsInitialized for Settings {
 }
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
-#[bridge_pack(length = 500)]
+#[bridge_pack(length = 5000)]
 pub struct Deposit {
     pub is_initialized: bool,
     pub event: Vec<u8>,
@@ -64,7 +64,7 @@ impl IsInitialized for Deposit {
 }
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
-#[bridge_pack(length = 500)]
+#[bridge_pack(length = 5000)]
 pub struct DepositToken {
     pub is_initialized: bool,
     pub event: DepositTokenEventWithLen,

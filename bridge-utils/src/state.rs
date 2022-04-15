@@ -6,7 +6,7 @@ use solana_program::program_pack::{IsInitialized, Pack, Sealed};
 use solana_program::pubkey::Pubkey;
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
-#[bridge_pack(length = 5000)] // 1 + 4 + 4 + 32 * 100 + reserve 1791 byte
+#[bridge_pack(length = 5000)]
 pub struct RelayRound {
     pub is_initialized: bool,
     pub round_number: u32,
