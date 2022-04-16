@@ -3,6 +3,19 @@ use bridge_utils::types::{UInt256, Vote};
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub enum RoundLoaderInstruction {
+    /// Vote for proposal
+    ///
+    /// # Account references
+    /// ...
+    VoteForProposal {
+        // Event configuration address
+        event_configuration: UInt256,
+        // Ever deployed event transaction_lt
+        event_transaction_lt: u64,
+        // Vote type
+        vote: Vote,
+    },
+
     /// Initialize the first round
     ///
     /// # Account references
@@ -49,19 +62,6 @@ pub enum RoundLoaderInstruction {
         event_configuration: UInt256,
         // Ever deployed event transaction_lt
         event_transaction_lt: u64,
-    },
-
-    /// Vote for proposal
-    ///
-    /// # Account references
-    /// ...
-    VoteForProposal {
-        // Event configuration address
-        event_configuration: UInt256,
-        // Ever deployed event transaction_lt
-        event_transaction_lt: u64,
-        // Vote type
-        vote: Vote,
     },
 
     /// Execute proposal

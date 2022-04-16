@@ -116,8 +116,14 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        validate_programdata_account(program_id, programdata_account_info.key)?;
-        validate_initializer_account(creator_account_info.key, programdata_account_info)?;
+        bridge_utils::helper::validate_programdata_account(
+            program_id,
+            programdata_account_info.key,
+        )?;
+        bridge_utils::helper::validate_initializer_account(
+            creator_account_info.key,
+            programdata_account_info,
+        )?;
 
         // Validate Settings Account
         let settings_nonce = validate_settings_account(program_id, settings_account_info)?;
@@ -206,7 +212,7 @@ impl Processor {
         let rent = &Rent::from_account_info(rent_sysvar_info)?;
 
         // Validate Proposal Account
-        let proposal_nonce = validate_proposal_account(
+        let proposal_nonce = bridge_utils::helper::validate_proposal_account(
             program_id,
             event_configuration,
             event_transaction_lt,
@@ -253,7 +259,7 @@ impl Processor {
         let proposal_account_info = next_account_info(account_info_iter)?;
 
         // Validate Proposal Account
-        validate_proposal_account(
+        bridge_utils::helper::validate_proposal_account(
             program_id,
             event_configuration,
             event_transaction_lt,
@@ -312,7 +318,7 @@ impl Processor {
         let required_votes = (relay_round_account_data.relays.len() * 2 / 3 + 1) as u32;
 
         // Validate Proposal Account
-        validate_proposal_account(
+        bridge_utils::helper::validate_proposal_account(
             program_id,
             event_configuration,
             event_transaction_lt,
@@ -356,7 +362,7 @@ impl Processor {
         }
 
         // Validate Proposal Account
-        validate_proposal_account(
+        bridge_utils::helper::validate_proposal_account(
             program_id,
             event_configuration,
             event_transaction_lt,

@@ -5,6 +5,19 @@ use solana_program::pubkey::Pubkey;
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub enum TokenProxyInstruction {
+    /// Vote for withdraw EVER/SOL request
+    ///
+    /// # Account references
+    /// ...
+    VoteForWithdrawRequest {
+        // EVER->SOL event configuration
+        event_configuration: UInt256,
+        // Ever deployed event transaction_lt
+        event_transaction_lt: u64,
+        // Vote type
+        vote: Vote,
+    },
+
     /// Initialize Mint Account
     ///
     /// # Account references
@@ -90,19 +103,6 @@ pub enum TokenProxyInstruction {
         recipient_address: Pubkey,
         // Withdrawal amount
         amount: u64,
-    },
-
-    /// Vote for withdraw EVER/SOL request
-    ///
-    /// # Account references
-    /// ...
-    VoteForWithdrawRequest {
-        // EVER->SOL event configuration
-        event_configuration: UInt256,
-        // Ever deployed event transaction_lt
-        event_transaction_lt: u64,
-        // Vote type
-        vote: Vote,
     },
 
     /// Update withdraw status

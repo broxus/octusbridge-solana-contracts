@@ -10,7 +10,7 @@ use crate::*;
 
 pub fn get_programdata_address() -> Pubkey {
     let program_id = &id();
-    get_program_data_address(program_id)
+    bridge_utils::helper::get_programdata_address(program_id)
 }
 
 pub fn get_settings_address(name: &str) -> Pubkey {
@@ -22,7 +22,11 @@ pub fn get_proposal_address(event_configuration: UInt256, event_transaction_lt: 
     let program_id = &id();
     let event_configuration = bridge_utils::types::UInt256::from(event_configuration.as_slice());
 
-    get_associated_proposal_address(program_id, event_configuration, event_transaction_lt)
+    bridge_utils::helper::get_associated_proposal_address(
+        program_id,
+        event_configuration,
+        event_transaction_lt,
+    )
 }
 
 pub fn get_vault_address(name: &str) -> Pubkey {

@@ -10,7 +10,7 @@ use crate::*;
 
 pub fn get_programdata_address() -> Pubkey {
     let program_id = &id();
-    get_program_data_address(program_id)
+    bridge_utils::helper::get_programdata_address(program_id)
 }
 
 pub fn get_settings_address() -> Pubkey {
@@ -22,7 +22,11 @@ pub fn get_proposal_address(event_configuration: UInt256, event_transaction_lt: 
     let program_id = &id();
     let event_configuration = bridge_utils::types::UInt256::from(event_configuration.as_slice());
 
-    get_associated_proposal_address(program_id, event_configuration, event_transaction_lt)
+    bridge_utils::helper::get_associated_proposal_address(
+        program_id,
+        event_configuration,
+        event_transaction_lt,
+    )
 }
 
 pub fn get_relay_round_address(round_number: u32) -> Pubkey {
@@ -39,8 +43,8 @@ pub fn initialize_ix(
     let program_id = &id();
 
     let setting_pubkey = get_associated_settings_address(program_id);
-    let program_data_pubkey = get_program_data_address(program_id);
     let relay_round_pubkey = get_associated_relay_round_address(program_id, round_number);
+    let program_data_pubkey = bridge_utils::helper::get_programdata_address(program_id);
 
     let data = RoundLoaderInstruction::Initialize {
         round_number,
@@ -72,8 +76,11 @@ pub fn create_proposal_ix(
     let program_id = &id();
     let event_configuration = bridge_utils::types::UInt256::from(event_configuration.as_slice());
 
-    let proposal_pubkey =
-        get_associated_proposal_address(program_id, event_configuration, event_transaction_lt);
+    let proposal_pubkey = bridge_utils::helper::get_associated_proposal_address(
+        program_id,
+        event_configuration,
+        event_transaction_lt,
+    );
 
     let data = RoundLoaderInstruction::CreateProposal {
         event_configuration,
@@ -103,8 +110,11 @@ pub fn write_proposal_ix(
     let program_id = &id();
     let event_configuration = bridge_utils::types::UInt256::from(event_configuration.as_slice());
 
-    let proposal_pubkey =
-        get_associated_proposal_address(program_id, event_configuration, event_transaction_lt);
+    let proposal_pubkey = bridge_utils::helper::get_associated_proposal_address(
+        program_id,
+        event_configuration,
+        event_transaction_lt,
+    );
 
     let data = RoundLoaderInstruction::WriteProposal {
         event_configuration,
@@ -131,8 +141,11 @@ pub fn finalize_proposal_ix(
     let program_id = &id();
     let event_configuration = bridge_utils::types::UInt256::from(event_configuration.as_slice());
 
-    let proposal_pubkey =
-        get_associated_proposal_address(program_id, event_configuration, event_transaction_lt);
+    let proposal_pubkey = bridge_utils::helper::get_associated_proposal_address(
+        program_id,
+        event_configuration,
+        event_transaction_lt,
+    );
     let setting_pubkey = get_associated_settings_address(program_id);
     let relay_round_pubkey = get_associated_relay_round_address(program_id, round_number);
 
@@ -166,8 +179,11 @@ pub fn vote_for_proposal_ix(
     let program_id = &id();
     let event_configuration = bridge_utils::types::UInt256::from(event_configuration.as_slice());
 
-    let proposal_pubkey =
-        get_associated_proposal_address(program_id, event_configuration, event_transaction_lt);
+    let proposal_pubkey = bridge_utils::helper::get_associated_proposal_address(
+        program_id,
+        event_configuration,
+        event_transaction_lt,
+    );
     let relay_round_pubkey = get_associated_relay_round_address(program_id, round_number);
 
     let data = RoundLoaderInstruction::VoteForProposal {
@@ -200,8 +216,11 @@ pub fn execute_proposal_ix(
 
     let setting_pubkey = get_associated_settings_address(program_id);
 
-    let proposal_pubkey =
-        get_associated_proposal_address(program_id, event_configuration, event_transaction_lt);
+    let proposal_pubkey = bridge_utils::helper::get_associated_proposal_address(
+        program_id,
+        event_configuration,
+        event_transaction_lt,
+    );
     let relay_round_pubkey = get_associated_relay_round_address(program_id, round_number);
 
     let data = RoundLoaderInstruction::ExecuteProposal

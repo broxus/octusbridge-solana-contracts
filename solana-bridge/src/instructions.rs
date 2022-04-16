@@ -4,6 +4,18 @@ use solana_program::instruction::{AccountMeta, Instruction};
 use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
 
+#[derive(BorshSerialize, BorshDeserialize, Debug)]
+pub enum BridgeInstruction {
+    VoteForProposal {
+        // EVER->SOL event configuration
+        event_configuration: UInt256,
+        // Ever deployed event transaction_lt
+        event_transaction_lt: u64,
+        // Vote type
+        vote: Vote,
+    },
+}
+
 pub fn vote_for_proposal_ix(
     program_id: Pubkey,
     voter_pubkey: Pubkey,
@@ -11,50 +23,25 @@ pub fn vote_for_proposal_ix(
     event_transaction_lt: u64,
     round_number: u32,
     vote: Vote,
-) -> Result<Instruction, ProgramError> {
-    let (proposal_pubkey, relay_round_pubkey, data) = match program_id {
-        &round_loader::id() => {
-            let proposal_pubkey = round_loader::get_associated_proposal_address(
-                &program_id,
-                event_configuration,
-                event_transaction_lt,
-            );
-            let relay_round_pubkey =
-                round_loader::get_associated_relay_round_address(&program_id, round_number);
+) -> Instruction {
+    let proposal_pubkey = bridge_utils::helper::get_associated_proposal_address(
+        &program_id,
+        event_configuration,
+        event_transaction_lt,
+    );
 
-            let data = round_loader::RoundLoaderInstruction::VoteForProposal {
-                event_configuration,
-                event_transaction_lt,
-                vote,
-            }
-            .try_to_vec()
-            .expect("pack");
+    let relay_round_pubkey =
+        round_loader::get_associated_relay_round_address(&program_id, round_number);
 
-            (proposal_pubkey, relay_round_pubkey, data)
-        }
-        &token_proxy::id() => {
-            let proposal_pubkey = token_proxy::get_associated_proposal_address(
-                &program_id,
-                event_configuration,
-                event_transaction_lt,
-            );
-            let relay_round_pubkey =
-                round_loader::get_associated_relay_round_address(&program_id, round_number);
+    let data = BridgeInstruction::VoteForProposal {
+        event_configuration,
+        event_transaction_lt,
+        vote,
+    }
+    .try_to_vec()
+    .expect("pack");
 
-            let data = token_proxy::TokenProxyInstruction::VoteForWithdrawRequest {
-                event_configuration,
-                event_transaction_lt,
-                vote,
-            }
-            .try_to_vec()
-            .expect("pack");
-
-            (proposal_pubkey, relay_round_pubkey, data)
-        }
-        _ => return Err(ProgramError::IncorrectProgramId),
-    };
-
-    Ok(Instruction {
+    Instruction {
         program_id,
         accounts: vec![
             AccountMeta::new(voter_pubkey, true),
@@ -62,5 +49,5 @@ pub fn vote_for_proposal_ix(
             AccountMeta::new_readonly(relay_round_pubkey, false),
         ],
         data,
-    })
+    }
 }

@@ -303,8 +303,14 @@ impl Processor {
         }
 
         // Validate Initializer Account
-        validate_programdata_account(program_id, programdata_account_info.key)?;
-        validate_initializer_account(initializer_account_info.key, programdata_account_info)?;
+        bridge_utils::helper::validate_programdata_account(
+            program_id,
+            programdata_account_info.key,
+        )?;
+        bridge_utils::helper::validate_initializer_account(
+            initializer_account_info.key,
+            programdata_account_info,
+        )?;
 
         // Validate Mint Account
         let mint_nonce = validate_mint_account(program_id, &name, mint_account_info)?;
@@ -417,8 +423,14 @@ impl Processor {
         }
 
         // Validate Initializer Account
-        validate_programdata_account(program_id, programdata_account_info.key)?;
-        validate_initializer_account(initializer_account_info.key, programdata_account_info)?;
+        bridge_utils::helper::validate_programdata_account(
+            program_id,
+            programdata_account_info.key,
+        )?;
+        bridge_utils::helper::validate_initializer_account(
+            initializer_account_info.key,
+            programdata_account_info,
+        )?;
 
         // Validate Vault Account
         let vault_nonce = validate_vault_account(program_id, &name, vault_account_info)?;
@@ -762,7 +774,7 @@ impl Processor {
         let required_votes = (relay_round_account_data.relays.len() * 2 / 3 + 1) as u32;
 
         // Validate Withdrawal Account
-        let withdrawal_nonce = validate_proposal_account(
+        let withdrawal_nonce = bridge_utils::helper::validate_proposal_account(
             program_id,
             event_configuration,
             event_transaction_lt,
@@ -837,7 +849,7 @@ impl Processor {
         }
 
         // Validate Withdrawal Account
-        validate_proposal_account(
+        bridge_utils::helper::validate_proposal_account(
             program_id,
             event_configuration,
             event_transaction_lt,
@@ -886,7 +898,7 @@ impl Processor {
         let clock = Clock::from_account_info(clock_info)?;
 
         // Validate Withdrawal Account
-        validate_proposal_account(
+        bridge_utils::helper::validate_proposal_account(
             program_id,
             event_configuration,
             event_transaction_lt,
@@ -965,7 +977,7 @@ impl Processor {
         let token_program_info = next_account_info(account_info_iter)?;
 
         // Validate Withdrawal Account
-        validate_proposal_account(
+        bridge_utils::helper::validate_proposal_account(
             program_id,
             event_configuration,
             event_transaction_lt,
@@ -1049,7 +1061,7 @@ impl Processor {
         let token_program_info = next_account_info(account_info_iter)?;
 
         // Validate Withdrawal Account
-        validate_proposal_account(
+        bridge_utils::helper::validate_proposal_account(
             program_id,
             event_configuration,
             event_transaction_lt,
@@ -1144,7 +1156,7 @@ impl Processor {
         }
 
         // Validate Withdrawal Account
-        validate_proposal_account(
+        bridge_utils::helper::validate_proposal_account(
             program_id,
             event_configuration,
             event_transaction_lt,
@@ -1233,7 +1245,7 @@ impl Processor {
         }
 
         // Validate Withdrawal Account
-        validate_proposal_account(
+        bridge_utils::helper::validate_proposal_account(
             program_id,
             event_configuration,
             event_transaction_lt,
@@ -1290,7 +1302,7 @@ impl Processor {
         let rent = &Rent::from_account_info(rent_sysvar_info)?;
 
         // Validate Withdrawal Account
-        validate_proposal_account(
+        bridge_utils::helper::validate_proposal_account(
             program_id,
             event_configuration,
             event_transaction_lt,
@@ -1374,7 +1386,7 @@ impl Processor {
         let token_program_info = next_account_info(account_info_iter)?;
 
         // Validate Withdrawal Account
-        validate_proposal_account(
+        bridge_utils::helper::validate_proposal_account(
             program_id,
             event_configuration,
             event_transaction_lt,
@@ -1474,7 +1486,7 @@ impl Processor {
         }
 
         // Validate Withdrawal Account
-        validate_proposal_account(
+        bridge_utils::helper::validate_proposal_account(
             program_id,
             event_configuration,
             event_transaction_lt,
@@ -1647,7 +1659,7 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        validate_proposal_account(
+        bridge_utils::helper::validate_proposal_account(
             program_id,
             event_configuration,
             event_transaction_lt,
