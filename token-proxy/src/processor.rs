@@ -119,7 +119,6 @@ impl Processor {
                 )?;
             }
             TokenProxyInstruction::VoteForWithdrawRequest {
-                round_number,
                 event_configuration,
                 event_transaction_lt,
                 vote,
@@ -128,7 +127,6 @@ impl Processor {
                 Self::process_vote_for_withdraw_request(
                     program_id,
                     accounts,
-                    round_number,
                     event_configuration,
                     event_transaction_lt,
                     vote,
@@ -824,7 +822,6 @@ impl Processor {
     fn process_vote_for_withdraw_request(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        round_number: u32,
         event_configuration: UInt256,
         event_transaction_lt: u64,
         vote: Vote,
@@ -839,19 +836,6 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        // Validate Relay Round Account
-        let relay_round_account =
-            round_loader::get_associated_relay_round_address(&round_loader::id(), round_number);
-        if relay_round_account != *relay_round_account_info.key {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
-        let relay_round_account_data = RelayRound::unpack(&relay_round_account_info.data.borrow())?;
-
-        if relay_round_account_data.round_number != round_number {
-            return Err(TokenProxyError::InvalidRelayRound.into());
-        }
-
         // Validate Withdrawal Account
         validate_proposal_account(
             program_id,
@@ -861,10 +845,16 @@ impl Processor {
         )?;
 
         let mut withdrawal_account_data = Proposal::unpack(&withdrawal_account_info.data.borrow())?;
+        let round_number = withdrawal_account_data.round_number;
 
-        if withdrawal_account_data.round_number != round_number {
-            return Err(TokenProxyError::InvalidRelayRound.into());
-        }
+        // Validate Relay Round Account
+        round_loader::validate_relay_round_account(
+            &round_loader::id(),
+            round_number,
+            relay_round_account_info,
+        )?;
+
+        let relay_round_account_data = RelayRound::unpack(&relay_round_account_info.data.borrow())?;
 
         // Vote for withdraw request
         let index = relay_round_account_data

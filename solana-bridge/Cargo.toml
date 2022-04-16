@@ -5,6 +5,8 @@ authors = ["Broxus team"]
 edition = "2021"
 
 [dependencies]
+solana-program = "1.10"
+
 bridge-utils = { path = "../bridge-utils" }
 round-loader = { path = "../round-loader", features = ["no-entrypoint", "bindings"] }
 token-proxy = { path = "../token-proxy", features = ["no-entrypoint", "bindings"] }

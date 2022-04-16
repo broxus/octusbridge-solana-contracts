@@ -2394,6 +2394,7 @@ version = "0.1.0"
 dependencies = [
  "bridge-utils",
  "round-loader",
+ "solana-program",
  "token-proxy",
 ]
 

@@ -97,8 +97,6 @@ pub enum TokenProxyInstruction {
     /// # Account references
     /// ...
     VoteForWithdrawRequest {
-        // Current round number
-        round_number: u32,
         // EVER->SOL event configuration
         event_configuration: UInt256,
         // Ever deployed event transaction_lt

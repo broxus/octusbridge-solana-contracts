@@ -812,7 +812,7 @@ async fn test_vote_for_withdrawal_request() {
         },
     );
 
-    // Add Withdrawal Round Account
+    // Add Withdrawal Account
     let event_configuration = ton_types::UInt256::new();
     let event_transaction_lt = 123;
     let recipient_address = Pubkey::new_unique();

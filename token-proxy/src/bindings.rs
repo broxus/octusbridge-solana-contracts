@@ -266,7 +266,6 @@ pub fn vote_for_withdrawal_request_ix(
     let data = TokenProxyInstruction::VoteForWithdrawRequest {
         event_configuration,
         event_transaction_lt,
-        round_number,
         vote,
     }
     .try_to_vec()

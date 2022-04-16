@@ -75,7 +75,6 @@ pub fn create_proposal_ix(
     let proposal_pubkey =
         get_associated_proposal_address(program_id, event_configuration, event_transaction_lt);
 
-    let event_configuration = bridge_utils::types::UInt256::from(event_configuration.as_slice());
     let data = RoundLoaderInstruction::CreateProposal {
         event_configuration,
         event_transaction_lt,
@@ -107,7 +106,6 @@ pub fn write_proposal_ix(
     let proposal_pubkey =
         get_associated_proposal_address(program_id, event_configuration, event_transaction_lt);
 
-    let event_configuration = bridge_utils::types::UInt256::from(event_configuration.as_slice());
     let data = RoundLoaderInstruction::WriteProposal {
         event_configuration,
         event_transaction_lt,
@@ -138,7 +136,6 @@ pub fn finalize_proposal_ix(
     let setting_pubkey = get_associated_settings_address(program_id);
     let relay_round_pubkey = get_associated_relay_round_address(program_id, round_number);
 
-    let event_configuration = bridge_utils::types::UInt256::from(event_configuration.as_slice());
     let data = RoundLoaderInstruction::FinalizeProposal {
         event_configuration,
         event_transaction_lt,
@@ -173,7 +170,6 @@ pub fn vote_for_proposal_ix(
         get_associated_proposal_address(program_id, event_configuration, event_transaction_lt);
     let relay_round_pubkey = get_associated_relay_round_address(program_id, round_number);
 
-    let event_configuration = bridge_utils::types::UInt256::from(event_configuration.as_slice());
     let data = RoundLoaderInstruction::VoteForProposal {
         event_configuration,
         event_transaction_lt,
