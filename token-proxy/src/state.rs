@@ -1,6 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use bridge_derive::BridgePack;
-use bridge_utils::{EverAddress, Vote};
+use bridge_utils::types::{EverAddress, Vote};
 use enum_as_inner::EnumAsInner;
 use serde::{Deserialize, Serialize};
 

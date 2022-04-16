@@ -1,6 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use bridge_derive::BridgePack;
-use bridge_utils::Vote;
+use bridge_utils::types::Vote;
 
 use solana_program::program_error::ProgramError;
 use solana_program::program_pack::{IsInitialized, Pack, Sealed};
@@ -35,6 +35,23 @@ pub struct Settings {
 impl Sealed for Settings {}
 
 impl IsInitialized for Settings {
+    fn is_initialized(&self) -> bool {
+        self.is_initialized
+    }
+}
+
+#[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
+#[bridge_pack(length = 5000)]
+pub struct RelayRound {
+    pub is_initialized: bool,
+    pub round_number: u32,
+    pub round_end: u32,
+    pub relays: Vec<Pubkey>,
+}
+
+impl Sealed for RelayRound {}
+
+impl IsInitialized for RelayRound {
     fn is_initialized(&self) -> bool {
         self.is_initialized
     }

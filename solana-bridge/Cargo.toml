@@ -1,0 +1,10 @@
+[package]
+name = "solana-bridge"
+version = "0.1.0"
+authors = ["Broxus team"]
+edition = "2021"
+
+[dependencies]
+bridge-utils = { path = "../bridge-utils" }
+round-loader = { path = "../round-loader", features = ["no-entrypoint", "bindings"] }
+token-proxy = { path = "../token-proxy", features = ["no-entrypoint", "bindings"] }

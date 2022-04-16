@@ -1,5 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use bridge_utils::{UInt256, Vote};
+use bridge_utils::types::{UInt256, Vote};
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub enum RoundLoaderInstruction {

@@ -1,5 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use bridge_utils::{EverAddress, UInt256, Vote};
+use bridge_utils::types::{EverAddress, UInt256, Vote};
 
 use solana_program::pubkey::Pubkey;
 

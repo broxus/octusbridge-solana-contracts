@@ -5,4 +5,5 @@ members = [
     "bridge-utils",
     "round-loader",
     "token-proxy",
+    "solana-bridge",
 ]

@@ -2,7 +2,7 @@
 
 use borsh::BorshSerialize;
 
-use bridge_utils::{RelayRound, Vote};
+use bridge_utils::types::Vote;
 use solana_program::bpf_loader_upgradeable::UpgradeableLoaderState;
 use solana_program::rent::Rent;
 use solana_program::{
@@ -13,11 +13,7 @@ use solana_sdk::account::{Account, ReadableAccount};
 use solana_sdk::signature::{Keypair, Signer};
 use solana_sdk::transaction::Transaction;
 
-use round_loader::{
-    get_associated_proposal_address, get_associated_relay_round_address,
-    get_associated_settings_address, Processor, RelayRoundProposal, RelayRoundProposalEventWithLen,
-    Settings,
-};
+use round_loader::*;
 
 #[tokio::test]
 async fn test_init_relay_loader() {
@@ -62,7 +58,7 @@ async fn test_init_relay_loader() {
     let round_end = 1645086922;
 
     let mut transaction = Transaction::new_with_payer(
-        &[round_loader::initialize(
+        &[round_loader::initialize_ix(
             &funder.pubkey(),
             &creator.pubkey(),
             round_number,
@@ -77,7 +73,7 @@ async fn test_init_relay_loader() {
         .await
         .expect("process_transaction");
 
-    let settings_address = get_associated_settings_address();
+    let settings_address = get_settings_address();
 
     let settings_info = banks_client
         .get_account(settings_address)
@@ -90,7 +86,7 @@ async fn test_init_relay_loader() {
     assert_eq!(settings_data.is_initialized, true);
     assert_eq!(settings_data.round_number, round_number);
 
-    let relay_round_address = get_associated_relay_round_address(round_number);
+    let relay_round_address = get_relay_round_address(round_number);
 
     let relay_round_info = banks_client
         .get_account(relay_round_address)
@@ -122,7 +118,7 @@ async fn test_create_proposal() {
 
     let relays = vec![Keypair::new(), Keypair::new(), Keypair::new()];
 
-    let setting_address = get_associated_settings_address();
+    let setting_address = get_settings_address();
     let setting_data = Settings {
         is_initialized: true,
         round_number,
@@ -139,7 +135,7 @@ async fn test_create_proposal() {
         },
     );
 
-    let relay_round_address = get_associated_relay_round_address(round_number);
+    let relay_round_address = get_relay_round_address(round_number);
 
     let relay_round_data = RelayRound {
         is_initialized: true,
@@ -197,7 +193,7 @@ async fn test_create_proposal() {
     let event_transaction_lt = 123;
 
     let mut transaction = Transaction::new_with_payer(
-        &[round_loader::create_proposal(
+        &[round_loader::create_proposal_ix(
             &funder.pubkey(),
             event_configuration,
             event_transaction_lt,
@@ -227,7 +223,7 @@ async fn test_create_proposal() {
 
     for (chunk, i) in write_data.try_to_vec().unwrap().chunks(chunk_size).zip(0..) {
         let mut transaction = Transaction::new_with_payer(
-            &[round_loader::write_proposal(
+            &[round_loader::write_proposal_ix(
                 event_configuration,
                 event_transaction_lt,
                 (i * chunk_size) as u32,
@@ -245,7 +241,7 @@ async fn test_create_proposal() {
 
     // Finalize Proposal
     let mut transaction = Transaction::new_with_payer(
-        &[round_loader::finalize_proposal(
+        &[round_loader::finalize_proposal_ix(
             &proposal_creator.pubkey(),
             event_configuration,
             event_transaction_lt,
@@ -261,8 +257,7 @@ async fn test_create_proposal() {
         .expect("process_transaction");
 
     // Check created Proposal
-    let proposal_address =
-        get_associated_proposal_address(event_configuration, event_transaction_lt);
+    let proposal_address = get_proposal_address(event_configuration, event_transaction_lt);
 
     let proposal_info = banks_client
         .get_account(proposal_address)
@@ -289,7 +284,7 @@ async fn test_create_proposal() {
     // Vote for Proposal
     for relay in &relays {
         let mut transaction = Transaction::new_with_payer(
-            &[round_loader::vote_for_proposal(
+            &[round_loader::vote_for_proposal_ix(
                 &relay.pubkey(),
                 event_configuration,
                 event_transaction_lt,
@@ -318,7 +313,7 @@ async fn test_create_proposal() {
 
     // Execute Proposal
     let mut transaction = Transaction::new_with_payer(
-        &[round_loader::execute_proposal(
+        &[round_loader::execute_proposal_ix(
             &funder.pubkey(),
             event_configuration,
             event_transaction_lt,
@@ -344,7 +339,7 @@ async fn test_create_proposal() {
     assert_eq!(proposal_data.meta.data.is_executed, true);
 
     // Check created Relay Round
-    let relay_round_address = get_associated_relay_round_address(new_round_number);
+    let relay_round_address = get_relay_round_address(new_round_number);
 
     let relay_round_account = banks_client
         .get_account(relay_round_address)

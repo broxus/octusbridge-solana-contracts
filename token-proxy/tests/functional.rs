@@ -1,6 +1,7 @@
 #![cfg(feature = "test-bpf")]
 
-use bridge_utils::{EverAddress, Proposal, RelayRound, Vote};
+use bridge_utils::state::Proposal;
+use bridge_utils::types::{EverAddress, Vote};
 use rand::Rng;
 
 use solana_program::bpf_loader_upgradeable::UpgradeableLoaderState;
@@ -10,7 +11,6 @@ use solana_program_test::{processor, tokio, ProgramTest};
 use solana_sdk::account::{Account, ReadableAccount};
 use solana_sdk::signature::{Keypair, Signer};
 use solana_sdk::transaction::Transaction;
-use spl_associated_token_account::get_associated_token_address;
 use spl_token::state::AccountState;
 
 use token_proxy::*;
@@ -59,7 +59,7 @@ async fn test_init_mint() {
     let withdrawal_daily_limit = 1000;
     let admin = Pubkey::new_unique();
     let mut transaction = Transaction::new_with_payer(
-        &[token_proxy::initialize_mint(
+        &[token_proxy::initialize_mint_ix(
             &funder.pubkey(),
             &initializer.pubkey(),
             name.clone(),
@@ -78,7 +78,7 @@ async fn test_init_mint() {
         .await
         .expect("process_transaction");
 
-    let mint_address = token_proxy::get_associated_mint_address(&name);
+    let mint_address = token_proxy::get_mint_address(&name);
     let mint_info = banks_client
         .get_account(mint_address)
         .await
@@ -97,7 +97,7 @@ async fn test_init_mint() {
         program_option::COption::Some(mint_address)
     );
 
-    let settings_address = token_proxy::get_associated_settings_address(&name);
+    let settings_address = get_settings_address(&name);
     let settings_info = banks_client
         .get_account(settings_address)
         .await
@@ -181,7 +181,7 @@ async fn test_init_vault() {
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
     let mut transaction = Transaction::new_with_payer(
-        &[token_proxy::initialize_vault(
+        &[token_proxy::initialize_vault_ix(
             &funder.pubkey(),
             &initializer.pubkey(),
             &mint.pubkey(),
@@ -200,7 +200,7 @@ async fn test_init_vault() {
         .await
         .expect("process_transaction");
 
-    let vault_address = token_proxy::get_associated_vault_address(&name);
+    let vault_address = get_vault_address(&name);
     let vault_info = banks_client
         .get_account(vault_address)
         .await
@@ -216,7 +216,7 @@ async fn test_init_vault() {
     assert_eq!(vault_data.state, AccountState::Initialized);
     assert_eq!(vault_data.amount, 0);
 
-    let settings_address = token_proxy::get_associated_settings_address(&name);
+    let settings_address = get_settings_address(&name);
     let settings_info = banks_client
         .get_account(settings_address)
         .await
@@ -257,7 +257,7 @@ async fn test_deposit_ever() {
     let withdrawal_daily_limit = 1000;
     let admin = Pubkey::new_unique();
 
-    let mint_address = token_proxy::get_associated_mint_address(&name);
+    let mint_address = get_mint_address(&name);
 
     let mint_account_data = spl_token::state::Mint {
         is_initialized: true,
@@ -295,7 +295,7 @@ async fn test_deposit_ever() {
 
     // Add Sender Token Account
     let sender_associated_token_address =
-        get_associated_token_address(&sender.pubkey(), &mint_address);
+        spl_associated_token_account::get_associated_token_address(&sender.pubkey(), &mint_address);
 
     let sender_account_data = spl_token::state::Account {
         mint: mint_address,
@@ -319,7 +319,7 @@ async fn test_deposit_ever() {
     );
 
     // Add Settings Account
-    let settings_address = token_proxy::get_associated_settings_address(&name);
+    let settings_address = get_settings_address(&name);
 
     let settings_account_data = Settings {
         is_initialized: true,
@@ -354,7 +354,7 @@ async fn test_deposit_ever() {
     let amount = 32;
 
     let mut transaction = Transaction::new_with_payer(
-        &[token_proxy::deposit_ever(
+        &[token_proxy::deposit_ever_ix(
             &funder.pubkey(),
             &sender.pubkey(),
             name.clone(),
@@ -389,7 +389,7 @@ async fn test_deposit_ever() {
     let sender_data = spl_token::state::Account::unpack(sender_info.data()).expect("token unpack");
     assert_eq!(sender_data.amount, 100 - amount);
 
-    let deposit_address = get_associated_deposit_address(deposit_seed);
+    let deposit_address = get_deposit_address(deposit_seed);
     let deposit_info = banks_client
         .get_account(deposit_address)
         .await
@@ -443,7 +443,7 @@ async fn test_deposit_sol() {
     );
 
     // Add Vault Account
-    let vault_address = token_proxy::get_associated_vault_address(&name);
+    let vault_address = get_vault_address(&name);
 
     let vault_account_data = spl_token::state::Account {
         mint: mint.pubkey(),
@@ -481,7 +481,10 @@ async fn test_deposit_sol() {
 
     // Add Sender Token Account
     let sender_associated_token_address =
-        get_associated_token_address(&sender.pubkey(), &mint.pubkey());
+        spl_associated_token_account::get_associated_token_address(
+            &sender.pubkey(),
+            &mint.pubkey(),
+        );
 
     let sender_account_data = spl_token::state::Account {
         mint: mint.pubkey(),
@@ -505,7 +508,7 @@ async fn test_deposit_sol() {
     );
 
     // Add Settings Account
-    let settings_address = token_proxy::get_associated_settings_address(&name);
+    let settings_address = get_settings_address(&name);
 
     let settings_account_data = Settings {
         is_initialized: true,
@@ -543,7 +546,7 @@ async fn test_deposit_sol() {
     let amount = 32;
 
     let mut transaction = Transaction::new_with_payer(
-        &[token_proxy::deposit_sol(
+        &[token_proxy::deposit_sol_ix(
             &funder.pubkey(),
             &mint.pubkey(),
             &sender.pubkey(),
@@ -561,7 +564,7 @@ async fn test_deposit_sol() {
         .await
         .expect("process_transaction");
 
-    let vault_address = token_proxy::get_associated_vault_address(&name);
+    let vault_address = get_vault_address(&name);
     let vault_info = banks_client
         .get_account(vault_address)
         .await
@@ -571,7 +574,7 @@ async fn test_deposit_sol() {
     let vault_data = spl_token::state::Account::unpack(vault_info.data()).expect("mint unpack");
     assert_eq!(vault_data.amount, amount);
 
-    let deposit_address = get_associated_deposit_address(deposit_seed);
+    let deposit_address = get_deposit_address(deposit_seed);
     let deposit_info = banks_client
         .get_account(deposit_address)
         .await
@@ -599,10 +602,10 @@ async fn test_withdrawal_request() {
     let withdrawal_daily_limit = 1000;
     let admin = Pubkey::new_unique();
 
-    let mint_address = token_proxy::get_associated_mint_address(&name);
+    let mint_address = get_mint_address(&name);
 
     // Add Settings Account
-    let settings_address = token_proxy::get_associated_settings_address(&name);
+    let settings_address = get_settings_address(&name);
 
     let settings_account_data = Settings {
         is_initialized: true,
@@ -637,22 +640,22 @@ async fn test_withdrawal_request() {
         Pubkey::new_unique(),
     ];
     let relay_round_address =
-        bridge_utils::get_associated_relay_round_address(&round_loader::id(), round_number);
+        round_loader::get_associated_relay_round_address(&round_loader::id(), round_number);
 
-    let relay_round_data = RelayRound {
+    let relay_round_data = round_loader::RelayRound {
         is_initialized: true,
         round_end: 1946154867,
         relays: relays.clone(),
         round_number,
     };
 
-    let mut relay_round_packed = vec![0; RelayRound::LEN];
-    RelayRound::pack(relay_round_data, &mut relay_round_packed).unwrap();
+    let mut relay_round_packed = vec![0; round_loader::RelayRound::LEN];
+    round_loader::RelayRound::pack(relay_round_data, &mut relay_round_packed).unwrap();
 
     program_test.add_account(
         relay_round_address,
         Account {
-            lamports: Rent::default().minimum_balance(RelayRound::LEN),
+            lamports: Rent::default().minimum_balance(round_loader::RelayRound::LEN),
             data: relay_round_packed,
             owner: round_loader::id(),
             executable: false,
@@ -663,7 +666,10 @@ async fn test_withdrawal_request() {
     // Add Recipient Token Account
     let recipient_address = Pubkey::new_unique();
     let recipient_associated_token_address =
-        get_associated_token_address(&recipient_address, &mint_address);
+        spl_associated_token_account::get_associated_token_address(
+            &recipient_address,
+            &mint_address,
+        );
 
     let recipient_account_data = spl_token::state::Account {
         mint: mint_address,
@@ -695,12 +701,12 @@ async fn test_withdrawal_request() {
     let amount = 32;
 
     let mut transaction = Transaction::new_with_payer(
-        &[token_proxy::withdrawal_request(
+        &[token_proxy::withdrawal_request_ix(
             &funder.pubkey(),
             &author.pubkey(),
             name,
             round_number,
-            &event_configuration,
+            event_configuration,
             event_transaction_lt,
             sender_address,
             recipient_address,
@@ -715,8 +721,7 @@ async fn test_withdrawal_request() {
         .await
         .expect("process_transaction");
 
-    let withdrawal_address =
-        token_proxy::get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
+    let withdrawal_address = get_proposal_address(event_configuration, event_transaction_lt);
     let withdrawal_info = banks_client
         .get_account(withdrawal_address)
         .await
@@ -750,10 +755,10 @@ async fn test_vote_for_withdrawal_request() {
     let withdrawal_daily_limit = 1000;
     let admin = Pubkey::new_unique();
 
-    let mint_address = token_proxy::get_associated_mint_address(&name);
+    let mint_address = get_mint_address(&name);
 
     // Add Settings Account
-    let settings_address = token_proxy::get_associated_settings_address(&name);
+    let settings_address = get_settings_address(&name);
 
     let settings_account_data = Settings {
         is_initialized: true,
@@ -784,22 +789,22 @@ async fn test_vote_for_withdrawal_request() {
     let relays = vec![Keypair::new(), Keypair::new(), Keypair::new()];
 
     let round_number = 12;
-    let settings_address =
-        bridge_utils::get_associated_relay_round_address(&round_loader::id(), round_number);
+    let relay_round_address =
+        round_loader::get_associated_relay_round_address(&round_loader::id(), round_number);
 
-    let relay_round_account_data = RelayRound {
+    let relay_round_account_data = round_loader::RelayRound {
         is_initialized: true,
         round_end: 1946154867,
         relays: relays.iter().map(|pair| pair.pubkey()).collect(),
         round_number,
     };
 
-    let mut relay_round_packed = vec![0; RelayRound::LEN];
-    RelayRound::pack(relay_round_account_data, &mut relay_round_packed).unwrap();
+    let mut relay_round_packed = vec![0; round_loader::RelayRound::LEN];
+    round_loader::RelayRound::pack(relay_round_account_data, &mut relay_round_packed).unwrap();
     program_test.add_account(
-        settings_address,
+        relay_round_address,
         Account {
-            lamports: Rent::default().minimum_balance(RelayRound::LEN),
+            lamports: Rent::default().minimum_balance(round_loader::RelayRound::LEN),
             data: relay_round_packed,
             owner: round_loader::id(),
             executable: false,
@@ -814,8 +819,7 @@ async fn test_vote_for_withdrawal_request() {
     let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 10;
 
-    let withdrawal_address =
-        token_proxy::get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
+    let withdrawal_address = get_proposal_address(event_configuration, event_transaction_lt);
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
@@ -846,12 +850,12 @@ async fn test_vote_for_withdrawal_request() {
     // Vote for withdrawal request
     for relay in &relays {
         let mut transaction = Transaction::new_with_payer(
-            &[token_proxy::vote_for_withdrawal_request(
+            &[token_proxy::vote_for_withdrawal_request_ix(
                 &relay.pubkey(),
                 round_number,
-                &event_configuration,
+                event_configuration,
                 event_transaction_lt,
-                bridge_utils::Vote::Confirm,
+                bridge_utils::types::Vote::Confirm,
             )],
             Some(&funder.pubkey()),
         );
@@ -863,8 +867,7 @@ async fn test_vote_for_withdrawal_request() {
             .expect("process_transaction");
     }
 
-    let withdrawal_address =
-        token_proxy::get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
+    let withdrawal_address = get_proposal_address(event_configuration, event_transaction_lt);
     let withdrawal_info = banks_client
         .get_account(withdrawal_address)
         .await
@@ -893,10 +896,10 @@ async fn test_update_withdrawal_status() {
     let withdrawal_daily_limit = 1000;
     let admin = Pubkey::new_unique();
 
-    let mint_address = token_proxy::get_associated_mint_address(&name);
+    let mint_address = get_mint_address(&name);
 
     // Add Settings Account
-    let settings_address = token_proxy::get_associated_settings_address(&name);
+    let settings_address = get_settings_address(&name);
 
     let settings_account_data = Settings {
         is_initialized: true,
@@ -931,7 +934,7 @@ async fn test_update_withdrawal_status() {
     let amount = 10;
 
     let withdrawal_address =
-        token_proxy::get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
+        token_proxy::get_proposal_address(event_configuration, event_transaction_lt);
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
@@ -965,9 +968,9 @@ async fn test_update_withdrawal_status() {
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
     let mut transaction = Transaction::new_with_payer(
-        &[token_proxy::update_withdrawal_status(
+        &[token_proxy::update_withdrawal_status_ix(
             name,
-            &event_configuration,
+            event_configuration,
             event_transaction_lt,
         )],
         Some(&funder.pubkey()),
@@ -979,8 +982,7 @@ async fn test_update_withdrawal_status() {
         .await
         .expect("process_transaction");
 
-    let withdrawal_address =
-        token_proxy::get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
+    let withdrawal_address = get_proposal_address(event_configuration, event_transaction_lt);
     let withdrawal_info = banks_client
         .get_account(withdrawal_address)
         .await
@@ -1012,7 +1014,7 @@ async fn test_withdrawal_ever() {
     let withdrawal_daily_limit = 1000;
     let admin = Pubkey::new_unique();
 
-    let mint_address = token_proxy::get_associated_mint_address(&name);
+    let mint_address = get_mint_address(&name);
 
     let mint_account_data = spl_token::state::Mint {
         is_initialized: true,
@@ -1035,7 +1037,7 @@ async fn test_withdrawal_ever() {
     );
 
     // Add Settings Account
-    let settings_address = token_proxy::get_associated_settings_address(&name);
+    let settings_address = get_settings_address(&name);
 
     let settings_account_data = Settings {
         is_initialized: true,
@@ -1065,7 +1067,10 @@ async fn test_withdrawal_ever() {
     // Add Recipient Token Account
     let recipient_address = Pubkey::new_unique();
     let recipient_associated_token_address =
-        get_associated_token_address(&recipient_address, &mint_address);
+        spl_associated_token_account::get_associated_token_address(
+            &recipient_address,
+            &mint_address,
+        );
 
     let recipient_account_data = spl_token::state::Account {
         mint: mint_address,
@@ -1093,8 +1098,7 @@ async fn test_withdrawal_ever() {
     let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 10;
 
-    let withdrawal_address =
-        token_proxy::get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
+    let withdrawal_address = get_proposal_address(event_configuration, event_transaction_lt);
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
@@ -1132,10 +1136,10 @@ async fn test_withdrawal_ever() {
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
     let mut transaction = Transaction::new_with_payer(
-        &[token_proxy::withdrawal_ever(
+        &[token_proxy::withdrawal_ever_ix(
             &recipient_address,
             name,
-            &event_configuration,
+            event_configuration,
             event_transaction_lt,
         )],
         Some(&funder.pubkey()),
@@ -1208,7 +1212,7 @@ async fn test_withdrawal_sol() {
     );
 
     // Add Vault Account
-    let vault_address = token_proxy::get_associated_vault_address(&name);
+    let vault_address = get_vault_address(&name);
 
     let vault_account_data = spl_token::state::Account {
         mint: mint.pubkey(),
@@ -1232,7 +1236,7 @@ async fn test_withdrawal_sol() {
     );
 
     // Add Settings Account
-    let settings_address = token_proxy::get_associated_settings_address(&name);
+    let settings_address = get_settings_address(&name);
 
     let settings_account_data = Settings {
         is_initialized: true,
@@ -1265,7 +1269,10 @@ async fn test_withdrawal_sol() {
     // Add Recipient Token Account
     let recipient_address = Pubkey::new_unique();
     let recipient_associated_token_address =
-        get_associated_token_address(&recipient_address, &mint.pubkey());
+        spl_associated_token_account::get_associated_token_address(
+            &recipient_address,
+            &mint.pubkey(),
+        );
 
     let recipient_account_data = spl_token::state::Account {
         mint: mint.pubkey(),
@@ -1293,8 +1300,7 @@ async fn test_withdrawal_sol() {
     let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 10;
 
-    let withdrawal_address =
-        token_proxy::get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
+    let withdrawal_address = get_proposal_address(event_configuration, event_transaction_lt);
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
@@ -1332,11 +1338,11 @@ async fn test_withdrawal_sol() {
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
     let mut transaction = Transaction::new_with_payer(
-        &[token_proxy::withdrawal_sol(
+        &[token_proxy::withdrawal_sol_ix(
             &mint.pubkey(),
             &recipient_address,
             name,
-            &event_configuration,
+            event_configuration,
             event_transaction_lt,
         )],
         Some(&funder.pubkey()),
@@ -1386,7 +1392,7 @@ async fn test_approve_withdrawal_ever() {
     let withdrawal_daily_limit = 1000;
     let admin = Keypair::new();
 
-    let mint_address = token_proxy::get_associated_mint_address(&name);
+    let mint_address = get_mint_address(&name);
 
     let mint_account_data = spl_token::state::Mint {
         is_initialized: true,
@@ -1409,7 +1415,7 @@ async fn test_approve_withdrawal_ever() {
     );
 
     // Add Settings Account
-    let settings_address = token_proxy::get_associated_settings_address(&name);
+    let settings_address = get_settings_address(&name);
 
     let settings_account_data = Settings {
         is_initialized: true,
@@ -1439,7 +1445,10 @@ async fn test_approve_withdrawal_ever() {
     // Add Recipient Token Account
     let recipient_address = Pubkey::new_unique();
     let recipient_associated_token_address =
-        get_associated_token_address(&recipient_address, &mint_address);
+        spl_associated_token_account::get_associated_token_address(
+            &recipient_address,
+            &mint_address,
+        );
 
     let recipient_account_data = spl_token::state::Account {
         mint: mint_address,
@@ -1467,8 +1476,7 @@ async fn test_approve_withdrawal_ever() {
     let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 10;
 
-    let withdrawal_address =
-        token_proxy::get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
+    let withdrawal_address = get_proposal_address(event_configuration, event_transaction_lt);
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
@@ -1506,11 +1514,11 @@ async fn test_approve_withdrawal_ever() {
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
     let mut transaction = Transaction::new_with_payer(
-        &[token_proxy::approve_withdrawal_ever(
+        &[token_proxy::approve_withdrawal_ever_ix(
             &admin.pubkey(),
             &recipient_address,
             name,
-            &event_configuration,
+            event_configuration,
             event_transaction_lt,
         )],
         Some(&funder.pubkey()),
@@ -1571,10 +1579,10 @@ async fn test_approve_withdrawal_sol() {
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
     let withdrawal_daily_limit = 1000;
-    let vault_address = token_proxy::get_associated_vault_address(&name);
+    let vault_address = get_vault_address(&name);
 
     // Add Settings Account
-    let settings_address = token_proxy::get_associated_settings_address(&name);
+    let settings_address = get_settings_address(&name);
 
     let settings_account_data = Settings {
         is_initialized: true,
@@ -1610,8 +1618,7 @@ async fn test_approve_withdrawal_sol() {
     let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 10;
 
-    let withdrawal_address =
-        token_proxy::get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
+    let withdrawal_address = get_proposal_address(event_configuration, event_transaction_lt);
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
@@ -1649,10 +1656,10 @@ async fn test_approve_withdrawal_sol() {
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
     let mut transaction = Transaction::new_with_payer(
-        &[token_proxy::approve_withdrawal_sol(
+        &[token_proxy::approve_withdrawal_sol_ix(
             &admin.pubkey(),
             name,
-            &event_configuration,
+            event_configuration,
             event_transaction_lt,
         )],
         Some(&funder.pubkey()),
@@ -1714,7 +1721,7 @@ async fn test_cancel_withdrawal_sol() {
     );
 
     // Add Vault Account
-    let vault_address = token_proxy::get_associated_vault_address(&name);
+    let vault_address = get_vault_address(&name);
 
     let vault_account_data = spl_token::state::Account {
         mint: mint.pubkey(),
@@ -1744,8 +1751,7 @@ async fn test_cancel_withdrawal_sol() {
     let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 10;
 
-    let withdrawal_address =
-        token_proxy::get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
+    let withdrawal_address = get_proposal_address(event_configuration, event_transaction_lt);
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
@@ -1776,10 +1782,10 @@ async fn test_cancel_withdrawal_sol() {
     let deposit_seed = rand::thread_rng().gen::<u64>();
 
     let mut transaction = Transaction::new_with_payer(
-        &[token_proxy::cancel_withdrawal_sol(
+        &[token_proxy::cancel_withdrawal_sol_ix(
             &funder.pubkey(),
             &author.pubkey(),
-            &event_configuration,
+            event_configuration,
             event_transaction_lt,
             deposit_seed,
         )],
@@ -1792,8 +1798,7 @@ async fn test_cancel_withdrawal_sol() {
         .await
         .expect("process_transaction");
 
-    let withdrawal_address =
-        get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
+    let withdrawal_address = get_proposal_address(event_configuration, event_transaction_lt);
     let withdrawal_info = banks_client
         .get_account(withdrawal_address)
         .await
@@ -1808,7 +1813,7 @@ async fn test_cancel_withdrawal_sol() {
         WithdrawalTokenStatus::Cancelled
     );
 
-    let new_deposit_address = get_associated_deposit_address(deposit_seed);
+    let new_deposit_address = get_deposit_address(deposit_seed);
     let new_deposit_info = banks_client
         .get_account(new_deposit_address)
         .await
@@ -1861,7 +1866,7 @@ async fn test_force_withdrawal_sol() {
     );
 
     // Add Vault Account
-    let vault_address = token_proxy::get_associated_vault_address(&name);
+    let vault_address = get_vault_address(&name);
 
     let vault_account_data = spl_token::state::Account {
         mint: mint.pubkey(),
@@ -1885,7 +1890,7 @@ async fn test_force_withdrawal_sol() {
     );
 
     // Add Settings Account
-    let settings_address = token_proxy::get_associated_settings_address(&name);
+    let settings_address = get_settings_address(&name);
 
     let settings_account_data = Settings {
         is_initialized: true,
@@ -1918,7 +1923,10 @@ async fn test_force_withdrawal_sol() {
     // Add Recipient Token Account
     let recipient_address = Pubkey::new_unique();
     let recipient_associated_token_address =
-        get_associated_token_address(&recipient_address, &mint.pubkey());
+        spl_associated_token_account::get_associated_token_address(
+            &recipient_address,
+            &mint.pubkey(),
+        );
 
     let recipient_account_data = spl_token::state::Account {
         mint: mint.pubkey(),
@@ -1946,8 +1954,7 @@ async fn test_force_withdrawal_sol() {
     let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 10;
 
-    let withdrawal_address =
-        token_proxy::get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
+    let withdrawal_address = get_proposal_address(event_configuration, event_transaction_lt);
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
@@ -1985,11 +1992,11 @@ async fn test_force_withdrawal_sol() {
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
     let mut transaction = Transaction::new_with_payer(
-        &[token_proxy::force_withdrawal_sol(
+        &[token_proxy::force_withdrawal_sol_ix(
             &mint.pubkey(),
             &recipient_address,
             name,
-            &event_configuration,
+            event_configuration,
             event_transaction_lt,
         )],
         Some(&funder.pubkey()),
@@ -2070,7 +2077,10 @@ async fn test_fill_withdrawal_sol() {
 
     // Add Sender Token Account
     let sender_associated_token_address =
-        get_associated_token_address(&sender.pubkey(), &mint.pubkey());
+        spl_associated_token_account::get_associated_token_address(
+            &sender.pubkey(),
+            &mint.pubkey(),
+        );
 
     let sender_account_data = spl_token::state::Account {
         mint: mint.pubkey(),
@@ -2096,7 +2106,10 @@ async fn test_fill_withdrawal_sol() {
     // Add Recipient Token Account
     let recipient_address = Pubkey::new_unique();
     let recipient_associated_token_address =
-        get_associated_token_address(&recipient_address, &mint.pubkey());
+        spl_associated_token_account::get_associated_token_address(
+            &recipient_address,
+            &mint.pubkey(),
+        );
 
     let recipient_account_data = spl_token::state::Account {
         mint: mint.pubkey(),
@@ -2125,8 +2138,7 @@ async fn test_fill_withdrawal_sol() {
     let amount = 10;
     let bounty = 1;
 
-    let withdrawal_address =
-        token_proxy::get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
+    let withdrawal_address = get_proposal_address(event_configuration, event_transaction_lt);
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
@@ -2167,12 +2179,12 @@ async fn test_fill_withdrawal_sol() {
     let recipient = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
 
     let mut transaction = Transaction::new_with_payer(
-        &[token_proxy::fill_withdrawal_sol(
+        &[token_proxy::fill_withdrawal_sol_ix(
             &funder.pubkey(),
             &sender.pubkey(),
             &mint.pubkey(),
             &recipient_address,
-            &event_configuration,
+            event_configuration,
             event_transaction_lt,
             deposit_seed,
             recipient,
@@ -2208,7 +2220,7 @@ async fn test_fill_withdrawal_sol() {
             .expect("recipient unpack");
     assert_eq!(recipient_associated_token_data.amount, amount - bounty);
 
-    let deposit_address = get_associated_deposit_address(deposit_seed);
+    let deposit_address = get_deposit_address(deposit_seed);
     let deposit_info = banks_client
         .get_account(deposit_address)
         .await
@@ -2262,7 +2274,7 @@ async fn test_transfer_from_vault() {
     );
 
     // Add Vault Account
-    let vault_address = token_proxy::get_associated_vault_address(&name);
+    let vault_address = get_vault_address(&name);
 
     let vault_account_data = spl_token::state::Account {
         mint: mint.pubkey(),
@@ -2286,7 +2298,7 @@ async fn test_transfer_from_vault() {
     );
 
     // Add Settings Account
-    let settings_address = token_proxy::get_associated_settings_address(&name);
+    let settings_address = get_settings_address(&name);
 
     let settings_account_data = Settings {
         is_initialized: true,
@@ -2319,7 +2331,10 @@ async fn test_transfer_from_vault() {
     // Add Recipient Token Account
     let recipient_address = Pubkey::new_unique();
     let recipient_associated_token_address =
-        get_associated_token_address(&recipient_address, &mint.pubkey());
+        spl_associated_token_account::get_associated_token_address(
+            &recipient_address,
+            &mint.pubkey(),
+        );
 
     let recipient_account_data = spl_token::state::Account {
         mint: mint.pubkey(),
@@ -2347,7 +2362,7 @@ async fn test_transfer_from_vault() {
     let amount = 10;
 
     let mut transaction = Transaction::new_with_payer(
-        &[token_proxy::transfer_from_vault(
+        &[token_proxy::transfer_from_vault_ix(
             &admin.pubkey(),
             &mint.pubkey(),
             &recipient_address,
@@ -2401,8 +2416,7 @@ async fn test_change_bounty_for_withdrawal_sol() {
 
     let amount = 10;
 
-    let withdrawal_address =
-        token_proxy::get_associated_withdrawal_address(&event_configuration, event_transaction_lt);
+    let withdrawal_address = get_proposal_address(event_configuration, event_transaction_lt);
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
@@ -2437,9 +2451,9 @@ async fn test_change_bounty_for_withdrawal_sol() {
 
     let bounty = 5;
     let mut transaction = Transaction::new_with_payer(
-        &[token_proxy::change_bounty_for_withdrawal_sol(
+        &[token_proxy::change_bounty_for_withdrawal_sol_ix(
             &author.pubkey(),
-            &event_configuration,
+            event_configuration,
             event_transaction_lt,
             bounty,
         )],
@@ -2481,7 +2495,7 @@ async fn test_change_settings() {
     let withdrawal_daily_limit = 1000;
     let admin = Keypair::new();
 
-    let mint_address = token_proxy::get_associated_mint_address(&name);
+    let mint_address = get_mint_address(&name);
 
     let mint_account_data = spl_token::state::Mint {
         is_initialized: true,
@@ -2504,7 +2518,7 @@ async fn test_change_settings() {
     );
 
     // Add Settings Account
-    let settings_address = token_proxy::get_associated_settings_address(&name);
+    let settings_address = get_settings_address(&name);
 
     let settings_account_data = Settings {
         is_initialized: true,
@@ -2540,7 +2554,7 @@ async fn test_change_settings() {
     let new_withdrawal_daily_limit = 1000;
 
     let mut transaction = Transaction::new_with_payer(
-        &[token_proxy::change_settings(
+        &[token_proxy::change_settings_ix(
             &admin.pubkey(),
             name,
             new_emergency,

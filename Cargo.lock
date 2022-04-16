@@ -2389,6 +2389,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "solana-bridge"
+version = "0.1.0"
+dependencies = [
+ "bridge-utils",
+ "round-loader",
+ "token-proxy",
+]
+
+[[package]]
 name = "solana-bucket-map"
 version = "1.10.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"

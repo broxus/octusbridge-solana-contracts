@@ -1,7 +1,6 @@
 use borsh::BorshDeserialize;
-use bridge_utils::{
-    validate_proposal_account, validate_settings_account, Proposal, RelayRound, UInt256, Vote,
-};
+use bridge_utils::state::Proposal;
+use bridge_utils::types::{UInt256, Vote};
 
 use solana_program::account_info::{next_account_info, AccountInfo};
 use solana_program::clock::Clock;
@@ -117,14 +116,11 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        bridge_utils::validate_programdata_account(program_id, programdata_account_info.key)?;
-        bridge_utils::validate_initializer_account(
-            creator_account_info.key,
-            programdata_account_info,
-        )?;
+        validate_programdata_account(program_id, programdata_account_info.key)?;
+        validate_initializer_account(creator_account_info.key, programdata_account_info)?;
 
         // Validate Settings Account
-        let settings_nonce = validate_settings_account(program_id, None, settings_account_info)?;
+        let settings_nonce = validate_settings_account(program_id, settings_account_info)?;
         let settings_account_signer_seeds: &[&[_]] = &[br"settings", &[settings_nonce]];
 
         // Create Settings Account
@@ -157,7 +153,7 @@ impl Processor {
 
         // Validate Relay Round Account
         let relay_round_nonce =
-            validate_relay_round_account(round_number, relay_round_account_info)?;
+            validate_relay_round_account(program_id, round_number, relay_round_account_info)?;
         let relay_round_account_signer_seeds: &[&[_]] =
             &[&round_number.to_le_bytes(), &[relay_round_nonce]];
 
@@ -299,13 +295,13 @@ impl Processor {
         }
 
         // Validate Settings Account
-        validate_settings_account(program_id, None, settings_account_info)?;
+        validate_settings_account(program_id, settings_account_info)?;
 
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
         let round_number = settings_account_data.round_number;
 
         // Validate Relay Round Account
-        validate_relay_round_account(round_number, relay_round_account_info)?;
+        validate_relay_round_account(program_id, round_number, relay_round_account_info)?;
 
         let relay_round_account_data = RelayRound::unpack(&relay_round_account_info.data.borrow())?;
 
@@ -360,7 +356,7 @@ impl Processor {
         }
 
         // Validate Proposal Account
-        bridge_utils::validate_proposal_account(
+        validate_proposal_account(
             program_id,
             event_configuration,
             event_transaction_lt,
@@ -371,7 +367,7 @@ impl Processor {
         let round_number = proposal_account_data.round_number;
 
         // Validate Relay Round Account
-        validate_relay_round_account(round_number, relay_round_account_info)?;
+        validate_relay_round_account(program_id, round_number, relay_round_account_info)?;
 
         let relay_round_account_data = RelayRound::unpack(&relay_round_account_info.data.borrow())?;
 
@@ -403,7 +399,7 @@ impl Processor {
         let rent = &Rent::from_account_info(rent_sysvar_info)?;
 
         // Validate Settings Account
-        validate_settings_account(program_id, None, settings_account_info)?;
+        validate_settings_account(program_id, settings_account_info)?;
 
         let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
 
@@ -419,7 +415,8 @@ impl Processor {
         if !proposal.meta.data.is_executed && sig_count >= proposal.required_votes {
             // Validate a new Relay Round Account
             let round_number = proposal.event.data.round_num;
-            let nonce = validate_relay_round_account(round_number, relay_round_account_info)?;
+            let nonce =
+                validate_relay_round_account(program_id, round_number, relay_round_account_info)?;
 
             let relay_round_account_signer_seeds: &[&[_]] =
                 &[&round_number.to_le_bytes(), &[nonce]];

@@ -3,24 +3,8 @@ use bridge_derive::BridgePack;
 
 use solana_program::program_error::ProgramError;
 use solana_program::program_pack::{IsInitialized, Pack, Sealed};
-use solana_program::pubkey::Pubkey;
 
-#[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
-#[bridge_pack(length = 5000)]
-pub struct RelayRound {
-    pub is_initialized: bool,
-    pub round_number: u32,
-    pub round_end: u32,
-    pub relays: Vec<Pubkey>,
-}
-
-impl Sealed for RelayRound {}
-
-impl IsInitialized for RelayRound {
-    fn is_initialized(&self) -> bool {
-        self.is_initialized
-    }
-}
+use crate::types::Vote;
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
 #[bridge_pack(length = 5000)]
@@ -39,11 +23,4 @@ impl IsInitialized for Proposal {
     fn is_initialized(&self) -> bool {
         self.is_initialized
     }
-}
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq, BorshSerialize, BorshDeserialize)]
-pub enum Vote {
-    None,
-    Confirm,
-    Reject,
 }

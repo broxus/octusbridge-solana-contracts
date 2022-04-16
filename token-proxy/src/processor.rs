@@ -1,5 +1,7 @@
 use borsh::BorshDeserialize;
-use bridge_utils::{EverAddress, Proposal, RelayRound, UInt256, Vote};
+use bridge_utils::state::Proposal;
+use bridge_utils::types::{EverAddress, UInt256, Vote};
+use round_loader::RelayRound;
 
 use solana_program::account_info::{next_account_info, AccountInfo};
 use solana_program::clock::Clock;
@@ -303,11 +305,8 @@ impl Processor {
         }
 
         // Validate Initializer Account
-        bridge_utils::validate_programdata_account(program_id, programdata_account_info.key)?;
-        bridge_utils::validate_initializer_account(
-            initializer_account_info.key,
-            programdata_account_info,
-        )?;
+        validate_programdata_account(program_id, programdata_account_info.key)?;
+        validate_initializer_account(initializer_account_info.key, programdata_account_info)?;
 
         // Validate Mint Account
         let mint_nonce = validate_mint_account(program_id, &name, mint_account_info)?;
@@ -348,11 +347,7 @@ impl Processor {
         )?;
 
         // Validate Settings Account
-        let settings_nonce = bridge_utils::validate_settings_account(
-            program_id,
-            Some(&name),
-            settings_account_info,
-        )?;
+        let settings_nonce = validate_settings_account(program_id, &name, settings_account_info)?;
         let settings_account_signer_seeds: &[&[_]] =
             &[br"settings", name.as_bytes(), &[settings_nonce]];
 
@@ -424,11 +419,8 @@ impl Processor {
         }
 
         // Validate Initializer Account
-        bridge_utils::validate_programdata_account(program_id, programdata_account_info.key)?;
-        bridge_utils::validate_initializer_account(
-            initializer_account_info.key,
-            programdata_account_info,
-        )?;
+        validate_programdata_account(program_id, programdata_account_info.key)?;
+        validate_initializer_account(initializer_account_info.key, programdata_account_info)?;
 
         // Validate Vault Account
         let vault_nonce = validate_vault_account(program_id, &name, vault_account_info)?;
@@ -469,11 +461,7 @@ impl Processor {
         )?;
 
         // Validate Settings Account
-        let settings_nonce = bridge_utils::validate_settings_account(
-            program_id,
-            Some(&name),
-            settings_account_info,
-        )?;
+        let settings_nonce = validate_settings_account(program_id, &name, settings_account_info)?;
         let settings_account_signer_seeds: &[&[_]] =
             &[br"settings", name.as_bytes(), &[settings_nonce]];
 
@@ -544,7 +532,7 @@ impl Processor {
         }
 
         // Validate Settings Account
-        bridge_utils::validate_settings_account(program_id, Some(&name), settings_account_info)?;
+        validate_settings_account(program_id, &name, settings_account_info)?;
 
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
         if settings_account_data.emergency {
@@ -641,7 +629,7 @@ impl Processor {
         }
 
         // Validate Settings Account
-        bridge_utils::validate_settings_account(program_id, Some(&name), settings_account_info)?;
+        validate_settings_account(program_id, &name, settings_account_info)?;
 
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
         if settings_account_data.emergency {
@@ -761,7 +749,11 @@ impl Processor {
         }
 
         // Validate Relay Round Account
-        round_loader::validate_relay_round_account(round_number, relay_round_account_info)?;
+        round_loader::validate_relay_round_account(
+            &round_loader::id(),
+            round_number,
+            relay_round_account_info,
+        )?;
 
         let relay_round_account_data = RelayRound::unpack(&relay_round_account_info.data.borrow())?;
 
@@ -772,14 +764,14 @@ impl Processor {
         let required_votes = (relay_round_account_data.relays.len() * 2 / 3 + 1) as u32;
 
         // Validate Withdrawal Account
-        let withdrawal_nonce = validate_withdraw_account(
+        let withdrawal_nonce = validate_proposal_account(
             program_id,
             event_configuration,
             event_transaction_lt,
             withdrawal_account_info,
         )?;
         let withdrawal_account_signer_seeds: &[&[_]] = &[
-            br"withdrawal",
+            br"proposal",
             event_configuration.as_slice(),
             &event_transaction_lt.to_le_bytes(),
             &[withdrawal_nonce],
@@ -849,7 +841,7 @@ impl Processor {
 
         // Validate Relay Round Account
         let relay_round_account =
-            bridge_utils::get_associated_relay_round_address(&round_loader::id(), round_number);
+            round_loader::get_associated_relay_round_address(&round_loader::id(), round_number);
         if relay_round_account != *relay_round_account_info.key {
             return Err(ProgramError::InvalidAccountData);
         }
@@ -861,7 +853,7 @@ impl Processor {
         }
 
         // Validate Withdrawal Account
-        validate_withdraw_account(
+        validate_proposal_account(
             program_id,
             event_configuration,
             event_transaction_lt,
@@ -904,7 +896,7 @@ impl Processor {
         let clock = Clock::from_account_info(clock_info)?;
 
         // Validate Withdrawal Account
-        validate_withdraw_account(
+        validate_proposal_account(
             program_id,
             event_configuration,
             event_transaction_lt,
@@ -915,9 +907,9 @@ impl Processor {
             WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
 
         // Validate Settings Account
-        bridge_utils::validate_settings_account(
+        validate_settings_account(
             program_id,
-            Some(&withdrawal_account_data.event.data.token_symbol),
+            &withdrawal_account_data.event.data.token_symbol,
             settings_account_info,
         )?;
 
@@ -983,7 +975,7 @@ impl Processor {
         let token_program_info = next_account_info(account_info_iter)?;
 
         // Validate Withdrawal Account
-        validate_withdraw_account(
+        validate_proposal_account(
             program_id,
             event_configuration,
             event_transaction_lt,
@@ -996,7 +988,7 @@ impl Processor {
         let name = &withdrawal_account_data.event.data.token_symbol;
 
         // Validate Settings Account
-        bridge_utils::validate_settings_account(program_id, Some(name), settings_account_info)?;
+        validate_settings_account(program_id, name, settings_account_info)?;
 
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
 
@@ -1067,7 +1059,7 @@ impl Processor {
         let token_program_info = next_account_info(account_info_iter)?;
 
         // Validate Withdrawal Account
-        validate_withdraw_account(
+        validate_proposal_account(
             program_id,
             event_configuration,
             event_transaction_lt,
@@ -1080,7 +1072,7 @@ impl Processor {
         let name = &withdrawal_account_data.event.data.token_symbol;
 
         // Validate Settings Account
-        bridge_utils::validate_settings_account(program_id, Some(name), settings_account_info)?;
+        validate_settings_account(program_id, name, settings_account_info)?;
 
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
 
@@ -1162,7 +1154,7 @@ impl Processor {
         }
 
         // Validate Withdrawal Account
-        validate_withdraw_account(
+        validate_proposal_account(
             program_id,
             event_configuration,
             event_transaction_lt,
@@ -1179,7 +1171,7 @@ impl Processor {
         let name = &withdrawal_account_data.event.data.token_symbol;
 
         // Validate Settings Account
-        bridge_utils::validate_settings_account(program_id, Some(name), settings_account_info)?;
+        validate_settings_account(program_id, name, settings_account_info)?;
 
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
 
@@ -1251,7 +1243,7 @@ impl Processor {
         }
 
         // Validate Withdrawal Account
-        validate_withdraw_account(
+        validate_proposal_account(
             program_id,
             event_configuration,
             event_transaction_lt,
@@ -1268,7 +1260,7 @@ impl Processor {
         let name = &withdrawal_account_data.event.data.token_symbol;
 
         // Validate Settings Account
-        bridge_utils::validate_settings_account(program_id, Some(&name), settings_account_info)?;
+        validate_settings_account(program_id, name, settings_account_info)?;
 
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
 
@@ -1308,7 +1300,7 @@ impl Processor {
         let rent = &Rent::from_account_info(rent_sysvar_info)?;
 
         // Validate Withdrawal Account
-        validate_withdraw_account(
+        validate_proposal_account(
             program_id,
             event_configuration,
             event_transaction_lt,
@@ -1392,7 +1384,7 @@ impl Processor {
         let token_program_info = next_account_info(account_info_iter)?;
 
         // Validate Withdrawal Account
-        validate_withdraw_account(
+        validate_proposal_account(
             program_id,
             event_configuration,
             event_transaction_lt,
@@ -1409,7 +1401,7 @@ impl Processor {
         let name = &withdrawal_account_data.event.data.token_symbol;
 
         // Validate Settings Account
-        bridge_utils::validate_settings_account(program_id, Some(name), settings_account_info)?;
+        validate_settings_account(program_id, name, settings_account_info)?;
 
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
 
@@ -1492,7 +1484,7 @@ impl Processor {
         }
 
         // Validate Withdrawal Account
-        validate_withdraw_account(
+        validate_proposal_account(
             program_id,
             event_configuration,
             event_transaction_lt,
@@ -1605,7 +1597,7 @@ impl Processor {
         }
 
         // Validate Settings Account
-        bridge_utils::validate_settings_account(program_id, Some(&name), settings_account_info)?;
+        validate_settings_account(program_id, &name, settings_account_info)?;
 
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
 
@@ -1665,7 +1657,7 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        validate_withdraw_account(
+        validate_proposal_account(
             program_id,
             event_configuration,
             event_transaction_lt,
@@ -1711,7 +1703,7 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        bridge_utils::validate_settings_account(program_id, Some(&name), settings_account_info)?;
+        validate_settings_account(program_id, &name, settings_account_info)?;
 
         let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
 
