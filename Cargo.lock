@@ -2392,6 +2392,7 @@ dependencies = [
 name = "solana-bridge"
 version = "0.1.0"
 dependencies = [
+ "borsh",
  "bridge-utils",
  "round-loader",
  "solana-program",

@@ -4,7 +4,7 @@ use bridge_derive::BridgePack;
 use solana_program::program_error::ProgramError;
 use solana_program::program_pack::{IsInitialized, Pack, Sealed};
 
-use crate::types::Vote;
+use super::types::Vote;
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
 #[bridge_pack(length = 5000)]

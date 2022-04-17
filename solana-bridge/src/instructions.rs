@@ -1,24 +1,25 @@
+use borsh::{BorshDeserialize, BorshSerialize};
 use bridge_utils::types::{UInt256, Vote};
 
 use solana_program::instruction::{AccountMeta, Instruction};
-use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
-pub enum BridgeInstruction {
-    VoteForProposal {
-        // EVER->SOL event configuration
-        event_configuration: UInt256,
-        // Ever deployed event transaction_lt
-        event_transaction_lt: u64,
-        // Vote type
-        vote: Vote,
-    },
+struct VoteForProposal {
+    // Instruction number
+    instruction: u8,
+    // EVER->SOL event configuration
+    event_configuration: UInt256,
+    // Ever deployed event transaction_lt
+    event_transaction_lt: u64,
+    // Vote type
+    vote: Vote,
 }
 
 pub fn vote_for_proposal_ix(
     program_id: Pubkey,
     voter_pubkey: Pubkey,
+    instruction: u8,
     event_configuration: UInt256,
     event_transaction_lt: u64,
     round_number: u32,
@@ -33,7 +34,8 @@ pub fn vote_for_proposal_ix(
     let relay_round_pubkey =
         round_loader::get_associated_relay_round_address(&program_id, round_number);
 
-    let data = BridgeInstruction::VoteForProposal {
+    let data = VoteForProposal {
+        instruction,
         event_configuration,
         event_transaction_lt,
         vote,

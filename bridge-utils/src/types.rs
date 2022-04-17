@@ -34,7 +34,7 @@ impl MsgAddrStd {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug, BorshSerialize, BorshDeserialize)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, BorshSerialize, BorshDeserialize)]
 pub struct UInt256([u8; 32]);
 
 impl From<[u8; 32]> for UInt256 {

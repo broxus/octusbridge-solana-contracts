@@ -5,6 +5,7 @@ authors = ["Broxus team"]
 edition = "2021"
 
 [dependencies]
+borsh = "0.9"
 solana-program = "1.10"
 
 bridge-utils = { path = "../bridge-utils" }

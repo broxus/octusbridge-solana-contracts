@@ -4,7 +4,7 @@ use solana_program::bpf_loader_upgradeable::UpgradeableLoaderState;
 use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
 
-use crate::types::UInt256;
+use super::types::UInt256;
 
 pub fn get_programdata_address(program_id: &Pubkey) -> Pubkey {
     Pubkey::find_program_address(&[program_id.as_ref()], &bpf_loader_upgradeable::id()).0
