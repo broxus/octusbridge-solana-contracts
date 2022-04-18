@@ -84,6 +84,7 @@ pub struct DepositTokenEvent {
     pub sender_address: Pubkey,
     pub amount: u64,
     pub recipient_address: EverAddress,
+    pub configuration: EverAddress,
 }
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
@@ -93,13 +94,19 @@ pub struct DepositTokenEventWithLen {
 }
 
 impl DepositTokenEventWithLen {
-    pub fn new(sender_address: Pubkey, amount: u64, recipient_address: EverAddress) -> Self {
+    pub fn new(
+        sender_address: Pubkey,
+        amount: u64,
+        recipient_address: EverAddress,
+        configuration: EverAddress,
+    ) -> Self {
         Self {
             len: DEPOSIT_TOKEN_EVENT_LEN as u32,
             data: DepositTokenEvent {
                 sender_address,
                 amount,
                 recipient_address,
+                configuration,
             },
         }
     }
