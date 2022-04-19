@@ -133,7 +133,6 @@ pub fn deposit_ever_ix(
     sender_pubkey: &Pubkey,
     name: String,
     recipient: EverAddress,
-    configuration: EverAddress,
     amount: u64,
     deposit_seed: u64,
 ) -> Instruction {
@@ -146,7 +145,6 @@ pub fn deposit_ever_ix(
     let data = TokenProxyInstruction::DepositEver {
         name,
         recipient,
-        configuration,
         amount,
         deposit_seed,
     }
@@ -176,7 +174,6 @@ pub fn deposit_sol_ix(
     sender_pubkey: &Pubkey,
     name: String,
     recipient: EverAddress,
-    configuration: EverAddress,
     amount: u64,
     deposit_seed: u64,
 ) -> Instruction {
@@ -190,7 +187,6 @@ pub fn deposit_sol_ix(
     let data = TokenProxyInstruction::DepositSol {
         name,
         recipient,
-        configuration,
         amount,
         deposit_seed,
     }
@@ -455,7 +451,6 @@ pub fn cancel_withdrawal_sol_ix(
     authority_pubkey: &Pubkey,
     event_configuration: UInt256,
     event_transaction_lt: u64,
-    configuration: EverAddress,
     deposit_seed: u64,
 ) -> Instruction {
     let withdrawal_pubkey = get_proposal_address(event_configuration, event_transaction_lt);
@@ -465,7 +460,6 @@ pub fn cancel_withdrawal_sol_ix(
     let data = TokenProxyInstruction::CancelWithdrawSol {
         event_configuration,
         event_transaction_lt,
-        configuration,
         deposit_seed,
     }
     .try_to_vec()
@@ -528,9 +522,8 @@ pub fn fill_withdrawal_sol_ix(
     to_pubkey: &Pubkey,
     event_configuration: UInt256,
     event_transaction_lt: u64,
-    recipient: EverAddress,
-    configuration: EverAddress,
     deposit_seed: u64,
+    recipient: EverAddress,
 ) -> Instruction {
     let sender_pubkey = spl_associated_token_account::get_associated_token_address(
         authority_sender_pubkey,
@@ -546,9 +539,8 @@ pub fn fill_withdrawal_sol_ix(
     let data = TokenProxyInstruction::FillWithdrawSol {
         event_configuration,
         event_transaction_lt,
-        recipient,
-        configuration,
         deposit_seed,
+        recipient,
     }
     .try_to_vec()
     .expect("pack");

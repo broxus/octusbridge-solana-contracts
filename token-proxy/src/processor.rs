@@ -67,7 +67,6 @@ impl Processor {
             TokenProxyInstruction::DepositEver {
                 name,
                 recipient,
-                configuration,
                 amount,
                 deposit_seed,
             } => {
@@ -77,7 +76,6 @@ impl Processor {
                     accounts,
                     name,
                     recipient,
-                    configuration,
                     amount,
                     deposit_seed,
                 )?;
@@ -85,7 +83,6 @@ impl Processor {
             TokenProxyInstruction::DepositSol {
                 name,
                 recipient,
-                configuration,
                 amount,
                 deposit_seed,
             } => {
@@ -95,7 +92,6 @@ impl Processor {
                     accounts,
                     name,
                     recipient,
-                    configuration,
                     amount,
                     deposit_seed,
                 )?;
@@ -199,7 +195,6 @@ impl Processor {
             TokenProxyInstruction::CancelWithdrawSol {
                 event_configuration,
                 event_transaction_lt,
-                configuration,
                 deposit_seed,
             } => {
                 msg!("Instruction: Cancel Withdraw SOL");
@@ -208,7 +203,6 @@ impl Processor {
                     accounts,
                     event_configuration,
                     event_transaction_lt,
-                    configuration,
                     deposit_seed,
                 )?;
             }
@@ -228,7 +222,6 @@ impl Processor {
                 event_configuration,
                 event_transaction_lt,
                 recipient,
-                configuration,
                 deposit_seed,
             } => {
                 msg!("Instruction: Fill Withdraw SOL");
@@ -238,7 +231,6 @@ impl Processor {
                     event_configuration,
                     event_transaction_lt,
                     recipient,
-                    configuration,
                     deposit_seed,
                 )?;
             }
@@ -529,7 +521,6 @@ impl Processor {
         accounts: &[AccountInfo],
         name: String,
         recipient: EverAddress,
-        configuration: EverAddress,
         amount: u64,
         deposit_seed: u64,
     ) -> ProgramResult {
@@ -609,7 +600,6 @@ impl Processor {
                 *authority_sender_account_info.key,
                 amount,
                 recipient,
-                configuration,
             ),
             meta: DepositTokenMetaWithLen::new(name)?,
         };
@@ -627,7 +617,6 @@ impl Processor {
         accounts: &[AccountInfo],
         name: String,
         recipient: EverAddress,
-        configuration: EverAddress,
         amount: u64,
         deposit_seed: u64,
     ) -> ProgramResult {
@@ -727,7 +716,6 @@ impl Processor {
                 *authority_sender_account_info.key,
                 amount,
                 recipient,
-                configuration,
             ),
             meta: DepositTokenMetaWithLen::new(name)?,
         };
@@ -1301,7 +1289,6 @@ impl Processor {
         accounts: &[AccountInfo],
         event_configuration: UInt256,
         event_transaction_lt: u64,
-        configuration: EverAddress,
         deposit_seed: u64,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
@@ -1365,7 +1352,6 @@ impl Processor {
                 withdrawal_account_data.event.data.recipient_address,
                 withdrawal_account_data.event.data.amount,
                 withdrawal_account_data.event.data.sender_address,
-                configuration,
             ),
             meta: DepositTokenMetaWithLen::new(
                 withdrawal_account_data.event.data.token_symbol.clone(),
@@ -1480,7 +1466,6 @@ impl Processor {
         event_configuration: UInt256,
         event_transaction_lt: u64,
         recipient: EverAddress,
-        configuration: EverAddress,
         deposit_seed: u64,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
@@ -1576,7 +1561,6 @@ impl Processor {
                 *authority_sender_account_info.key,
                 withdrawal_account_data.event.data.amount,
                 recipient,
-                configuration,
             ),
             meta: DepositTokenMetaWithLen::new(
                 withdrawal_account_data.event.data.token_symbol.clone(),

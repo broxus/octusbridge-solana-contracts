@@ -351,7 +351,6 @@ async fn test_deposit_ever() {
 
     let deposit_seed = rand::thread_rng().gen::<u64>();
     let recipient = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
-    let configuration = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 32;
 
     let mut transaction = Transaction::new_with_payer(
@@ -360,7 +359,6 @@ async fn test_deposit_ever() {
             &sender.pubkey(),
             name.clone(),
             recipient,
-            configuration,
             amount,
             deposit_seed,
         )],
@@ -545,7 +543,6 @@ async fn test_deposit_sol() {
 
     let deposit_seed = rand::thread_rng().gen::<u64>();
     let recipient = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
-    let configuration = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 32;
 
     let mut transaction = Transaction::new_with_payer(
@@ -555,7 +552,6 @@ async fn test_deposit_sol() {
             &sender.pubkey(),
             name.clone(),
             recipient,
-            configuration,
             amount,
             deposit_seed,
         )],
@@ -1783,7 +1779,6 @@ async fn test_cancel_withdrawal_sol() {
     // Start Program Test
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
-    let configuration = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let deposit_seed = rand::thread_rng().gen::<u64>();
 
     let mut transaction = Transaction::new_with_payer(
@@ -1792,7 +1787,6 @@ async fn test_cancel_withdrawal_sol() {
             &author.pubkey(),
             event_configuration,
             event_transaction_lt,
-            configuration,
             deposit_seed,
         )],
         Some(&funder.pubkey()),
@@ -2183,7 +2177,6 @@ async fn test_fill_withdrawal_sol() {
 
     let deposit_seed = rand::thread_rng().gen::<u64>();
     let recipient = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
-    let configuration = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
 
     let mut transaction = Transaction::new_with_payer(
         &[token_proxy::fill_withdrawal_sol_ix(
@@ -2193,9 +2186,8 @@ async fn test_fill_withdrawal_sol() {
             &recipient_address,
             event_configuration,
             event_transaction_lt,
-            recipient,
-            configuration,
             deposit_seed,
+            recipient,
         )],
         Some(&funder.pubkey()),
     );

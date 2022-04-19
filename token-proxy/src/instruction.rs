@@ -63,8 +63,6 @@ pub enum TokenProxyInstruction {
         name: String,
         // Ever recipient address
         recipient: EverAddress,
-        // Ever configuration address
-        configuration: EverAddress,
         // Deposit amount
         amount: u64,
         // Deposit seed
@@ -80,8 +78,6 @@ pub enum TokenProxyInstruction {
         name: String,
         // Ever recipient address
         recipient: EverAddress,
-        // Ever configuration address
-        configuration: EverAddress,
         // Deposit amount
         amount: u64,
         // Deposit seed
@@ -173,8 +169,6 @@ pub enum TokenProxyInstruction {
         event_configuration: UInt256,
         // Ever deployed event transaction_lt
         event_transaction_lt: u64,
-        // Ever configuration address
-        configuration: EverAddress,
         // Deposit seed
         deposit_seed: u64,
     },
@@ -201,8 +195,6 @@ pub enum TokenProxyInstruction {
         event_transaction_lt: u64,
         // Recipient address
         recipient: EverAddress,
-        // Ever configuration address
-        configuration: EverAddress,
         // Deposit seed
         deposit_seed: u64,
     },
