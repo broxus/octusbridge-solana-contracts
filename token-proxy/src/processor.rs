@@ -1191,6 +1191,10 @@ impl Processor {
             return Err(ProgramError::IllegalOwner);
         }
 
+        // Validate Setting Account
+        let name = &settings_account_data.name;
+        validate_settings_account(program_id, name, settings_account_info)?;
+
         // Validate Withdrawal Account
         bridge_utils::helper::validate_proposal_account(
             program_id,
