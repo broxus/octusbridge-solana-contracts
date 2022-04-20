@@ -9,7 +9,7 @@ struct VoteForProposal {
     // Instruction number
     instruction: u8,
     // Proposal seed
-    proposal_seed: u64,
+    proposal_seed: u128,
     // Settings address
     settings_address: Pubkey,
     // Vote type
@@ -20,7 +20,7 @@ pub fn vote_for_proposal_ix(
     program_id: Pubkey,
     voter_pubkey: Pubkey,
     instruction: u8,
-    proposal_seed: u64,
+    proposal_seed: u128,
     settings_address: Pubkey,
     round_number: u32,
     vote: Vote,
