@@ -22,6 +22,8 @@ pub enum TokenProxyError {
     InsufficientVaultBalance,
     #[error("Relay already voted")]
     RelayAlreadyVoted,
+    #[error("Arithmetics error")]
+    ArithmeticsError,
 }
 
 impl From<TokenProxyError> for ProgramError {

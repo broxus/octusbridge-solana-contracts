@@ -615,7 +615,12 @@ impl Processor {
         let vault_account_data =
             spl_token::state::Account::unpack(&vault_account_info.data.borrow())?;
 
-        if vault_account_data.amount + amount > settings_account_data.deposit_limit {
+        if vault_account_data
+            .amount
+            .checked_add(amount)
+            .ok_or(TokenProxyError::ArithmeticsError)?
+            > settings_account_data.deposit_limit
+        {
             return Err(TokenProxyError::DepositLimit.into());
         }
 
@@ -881,11 +886,15 @@ impl Processor {
 
             if settings_account_data.withdrawal_limit >= withdrawal_account_data.event.data.amount
                 && settings_account_data.withdrawal_daily_limit
-                    >= settings_account_data.withdrawal_daily_amount
-                        + withdrawal_account_data.event.data.amount
+                    >= settings_account_data
+                        .withdrawal_daily_amount
+                        .checked_add(withdrawal_account_data.event.data.amount)
+                        .ok_or(TokenProxyError::ArithmeticsError)?
             {
-                settings_account_data.withdrawal_daily_amount +=
-                    withdrawal_account_data.event.data.amount;
+                settings_account_data.withdrawal_daily_amount = settings_account_data
+                    .withdrawal_daily_amount
+                    .checked_add(withdrawal_account_data.event.data.amount)
+                    .ok_or(TokenProxyError::ArithmeticsError)?;
 
                 withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::WaitingForRelease;
             } else {
@@ -1457,8 +1466,12 @@ impl Processor {
                 recipient_token_account_info.key,
                 authority_sender_account_info.key,
                 &[authority_sender_account_info.key],
-                withdrawal_account_data.event.data.amount
-                    - withdrawal_account_data.meta.data.bounty,
+                withdrawal_account_data
+                    .event
+                    .data
+                    .amount
+                    .checked_sub(withdrawal_account_data.meta.data.bounty)
+                    .ok_or(TokenProxyError::ArithmeticsError)?,
             )?,
             &[
                 token_program_info.clone(),
