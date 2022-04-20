@@ -8,10 +8,10 @@ use solana_program::pubkey::Pubkey;
 struct VoteForProposal {
     // Instruction number
     instruction: u8,
-    // EVER->SOL event configuration
-    event_configuration: UInt256,
-    // Ever deployed event transaction_lt
-    event_transaction_lt: u64,
+    // Proposal seed
+    proposal_seed: u64,
+    // Settings address
+    settings_address: Pubkey,
     // Vote type
     vote: Vote,
 }
@@ -20,15 +20,15 @@ pub fn vote_for_proposal_ix(
     program_id: Pubkey,
     voter_pubkey: Pubkey,
     instruction: u8,
-    event_configuration: UInt256,
-    event_transaction_lt: u64,
+    proposal_seed: u64,
+    settings_address: Pubkey,
     round_number: u32,
     vote: Vote,
 ) -> Instruction {
     let proposal_pubkey = bridge_utils::helper::get_associated_proposal_address(
         &program_id,
-        event_configuration,
-        event_transaction_lt,
+        proposal_seed,
+        &settings_address,
     );
 
     let relay_round_pubkey =
@@ -36,8 +36,8 @@ pub fn vote_for_proposal_ix(
 
     let data = VoteForProposal {
         instruction,
-        event_configuration,
-        event_transaction_lt,
+        proposal_seed,
+        settings_address,
         vote,
     }
     .try_to_vec()

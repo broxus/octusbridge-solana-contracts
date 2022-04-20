@@ -1,6 +1,6 @@
 use borsh::BorshDeserialize;
 use bridge_utils::state::Proposal;
-use bridge_utils::types::{EverAddress, UInt256, Vote};
+use bridge_utils::types::{EverAddress, Vote};
 use round_loader::RelayRound;
 
 use solana_program::account_info::{next_account_info, AccountInfo};
@@ -65,42 +65,36 @@ impl Processor {
                 )?;
             }
             TokenProxyInstruction::DepositEver {
-                name,
-                recipient,
-                amount,
                 deposit_seed,
+                recipient_address,
+                amount,
             } => {
                 msg!("Instruction: Deposit EVER");
                 Self::process_deposit_ever(
                     program_id,
                     accounts,
-                    name,
-                    recipient,
-                    amount,
                     deposit_seed,
+                    recipient_address,
+                    amount,
                 )?;
             }
             TokenProxyInstruction::DepositSol {
-                name,
-                recipient,
-                amount,
                 deposit_seed,
+                recipient_address,
+                amount,
             } => {
                 msg!("Instruction: Deposit SOL");
                 Self::process_deposit_sol(
                     program_id,
                     accounts,
-                    name,
-                    recipient,
-                    amount,
                     deposit_seed,
+                    recipient_address,
+                    amount,
                 )?;
             }
             TokenProxyInstruction::WithdrawRequest {
-                name,
-                round_number,
-                event_configuration,
-                event_transaction_lt,
+                withdrawal_seed,
+                settings_address,
                 sender_address,
                 recipient_address,
                 amount,
@@ -109,151 +103,100 @@ impl Processor {
                 Self::process_withdraw_request(
                     program_id,
                     accounts,
-                    name,
-                    round_number,
-                    event_configuration,
-                    event_transaction_lt,
+                    withdrawal_seed,
+                    settings_address,
                     sender_address,
                     recipient_address,
                     amount,
                 )?;
             }
             TokenProxyInstruction::VoteForWithdrawRequest {
-                event_configuration,
-                event_transaction_lt,
+                withdrawal_seed,
+                settings_address,
                 vote,
             } => {
                 msg!("Instruction: Vote for Withdraw EVER/SOL request");
                 Self::process_vote_for_withdraw_request(
                     program_id,
                     accounts,
-                    event_configuration,
-                    event_transaction_lt,
+                    withdrawal_seed,
+                    settings_address,
                     vote,
                 )?;
             }
-            TokenProxyInstruction::UpdateWithdrawStatus {
-                event_configuration,
-                event_transaction_lt,
-            } => {
+            TokenProxyInstruction::UpdateWithdrawStatus { withdrawal_seed } => {
                 msg!("Instruction: Update Withdraw status");
-                Self::process_update_withdraw_status(
-                    program_id,
-                    accounts,
-                    event_configuration,
-                    event_transaction_lt,
-                )?;
+                Self::process_update_withdraw_status(program_id, accounts, withdrawal_seed)?;
             }
-            TokenProxyInstruction::WithdrawEver {
-                event_configuration,
-                event_transaction_lt,
-            } => {
+            TokenProxyInstruction::WithdrawEver { withdrawal_seed } => {
                 msg!("Instruction: Withdraw EVER");
-                Self::process_withdraw_ever(
-                    program_id,
-                    accounts,
-                    event_configuration,
-                    event_transaction_lt,
-                )?;
+                Self::process_withdraw_ever(program_id, accounts, withdrawal_seed)?;
             }
-            TokenProxyInstruction::WithdrawSol {
-                event_configuration,
-                event_transaction_lt,
-            } => {
+            TokenProxyInstruction::WithdrawSol { withdrawal_seed } => {
                 msg!("Instruction: Withdraw SOL");
-                Self::process_withdraw_sol(
-                    program_id,
-                    accounts,
-                    event_configuration,
-                    event_transaction_lt,
-                )?;
+                Self::process_withdraw_sol(program_id, accounts, withdrawal_seed)?;
             }
-            TokenProxyInstruction::ApproveWithdrawEver {
-                event_configuration,
-                event_transaction_lt,
-            } => {
+            TokenProxyInstruction::ApproveWithdrawEver { withdrawal_seed } => {
                 msg!("Instruction: Approve Withdraw EVER");
-                Self::process_approve_withdraw_ever(
-                    program_id,
-                    accounts,
-                    event_configuration,
-                    event_transaction_lt,
-                )?;
+                Self::process_approve_withdraw_ever(program_id, accounts, withdrawal_seed)?;
             }
-            TokenProxyInstruction::ApproveWithdrawSol {
-                event_configuration,
-                event_transaction_lt,
-            } => {
+            TokenProxyInstruction::ApproveWithdrawSol { withdrawal_seed } => {
                 msg!("Instruction: Approve Withdraw SOL");
-                Self::process_approve_withdraw_sol(
-                    program_id,
-                    accounts,
-                    event_configuration,
-                    event_transaction_lt,
-                )?;
+                Self::process_approve_withdraw_sol(program_id, accounts, withdrawal_seed)?;
             }
             TokenProxyInstruction::CancelWithdrawSol {
-                event_configuration,
-                event_transaction_lt,
+                withdrawal_seed,
                 deposit_seed,
+                settings_address,
             } => {
                 msg!("Instruction: Cancel Withdraw SOL");
                 Self::process_cancel_withdraw_sol(
                     program_id,
                     accounts,
-                    event_configuration,
-                    event_transaction_lt,
+                    withdrawal_seed,
                     deposit_seed,
+                    settings_address,
                 )?;
             }
-            TokenProxyInstruction::ForceWithdrawSol {
-                event_configuration,
-                event_transaction_lt,
-            } => {
+            TokenProxyInstruction::ForceWithdrawSol { withdrawal_seed } => {
                 msg!("Instruction: Force Withdraw SOL");
-                Self::process_force_withdraw_sol(
-                    program_id,
-                    accounts,
-                    event_configuration,
-                    event_transaction_lt,
-                )?;
+                Self::process_force_withdraw_sol(program_id, accounts, withdrawal_seed)?;
             }
             TokenProxyInstruction::FillWithdrawSol {
-                event_configuration,
-                event_transaction_lt,
-                recipient,
+                withdrawal_seed,
                 deposit_seed,
+                settings_address,
+                recipient_address,
             } => {
                 msg!("Instruction: Fill Withdraw SOL");
                 Self::process_fill_withdraw_sol(
                     program_id,
                     accounts,
-                    event_configuration,
-                    event_transaction_lt,
-                    recipient,
+                    withdrawal_seed,
                     deposit_seed,
+                    settings_address,
+                    recipient_address,
                 )?;
             }
-            TokenProxyInstruction::TransferFromVault { name, amount } => {
+            TokenProxyInstruction::TransferFromVault { amount } => {
                 msg!("Instruction: Transfer from Vault");
-                Self::process_transfer_from_vault(program_id, accounts, name, amount)?;
+                Self::process_transfer_from_vault(program_id, accounts, amount)?;
             }
             TokenProxyInstruction::ChangeBountyForWithdrawSol {
-                event_configuration,
-                event_transaction_lt,
+                withdrawal_seed,
+                settings_address,
                 bounty,
             } => {
                 msg!("Instruction: Change Bounty for Withdraw SOL");
                 Self::process_change_bounty_for_withdraw_sol(
                     program_id,
                     accounts,
-                    event_configuration,
-                    event_transaction_lt,
+                    withdrawal_seed,
+                    settings_address,
                     bounty,
                 )?;
             }
             TokenProxyInstruction::ChangeSettings {
-                name,
                 emergency,
                 deposit_limit,
                 withdrawal_limit,
@@ -263,7 +206,6 @@ impl Processor {
                 Self::process_change_settings(
                     program_id,
                     accounts,
-                    name,
                     emergency,
                     deposit_limit,
                     withdrawal_limit,
@@ -381,6 +323,7 @@ impl Processor {
             },
             withdrawal_daily_amount: 0,
             withdrawal_ttl: 0,
+            name,
             deposit_limit,
             withdrawal_limit,
             withdrawal_daily_limit,
@@ -502,6 +445,7 @@ impl Processor {
             },
             withdrawal_daily_amount: 0,
             withdrawal_ttl: 0,
+            name,
             deposit_limit,
             withdrawal_limit,
             withdrawal_daily_limit,
@@ -519,10 +463,9 @@ impl Processor {
     fn process_deposit_ever(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        name: String,
-        recipient: EverAddress,
-        amount: u64,
         deposit_seed: u64,
+        recipient_address: EverAddress,
+        amount: u64,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -541,16 +484,17 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        // Validate Settings Account
-        validate_settings_account(program_id, &name, settings_account_info)?;
-
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
         if settings_account_data.emergency {
             return Err(TokenProxyError::EmergencyEnabled.into());
         }
 
+        // Validate Setting Account
+        let name = &settings_account_data.name;
+        validate_settings_account(program_id, name, settings_account_info)?;
+
         // Validate Mint Account
-        validate_mint_account(program_id, &name, mint_account_info)?;
+        validate_mint_account(program_id, name, mint_account_info)?;
 
         // Burn EVER tokens
         invoke(
@@ -570,11 +514,19 @@ impl Processor {
             ],
         )?;
 
-        // Validate Deposit Account
-        let deposit_nonce =
-            validate_deposit_account(program_id, deposit_seed, deposit_account_info)?;
-        let deposit_account_signer_seeds: &[&[_]] =
-            &[br"deposit", &deposit_seed.to_le_bytes(), &[deposit_nonce]];
+        // Validate Deposit account
+        let deposit_nonce = bridge_utils::helper::validate_proposal_account(
+            program_id,
+            deposit_seed,
+            settings_account_info.key,
+            deposit_account_info,
+        )?;
+        let deposit_account_signer_seeds: &[&[_]] = &[
+            br"proposal",
+            &deposit_seed.to_le_bytes(),
+            &settings_account_info.key.to_bytes(),
+            &[deposit_nonce],
+        ];
 
         // Create Deposit Account
         invoke_signed(
@@ -599,9 +551,8 @@ impl Processor {
             event: DepositTokenEventWithLen::new(
                 *authority_sender_account_info.key,
                 amount,
-                recipient,
+                recipient_address,
             ),
-            meta: DepositTokenMetaWithLen::new(name)?,
         };
 
         DepositToken::pack(
@@ -615,10 +566,9 @@ impl Processor {
     fn process_deposit_sol(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        name: String,
-        recipient: EverAddress,
-        amount: u64,
         deposit_seed: u64,
+        recipient_address: EverAddress,
+        amount: u64,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -638,13 +588,14 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        // Validate Settings Account
-        validate_settings_account(program_id, &name, settings_account_info)?;
-
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
         if settings_account_data.emergency {
             return Err(TokenProxyError::EmergencyEnabled.into());
         }
+
+        // Validate Setting Account
+        let name = &settings_account_data.name;
+        validate_settings_account(program_id, name, settings_account_info)?;
 
         let (mint_account, vault_account) = settings_account_data
             .kind
@@ -686,11 +637,19 @@ impl Processor {
             ],
         )?;
 
-        // Validate Deposit Account
-        let deposit_nonce =
-            validate_deposit_account(program_id, deposit_seed, deposit_account_info)?;
-        let deposit_account_signer_seeds: &[&[_]] =
-            &[br"deposit", &deposit_seed.to_le_bytes(), &[deposit_nonce]];
+        // Validate Deposit account
+        let deposit_nonce = bridge_utils::helper::validate_proposal_account(
+            program_id,
+            deposit_seed,
+            settings_account_info.key,
+            deposit_account_info,
+        )?;
+        let deposit_account_signer_seeds: &[&[_]] = &[
+            br"proposal",
+            &deposit_seed.to_le_bytes(),
+            &settings_account_info.key.to_bytes(),
+            &[deposit_nonce],
+        ];
 
         // Create Deposit Account
         invoke_signed(
@@ -715,9 +674,8 @@ impl Processor {
             event: DepositTokenEventWithLen::new(
                 *authority_sender_account_info.key,
                 amount,
-                recipient,
+                recipient_address,
             ),
-            meta: DepositTokenMetaWithLen::new(name)?,
         };
 
         DepositToken::pack(
@@ -732,10 +690,8 @@ impl Processor {
     fn process_withdraw_request(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        name: String,
-        round_number: u32,
-        event_configuration: UInt256,
-        event_transaction_lt: u64,
+        withdrawal_seed: u64,
+        settings_address: Pubkey,
         sender_address: EverAddress,
         recipient_address: Pubkey,
         amount: u64,
@@ -758,6 +714,15 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
+        let relay_round_account_data = RelayRound::unpack(&relay_round_account_info.data.borrow())?;
+
+        if relay_round_account_data.round_end <= clock.unix_timestamp as u32 {
+            return Err(TokenProxyError::RelayRoundExpired.into());
+        }
+
+        let round_number = relay_round_account_data.round_number;
+        let required_votes = (relay_round_account_data.relays.len() * 2 / 3 + 1) as u32;
+
         // Validate Relay Round Account
         round_loader::validate_relay_round_account(
             &round_loader::id(),
@@ -765,25 +730,17 @@ impl Processor {
             relay_round_account_info,
         )?;
 
-        let relay_round_account_data = RelayRound::unpack(&relay_round_account_info.data.borrow())?;
-
-        if relay_round_account_data.round_end <= clock.unix_timestamp as u32 {
-            return Err(TokenProxyError::RelayRoundExpired.into());
-        }
-
-        let required_votes = (relay_round_account_data.relays.len() * 2 / 3 + 1) as u32;
-
         // Validate Withdrawal Account
         let withdrawal_nonce = bridge_utils::helper::validate_proposal_account(
             program_id,
-            event_configuration,
-            event_transaction_lt,
+            withdrawal_seed,
+            &settings_address,
             withdrawal_account_info,
         )?;
         let withdrawal_account_signer_seeds: &[&[_]] = &[
             br"proposal",
-            event_configuration.as_slice(),
-            &event_transaction_lt.to_le_bytes(),
+            &withdrawal_seed.to_le_bytes(),
+            &settings_address.to_bytes(),
             &[withdrawal_nonce],
         ];
 
@@ -810,12 +767,7 @@ impl Processor {
             round_number,
             signers: vec![Vote::None; relay_round_account_data.relays.len()],
             required_votes,
-            event: WithdrawalTokenEventWithLen::new(
-                sender_address,
-                amount,
-                recipient_address,
-                name,
-            )?,
+            event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address)?,
             meta: WithdrawalTokenMetaWithLen::new(
                 *authority_account_info.key,
                 WithdrawalTokenStatus::New,
@@ -834,8 +786,8 @@ impl Processor {
     fn process_vote_for_withdraw_request(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        event_configuration: UInt256,
-        event_transaction_lt: u64,
+        withdrawal_seed: u64,
+        settings_address: Pubkey,
         vote: Vote,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
@@ -851,8 +803,8 @@ impl Processor {
         // Validate Withdrawal Account
         bridge_utils::helper::validate_proposal_account(
             program_id,
-            event_configuration,
-            event_transaction_lt,
+            withdrawal_seed,
+            &settings_address,
             withdrawal_account_info,
         )?;
 
@@ -887,8 +839,7 @@ impl Processor {
     fn process_update_withdraw_status(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        event_configuration: UInt256,
-        event_transaction_lt: u64,
+        withdrawal_seed: u64,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -900,22 +851,13 @@ impl Processor {
         // Validate Withdrawal Account
         bridge_utils::helper::validate_proposal_account(
             program_id,
-            event_configuration,
-            event_transaction_lt,
+            withdrawal_seed,
+            settings_account_info.key,
             withdrawal_account_info,
         )?;
 
         let mut withdrawal_account_data =
             WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
-
-        // Validate Settings Account
-        validate_settings_account(
-            program_id,
-            &withdrawal_account_data.event.data.token_symbol,
-            settings_account_info,
-        )?;
-
-        let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
 
         // Do we have enough signers.
         let sig_count = withdrawal_account_data
@@ -927,6 +869,8 @@ impl Processor {
         if sig_count >= withdrawal_account_data.required_votes
             && withdrawal_account_data.meta.data.status == WithdrawalTokenStatus::New
         {
+            let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+
             let current_timestamp = clock.unix_timestamp;
 
             // If current timestamp has expired
@@ -947,12 +891,12 @@ impl Processor {
             } else {
                 withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::WaitingForApprove;
             }
-        }
 
-        Settings::pack(
-            settings_account_data,
-            &mut settings_account_info.data.borrow_mut(),
-        )?;
+            Settings::pack(
+                settings_account_data,
+                &mut settings_account_info.data.borrow_mut(),
+            )?;
+        }
 
         WithdrawalToken::pack(
             withdrawal_account_data,
@@ -965,8 +909,7 @@ impl Processor {
     fn process_withdraw_ever(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        event_configuration: UInt256,
-        event_transaction_lt: u64,
+        withdrawal_seed: u64,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -976,27 +919,26 @@ impl Processor {
         let settings_account_info = next_account_info(account_info_iter)?;
         let token_program_info = next_account_info(account_info_iter)?;
 
-        // Validate Withdrawal Account
-        bridge_utils::helper::validate_proposal_account(
-            program_id,
-            event_configuration,
-            event_transaction_lt,
-            withdrawal_account_info,
-        )?;
-
-        let mut withdrawal_account_data =
-            WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
-
-        let name = &withdrawal_account_data.event.data.token_symbol;
-
-        // Validate Settings Account
-        validate_settings_account(program_id, name, settings_account_info)?;
-
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
 
         if settings_account_data.emergency {
             return Err(TokenProxyError::EmergencyEnabled.into());
         }
+
+        // Validate Setting Account
+        let name = &settings_account_data.name;
+        validate_settings_account(program_id, name, settings_account_info)?;
+
+        // Validate Withdrawal Account
+        bridge_utils::helper::validate_proposal_account(
+            program_id,
+            withdrawal_seed,
+            settings_account_info.key,
+            withdrawal_account_info,
+        )?;
+
+        let mut withdrawal_account_data =
+            WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
 
         // Validate Recipient Account
         let recipient_token_account_data =
@@ -1005,7 +947,7 @@ impl Processor {
         if recipient_token_account_data.owner
             != withdrawal_account_data.event.data.recipient_address
         {
-            return Err(ProgramError::InvalidAccountData);
+            return Err(ProgramError::InvalidArgument);
         }
 
         // Validate Mint Account
@@ -1049,8 +991,7 @@ impl Processor {
     fn process_withdraw_sol(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        event_configuration: UInt256,
-        event_transaction_lt: u64,
+        withdrawal_seed: u64,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -1060,27 +1001,26 @@ impl Processor {
         let settings_account_info = next_account_info(account_info_iter)?;
         let token_program_info = next_account_info(account_info_iter)?;
 
-        // Validate Withdrawal Account
-        bridge_utils::helper::validate_proposal_account(
-            program_id,
-            event_configuration,
-            event_transaction_lt,
-            withdrawal_account_info,
-        )?;
-
-        let mut withdrawal_account_data =
-            WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
-
-        let name = &withdrawal_account_data.event.data.token_symbol;
-
-        // Validate Settings Account
-        validate_settings_account(program_id, name, settings_account_info)?;
-
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
 
         if settings_account_data.emergency {
             return Err(TokenProxyError::EmergencyEnabled.into());
         }
+
+        // Validate Setting Account
+        let name = &settings_account_data.name;
+        validate_settings_account(program_id, name, settings_account_info)?;
+
+        // Validate Withdrawal Account
+        bridge_utils::helper::validate_proposal_account(
+            program_id,
+            withdrawal_seed,
+            settings_account_info.key,
+            withdrawal_account_info,
+        )?;
+
+        let mut withdrawal_account_data =
+            WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
 
         // Validate Recipient Account
         let recipient_token_account_data =
@@ -1089,7 +1029,7 @@ impl Processor {
         if recipient_token_account_data.owner
             != withdrawal_account_data.event.data.recipient_address
         {
-            return Err(ProgramError::InvalidAccountData);
+            return Err(ProgramError::InvalidArgument);
         }
 
         // Validate status
@@ -1139,8 +1079,7 @@ impl Processor {
     fn process_approve_withdraw_ever(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        event_configuration: UInt256,
-        event_transaction_lt: u64,
+        withdrawal_seed: u64,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -1155,26 +1094,6 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        // Validate Withdrawal Account
-        bridge_utils::helper::validate_proposal_account(
-            program_id,
-            event_configuration,
-            event_transaction_lt,
-            withdrawal_account_info,
-        )?;
-
-        let mut withdrawal_account_data =
-            WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
-
-        if withdrawal_account_data.meta.data.status != WithdrawalTokenStatus::WaitingForApprove {
-            return Err(TokenProxyError::InvalidWithdrawalStatus.into());
-        }
-
-        let name = &withdrawal_account_data.event.data.token_symbol;
-
-        // Validate Settings Account
-        validate_settings_account(program_id, name, settings_account_info)?;
-
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
 
         if settings_account_data.emergency {
@@ -1185,6 +1104,25 @@ impl Processor {
             return Err(ProgramError::IllegalOwner);
         }
 
+        // Validate Setting Account
+        let name = &settings_account_data.name;
+        validate_settings_account(program_id, name, settings_account_info)?;
+
+        // Validate Withdrawal Account
+        bridge_utils::helper::validate_proposal_account(
+            program_id,
+            withdrawal_seed,
+            settings_account_info.key,
+            withdrawal_account_info,
+        )?;
+
+        let mut withdrawal_account_data =
+            WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
+
+        if withdrawal_account_data.meta.data.status != WithdrawalTokenStatus::WaitingForApprove {
+            return Err(TokenProxyError::InvalidWithdrawalStatus.into());
+        }
+
         // Validate Recipient Account
         let recipient_token_account_data =
             spl_token::state::Account::unpack(&recipient_token_account_info.data.borrow())?;
@@ -1192,7 +1130,7 @@ impl Processor {
         if recipient_token_account_data.owner
             != withdrawal_account_data.event.data.recipient_address
         {
-            return Err(ProgramError::InvalidAccountData);
+            return Err(ProgramError::InvalidArgument);
         }
 
         // Validate Mint Account
@@ -1231,8 +1169,7 @@ impl Processor {
     fn process_approve_withdraw_sol(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        event_configuration: UInt256,
-        event_transaction_lt: u64,
+        withdrawal_seed: u64,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -1244,26 +1181,6 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        // Validate Withdrawal Account
-        bridge_utils::helper::validate_proposal_account(
-            program_id,
-            event_configuration,
-            event_transaction_lt,
-            withdrawal_account_info,
-        )?;
-
-        let mut withdrawal_account_data =
-            WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
-
-        if withdrawal_account_data.meta.data.status != WithdrawalTokenStatus::WaitingForApprove {
-            return Err(TokenProxyError::InvalidWithdrawalStatus.into());
-        }
-
-        let name = &withdrawal_account_data.event.data.token_symbol;
-
-        // Validate Settings Account
-        validate_settings_account(program_id, name, settings_account_info)?;
-
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
 
         if settings_account_data.emergency {
@@ -1272,6 +1189,21 @@ impl Processor {
 
         if settings_account_data.admin != *authority_account_info.key {
             return Err(ProgramError::IllegalOwner);
+        }
+
+        // Validate Withdrawal Account
+        bridge_utils::helper::validate_proposal_account(
+            program_id,
+            withdrawal_seed,
+            settings_account_info.key,
+            withdrawal_account_info,
+        )?;
+
+        let mut withdrawal_account_data =
+            WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
+
+        if withdrawal_account_data.meta.data.status != WithdrawalTokenStatus::WaitingForApprove {
+            return Err(TokenProxyError::InvalidWithdrawalStatus.into());
         }
 
         withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Pending;
@@ -1287,9 +1219,9 @@ impl Processor {
     fn process_cancel_withdraw_sol(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        event_configuration: UInt256,
-        event_transaction_lt: u64,
+        withdrawal_seed: u64,
         deposit_seed: u64,
+        settings_address: Pubkey,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -1304,8 +1236,8 @@ impl Processor {
         // Validate Withdrawal Account
         bridge_utils::helper::validate_proposal_account(
             program_id,
-            event_configuration,
-            event_transaction_lt,
+            withdrawal_seed,
+            &settings_address,
             withdrawal_account_info,
         )?;
 
@@ -1322,11 +1254,19 @@ impl Processor {
 
         withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Cancelled;
 
-        // Validate a new Deposit Account
-        let deposit_nonce =
-            validate_deposit_account(program_id, deposit_seed, new_deposit_account_info)?;
-        let deposit_account_signer_seeds: &[&[_]] =
-            &[br"deposit", &deposit_seed.to_le_bytes(), &[deposit_nonce]];
+        // Validate a new Deposit account
+        let deposit_nonce = bridge_utils::helper::validate_proposal_account(
+            program_id,
+            deposit_seed,
+            &settings_address,
+            new_deposit_account_info,
+        )?;
+        let deposit_account_signer_seeds: &[&[_]] = &[
+            br"proposal",
+            &deposit_seed.to_le_bytes(),
+            &settings_address.to_bytes(),
+            &[deposit_nonce],
+        ];
 
         // Create a new Deposit Account
         invoke_signed(
@@ -1353,9 +1293,6 @@ impl Processor {
                 withdrawal_account_data.event.data.amount,
                 withdrawal_account_data.event.data.sender_address,
             ),
-            meta: DepositTokenMetaWithLen::new(
-                withdrawal_account_data.event.data.token_symbol.clone(),
-            )?,
         };
 
         DepositToken::pack(
@@ -1374,8 +1311,7 @@ impl Processor {
     fn process_force_withdraw_sol(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        event_configuration: UInt256,
-        event_transaction_lt: u64,
+        withdrawal_seed: u64,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -1385,11 +1321,21 @@ impl Processor {
         let settings_account_info = next_account_info(account_info_iter)?;
         let token_program_info = next_account_info(account_info_iter)?;
 
+        let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+
+        if settings_account_data.emergency {
+            return Err(TokenProxyError::EmergencyEnabled.into());
+        }
+
+        // Validate Setting Account
+        let name = &settings_account_data.name;
+        validate_settings_account(program_id, name, settings_account_info)?;
+
         // Validate Withdrawal Account
         bridge_utils::helper::validate_proposal_account(
             program_id,
-            event_configuration,
-            event_transaction_lt,
+            withdrawal_seed,
+            settings_account_info.key,
             withdrawal_account_info,
         )?;
 
@@ -1400,17 +1346,6 @@ impl Processor {
             return Err(TokenProxyError::InvalidWithdrawalStatus.into());
         }
 
-        let name = &withdrawal_account_data.event.data.token_symbol;
-
-        // Validate Settings Account
-        validate_settings_account(program_id, name, settings_account_info)?;
-
-        let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
-
-        if settings_account_data.emergency {
-            return Err(TokenProxyError::EmergencyEnabled.into());
-        }
-
         // Validate Recipient Account
         let recipient_token_account_data =
             spl_token::state::Account::unpack(&recipient_token_account_info.data.borrow())?;
@@ -1418,7 +1353,7 @@ impl Processor {
         if recipient_token_account_data.owner
             != withdrawal_account_data.event.data.recipient_address
         {
-            return Err(ProgramError::InvalidAccountData);
+            return Err(ProgramError::InvalidArgument);
         }
 
         // Validate Vault Account
@@ -1463,10 +1398,10 @@ impl Processor {
     fn process_fill_withdraw_sol(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        event_configuration: UInt256,
-        event_transaction_lt: u64,
-        recipient: EverAddress,
+        withdrawal_seed: u64,
         deposit_seed: u64,
+        settings_address: Pubkey,
+        recipient_address: EverAddress,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -1488,8 +1423,8 @@ impl Processor {
         // Validate Withdrawal Account
         bridge_utils::helper::validate_proposal_account(
             program_id,
-            event_configuration,
-            event_transaction_lt,
+            withdrawal_seed,
+            &settings_address,
             withdrawal_account_info,
         )?;
 
@@ -1531,11 +1466,19 @@ impl Processor {
 
         withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Processed;
 
-        // Validate a new Deposit Account
-        let deposit_nonce =
-            validate_deposit_account(program_id, deposit_seed, new_deposit_account_info)?;
-        let deposit_account_signer_seeds: &[&[_]] =
-            &[br"deposit", &deposit_seed.to_le_bytes(), &[deposit_nonce]];
+        // Validate a new Deposit account
+        let deposit_nonce = bridge_utils::helper::validate_proposal_account(
+            program_id,
+            deposit_seed,
+            &settings_address,
+            new_deposit_account_info,
+        )?;
+        let deposit_account_signer_seeds: &[&[_]] = &[
+            br"proposal",
+            &deposit_seed.to_le_bytes(),
+            &settings_address.to_bytes(),
+            &[deposit_nonce],
+        ];
 
         // Create a new Deposit Account
         invoke_signed(
@@ -1560,11 +1503,8 @@ impl Processor {
             event: DepositTokenEventWithLen::new(
                 *authority_sender_account_info.key,
                 withdrawal_account_data.event.data.amount,
-                recipient,
+                recipient_address,
             ),
-            meta: DepositTokenMetaWithLen::new(
-                withdrawal_account_data.event.data.token_symbol.clone(),
-            )?,
         };
 
         DepositToken::pack(
@@ -1583,7 +1523,6 @@ impl Processor {
     fn process_transfer_from_vault(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        name: String,
         amount: u64,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
@@ -1598,22 +1537,18 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        // Validate Settings Account
-        validate_settings_account(program_id, &name, settings_account_info)?;
-
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
 
         if settings_account_data.admin != *authority_account_info.key {
             return Err(ProgramError::IllegalOwner);
         }
 
-        let (_, _) = settings_account_data
-            .kind
-            .as_solana()
-            .ok_or(TokenProxyError::InvalidTokenKind)?;
+        // Validate Setting Account
+        let name = &settings_account_data.name;
+        validate_settings_account(program_id, name, settings_account_info)?;
 
         // Validate Vault Account
-        let vault_nonce = validate_vault_account(program_id, &name, vault_account_info)?;
+        let vault_nonce = validate_vault_account(program_id, name, vault_account_info)?;
         let vault_account_signer_seeds: &[&[_]] = &[br"vault", name.as_bytes(), &[vault_nonce]];
 
         let vault_account_data =
@@ -1646,8 +1581,8 @@ impl Processor {
     fn process_change_bounty_for_withdraw_sol(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        event_configuration: UInt256,
-        event_transaction_lt: u64,
+        withdrawal_seed: u64,
+        settings_address: Pubkey,
         bounty: u64,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
@@ -1661,8 +1596,8 @@ impl Processor {
 
         bridge_utils::helper::validate_proposal_account(
             program_id,
-            event_configuration,
-            event_transaction_lt,
+            withdrawal_seed,
+            &settings_address,
             withdrawal_account_info,
         )?;
 
@@ -1690,7 +1625,6 @@ impl Processor {
     fn process_change_settings(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        name: String,
         emergency: bool,
         deposit_limit: u64,
         withdrawal_limit: u64,
@@ -1705,13 +1639,15 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        validate_settings_account(program_id, &name, settings_account_info)?;
-
         let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
 
         if settings_account_data.admin != *authority_account_info.key {
             return Err(ProgramError::IllegalOwner);
         }
+
+        // Validate Setting Account
+        let name = &settings_account_data.name;
+        validate_settings_account(program_id, name, settings_account_info)?;
 
         settings_account_data.emergency = emergency;
         settings_account_data.deposit_limit = deposit_limit;

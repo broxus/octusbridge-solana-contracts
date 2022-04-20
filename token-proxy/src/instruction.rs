@@ -1,5 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use bridge_utils::types::{EverAddress, UInt256, Vote};
+use bridge_utils::types::{EverAddress, Vote};
 
 use solana_program::pubkey::Pubkey;
 
@@ -10,10 +10,10 @@ pub enum TokenProxyInstruction {
     /// # Account references
     /// ...
     VoteForWithdrawRequest {
-        // EVER->SOL event configuration
-        event_configuration: UInt256,
-        // Ever deployed event transaction_lt
-        event_transaction_lt: u64,
+        // Withdrawal seed
+        withdrawal_seed: u64,
+        // Settings address
+        settings_address: Pubkey,
         // Vote type
         vote: Vote,
     },
@@ -59,14 +59,12 @@ pub enum TokenProxyInstruction {
     /// # Account references
     /// ...
     DepositEver {
-        // Mint asset name
-        name: String,
-        // Ever recipient address
-        recipient: EverAddress,
-        // Deposit amount
-        amount: u64,
         // Deposit seed
         deposit_seed: u64,
+        // Ever recipient address
+        recipient_address: EverAddress,
+        // Deposit amount
+        amount: u64,
     },
 
     /// Deposit SOL
@@ -74,14 +72,12 @@ pub enum TokenProxyInstruction {
     /// # Account references
     /// ...
     DepositSol {
-        // Vault asset name
-        name: String,
-        // Ever recipient address
-        recipient: EverAddress,
-        // Deposit amount
-        amount: u64,
         // Deposit seed
         deposit_seed: u64,
+        // Ever recipient address
+        recipient_address: EverAddress,
+        // Deposit amount
+        amount: u64,
     },
 
     /// Withdraw EVER/SOL request
@@ -89,14 +85,10 @@ pub enum TokenProxyInstruction {
     /// # Account references
     /// ...
     WithdrawRequest {
-        // Mint asset name
-        name: String,
-        // Current round number
-        round_number: u32,
-        // EVER->SOL event configuration
-        event_configuration: UInt256,
-        // Ever deployed event transaction_lt
-        event_transaction_lt: u64,
+        // Withdrawal seed
+        withdrawal_seed: u64,
+        // Settings address
+        settings_address: Pubkey,
         // Sender address
         sender_address: EverAddress,
         // Sender address
@@ -110,10 +102,8 @@ pub enum TokenProxyInstruction {
     /// # Account references
     /// ...
     UpdateWithdrawStatus {
-        // EVER->SOL event configuration
-        event_configuration: UInt256,
-        // Ever deployed event transaction_lt
-        event_transaction_lt: u64,
+        // Withdrawal seed
+        withdrawal_seed: u64,
     },
 
     /// Withdraw EVER
@@ -121,10 +111,8 @@ pub enum TokenProxyInstruction {
     /// # Account references
     /// ...
     WithdrawEver {
-        // EVER->SOL event configuration
-        event_configuration: UInt256,
-        // Ever deployed event transaction_lt
-        event_transaction_lt: u64,
+        // Withdrawal seed
+        withdrawal_seed: u64,
     },
 
     /// Withdraw SOL
@@ -132,10 +120,8 @@ pub enum TokenProxyInstruction {
     /// # Account references
     /// ...
     WithdrawSol {
-        // EVER->SOL event configuration
-        event_configuration: UInt256,
-        // Ever deployed event transaction_lt
-        event_transaction_lt: u64,
+        // Withdrawal seed
+        withdrawal_seed: u64,
     },
 
     /// Approve Withdraw Ever
@@ -143,10 +129,8 @@ pub enum TokenProxyInstruction {
     /// # Account references
     /// ...
     ApproveWithdrawEver {
-        // EVER->SOL event configuration
-        event_configuration: UInt256,
-        // Ever deployed event transaction_lt
-        event_transaction_lt: u64,
+        // Withdrawal seed
+        withdrawal_seed: u64,
     },
 
     /// Approve Withdraw SOL
@@ -154,10 +138,8 @@ pub enum TokenProxyInstruction {
     /// # Account references
     /// ...
     ApproveWithdrawSol {
-        // EVER->SOL event configuration
-        event_configuration: UInt256,
-        // Ever deployed event transaction_lt
-        event_transaction_lt: u64,
+        // Withdrawal seed
+        withdrawal_seed: u64,
     },
 
     /// Cancel Withdraw SOL
@@ -165,22 +147,20 @@ pub enum TokenProxyInstruction {
     /// # Account references
     /// ...
     CancelWithdrawSol {
-        // EVER->SOL event configuration
-        event_configuration: UInt256,
-        // Ever deployed event transaction_lt
-        event_transaction_lt: u64,
+        // Withdrawal seed
+        withdrawal_seed: u64,
         // Deposit seed
         deposit_seed: u64,
+        // Settings address
+        settings_address: Pubkey,
     },
     /// Force Withdraw SOL
     ///
     /// # Account references
     /// ...
     ForceWithdrawSol {
-        // EVER->SOL event configuration
-        event_configuration: UInt256,
-        // Ever deployed event transaction_lt
-        event_transaction_lt: u64,
+        // Withdrawal seed
+        withdrawal_seed: u64,
     },
 
     /// Fill Withdraw SOL
@@ -189,14 +169,14 @@ pub enum TokenProxyInstruction {
     /// ...
     /**/
     FillWithdrawSol {
-        // EVER->SOL event configuration
-        event_configuration: UInt256,
-        // Ever deployed event transaction_lt
-        event_transaction_lt: u64,
-        // Recipient address
-        recipient: EverAddress,
+        // Withdrawal seed
+        withdrawal_seed: u64,
         // Deposit seed
         deposit_seed: u64,
+        // Settings address
+        settings_address: Pubkey,
+        // Recipient address
+        recipient_address: EverAddress,
     },
 
     /// Transfer from Vault
@@ -204,8 +184,6 @@ pub enum TokenProxyInstruction {
     /// # Account references
     /// ...
     TransferFromVault {
-        // Mint asset name
-        name: String,
         // Amount to transfer
         amount: u64,
     },
@@ -215,10 +193,10 @@ pub enum TokenProxyInstruction {
     /// # Account references
     /// ...
     ChangeBountyForWithdrawSol {
-        // EVER->SOL event configuration
-        event_configuration: UInt256,
-        // Ever deployed event transaction_lt
-        event_transaction_lt: u64,
+        // Withdrawal seed
+        withdrawal_seed: u64,
+        // Settings address
+        settings_address: Pubkey,
         // New bounty value
         bounty: u64,
     },
@@ -228,8 +206,6 @@ pub enum TokenProxyInstruction {
     /// # Account references
     /// ...
     ChangeSettings {
-        // Token asset name
-        name: String,
         // Emergency flag
         emergency: bool,
         // Deposit limit

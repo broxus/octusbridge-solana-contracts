@@ -1,6 +1,6 @@
 use borsh::BorshDeserialize;
 use bridge_utils::state::Proposal;
-use bridge_utils::types::{UInt256, Vote};
+use bridge_utils::types::Vote;
 
 use solana_program::account_info::{next_account_info, AccountInfo};
 use solana_program::clock::Clock;
@@ -32,57 +32,33 @@ impl Processor {
                 msg!("Instruction: Initialize");
                 Self::process_initialize(program_id, accounts, round_number, round_end)?;
             }
-            RoundLoaderInstruction::CreateProposal {
-                event_configuration,
-                event_transaction_lt,
-            } => {
+            RoundLoaderInstruction::CreateProposal { proposal_seed } => {
                 msg!("Instruction: Create");
-                Self::process_create_proposal(
-                    program_id,
-                    accounts,
-                    event_configuration,
-                    event_transaction_lt,
-                )?;
+                Self::process_create_proposal(program_id, accounts, proposal_seed)?;
             }
             RoundLoaderInstruction::WriteProposal {
-                event_configuration,
-                event_transaction_lt,
+                proposal_seed,
                 offset,
                 bytes,
             } => {
                 msg!("Instruction: Write");
-                Self::process_write_proposal(
-                    program_id,
-                    accounts,
-                    event_configuration,
-                    event_transaction_lt,
-                    offset,
-                    bytes,
-                )?;
+                Self::process_write_proposal(program_id, accounts, proposal_seed, offset, bytes)?;
             }
-            RoundLoaderInstruction::FinalizeProposal {
-                event_configuration,
-                event_transaction_lt,
-            } => {
+            RoundLoaderInstruction::FinalizeProposal { proposal_seed } => {
                 msg!("Instruction: Finalize");
-                Self::process_finalize_proposal(
-                    program_id,
-                    accounts,
-                    event_configuration,
-                    event_transaction_lt,
-                )?;
+                Self::process_finalize_proposal(program_id, accounts, proposal_seed)?;
             }
             RoundLoaderInstruction::VoteForProposal {
-                event_configuration,
-                event_transaction_lt,
+                proposal_seed,
+                settings_address,
                 vote,
             } => {
                 msg!("Instruction: Vote");
                 Self::process_vote_for_proposal(
                     program_id,
                     accounts,
-                    event_configuration,
-                    event_transaction_lt,
+                    proposal_seed,
+                    settings_address,
                     vote,
                 )?;
             }
@@ -199,8 +175,7 @@ impl Processor {
     fn process_create_proposal(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        event_configuration: UInt256,
-        event_transaction_lt: u64,
+        proposal_seed: u64,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -211,18 +186,19 @@ impl Processor {
         let rent_sysvar_info = next_account_info(account_info_iter)?;
         let rent = &Rent::from_account_info(rent_sysvar_info)?;
 
+        let settings_address = get_associated_settings_address(program_id);
+
         // Validate Proposal Account
         let proposal_nonce = bridge_utils::helper::validate_proposal_account(
             program_id,
-            event_configuration,
-            event_transaction_lt,
+            proposal_seed,
+            &settings_address,
             proposal_account_info,
         )?;
-
         let proposal_account_signer_seeds: &[&[_]] = &[
             br"proposal",
-            event_configuration.as_slice(),
-            &event_transaction_lt.to_le_bytes(),
+            &proposal_seed.to_le_bytes(),
+            &settings_address.to_bytes(),
             &[proposal_nonce],
         ];
 
@@ -249,8 +225,7 @@ impl Processor {
     fn process_write_proposal(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        event_configuration: UInt256,
-        event_transaction_lt: u64,
+        proposal_seed: u64,
         offset: u32,
         bytes: Vec<u8>,
     ) -> ProgramResult {
@@ -258,11 +233,13 @@ impl Processor {
 
         let proposal_account_info = next_account_info(account_info_iter)?;
 
+        let settings_address = get_associated_settings_address(program_id);
+
         // Validate Proposal Account
         bridge_utils::helper::validate_proposal_account(
             program_id,
-            event_configuration,
-            event_transaction_lt,
+            proposal_seed,
+            &settings_address,
             proposal_account_info,
         )?;
 
@@ -283,8 +260,7 @@ impl Processor {
     fn process_finalize_proposal(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        event_configuration: UInt256,
-        event_transaction_lt: u64,
+        proposal_seed: u64,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -320,8 +296,8 @@ impl Processor {
         // Validate Proposal Account
         bridge_utils::helper::validate_proposal_account(
             program_id,
-            event_configuration,
-            event_transaction_lt,
+            proposal_seed,
+            settings_account_info.key,
             proposal_account_info,
         )?;
 
@@ -347,8 +323,8 @@ impl Processor {
     fn process_vote_for_proposal(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        event_configuration: UInt256,
-        event_transaction_lt: u64,
+        proposal_seed: u64,
+        settings_address: Pubkey,
         vote: Vote,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
@@ -364,8 +340,8 @@ impl Processor {
         // Validate Proposal Account
         bridge_utils::helper::validate_proposal_account(
             program_id,
-            event_configuration,
-            event_transaction_lt,
+            proposal_seed,
+            &settings_address,
             proposal_account_info,
         )?;
 

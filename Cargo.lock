@@ -2033,6 +2033,7 @@ dependencies = [
  "borsh",
  "bridge-derive",
  "bridge-utils",
+ "rand 0.8.5",
  "serde",
  "solana-program",
  "solana-program-test",

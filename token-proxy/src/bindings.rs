@@ -1,6 +1,5 @@
 use borsh::BorshSerialize;
 use bridge_utils::types::{EverAddress, Vote};
-use ton_types::UInt256;
 
 use solana_program::instruction::{AccountMeta, Instruction};
 use solana_program::pubkey::Pubkey;
@@ -18,15 +17,9 @@ pub fn get_settings_address(name: &str) -> Pubkey {
     get_associated_settings_address(program_id, name)
 }
 
-pub fn get_proposal_address(event_configuration: UInt256, event_transaction_lt: u64) -> Pubkey {
+pub fn get_proposal_address(seed: u64, settings_address: &Pubkey) -> Pubkey {
     let program_id = &id();
-    let event_configuration = bridge_utils::types::UInt256::from(event_configuration.as_slice());
-
-    bridge_utils::helper::get_associated_proposal_address(
-        program_id,
-        event_configuration,
-        event_transaction_lt,
-    )
+    bridge_utils::helper::get_associated_proposal_address(program_id, seed, settings_address)
 }
 
 pub fn get_vault_address(name: &str) -> Pubkey {
@@ -37,11 +30,6 @@ pub fn get_vault_address(name: &str) -> Pubkey {
 pub fn get_mint_address(name: &str) -> Pubkey {
     let program_id = &id();
     get_associated_mint_address(program_id, name)
-}
-
-pub fn get_deposit_address(deposit_seed: u64) -> Pubkey {
-    let program_id = &id();
-    get_associated_deposit_address(program_id, deposit_seed)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -131,22 +119,21 @@ pub fn initialize_vault_ix(
 pub fn deposit_ever_ix(
     funder_pubkey: &Pubkey,
     sender_pubkey: &Pubkey,
-    name: String,
-    recipient: EverAddress,
-    amount: u64,
+    name: &str,
     deposit_seed: u64,
+    recipient_address: EverAddress,
+    amount: u64,
 ) -> Instruction {
-    let mint_pubkey = get_mint_address(&name);
-    let settings_pubkey = get_settings_address(&name);
+    let mint_pubkey = get_mint_address(name);
+    let settings_pubkey = get_settings_address(name);
     let sender_token_pubkey =
         spl_associated_token_account::get_associated_token_address(sender_pubkey, &mint_pubkey);
-    let deposit_pubkey = get_deposit_address(deposit_seed);
+    let deposit_pubkey = get_proposal_address(deposit_seed, &settings_pubkey);
 
     let data = TokenProxyInstruction::DepositEver {
-        name,
-        recipient,
-        amount,
         deposit_seed,
+        recipient_address,
+        amount,
     }
     .try_to_vec()
     .expect("pack");
@@ -172,23 +159,22 @@ pub fn deposit_sol_ix(
     funder_pubkey: &Pubkey,
     mint_pubkey: &Pubkey,
     sender_pubkey: &Pubkey,
-    name: String,
-    recipient: EverAddress,
-    amount: u64,
+    name: &str,
     deposit_seed: u64,
+    recipient_address: EverAddress,
+    amount: u64,
 ) -> Instruction {
-    let vault_pubkey = get_vault_address(&name);
-    let settings_pubkey = get_settings_address(&name);
+    let vault_pubkey = get_vault_address(name);
+    let settings_pubkey = get_settings_address(name);
 
-    let deposit_pubkey = get_deposit_address(deposit_seed);
+    let deposit_pubkey = get_proposal_address(deposit_seed, &settings_pubkey);
     let sender_token_pubkey =
         spl_associated_token_account::get_associated_token_address(sender_pubkey, mint_pubkey);
 
     let data = TokenProxyInstruction::DepositSol {
-        name,
-        recipient,
-        amount,
         deposit_seed,
+        recipient_address,
+        amount,
     }
     .try_to_vec()
     .expect("pack");
@@ -215,24 +201,20 @@ pub fn deposit_sol_ix(
 pub fn withdrawal_request_ix(
     funder_pubkey: &Pubkey,
     author_pubkey: &Pubkey,
-    name: String,
     round_number: u32,
-    event_configuration: UInt256,
-    event_transaction_lt: u64,
+    withdrawal_seed: u64,
+    settings_address: Pubkey,
     sender_address: EverAddress,
     recipient_address: Pubkey,
     amount: u64,
 ) -> Instruction {
-    let withdrawal_pubkey = get_proposal_address(event_configuration, event_transaction_lt);
+    let withdrawal_pubkey = get_proposal_address(withdrawal_seed, &settings_address);
     let relay_round_pubkey =
         round_loader::get_associated_relay_round_address(&round_loader::id(), round_number);
 
-    let event_configuration = bridge_utils::types::UInt256::from(event_configuration.as_slice());
     let data = TokenProxyInstruction::WithdrawRequest {
-        name,
-        round_number,
-        event_configuration,
-        event_transaction_lt,
+        withdrawal_seed,
+        settings_address,
         sender_address,
         recipient_address,
         amount,
@@ -258,18 +240,17 @@ pub fn withdrawal_request_ix(
 pub fn vote_for_withdrawal_request_ix(
     relay_pubkey: &Pubkey,
     round_number: u32,
-    event_configuration: UInt256,
-    event_transaction_lt: u64,
+    withdrawal_seed: u64,
+    settings_address: Pubkey,
     vote: Vote,
 ) -> Instruction {
-    let withdrawal_pubkey = get_proposal_address(event_configuration, event_transaction_lt);
+    let withdrawal_pubkey = get_proposal_address(withdrawal_seed, &settings_address);
     let relay_round_pubkey =
         round_loader::get_associated_relay_round_address(&round_loader::id(), round_number);
 
-    let event_configuration = bridge_utils::types::UInt256::from(event_configuration.as_slice());
     let data = TokenProxyInstruction::VoteForWithdrawRequest {
-        event_configuration,
-        event_transaction_lt,
+        withdrawal_seed,
+        settings_address,
         vote,
     }
     .try_to_vec()
@@ -287,20 +268,16 @@ pub fn vote_for_withdrawal_request_ix(
 }
 
 pub fn update_withdrawal_status_ix(
-    name: String,
-    event_configuration: UInt256,
-    event_transaction_lt: u64,
+    name: &str,
+    withdrawal_seed: u64,
+    settings_address: Pubkey,
 ) -> Instruction {
-    let settings_pubkey = get_settings_address(&name);
-    let withdrawal_pubkey = get_proposal_address(event_configuration, event_transaction_lt);
+    let settings_pubkey = get_settings_address(name);
+    let withdrawal_pubkey = get_proposal_address(withdrawal_seed, &settings_address);
 
-    let event_configuration = bridge_utils::types::UInt256::from(event_configuration.as_slice());
-    let data = TokenProxyInstruction::UpdateWithdrawStatus {
-        event_configuration,
-        event_transaction_lt,
-    }
-    .try_to_vec()
-    .expect("pack");
+    let data = TokenProxyInstruction::UpdateWithdrawStatus { withdrawal_seed }
+        .try_to_vec()
+        .expect("pack");
 
     Instruction {
         program_id: id(),
@@ -313,26 +290,16 @@ pub fn update_withdrawal_status_ix(
     }
 }
 
-pub fn withdrawal_ever_ix(
-    to_pubkey: &Pubkey,
-    name: String,
-    event_configuration: UInt256,
-    event_transaction_lt: u64,
-) -> Instruction {
-    let settings_pubkey = get_settings_address(&name);
-    let withdrawal_pubkey = get_proposal_address(event_configuration, event_transaction_lt);
-
-    let mint_pubkey = get_mint_address(&name);
+pub fn withdrawal_ever_ix(to_pubkey: &Pubkey, name: &str, withdrawal_seed: u64) -> Instruction {
+    let settings_pubkey = get_settings_address(name);
+    let withdrawal_pubkey = get_proposal_address(withdrawal_seed, &settings_pubkey);
+    let mint_pubkey = get_mint_address(name);
     let recipient_token_pubkey =
         spl_associated_token_account::get_associated_token_address(to_pubkey, &mint_pubkey);
 
-    let event_configuration = bridge_utils::types::UInt256::from(event_configuration.as_slice());
-    let data = TokenProxyInstruction::WithdrawEver {
-        event_configuration,
-        event_transaction_lt,
-    }
-    .try_to_vec()
-    .expect("pack");
+    let data = TokenProxyInstruction::WithdrawEver { withdrawal_seed }
+        .try_to_vec()
+        .expect("pack");
 
     Instruction {
         program_id: id(),
@@ -350,29 +317,24 @@ pub fn withdrawal_ever_ix(
 pub fn withdrawal_sol_ix(
     mint_pubkey: &Pubkey,
     to_pubkey: &Pubkey,
-    name: String,
-    event_configuration: UInt256,
-    event_transaction_lt: u64,
+    name: &str,
+    withdrawal_seed: u64,
 ) -> Instruction {
-    let settings_pubkey = get_settings_address(&name);
-    let withdrawal_pubkey = get_proposal_address(event_configuration, event_transaction_lt);
+    let settings_pubkey = get_settings_address(name);
+    let withdrawal_pubkey = get_proposal_address(withdrawal_seed, &settings_pubkey);
 
-    let vault_account = get_vault_address(&name);
+    let vault_pubkey = get_vault_address(name);
     let recipient_token_pubkey =
         spl_associated_token_account::get_associated_token_address(to_pubkey, mint_pubkey);
 
-    let event_configuration = bridge_utils::types::UInt256::from(event_configuration.as_slice());
-    let data = TokenProxyInstruction::WithdrawSol {
-        event_configuration,
-        event_transaction_lt,
-    }
-    .try_to_vec()
-    .expect("pack");
+    let data = TokenProxyInstruction::WithdrawSol { withdrawal_seed }
+        .try_to_vec()
+        .expect("pack");
 
     Instruction {
         program_id: id(),
         accounts: vec![
-            AccountMeta::new(vault_account, false),
+            AccountMeta::new(vault_pubkey, false),
             AccountMeta::new(withdrawal_pubkey, false),
             AccountMeta::new(recipient_token_pubkey, false),
             AccountMeta::new_readonly(settings_pubkey, false),
@@ -385,24 +347,19 @@ pub fn withdrawal_sol_ix(
 pub fn approve_withdrawal_ever_ix(
     authority_pubkey: &Pubkey,
     to_pubkey: &Pubkey,
-    name: String,
-    event_configuration: UInt256,
-    event_transaction_lt: u64,
+    name: &str,
+    withdrawal_seed: u64,
 ) -> Instruction {
-    let settings_pubkey = get_settings_address(&name);
-    let withdrawal_pubkey = get_proposal_address(event_configuration, event_transaction_lt);
+    let settings_pubkey = get_settings_address(name);
+    let withdrawal_pubkey = get_proposal_address(withdrawal_seed, &settings_pubkey);
 
-    let mint_pubkey = get_mint_address(&name);
+    let mint_pubkey = get_mint_address(name);
     let recipient_token_pubkey =
         spl_associated_token_account::get_associated_token_address(to_pubkey, &mint_pubkey);
 
-    let event_configuration = bridge_utils::types::UInt256::from(event_configuration.as_slice());
-    let data = TokenProxyInstruction::ApproveWithdrawEver {
-        event_configuration,
-        event_transaction_lt,
-    }
-    .try_to_vec()
-    .expect("pack");
+    let data = TokenProxyInstruction::ApproveWithdrawEver { withdrawal_seed }
+        .try_to_vec()
+        .expect("pack");
 
     Instruction {
         program_id: id(),
@@ -420,27 +377,21 @@ pub fn approve_withdrawal_ever_ix(
 
 pub fn approve_withdrawal_sol_ix(
     authority_pubkey: &Pubkey,
-    name: String,
-    event_configuration: UInt256,
-    event_transaction_lt: u64,
+    withdrawal_seed: u64,
+    settings_address: Pubkey,
 ) -> Instruction {
-    let settings_pubkey = get_settings_address(&name);
-    let withdrawal_pubkey = get_proposal_address(event_configuration, event_transaction_lt);
+    let withdrawal_pubkey = get_proposal_address(withdrawal_seed, &settings_address);
 
-    let event_configuration = bridge_utils::types::UInt256::from(event_configuration.as_slice());
-    let data = TokenProxyInstruction::ApproveWithdrawSol {
-        event_configuration,
-        event_transaction_lt,
-    }
-    .try_to_vec()
-    .expect("pack");
+    let data = TokenProxyInstruction::ApproveWithdrawSol { withdrawal_seed }
+        .try_to_vec()
+        .expect("pack");
 
     Instruction {
         program_id: id(),
         accounts: vec![
             AccountMeta::new(*authority_pubkey, true),
             AccountMeta::new(withdrawal_pubkey, false),
-            AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new_readonly(settings_address, false),
         ],
         data,
     }
@@ -449,18 +400,17 @@ pub fn approve_withdrawal_sol_ix(
 pub fn cancel_withdrawal_sol_ix(
     funder_pubkey: &Pubkey,
     authority_pubkey: &Pubkey,
-    event_configuration: UInt256,
-    event_transaction_lt: u64,
+    withdrawal_seed: u64,
     deposit_seed: u64,
+    settings_address: Pubkey,
 ) -> Instruction {
-    let withdrawal_pubkey = get_proposal_address(event_configuration, event_transaction_lt);
-    let deposit_pubkey = get_deposit_address(deposit_seed);
+    let withdrawal_pubkey = get_proposal_address(withdrawal_seed, &settings_address);
+    let deposit_pubkey = get_proposal_address(deposit_seed, &settings_address);
 
-    let event_configuration = bridge_utils::types::UInt256::from(event_configuration.as_slice());
     let data = TokenProxyInstruction::CancelWithdrawSol {
-        event_configuration,
-        event_transaction_lt,
+        withdrawal_seed,
         deposit_seed,
+        settings_address,
     }
     .try_to_vec()
     .expect("pack");
@@ -483,23 +433,18 @@ pub fn force_withdrawal_sol_ix(
     mint_pubkey: &Pubkey,
     to_pubkey: &Pubkey,
     name: String,
-    event_configuration: UInt256,
-    event_transaction_lt: u64,
+    withdrawal_seed: u64,
 ) -> Instruction {
     let settings_pubkey = get_settings_address(&name);
-    let withdrawal_pubkey = get_proposal_address(event_configuration, event_transaction_lt);
+    let withdrawal_pubkey = get_proposal_address(withdrawal_seed, &settings_pubkey);
 
     let vault_account = get_vault_address(&name);
     let recipient_token_pubkey =
         spl_associated_token_account::get_associated_token_address(to_pubkey, mint_pubkey);
 
-    let event_configuration = bridge_utils::types::UInt256::from(event_configuration.as_slice());
-    let data = TokenProxyInstruction::ForceWithdrawSol {
-        event_configuration,
-        event_transaction_lt,
-    }
-    .try_to_vec()
-    .expect("pack");
+    let data = TokenProxyInstruction::ForceWithdrawSol { withdrawal_seed }
+        .try_to_vec()
+        .expect("pack");
 
     Instruction {
         program_id: id(),
@@ -520,10 +465,10 @@ pub fn fill_withdrawal_sol_ix(
     authority_sender_pubkey: &Pubkey,
     mint_pubkey: &Pubkey,
     to_pubkey: &Pubkey,
-    event_configuration: UInt256,
-    event_transaction_lt: u64,
+    withdrawal_seed: u64,
     deposit_seed: u64,
-    recipient: EverAddress,
+    settings_address: Pubkey,
+    recipient_address: EverAddress,
 ) -> Instruction {
     let sender_pubkey = spl_associated_token_account::get_associated_token_address(
         authority_sender_pubkey,
@@ -532,15 +477,14 @@ pub fn fill_withdrawal_sol_ix(
     let recipient_token_pubkey =
         spl_associated_token_account::get_associated_token_address(to_pubkey, mint_pubkey);
 
-    let withdrawal_pubkey = get_proposal_address(event_configuration, event_transaction_lt);
-    let new_deposit_pubkey = get_deposit_address(deposit_seed);
+    let withdrawal_pubkey = get_proposal_address(withdrawal_seed, &settings_address);
+    let new_deposit_pubkey = get_proposal_address(deposit_seed, &settings_address);
 
-    let event_configuration = bridge_utils::types::UInt256::from(event_configuration.as_slice());
     let data = TokenProxyInstruction::FillWithdrawSol {
-        event_configuration,
-        event_transaction_lt,
+        withdrawal_seed,
         deposit_seed,
-        recipient,
+        settings_address,
+        recipient_address,
     }
     .try_to_vec()
     .expect("pack");
@@ -575,7 +519,7 @@ pub fn transfer_from_vault_ix(
     let recipient_token_pubkey =
         spl_associated_token_account::get_associated_token_address(to_pubkey, mint_pubkey);
 
-    let data = TokenProxyInstruction::TransferFromVault { name, amount }
+    let data = TokenProxyInstruction::TransferFromVault { amount }
         .try_to_vec()
         .expect("pack");
 
@@ -594,16 +538,15 @@ pub fn transfer_from_vault_ix(
 
 pub fn change_bounty_for_withdrawal_sol_ix(
     authority_pubkey: &Pubkey,
-    event_configuration: UInt256,
-    event_transaction_lt: u64,
+    withdrawal_seed: u64,
+    settings_address: Pubkey,
     bounty: u64,
 ) -> Instruction {
-    let withdrawal_pubkey = get_proposal_address(event_configuration, event_transaction_lt);
+    let withdrawal_pubkey = get_proposal_address(withdrawal_seed, &settings_address);
 
-    let event_configuration = bridge_utils::types::UInt256::from(event_configuration.as_slice());
     let data = TokenProxyInstruction::ChangeBountyForWithdrawSol {
-        event_configuration,
-        event_transaction_lt,
+        withdrawal_seed,
+        settings_address,
         bounty,
     }
     .try_to_vec()
@@ -630,7 +573,6 @@ pub fn change_settings_ix(
     let settings_pubkey = get_settings_address(&name);
 
     let data = TokenProxyInstruction::ChangeSettings {
-        name,
         emergency,
         deposit_limit,
         withdrawal_limit,

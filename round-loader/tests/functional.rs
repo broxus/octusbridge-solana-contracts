@@ -1,8 +1,9 @@
 #![cfg(feature = "test-bpf")]
 
 use borsh::BorshSerialize;
-
 use bridge_utils::types::Vote;
+use rand::Rng;
+
 use solana_program::bpf_loader_upgradeable::UpgradeableLoaderState;
 use solana_program::rent::Rent;
 use solana_program::{
@@ -118,14 +119,14 @@ async fn test_create_proposal() {
 
     let relays = vec![Keypair::new(), Keypair::new(), Keypair::new()];
 
-    let setting_address = get_settings_address();
+    let settings_address = get_settings_address();
     let setting_data = Settings {
         is_initialized: true,
         round_number,
     };
 
     program_test.add_account(
-        setting_address,
+        settings_address,
         Account {
             lamports: Rent::default().minimum_balance(Settings::LEN),
             data: setting_data.try_to_vec().expect("try_to_vec"),
@@ -189,14 +190,12 @@ async fn test_create_proposal() {
     );
 
     // Create Proposal
-    let event_configuration = ton_types::UInt256::new();
-    let event_transaction_lt = 123;
+    let proposal_seed = rand::thread_rng().gen::<u64>();
 
     let mut transaction = Transaction::new_with_payer(
         &[round_loader::create_proposal_ix(
             &funder.pubkey(),
-            event_configuration,
-            event_transaction_lt,
+            proposal_seed,
         )],
         Some(&funder.pubkey()),
     );
@@ -224,8 +223,7 @@ async fn test_create_proposal() {
     for (chunk, i) in write_data.try_to_vec().unwrap().chunks(chunk_size).zip(0..) {
         let mut transaction = Transaction::new_with_payer(
             &[round_loader::write_proposal_ix(
-                event_configuration,
-                event_transaction_lt,
+                proposal_seed,
                 (i * chunk_size) as u32,
                 chunk.to_vec(),
             )],
@@ -243,8 +241,7 @@ async fn test_create_proposal() {
     let mut transaction = Transaction::new_with_payer(
         &[round_loader::finalize_proposal_ix(
             &proposal_creator.pubkey(),
-            event_configuration,
-            event_transaction_lt,
+            proposal_seed,
             round_number,
         )],
         Some(&proposal_creator.pubkey()),
@@ -257,7 +254,7 @@ async fn test_create_proposal() {
         .expect("process_transaction");
 
     // Check created Proposal
-    let proposal_address = get_proposal_address(event_configuration, event_transaction_lt);
+    let proposal_address = get_proposal_address(proposal_seed, &settings_address);
 
     let proposal_info = banks_client
         .get_account(proposal_address)
@@ -286,8 +283,7 @@ async fn test_create_proposal() {
         let mut transaction = Transaction::new_with_payer(
             &[round_loader::vote_for_proposal_ix(
                 &relay.pubkey(),
-                event_configuration,
-                event_transaction_lt,
+                proposal_seed,
                 round_number,
                 Vote::Confirm,
             )],
@@ -315,8 +311,7 @@ async fn test_create_proposal() {
     let mut transaction = Transaction::new_with_payer(
         &[round_loader::execute_proposal_ix(
             &funder.pubkey(),
-            event_configuration,
-            event_transaction_lt,
+            proposal_seed,
             new_round_number,
         )],
         Some(&funder.pubkey()),
@@ -356,7 +351,7 @@ async fn test_create_proposal() {
 
     // Check Settings
     let settings_account = banks_client
-        .get_account(setting_address)
+        .get_account(settings_address)
         .await
         .expect("get_account")
         .expect("account");

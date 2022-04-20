@@ -4,8 +4,6 @@ use solana_program::bpf_loader_upgradeable::UpgradeableLoaderState;
 use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
 
-use super::types::UInt256;
-
 pub fn get_programdata_address(program_id: &Pubkey) -> Pubkey {
     Pubkey::find_program_address(&[program_id.as_ref()], &bpf_loader_upgradeable::id()).0
 }
@@ -16,14 +14,14 @@ pub fn get_associated_relay_round_address(program_id: &Pubkey, round_number: u32
 
 pub fn get_associated_proposal_address(
     program_id: &Pubkey,
-    event_configuration: UInt256,
-    event_transaction_lt: u64,
+    seed: u64,
+    settings_address: &Pubkey,
 ) -> Pubkey {
     Pubkey::find_program_address(
         &[
             br"proposal",
-            event_configuration.as_slice(),
-            &event_transaction_lt.to_le_bytes(),
+            &seed.to_le_bytes(),
+            &settings_address.to_bytes(),
         ],
         program_id,
     )
@@ -69,20 +67,20 @@ pub fn validate_initializer_account(
 
 pub fn validate_proposal_account(
     program_id: &Pubkey,
-    event_configuration: UInt256,
-    event_transaction_lt: u64,
-    account_info: &AccountInfo,
+    seed: u64,
+    settings_address: &Pubkey,
+    proposal_account_info: &AccountInfo,
 ) -> Result<u8, ProgramError> {
     let (account, nonce) = Pubkey::find_program_address(
         &[
             br"proposal",
-            event_configuration.as_slice(),
-            &event_transaction_lt.to_le_bytes(),
+            &seed.to_le_bytes(),
+            &settings_address.to_bytes(),
         ],
         program_id,
     );
 
-    if account != *account_info.key {
+    if account != *proposal_account_info.key {
         return Err(ProgramError::InvalidArgument);
     }
 

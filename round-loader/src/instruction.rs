@@ -1,5 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use bridge_utils::types::{UInt256, Vote};
+use bridge_utils::types::Vote;
+use solana_program::pubkey::Pubkey;
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub enum RoundLoaderInstruction {
@@ -8,10 +9,10 @@ pub enum RoundLoaderInstruction {
     /// # Account references
     /// ...
     VoteForProposal {
-        // Event configuration address
-        event_configuration: UInt256,
-        // Ever deployed event transaction_lt
-        event_transaction_lt: u64,
+        // Proposal seed
+        proposal_seed: u64,
+        // Settings address
+        settings_address: Pubkey,
         // Vote type
         vote: Vote,
     },
@@ -32,10 +33,8 @@ pub enum RoundLoaderInstruction {
     /// # Account references
     /// ...
     CreateProposal {
-        // Event configuration address
-        event_configuration: UInt256,
-        // Ever deployed event transaction_lt
-        event_transaction_lt: u64,
+        // Proposal seed
+        proposal_seed: u64,
     },
 
     /// Write Relay Round data into an proposal account
@@ -43,10 +42,8 @@ pub enum RoundLoaderInstruction {
     /// # Account references
     /// ...
     WriteProposal {
-        // Event configuration address
-        event_configuration: UInt256,
-        // Ever deployed event transaction_lt
-        event_transaction_lt: u64,
+        // Proposal seed
+        proposal_seed: u64,
         // Offset at which to write the given bytes
         offset: u32,
         // Serialized set of keys of for a new round
@@ -58,10 +55,8 @@ pub enum RoundLoaderInstruction {
     /// # Account references
     /// ...
     FinalizeProposal {
-        // Event configuration address
-        event_configuration: UInt256,
-        // Ever deployed event transaction_lt
-        event_transaction_lt: u64,
+        // Proposal seed
+        proposal_seed: u64,
     },
 
     /// Execute proposal

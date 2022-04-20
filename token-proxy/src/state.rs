@@ -10,9 +10,9 @@ use solana_program::pubkey::{Pubkey, PUBKEY_BYTES};
 
 pub const WITHDRAWAL_TOKEN_PERIOD: i64 = 86400;
 
-const WITHDRAWAL_TOKEN_EVENT_LEN: usize = PUBKEY_BYTES + 1 + 1  // ever sender address
-    + 8                                                         // amount
-    + PUBKEY_BYTES                                              // solana recipient address
+const WITHDRAWAL_TOKEN_EVENT_LEN: usize = 8 // amount
+    + PUBKEY_BYTES + 1 + 1                  // ever sender address
+    + PUBKEY_BYTES                          // solana recipient address
 ;
 
 const WITHDRAWAL_TOKEN_META_LEN: usize = PUBKEY_BYTES   // author
@@ -29,6 +29,7 @@ const DEPOSIT_TOKEN_EVENT_LEN: usize = 8    // amount
 #[bridge_pack(length = 500)]
 pub struct Settings {
     pub is_initialized: bool,
+    pub name: String,
     pub kind: TokenKind,
     pub admin: Pubkey,
     pub emergency: bool,
@@ -52,7 +53,6 @@ impl IsInitialized for Settings {
 pub struct Deposit {
     pub is_initialized: bool,
     pub event: Vec<u8>,
-    pub meta: Vec<u8>,
 }
 
 impl Sealed for Deposit {}
@@ -68,7 +68,6 @@ impl IsInitialized for Deposit {
 pub struct DepositToken {
     pub is_initialized: bool,
     pub event: DepositTokenEventWithLen,
-    pub meta: DepositTokenMetaWithLen,
 }
 
 impl Sealed for DepositToken {}
@@ -105,26 +104,6 @@ impl DepositTokenEventWithLen {
     }
 }
 
-#[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
-pub struct DepositTokenMeta {
-    pub token_symbol: String,
-}
-
-#[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
-pub struct DepositTokenMetaWithLen {
-    pub len: u32,
-    pub data: DepositTokenMeta,
-}
-
-impl DepositTokenMetaWithLen {
-    pub fn new(token_symbol: String) -> Result<Self, ProgramError> {
-        Ok(Self {
-            len: token_symbol.try_to_vec()?.len() as u32,
-            data: DepositTokenMeta { token_symbol },
-        })
-    }
-}
-
 #[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
 #[bridge_pack(length = 5000)]
 pub struct WithdrawalToken {
@@ -149,7 +128,6 @@ pub struct WithdrawalTokenEvent {
     pub sender_address: EverAddress,
     pub amount: u64,
     pub recipient_address: Pubkey,
-    pub token_symbol: String,
 }
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
@@ -163,15 +141,13 @@ impl WithdrawalTokenEventWithLen {
         sender_address: EverAddress,
         amount: u64,
         recipient_address: Pubkey,
-        token_symbol: String,
     ) -> Result<Self, ProgramError> {
         Ok(Self {
-            len: (WITHDRAWAL_TOKEN_EVENT_LEN + token_symbol.try_to_vec()?.len()) as u32,
+            len: WITHDRAWAL_TOKEN_EVENT_LEN as u32,
             data: WithdrawalTokenEvent {
                 sender_address,
                 amount,
                 recipient_address,
-                token_symbol,
             },
         })
     }
