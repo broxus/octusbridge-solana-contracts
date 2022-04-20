@@ -612,6 +612,8 @@ impl Processor {
             return Err(ProgramError::InvalidArgument);
         }
 
+        let _vault_nonce = validate_vault_account(program_id, name, vault_account_info)?;
+
         let vault_account_data =
             spl_token::state::Account::unpack(&vault_account_info.data.borrow())?;
 

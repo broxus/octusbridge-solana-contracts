@@ -21,6 +21,9 @@ pub fn validate_settings_account(
 ) -> Result<u8, ProgramError> {
     let (account, nonce) =
         Pubkey::find_program_address(&[br"settings", name.as_bytes()], program_id);
+    if account_info.owner != program_id {
+        return Err(ProgramError::InvalidArgument);
+    }
 
     if account != *account_info.key {
         return Err(ProgramError::InvalidArgument);
@@ -36,6 +39,10 @@ pub fn validate_mint_account(
 ) -> Result<u8, ProgramError> {
     let (account, nonce) = Pubkey::find_program_address(&[br"mint", name.as_bytes()], program_id);
 
+    if account_info.owner != program_id {
+        return Err(ProgramError::InvalidArgument);
+    }
+
     if account != *account_info.key {
         return Err(ProgramError::InvalidArgument);
     }
@@ -49,6 +56,10 @@ pub fn validate_vault_account(
     account_info: &AccountInfo,
 ) -> Result<u8, ProgramError> {
     let (account, nonce) = Pubkey::find_program_address(&[br"vault", name.as_bytes()], program_id);
+
+    if account_info.owner != program_id {
+        return Err(ProgramError::InvalidArgument);
+    }
 
     if account != *account_info.key {
         return Err(ProgramError::InvalidArgument);
