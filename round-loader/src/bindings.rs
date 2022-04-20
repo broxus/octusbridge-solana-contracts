@@ -17,7 +17,7 @@ pub fn get_settings_address() -> Pubkey {
     get_associated_settings_address(program_id)
 }
 
-pub fn get_proposal_address(seed: u64, settings_address: &Pubkey) -> Pubkey {
+pub fn get_proposal_address(seed: u128, settings_address: &Pubkey) -> Pubkey {
     let program_id = &id();
     bridge_utils::helper::get_associated_proposal_address(program_id, seed, settings_address)
 }
@@ -61,7 +61,7 @@ pub fn initialize_ix(
     }
 }
 
-pub fn create_proposal_ix(funder_pubkey: &Pubkey, proposal_seed: u64) -> Instruction {
+pub fn create_proposal_ix(funder_pubkey: &Pubkey, proposal_seed: u128) -> Instruction {
     let program_id = &id();
 
     let settings_address = get_associated_settings_address(program_id);
@@ -88,7 +88,7 @@ pub fn create_proposal_ix(funder_pubkey: &Pubkey, proposal_seed: u64) -> Instruc
     }
 }
 
-pub fn write_proposal_ix(proposal_seed: u64, offset: u32, bytes: Vec<u8>) -> Instruction {
+pub fn write_proposal_ix(proposal_seed: u128, offset: u32, bytes: Vec<u8>) -> Instruction {
     let program_id = &id();
 
     let settings_address = get_associated_settings_address(program_id);
@@ -116,7 +116,7 @@ pub fn write_proposal_ix(proposal_seed: u64, offset: u32, bytes: Vec<u8>) -> Ins
 
 pub fn finalize_proposal_ix(
     creator_pubkey: &Pubkey,
-    proposal_seed: u64,
+    proposal_seed: u128,
     round_number: u32,
 ) -> Instruction {
     let program_id = &id();
@@ -149,7 +149,7 @@ pub fn finalize_proposal_ix(
 
 pub fn vote_for_proposal_ix(
     voter_pubkey: &Pubkey,
-    proposal_seed: u64,
+    proposal_seed: u128,
     round_number: u32,
     vote: Vote,
 ) -> Instruction {
@@ -185,7 +185,7 @@ pub fn vote_for_proposal_ix(
 
 pub fn execute_proposal_ix(
     funder_pubkey: &Pubkey,
-    proposal_seed: u64,
+    proposal_seed: u128,
     round_number: u32,
 ) -> Instruction {
     let program_id = &id();

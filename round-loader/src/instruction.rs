@@ -10,7 +10,7 @@ pub enum RoundLoaderInstruction {
     /// ...
     VoteForProposal {
         // Proposal seed
-        proposal_seed: u64,
+        proposal_seed: u128,
         // Settings address
         settings_address: Pubkey,
         // Vote type
@@ -34,7 +34,7 @@ pub enum RoundLoaderInstruction {
     /// ...
     CreateProposal {
         // Proposal seed
-        proposal_seed: u64,
+        proposal_seed: u128,
     },
 
     /// Write Relay Round data into an proposal account
@@ -43,7 +43,7 @@ pub enum RoundLoaderInstruction {
     /// ...
     WriteProposal {
         // Proposal seed
-        proposal_seed: u64,
+        proposal_seed: u128,
         // Offset at which to write the given bytes
         offset: u32,
         // Serialized set of keys of for a new round
@@ -56,7 +56,7 @@ pub enum RoundLoaderInstruction {
     /// ...
     FinalizeProposal {
         // Proposal seed
-        proposal_seed: u64,
+        proposal_seed: u128,
     },
 
     /// Execute proposal

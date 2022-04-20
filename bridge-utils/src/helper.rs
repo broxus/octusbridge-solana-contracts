@@ -14,7 +14,7 @@ pub fn get_associated_relay_round_address(program_id: &Pubkey, round_number: u32
 
 pub fn get_associated_proposal_address(
     program_id: &Pubkey,
-    seed: u64,
+    seed: u128,
     settings_address: &Pubkey,
 ) -> Pubkey {
     Pubkey::find_program_address(
@@ -67,7 +67,7 @@ pub fn validate_initializer_account(
 
 pub fn validate_proposal_account(
     program_id: &Pubkey,
-    seed: u64,
+    seed: u128,
     settings_address: &Pubkey,
     proposal_account_info: &AccountInfo,
 ) -> Result<u8, ProgramError> {

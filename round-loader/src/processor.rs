@@ -175,7 +175,7 @@ impl Processor {
     fn process_create_proposal(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        proposal_seed: u64,
+        proposal_seed: u128,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -225,7 +225,7 @@ impl Processor {
     fn process_write_proposal(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        proposal_seed: u64,
+        proposal_seed: u128,
         offset: u32,
         bytes: Vec<u8>,
     ) -> ProgramResult {
@@ -260,7 +260,7 @@ impl Processor {
     fn process_finalize_proposal(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        proposal_seed: u64,
+        proposal_seed: u128,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -323,7 +323,7 @@ impl Processor {
     fn process_vote_for_proposal(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        proposal_seed: u64,
+        proposal_seed: u128,
         settings_address: Pubkey,
         vote: Vote,
     ) -> ProgramResult {

@@ -463,7 +463,7 @@ impl Processor {
     fn process_deposit_ever(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        deposit_seed: u64,
+        deposit_seed: u128,
         recipient_address: EverAddress,
         amount: u64,
     ) -> ProgramResult {
@@ -566,7 +566,7 @@ impl Processor {
     fn process_deposit_sol(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        deposit_seed: u64,
+        deposit_seed: u128,
         recipient_address: EverAddress,
         amount: u64,
     ) -> ProgramResult {
@@ -690,7 +690,7 @@ impl Processor {
     fn process_withdraw_request(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        withdrawal_seed: u64,
+        withdrawal_seed: u128,
         settings_address: Pubkey,
         sender_address: EverAddress,
         recipient_address: Pubkey,
@@ -786,7 +786,7 @@ impl Processor {
     fn process_vote_for_withdraw_request(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        withdrawal_seed: u64,
+        withdrawal_seed: u128,
         settings_address: Pubkey,
         vote: Vote,
     ) -> ProgramResult {
@@ -839,7 +839,7 @@ impl Processor {
     fn process_update_withdraw_status(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        withdrawal_seed: u64,
+        withdrawal_seed: u128,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -909,7 +909,7 @@ impl Processor {
     fn process_withdraw_ever(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        withdrawal_seed: u64,
+        withdrawal_seed: u128,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -991,7 +991,7 @@ impl Processor {
     fn process_withdraw_sol(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        withdrawal_seed: u64,
+        withdrawal_seed: u128,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -1079,7 +1079,7 @@ impl Processor {
     fn process_approve_withdraw_ever(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        withdrawal_seed: u64,
+        withdrawal_seed: u128,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -1169,7 +1169,7 @@ impl Processor {
     fn process_approve_withdraw_sol(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        withdrawal_seed: u64,
+        withdrawal_seed: u128,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -1219,8 +1219,8 @@ impl Processor {
     fn process_cancel_withdraw_sol(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        withdrawal_seed: u64,
-        deposit_seed: u64,
+        withdrawal_seed: u128,
+        deposit_seed: u128,
         settings_address: Pubkey,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
@@ -1311,7 +1311,7 @@ impl Processor {
     fn process_force_withdraw_sol(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        withdrawal_seed: u64,
+        withdrawal_seed: u128,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -1398,8 +1398,8 @@ impl Processor {
     fn process_fill_withdraw_sol(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        withdrawal_seed: u64,
-        deposit_seed: u64,
+        withdrawal_seed: u128,
+        deposit_seed: u128,
         settings_address: Pubkey,
         recipient_address: EverAddress,
     ) -> ProgramResult {
@@ -1581,7 +1581,7 @@ impl Processor {
     fn process_change_bounty_for_withdraw_sol(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        withdrawal_seed: u64,
+        withdrawal_seed: u128,
         settings_address: Pubkey,
         bounty: u64,
     ) -> ProgramResult {

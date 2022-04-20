@@ -11,7 +11,7 @@ pub enum TokenProxyInstruction {
     /// ...
     VoteForWithdrawRequest {
         // Withdrawal seed
-        withdrawal_seed: u64,
+        withdrawal_seed: u128,
         // Settings address
         settings_address: Pubkey,
         // Vote type
@@ -60,7 +60,7 @@ pub enum TokenProxyInstruction {
     /// ...
     DepositEver {
         // Deposit seed
-        deposit_seed: u64,
+        deposit_seed: u128,
         // Ever recipient address
         recipient_address: EverAddress,
         // Deposit amount
@@ -73,7 +73,7 @@ pub enum TokenProxyInstruction {
     /// ...
     DepositSol {
         // Deposit seed
-        deposit_seed: u64,
+        deposit_seed: u128,
         // Ever recipient address
         recipient_address: EverAddress,
         // Deposit amount
@@ -86,7 +86,7 @@ pub enum TokenProxyInstruction {
     /// ...
     WithdrawRequest {
         // Withdrawal seed
-        withdrawal_seed: u64,
+        withdrawal_seed: u128,
         // Settings address
         settings_address: Pubkey,
         // Sender address
@@ -103,7 +103,7 @@ pub enum TokenProxyInstruction {
     /// ...
     UpdateWithdrawStatus {
         // Withdrawal seed
-        withdrawal_seed: u64,
+        withdrawal_seed: u128,
     },
 
     /// Withdraw EVER
@@ -112,7 +112,7 @@ pub enum TokenProxyInstruction {
     /// ...
     WithdrawEver {
         // Withdrawal seed
-        withdrawal_seed: u64,
+        withdrawal_seed: u128,
     },
 
     /// Withdraw SOL
@@ -121,7 +121,7 @@ pub enum TokenProxyInstruction {
     /// ...
     WithdrawSol {
         // Withdrawal seed
-        withdrawal_seed: u64,
+        withdrawal_seed: u128,
     },
 
     /// Approve Withdraw Ever
@@ -130,7 +130,7 @@ pub enum TokenProxyInstruction {
     /// ...
     ApproveWithdrawEver {
         // Withdrawal seed
-        withdrawal_seed: u64,
+        withdrawal_seed: u128,
     },
 
     /// Approve Withdraw SOL
@@ -139,7 +139,7 @@ pub enum TokenProxyInstruction {
     /// ...
     ApproveWithdrawSol {
         // Withdrawal seed
-        withdrawal_seed: u64,
+        withdrawal_seed: u128,
     },
 
     /// Cancel Withdraw SOL
@@ -148,9 +148,9 @@ pub enum TokenProxyInstruction {
     /// ...
     CancelWithdrawSol {
         // Withdrawal seed
-        withdrawal_seed: u64,
+        withdrawal_seed: u128,
         // Deposit seed
-        deposit_seed: u64,
+        deposit_seed: u128,
         // Settings address
         settings_address: Pubkey,
     },
@@ -160,7 +160,7 @@ pub enum TokenProxyInstruction {
     /// ...
     ForceWithdrawSol {
         // Withdrawal seed
-        withdrawal_seed: u64,
+        withdrawal_seed: u128,
     },
 
     /// Fill Withdraw SOL
@@ -170,9 +170,9 @@ pub enum TokenProxyInstruction {
     /**/
     FillWithdrawSol {
         // Withdrawal seed
-        withdrawal_seed: u64,
+        withdrawal_seed: u128,
         // Deposit seed
-        deposit_seed: u64,
+        deposit_seed: u128,
         // Settings address
         settings_address: Pubkey,
         // Recipient address
@@ -194,7 +194,7 @@ pub enum TokenProxyInstruction {
     /// ...
     ChangeBountyForWithdrawSol {
         // Withdrawal seed
-        withdrawal_seed: u64,
+        withdrawal_seed: u128,
         // Settings address
         settings_address: Pubkey,
         // New bounty value

@@ -2,7 +2,6 @@
 
 use bridge_utils::state::Proposal;
 use bridge_utils::types::{EverAddress, Vote};
-use rand::Rng;
 
 use solana_program::bpf_loader_upgradeable::UpgradeableLoaderState;
 use solana_program::rent::Rent;
@@ -352,7 +351,7 @@ async fn test_deposit_ever() {
     // Start Program Test
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
-    let deposit_seed = rand::thread_rng().gen::<u64>();
+    let deposit_seed = uuid::Uuid::new_v4().as_u128();
     let recipient_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 32;
 
@@ -545,7 +544,7 @@ async fn test_deposit_sol() {
     // Start Program Test
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
-    let deposit_seed = rand::thread_rng().gen::<u64>();
+    let deposit_seed = uuid::Uuid::new_v4().as_u128();
     let recipient_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 32;
 
@@ -700,7 +699,7 @@ async fn test_withdrawal_request() {
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
     let author = Keypair::new();
-    let withdrawal_seed = rand::thread_rng().gen::<u64>();
+    let withdrawal_seed = uuid::Uuid::new_v4().as_u128();
     let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 32;
 
@@ -817,7 +816,7 @@ async fn test_vote_for_withdrawal_request() {
     );
 
     // Add Withdrawal Account
-    let withdrawal_seed = rand::thread_rng().gen::<u64>();
+    let withdrawal_seed = uuid::Uuid::new_v4().as_u128();
     let recipient_address = Pubkey::new_unique();
     let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 10;
@@ -930,7 +929,7 @@ async fn test_update_withdrawal_status() {
     );
 
     // Add Withdrawal Account
-    let withdrawal_seed = rand::thread_rng().gen::<u64>();
+    let withdrawal_seed = uuid::Uuid::new_v4().as_u128();
     let recipient_address = Pubkey::new_unique();
     let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 10;
@@ -1089,7 +1088,7 @@ async fn test_withdrawal_ever() {
     );
 
     // Add Withdrawal Account
-    let withdrawal_seed = rand::thread_rng().gen::<u64>();
+    let withdrawal_seed = uuid::Uuid::new_v4().as_u128();
     let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 10;
 
@@ -1284,7 +1283,7 @@ async fn test_withdrawal_sol() {
     );
 
     // Add Withdrawal Account
-    let withdrawal_seed = rand::thread_rng().gen::<u64>();
+    let withdrawal_seed = uuid::Uuid::new_v4().as_u128();
     let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 10;
 
@@ -1453,7 +1452,7 @@ async fn test_approve_withdrawal_ever() {
     );
 
     // Add Withdrawal Round Account
-    let withdrawal_seed = rand::thread_rng().gen::<u64>();
+    let withdrawal_seed = uuid::Uuid::new_v4().as_u128();
     let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 10;
 
@@ -1588,7 +1587,7 @@ async fn test_approve_withdrawal_sol() {
     );
 
     // Add Withdrawal Round Account
-    let withdrawal_seed = rand::thread_rng().gen::<u64>();
+    let withdrawal_seed = uuid::Uuid::new_v4().as_u128();
     let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 10;
 
@@ -1716,7 +1715,7 @@ async fn test_cancel_withdrawal_sol() {
 
     // Add Withdrawal Round Account
     let author = Keypair::new();
-    let withdrawal_seed = rand::thread_rng().gen::<u64>();
+    let withdrawal_seed = uuid::Uuid::new_v4().as_u128();
     let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 10;
 
@@ -1748,7 +1747,7 @@ async fn test_cancel_withdrawal_sol() {
     // Start Program Test
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
-    let deposit_seed = rand::thread_rng().gen::<u64>();
+    let deposit_seed = uuid::Uuid::new_v4().as_u128();
 
     let mut transaction = Transaction::new_with_payer(
         &[token_proxy::cancel_withdrawal_sol_ix(
@@ -1919,7 +1918,7 @@ async fn test_force_withdrawal_sol() {
     );
 
     // Add Withdrawal Round Account
-    let withdrawal_seed = rand::thread_rng().gen::<u64>();
+    let withdrawal_seed = uuid::Uuid::new_v4().as_u128();
     let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 10;
 
@@ -2097,7 +2096,7 @@ async fn test_fill_withdrawal_sol() {
     let settings_address = get_settings_address(&name);
 
     // Add Withdrawal Account
-    let withdrawal_seed = rand::thread_rng().gen::<u64>();
+    let withdrawal_seed = uuid::Uuid::new_v4().as_u128();
     let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 10;
     let bounty = 1;
@@ -2133,7 +2132,7 @@ async fn test_fill_withdrawal_sol() {
     // Start Program Test
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
-    let deposit_seed = rand::thread_rng().gen::<u64>();
+    let deposit_seed = uuid::Uuid::new_v4().as_u128();
     let ever_recipient_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
 
     let mut transaction = Transaction::new_with_payer(
@@ -2372,7 +2371,7 @@ async fn test_change_bounty_for_withdrawal_sol() {
 
     // Add Withdrawal Account
     let author = Keypair::new();
-    let withdrawal_seed = rand::thread_rng().gen::<u64>();
+    let withdrawal_seed = uuid::Uuid::new_v4().as_u128();
     let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
 
     let amount = 10;

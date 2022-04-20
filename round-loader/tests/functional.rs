@@ -2,7 +2,6 @@
 
 use borsh::BorshSerialize;
 use bridge_utils::types::Vote;
-use rand::Rng;
 
 use solana_program::bpf_loader_upgradeable::UpgradeableLoaderState;
 use solana_program::rent::Rent;
@@ -190,7 +189,7 @@ async fn test_create_proposal() {
     );
 
     // Create Proposal
-    let proposal_seed = rand::thread_rng().gen::<u64>();
+    let proposal_seed = uuid::Uuid::new_v4().as_u128();
 
     let mut transaction = Transaction::new_with_payer(
         &[round_loader::create_proposal_ix(

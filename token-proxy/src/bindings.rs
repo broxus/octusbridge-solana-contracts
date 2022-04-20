@@ -17,7 +17,7 @@ pub fn get_settings_address(name: &str) -> Pubkey {
     get_associated_settings_address(program_id, name)
 }
 
-pub fn get_proposal_address(seed: u64, settings_address: &Pubkey) -> Pubkey {
+pub fn get_proposal_address(seed: u128, settings_address: &Pubkey) -> Pubkey {
     let program_id = &id();
     bridge_utils::helper::get_associated_proposal_address(program_id, seed, settings_address)
 }
@@ -120,7 +120,7 @@ pub fn deposit_ever_ix(
     funder_pubkey: &Pubkey,
     sender_pubkey: &Pubkey,
     name: &str,
-    deposit_seed: u64,
+    deposit_seed: u128,
     recipient_address: EverAddress,
     amount: u64,
 ) -> Instruction {
@@ -160,7 +160,7 @@ pub fn deposit_sol_ix(
     mint_pubkey: &Pubkey,
     sender_pubkey: &Pubkey,
     name: &str,
-    deposit_seed: u64,
+    deposit_seed: u128,
     recipient_address: EverAddress,
     amount: u64,
 ) -> Instruction {
@@ -202,7 +202,7 @@ pub fn withdrawal_request_ix(
     funder_pubkey: &Pubkey,
     author_pubkey: &Pubkey,
     round_number: u32,
-    withdrawal_seed: u64,
+    withdrawal_seed: u128,
     settings_address: Pubkey,
     sender_address: EverAddress,
     recipient_address: Pubkey,
@@ -240,7 +240,7 @@ pub fn withdrawal_request_ix(
 pub fn vote_for_withdrawal_request_ix(
     relay_pubkey: &Pubkey,
     round_number: u32,
-    withdrawal_seed: u64,
+    withdrawal_seed: u128,
     settings_address: Pubkey,
     vote: Vote,
 ) -> Instruction {
@@ -269,7 +269,7 @@ pub fn vote_for_withdrawal_request_ix(
 
 pub fn update_withdrawal_status_ix(
     name: &str,
-    withdrawal_seed: u64,
+    withdrawal_seed: u128,
     settings_address: Pubkey,
 ) -> Instruction {
     let settings_pubkey = get_settings_address(name);
@@ -290,7 +290,7 @@ pub fn update_withdrawal_status_ix(
     }
 }
 
-pub fn withdrawal_ever_ix(to_pubkey: &Pubkey, name: &str, withdrawal_seed: u64) -> Instruction {
+pub fn withdrawal_ever_ix(to_pubkey: &Pubkey, name: &str, withdrawal_seed: u128) -> Instruction {
     let settings_pubkey = get_settings_address(name);
     let withdrawal_pubkey = get_proposal_address(withdrawal_seed, &settings_pubkey);
     let mint_pubkey = get_mint_address(name);
@@ -318,7 +318,7 @@ pub fn withdrawal_sol_ix(
     mint_pubkey: &Pubkey,
     to_pubkey: &Pubkey,
     name: &str,
-    withdrawal_seed: u64,
+    withdrawal_seed: u128,
 ) -> Instruction {
     let settings_pubkey = get_settings_address(name);
     let withdrawal_pubkey = get_proposal_address(withdrawal_seed, &settings_pubkey);
@@ -348,7 +348,7 @@ pub fn approve_withdrawal_ever_ix(
     authority_pubkey: &Pubkey,
     to_pubkey: &Pubkey,
     name: &str,
-    withdrawal_seed: u64,
+    withdrawal_seed: u128,
 ) -> Instruction {
     let settings_pubkey = get_settings_address(name);
     let withdrawal_pubkey = get_proposal_address(withdrawal_seed, &settings_pubkey);
@@ -377,7 +377,7 @@ pub fn approve_withdrawal_ever_ix(
 
 pub fn approve_withdrawal_sol_ix(
     authority_pubkey: &Pubkey,
-    withdrawal_seed: u64,
+    withdrawal_seed: u128,
     settings_address: Pubkey,
 ) -> Instruction {
     let withdrawal_pubkey = get_proposal_address(withdrawal_seed, &settings_address);
@@ -400,8 +400,8 @@ pub fn approve_withdrawal_sol_ix(
 pub fn cancel_withdrawal_sol_ix(
     funder_pubkey: &Pubkey,
     authority_pubkey: &Pubkey,
-    withdrawal_seed: u64,
-    deposit_seed: u64,
+    withdrawal_seed: u128,
+    deposit_seed: u128,
     settings_address: Pubkey,
 ) -> Instruction {
     let withdrawal_pubkey = get_proposal_address(withdrawal_seed, &settings_address);
@@ -433,7 +433,7 @@ pub fn force_withdrawal_sol_ix(
     mint_pubkey: &Pubkey,
     to_pubkey: &Pubkey,
     name: String,
-    withdrawal_seed: u64,
+    withdrawal_seed: u128,
 ) -> Instruction {
     let settings_pubkey = get_settings_address(&name);
     let withdrawal_pubkey = get_proposal_address(withdrawal_seed, &settings_pubkey);
@@ -465,8 +465,8 @@ pub fn fill_withdrawal_sol_ix(
     authority_sender_pubkey: &Pubkey,
     mint_pubkey: &Pubkey,
     to_pubkey: &Pubkey,
-    withdrawal_seed: u64,
-    deposit_seed: u64,
+    withdrawal_seed: u128,
+    deposit_seed: u128,
     settings_address: Pubkey,
     recipient_address: EverAddress,
 ) -> Instruction {
@@ -538,7 +538,7 @@ pub fn transfer_from_vault_ix(
 
 pub fn change_bounty_for_withdrawal_sol_ix(
     authority_pubkey: &Pubkey,
-    withdrawal_seed: u64,
+    withdrawal_seed: u128,
     settings_address: Pubkey,
     bounty: u64,
 ) -> Instruction {
