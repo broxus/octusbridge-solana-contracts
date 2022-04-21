@@ -493,13 +493,21 @@ impl Processor {
         let name = &settings_account_data.name;
         validate_settings_account(program_id, name, settings_account_info)?;
 
+        if settings_account_info.owner != program_id {
+            return Err(ProgramError::InvalidArgument);
+        }
+
         // Validate Mint Account
         validate_mint_account(program_id, name, mint_account_info)?;
+
+        if mint_account_info.owner != &spl_token::id() {
+            return Err(ProgramError::InvalidArgument);
+        }
 
         // Burn EVER tokens
         invoke(
             &spl_token::instruction::burn(
-                token_program_info.key,
+                &spl_token::id(),
                 token_sender_account_info.key,
                 mint_account_info.key,
                 authority_sender_account_info.key,
@@ -597,22 +605,24 @@ impl Processor {
         let name = &settings_account_data.name;
         validate_settings_account(program_id, name, settings_account_info)?;
 
+        if settings_account_info.owner != program_id {
+            return Err(ProgramError::InvalidArgument);
+        }
+
         let (mint_account, vault_account) = settings_account_data
             .kind
             .as_solana()
             .ok_or(TokenProxyError::InvalidTokenKind)?;
 
         // Validate Mint Account
-        if mint_account != mint_account_info.key {
+        if mint_account_info.key != mint_account && mint_account_info.owner != &spl_token::id() {
             return Err(ProgramError::InvalidArgument);
         }
 
         // Validate Vault Account
-        if vault_account != vault_account_info.key {
+        if vault_account_info.key != vault_account && vault_account_info.owner != &spl_token::id() {
             return Err(ProgramError::InvalidArgument);
         }
-
-        let _vault_nonce = validate_vault_account(program_id, name, vault_account_info)?;
 
         let vault_account_data =
             spl_token::state::Account::unpack(&vault_account_info.data.borrow())?;
@@ -629,7 +639,7 @@ impl Processor {
         // Transfer SOL tokens to Vault Account
         invoke(
             &spl_token::instruction::transfer(
-                token_program_info.key,
+                &spl_token::id(),
                 token_sender_account_info.key,
                 vault_account_info.key,
                 authority_sender_account_info.key,
@@ -737,6 +747,10 @@ impl Processor {
             relay_round_account_info,
         )?;
 
+        if relay_round_account_info.owner != &round_loader::id() {
+            return Err(ProgramError::InvalidArgument);
+        }
+
         // Validate Withdrawal Account
         let withdrawal_nonce = bridge_utils::helper::validate_proposal_account(
             program_id,
@@ -815,6 +829,10 @@ impl Processor {
             withdrawal_account_info,
         )?;
 
+        if withdrawal_account_info.owner != program_id {
+            return Err(ProgramError::InvalidArgument);
+        }
+
         let mut withdrawal_account_data = Proposal::unpack(&withdrawal_account_info.data.borrow())?;
         let round_number = withdrawal_account_data.round_number;
 
@@ -824,6 +842,10 @@ impl Processor {
             round_number,
             relay_round_account_info,
         )?;
+
+        if relay_round_account_info.owner != &round_loader::id() {
+            return Err(ProgramError::InvalidArgument);
+        }
 
         let relay_round_account_data = RelayRound::unpack(&relay_round_account_info.data.borrow())?;
 
@@ -862,6 +884,10 @@ impl Processor {
             settings_account_info.key,
             withdrawal_account_info,
         )?;
+
+        if withdrawal_account_info.owner != program_id {
+            return Err(ProgramError::InvalidArgument);
+        }
 
         let mut withdrawal_account_data =
             WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
@@ -940,6 +966,10 @@ impl Processor {
         let name = &settings_account_data.name;
         validate_settings_account(program_id, name, settings_account_info)?;
 
+        if settings_account_info.owner != program_id {
+            return Err(ProgramError::InvalidArgument);
+        }
+
         // Validate Withdrawal Account
         bridge_utils::helper::validate_proposal_account(
             program_id,
@@ -948,10 +978,18 @@ impl Processor {
             withdrawal_account_info,
         )?;
 
+        if withdrawal_account_info.owner != program_id {
+            return Err(ProgramError::InvalidArgument);
+        }
+
         let mut withdrawal_account_data =
             WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
 
         // Validate Recipient Account
+        if recipient_token_account_info.owner != &spl_token::id() {
+            return Err(ProgramError::InvalidArgument);
+        }
+
         let recipient_token_account_data =
             spl_token::state::Account::unpack(&recipient_token_account_info.data.borrow())?;
 
@@ -965,6 +1003,10 @@ impl Processor {
         let mint_nonce = validate_mint_account(program_id, name, mint_account_info)?;
         let mint_account_signer_seeds: &[&[_]] = &[br"mint", name.as_bytes(), &[mint_nonce]];
 
+        if mint_account_info.owner != &spl_token::id() {
+            return Err(ProgramError::InvalidArgument);
+        }
+
         // Validate status
         if withdrawal_account_data.meta.data.status != WithdrawalTokenStatus::WaitingForRelease {
             return Err(TokenProxyError::InvalidWithdrawalStatus.into());
@@ -973,7 +1015,7 @@ impl Processor {
         // Mint EVER tokens to Recipient Account
         invoke_signed(
             &spl_token::instruction::mint_to(
-                token_program_info.key,
+                &spl_token::id(),
                 mint_account_info.key,
                 recipient_token_account_info.key,
                 mint_account_info.key,
@@ -1022,6 +1064,10 @@ impl Processor {
         let name = &settings_account_data.name;
         validate_settings_account(program_id, name, settings_account_info)?;
 
+        if settings_account_info.owner != program_id {
+            return Err(ProgramError::InvalidArgument);
+        }
+
         // Validate Withdrawal Account
         bridge_utils::helper::validate_proposal_account(
             program_id,
@@ -1030,12 +1076,20 @@ impl Processor {
             withdrawal_account_info,
         )?;
 
+        if withdrawal_account_info.owner != program_id {
+            return Err(ProgramError::InvalidArgument);
+        }
+
         let mut withdrawal_account_data =
             WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
 
         // Validate Recipient Account
         let recipient_token_account_data =
             spl_token::state::Account::unpack(&recipient_token_account_info.data.borrow())?;
+
+        if recipient_token_account_info.owner != &spl_token::id() {
+            return Err(ProgramError::InvalidArgument);
+        }
 
         if recipient_token_account_data.owner
             != withdrawal_account_data.event.data.recipient_address
@@ -1052,6 +1106,10 @@ impl Processor {
         let vault_nonce = validate_vault_account(program_id, name, vault_account_info)?;
         let vault_account_signer_seeds: &[&[_]] = &[br"vault", name.as_bytes(), &[vault_nonce]];
 
+        if vault_account_info.owner != &spl_token::id() {
+            return Err(ProgramError::InvalidArgument);
+        }
+
         let vault_account_data =
             spl_token::state::Account::unpack(&vault_account_info.data.borrow())?;
 
@@ -1059,7 +1117,7 @@ impl Processor {
             // Transfer tokens from Vault Account to Recipient Account
             invoke_signed(
                 &spl_token::instruction::transfer(
-                    token_program_info.key,
+                    &spl_token::id(),
                     vault_account_info.key,
                     recipient_token_account_info.key,
                     vault_account_info.key,
@@ -1119,6 +1177,10 @@ impl Processor {
         let name = &settings_account_data.name;
         validate_settings_account(program_id, name, settings_account_info)?;
 
+        if settings_account_info.owner != program_id {
+            return Err(ProgramError::InvalidArgument);
+        }
+
         // Validate Withdrawal Account
         bridge_utils::helper::validate_proposal_account(
             program_id,
@@ -1126,6 +1188,10 @@ impl Processor {
             settings_account_info.key,
             withdrawal_account_info,
         )?;
+
+        if withdrawal_account_info.owner != program_id {
+            return Err(ProgramError::InvalidArgument);
+        }
 
         let mut withdrawal_account_data =
             WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
@@ -1138,6 +1204,10 @@ impl Processor {
         let recipient_token_account_data =
             spl_token::state::Account::unpack(&recipient_token_account_info.data.borrow())?;
 
+        if recipient_token_account_info.owner != &spl_token::id() {
+            return Err(ProgramError::InvalidArgument);
+        }
+
         if recipient_token_account_data.owner
             != withdrawal_account_data.event.data.recipient_address
         {
@@ -1148,10 +1218,14 @@ impl Processor {
         let mint_nonce = validate_mint_account(program_id, name, mint_account_info)?;
         let mint_account_signer_seeds: &[&[_]] = &[br"mint", name.as_bytes(), &[mint_nonce]];
 
+        if mint_account_info.owner != &spl_token::id() {
+            return Err(ProgramError::InvalidArgument);
+        }
+
         // Mint EVER token to Recipient Account
         invoke_signed(
             &spl_token::instruction::mint_to(
-                token_program_info.key,
+                &spl_token::id(),
                 mint_account_info.key,
                 recipient_token_account_info.key,
                 mint_account_info.key,
@@ -1206,6 +1280,10 @@ impl Processor {
         let name = &settings_account_data.name;
         validate_settings_account(program_id, name, settings_account_info)?;
 
+        if settings_account_info.owner != program_id {
+            return Err(ProgramError::InvalidArgument);
+        }
+
         // Validate Withdrawal Account
         bridge_utils::helper::validate_proposal_account(
             program_id,
@@ -1213,6 +1291,10 @@ impl Processor {
             settings_account_info.key,
             withdrawal_account_info,
         )?;
+
+        if withdrawal_account_info.owner != program_id {
+            return Err(ProgramError::InvalidArgument);
+        }
 
         let mut withdrawal_account_data =
             WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
@@ -1255,6 +1337,10 @@ impl Processor {
             &settings_address,
             withdrawal_account_info,
         )?;
+
+        if withdrawal_account_info.owner != program_id {
+            return Err(ProgramError::InvalidArgument);
+        }
 
         let mut withdrawal_account_data =
             WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
@@ -1346,6 +1432,10 @@ impl Processor {
         let name = &settings_account_data.name;
         validate_settings_account(program_id, name, settings_account_info)?;
 
+        if settings_account_info.owner != program_id {
+            return Err(ProgramError::InvalidArgument);
+        }
+
         // Validate Withdrawal Account
         bridge_utils::helper::validate_proposal_account(
             program_id,
@@ -1353,6 +1443,10 @@ impl Processor {
             settings_account_info.key,
             withdrawal_account_info,
         )?;
+
+        if withdrawal_account_info.owner != program_id {
+            return Err(ProgramError::InvalidArgument);
+        }
 
         let mut withdrawal_account_data =
             WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
@@ -1365,6 +1459,10 @@ impl Processor {
         let recipient_token_account_data =
             spl_token::state::Account::unpack(&recipient_token_account_info.data.borrow())?;
 
+        if recipient_token_account_info.owner != &spl_token::id() {
+            return Err(ProgramError::InvalidArgument);
+        }
+
         if recipient_token_account_data.owner
             != withdrawal_account_data.event.data.recipient_address
         {
@@ -1374,6 +1472,10 @@ impl Processor {
         // Validate Vault Account
         let vault_nonce = validate_vault_account(program_id, name, vault_account_info)?;
         let vault_account_signer_seeds: &[&[_]] = &[br"vault", name.as_bytes(), &[vault_nonce]];
+
+        if vault_account_info.owner != &spl_token::id() {
+            return Err(ProgramError::InvalidArgument);
+        }
 
         let vault_account_data =
             spl_token::state::Account::unpack(&vault_account_info.data.borrow())?;
@@ -1385,7 +1487,7 @@ impl Processor {
         // Transfer SOL tokens from Vault Account to Recipient Account
         invoke_signed(
             &spl_token::instruction::transfer(
-                token_program_info.key,
+                &spl_token::id(),
                 vault_account_info.key,
                 recipient_token_account_info.key,
                 vault_account_info.key,
@@ -1443,6 +1545,10 @@ impl Processor {
             withdrawal_account_info,
         )?;
 
+        if withdrawal_account_info.owner != program_id {
+            return Err(ProgramError::InvalidArgument);
+        }
+
         let mut withdrawal_account_data =
             WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
 
@@ -1454,6 +1560,10 @@ impl Processor {
         let recipient_token_account_data =
             spl_token::state::Account::unpack(&recipient_token_account_info.data.borrow())?;
 
+        if recipient_token_account_info.owner != &spl_token::id() {
+            return Err(ProgramError::InvalidArgument);
+        }
+
         if recipient_token_account_data.owner
             != withdrawal_account_data.event.data.recipient_address
         {
@@ -1463,7 +1573,7 @@ impl Processor {
         // Transfer SOL tokens
         invoke(
             &spl_token::instruction::transfer(
-                token_program_info.key,
+                &spl_token::id(),
                 token_sender_account_info.key,
                 recipient_token_account_info.key,
                 authority_sender_account_info.key,
@@ -1566,9 +1676,17 @@ impl Processor {
         let name = &settings_account_data.name;
         validate_settings_account(program_id, name, settings_account_info)?;
 
+        if settings_account_info.owner != program_id {
+            return Err(ProgramError::InvalidArgument);
+        }
+
         // Validate Vault Account
         let vault_nonce = validate_vault_account(program_id, name, vault_account_info)?;
         let vault_account_signer_seeds: &[&[_]] = &[br"vault", name.as_bytes(), &[vault_nonce]];
+
+        if vault_account_info.owner != &spl_token::id() {
+            return Err(ProgramError::InvalidArgument);
+        }
 
         let vault_account_data =
             spl_token::state::Account::unpack(&vault_account_info.data.borrow())?;
@@ -1579,7 +1697,7 @@ impl Processor {
 
         invoke_signed(
             &spl_token::instruction::transfer(
-                token_program_info.key,
+                &spl_token::id(),
                 vault_account_info.key,
                 recipient_token_account_info.key,
                 vault_account_info.key,
@@ -1619,6 +1737,10 @@ impl Processor {
             &settings_address,
             withdrawal_account_info,
         )?;
+
+        if withdrawal_account_info.owner != program_id {
+            return Err(ProgramError::InvalidArgument);
+        }
 
         let mut withdrawal_account_data =
             WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
@@ -1667,6 +1789,10 @@ impl Processor {
         // Validate Setting Account
         let name = &settings_account_data.name;
         validate_settings_account(program_id, name, settings_account_info)?;
+
+        if settings_account_info.owner != program_id {
+            return Err(ProgramError::InvalidArgument);
+        }
 
         settings_account_data.emergency = emergency;
         settings_account_data.deposit_limit = deposit_limit;

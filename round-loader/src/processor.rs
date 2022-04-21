@@ -243,6 +243,10 @@ impl Processor {
             proposal_account_info,
         )?;
 
+        if proposal_account_info.owner != program_id {
+            return Err(ProgramError::InvalidArgument);
+        }
+
         let proposal = RelayRoundProposal::unpack_unchecked(&proposal_account_info.data.borrow())?;
         if proposal.is_initialized {
             return Err(ProgramError::AccountAlreadyInitialized);
@@ -279,11 +283,19 @@ impl Processor {
         // Validate Settings Account
         validate_settings_account(program_id, settings_account_info)?;
 
+        if settings_account_info.owner != program_id {
+            return Err(ProgramError::InvalidArgument);
+        }
+
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
         let round_number = settings_account_data.round_number;
 
         // Validate Relay Round Account
         validate_relay_round_account(program_id, round_number, relay_round_account_info)?;
+
+        if relay_round_account_info.owner != program_id {
+            return Err(ProgramError::InvalidArgument);
+        }
 
         let relay_round_account_data = RelayRound::unpack(&relay_round_account_info.data.borrow())?;
 
@@ -300,6 +312,10 @@ impl Processor {
             settings_account_info.key,
             proposal_account_info,
         )?;
+
+        if proposal_account_info.owner != program_id {
+            return Err(ProgramError::InvalidArgument);
+        }
 
         let mut proposal =
             RelayRoundProposal::unpack_unchecked(&proposal_account_info.data.borrow())?;
@@ -345,11 +361,19 @@ impl Processor {
             proposal_account_info,
         )?;
 
+        if proposal_account_info.owner != program_id {
+            return Err(ProgramError::InvalidArgument);
+        }
+
         let mut proposal_account_data = Proposal::unpack(&proposal_account_info.data.borrow())?;
         let round_number = proposal_account_data.round_number;
 
         // Validate Relay Round Account
         validate_relay_round_account(program_id, round_number, relay_round_account_info)?;
+
+        if relay_round_account_info.owner != program_id {
+            return Err(ProgramError::InvalidArgument);
+        }
 
         let relay_round_account_data = RelayRound::unpack(&relay_round_account_info.data.borrow())?;
 
@@ -382,6 +406,10 @@ impl Processor {
 
         // Validate Settings Account
         validate_settings_account(program_id, settings_account_info)?;
+
+        if settings_account_info.owner != program_id {
+            return Err(ProgramError::InvalidArgument);
+        }
 
         let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
 
