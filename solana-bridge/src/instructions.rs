@@ -1,5 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use bridge_utils::types::{UInt256, Vote};
+use bridge_utils::types::Vote;
 
 use solana_program::instruction::{AccountMeta, Instruction};
 use solana_program::pubkey::Pubkey;

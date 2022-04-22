@@ -1,5 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use bridge_derive::BridgePack;
+use bridge_utils::state::AccountKind;
 use bridge_utils::types::{EverAddress, Vote};
 use enum_as_inner::EnumAsInner;
 use serde::{Deserialize, Serialize};
@@ -29,6 +30,7 @@ const DEPOSIT_TOKEN_EVENT_LEN: usize = 8    // amount
 #[bridge_pack(length = 500)]
 pub struct Settings {
     pub is_initialized: bool,
+    pub account_kind: AccountKind,
     pub name: String,
     pub kind: TokenKind,
     pub admin: Pubkey,
@@ -52,6 +54,7 @@ impl IsInitialized for Settings {
 #[bridge_pack(length = 5000)]
 pub struct Deposit {
     pub is_initialized: bool,
+    pub account_kind: AccountKind,
     pub event: Vec<u8>,
 }
 
@@ -67,6 +70,7 @@ impl IsInitialized for Deposit {
 #[bridge_pack(length = 5000)]
 pub struct DepositToken {
     pub is_initialized: bool,
+    pub account_kind: AccountKind,
     pub event: DepositTokenEventWithLen,
 }
 
@@ -108,6 +112,7 @@ impl DepositTokenEventWithLen {
 #[bridge_pack(length = 5000)]
 pub struct WithdrawalToken {
     pub is_initialized: bool,
+    pub account_kind: AccountKind,
     pub round_number: u32,
     pub required_votes: u32,
     pub event: WithdrawalTokenEventWithLen,

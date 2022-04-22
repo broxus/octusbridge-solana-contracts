@@ -1,6 +1,6 @@
 #![cfg(feature = "test-bpf")]
 
-use bridge_utils::state::Proposal;
+use bridge_utils::state::{AccountKind, Proposal};
 use bridge_utils::types::{EverAddress, Vote};
 
 use solana_program::bpf_loader_upgradeable::UpgradeableLoaderState;
@@ -324,6 +324,7 @@ async fn test_deposit_ever() {
 
     let settings_account_data = Settings {
         is_initialized: true,
+        account_kind: AccountKind::Settings,
         emergency: false,
         name: name.clone(),
         kind: TokenKind::Ever { mint: mint_address },
@@ -514,6 +515,7 @@ async fn test_deposit_sol() {
 
     let settings_account_data = Settings {
         is_initialized: true,
+        account_kind: AccountKind::Settings,
         emergency: false,
         name: name.clone(),
         kind: TokenKind::Solana {
@@ -612,6 +614,7 @@ async fn test_withdrawal_request() {
 
     let settings_account_data = Settings {
         is_initialized: true,
+        account_kind: AccountKind::Settings,
         name: name.clone(),
         emergency: false,
         kind: TokenKind::Ever { mint: mint_address },
@@ -648,6 +651,7 @@ async fn test_withdrawal_request() {
 
     let relay_round_data = round_loader::RelayRound {
         is_initialized: true,
+        account_kind: AccountKind::RelayRound,
         round_end: 1946154867,
         relays: relays.clone(),
         round_number,
@@ -764,6 +768,7 @@ async fn test_vote_for_withdrawal_request() {
 
     let settings_account_data = Settings {
         is_initialized: true,
+        account_kind: AccountKind::Settings,
         name: name.clone(),
         emergency: false,
         kind: TokenKind::Ever { mint: mint_address },
@@ -797,6 +802,7 @@ async fn test_vote_for_withdrawal_request() {
 
     let relay_round_account_data = round_loader::RelayRound {
         is_initialized: true,
+        account_kind: AccountKind::RelayRound,
         round_end: 1946154867,
         relays: relays.iter().map(|pair| pair.pubkey()).collect(),
         round_number,
@@ -825,6 +831,7 @@ async fn test_vote_for_withdrawal_request() {
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
+        account_kind: AccountKind::Proposal,
         round_number,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address).unwrap(),
         meta: WithdrawalTokenMetaWithLen::new(Pubkey::new_unique(), WithdrawalTokenStatus::New, 0),
@@ -904,6 +911,7 @@ async fn test_update_withdrawal_status() {
 
     let settings_account_data = Settings {
         is_initialized: true,
+        account_kind: AccountKind::Settings,
         name: name.clone(),
         emergency: false,
         kind: TokenKind::Ever { mint: mint_address },
@@ -938,6 +946,7 @@ async fn test_update_withdrawal_status() {
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
+        account_kind: AccountKind::Proposal,
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address).unwrap(),
         meta: WithdrawalTokenMetaWithLen::new(Pubkey::new_unique(), WithdrawalTokenStatus::New, 0),
@@ -1035,6 +1044,7 @@ async fn test_withdrawal_ever() {
 
     let settings_account_data = Settings {
         is_initialized: true,
+        account_kind: AccountKind::Settings,
         name: name.clone(),
         emergency: false,
         kind: TokenKind::Ever { mint: mint_address },
@@ -1096,6 +1106,7 @@ async fn test_withdrawal_ever() {
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
+        account_kind: AccountKind::Proposal,
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address).unwrap(),
         meta: WithdrawalTokenMetaWithLen::new(
@@ -1227,6 +1238,7 @@ async fn test_withdrawal_sol() {
 
     let settings_account_data = Settings {
         is_initialized: true,
+        account_kind: AccountKind::Settings,
         name: name.clone(),
         emergency: false,
         kind: TokenKind::Solana {
@@ -1291,6 +1303,7 @@ async fn test_withdrawal_sol() {
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
+        account_kind: AccountKind::Proposal,
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address).unwrap(),
         meta: WithdrawalTokenMetaWithLen::new(
@@ -1399,6 +1412,7 @@ async fn test_approve_withdrawal_ever() {
 
     let settings_account_data = Settings {
         is_initialized: true,
+        account_kind: AccountKind::Settings,
         name: name.clone(),
         emergency: false,
         kind: TokenKind::Ever { mint: mint_address },
@@ -1460,6 +1474,7 @@ async fn test_approve_withdrawal_ever() {
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
+        account_kind: AccountKind::Proposal,
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address).unwrap(),
         meta: WithdrawalTokenMetaWithLen::new(
@@ -1559,6 +1574,7 @@ async fn test_approve_withdrawal_sol() {
 
     let settings_account_data = Settings {
         is_initialized: true,
+        account_kind: AccountKind::Settings,
         name: name.clone(),
         emergency: false,
         kind: TokenKind::Solana {
@@ -1595,6 +1611,7 @@ async fn test_approve_withdrawal_sol() {
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
+        account_kind: AccountKind::Proposal,
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, Pubkey::new_unique())
             .unwrap(),
@@ -1723,6 +1740,7 @@ async fn test_cancel_withdrawal_sol() {
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
+        account_kind: AccountKind::Proposal,
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, Pubkey::new_unique())
             .unwrap(),
@@ -1862,6 +1880,7 @@ async fn test_force_withdrawal_sol() {
 
     let settings_account_data = Settings {
         is_initialized: true,
+        account_kind: AccountKind::Settings,
         name: name.clone(),
         emergency: false,
         kind: TokenKind::Solana {
@@ -1926,6 +1945,7 @@ async fn test_force_withdrawal_sol() {
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
+        account_kind: AccountKind::Proposal,
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address).unwrap(),
         meta: WithdrawalTokenMetaWithLen::new(
@@ -2105,6 +2125,7 @@ async fn test_fill_withdrawal_sol() {
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
+        account_kind: AccountKind::Proposal,
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address).unwrap(),
         meta: WithdrawalTokenMetaWithLen::new(
@@ -2259,6 +2280,7 @@ async fn test_transfer_from_vault() {
 
     let settings_account_data = Settings {
         is_initialized: true,
+        account_kind: AccountKind::Settings,
         name: name.clone(),
         emergency: false,
         kind: TokenKind::Solana {
@@ -2380,6 +2402,7 @@ async fn test_change_bounty_for_withdrawal_sol() {
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
+        account_kind: AccountKind::Proposal,
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, Pubkey::new_unique())
             .unwrap(),
@@ -2477,6 +2500,7 @@ async fn test_change_settings() {
 
     let settings_account_data = Settings {
         is_initialized: true,
+        account_kind: AccountKind::Settings,
         name: name.clone(),
         emergency: false,
         kind: TokenKind::Ever { mint: mint_address },

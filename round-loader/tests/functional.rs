@@ -3,6 +3,7 @@
 use borsh::BorshSerialize;
 use bridge_utils::types::Vote;
 
+use bridge_utils::state::AccountKind;
 use solana_program::bpf_loader_upgradeable::UpgradeableLoaderState;
 use solana_program::rent::Rent;
 use solana_program::{
@@ -121,6 +122,7 @@ async fn test_create_proposal() {
     let settings_address = get_settings_address();
     let setting_data = Settings {
         is_initialized: true,
+        account_kind: AccountKind::Settings,
         round_number,
     };
 
@@ -139,6 +141,7 @@ async fn test_create_proposal() {
 
     let relay_round_data = RelayRound {
         is_initialized: true,
+        account_kind: AccountKind::RelayRound,
         round_number,
         round_end,
         relays: relays.iter().map(|pair| pair.pubkey()).collect(),
