@@ -715,6 +715,7 @@ async fn test_withdrawal_request() {
 
     let event_timestamp = 1650988297;
     let event_transaction_lt = 1650988334;
+    let event_configuration = Pubkey::new_unique();
     let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 32;
 
@@ -724,6 +725,7 @@ async fn test_withdrawal_request() {
             &settings_address,
             event_timestamp,
             event_transaction_lt,
+            event_configuration,
             round_number,
             sender_address,
             recipient_address,
@@ -743,6 +745,7 @@ async fn test_withdrawal_request() {
         &settings_address,
         event_timestamp,
         event_transaction_lt,
+        &event_configuration,
     );
     let withdrawal_info = banks_client
         .get_account(withdrawal_address)
@@ -761,6 +764,7 @@ async fn test_withdrawal_request() {
         withdrawal_data.pda.event_transaction_lt,
         event_transaction_lt
     );
+    assert_eq!(withdrawal_data.pda.event_configuration, event_configuration);
 
     assert_eq!(withdrawal_data.event.data.amount, amount);
     assert_eq!(withdrawal_data.meta.data.status, WithdrawalTokenStatus::New);
@@ -850,6 +854,7 @@ async fn test_vote_for_withdrawal_request() {
     let author = Pubkey::new_unique();
     let event_timestamp = 1650988297;
     let event_transaction_lt = 1650988334;
+    let event_configuration = Pubkey::new_unique();
     let recipient_address = Pubkey::new_unique();
     let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 10;
@@ -859,6 +864,7 @@ async fn test_vote_for_withdrawal_request() {
         &settings_address,
         event_timestamp,
         event_transaction_lt,
+        &event_configuration,
     );
 
     let withdrawal_account_data = WithdrawalToken {
@@ -873,6 +879,7 @@ async fn test_vote_for_withdrawal_request() {
             author,
             event_timestamp,
             event_transaction_lt,
+            event_configuration,
             settings: settings_address,
         },
     };
@@ -976,6 +983,7 @@ async fn test_update_withdrawal_status() {
     let author = Pubkey::new_unique();
     let event_timestamp = 1650988297;
     let event_transaction_lt = 1650988334;
+    let event_configuration = Pubkey::new_unique();
     let recipient_address = Pubkey::new_unique();
     let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 10;
@@ -985,6 +993,7 @@ async fn test_update_withdrawal_status() {
         &settings_address,
         event_timestamp,
         event_transaction_lt,
+        &event_configuration,
     );
 
     let withdrawal_account_data = WithdrawalToken {
@@ -999,6 +1008,7 @@ async fn test_update_withdrawal_status() {
             author,
             event_timestamp,
             event_transaction_lt,
+            event_configuration,
             settings: settings_address,
         },
     };
@@ -1148,6 +1158,7 @@ async fn test_withdrawal_ever() {
     let author = Pubkey::new_unique();
     let event_timestamp = 1650988297;
     let event_transaction_lt = 1650988334;
+    let event_configuration = Pubkey::new_unique();
     let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 10;
 
@@ -1156,6 +1167,7 @@ async fn test_withdrawal_ever() {
         &settings_address,
         event_timestamp,
         event_transaction_lt,
+        &event_configuration,
     );
 
     let withdrawal_account_data = WithdrawalToken {
@@ -1170,6 +1182,7 @@ async fn test_withdrawal_ever() {
             author,
             event_timestamp,
             event_transaction_lt,
+            event_configuration,
             settings: settings_address,
         },
     };
@@ -1354,6 +1367,7 @@ async fn test_withdrawal_sol() {
     let author = Pubkey::new_unique();
     let event_timestamp = 1650988297;
     let event_transaction_lt = 1650988334;
+    let event_configuration = Pubkey::new_unique();
     let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 10;
 
@@ -1362,6 +1376,7 @@ async fn test_withdrawal_sol() {
         &settings_address,
         event_timestamp,
         event_transaction_lt,
+        &event_configuration,
     );
 
     let withdrawal_account_data = WithdrawalToken {
@@ -1376,6 +1391,7 @@ async fn test_withdrawal_sol() {
             author,
             event_timestamp,
             event_transaction_lt,
+            event_configuration,
             settings: settings_address,
         },
     };
@@ -1534,6 +1550,7 @@ async fn test_approve_withdrawal_ever() {
     let author = Pubkey::new_unique();
     let event_timestamp = 1650988297;
     let event_transaction_lt = 1650988334;
+    let event_configuration = Pubkey::new_unique();
     let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 10;
 
@@ -1542,6 +1559,7 @@ async fn test_approve_withdrawal_ever() {
         &settings_address,
         event_timestamp,
         event_transaction_lt,
+        &event_configuration,
     );
 
     let withdrawal_account_data = WithdrawalToken {
@@ -1556,6 +1574,7 @@ async fn test_approve_withdrawal_ever() {
             author,
             event_timestamp,
             event_transaction_lt,
+            event_configuration,
             settings: settings_address,
         },
     };
@@ -1680,6 +1699,7 @@ async fn test_approve_withdrawal_sol() {
     let author = Pubkey::new_unique();
     let event_timestamp = 1650988297;
     let event_transaction_lt = 1650988334;
+    let event_configuration = Pubkey::new_unique();
     let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 10;
 
@@ -1688,6 +1708,7 @@ async fn test_approve_withdrawal_sol() {
         &settings_address,
         event_timestamp,
         event_transaction_lt,
+        &event_configuration,
     );
 
     let withdrawal_account_data = WithdrawalToken {
@@ -1703,6 +1724,7 @@ async fn test_approve_withdrawal_sol() {
             author,
             event_timestamp,
             event_transaction_lt,
+            event_configuration,
             settings: settings_address,
         },
     };
@@ -1864,6 +1886,7 @@ async fn test_cancel_withdrawal_sol() {
     // Add Withdrawal Account
     let event_timestamp = 1650988297;
     let event_transaction_lt = 1650988334;
+    let event_configuration = Pubkey::new_unique();
     let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 10;
 
@@ -1872,6 +1895,7 @@ async fn test_cancel_withdrawal_sol() {
         &settings_address,
         event_timestamp,
         event_transaction_lt,
+        &event_configuration,
     );
 
     let withdrawal_account_data = WithdrawalToken {
@@ -1887,6 +1911,7 @@ async fn test_cancel_withdrawal_sol() {
             author: author.pubkey(),
             event_timestamp,
             event_transaction_lt,
+            event_configuration,
             settings: settings_address,
         },
     };
@@ -2080,6 +2105,7 @@ async fn test_force_withdrawal_sol() {
     let author = Pubkey::new_unique();
     let event_timestamp = 1650988297;
     let event_transaction_lt = 1650988334;
+    let event_configuration = Pubkey::new_unique();
     let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 10;
 
@@ -2088,6 +2114,7 @@ async fn test_force_withdrawal_sol() {
         &settings_address,
         event_timestamp,
         event_transaction_lt,
+        &event_configuration,
     );
 
     let withdrawal_account_data = WithdrawalToken {
@@ -2102,6 +2129,7 @@ async fn test_force_withdrawal_sol() {
             author,
             event_timestamp,
             event_transaction_lt,
+            event_configuration,
             settings: settings_address,
         },
     };
@@ -2303,6 +2331,7 @@ async fn test_fill_withdrawal_sol() {
     let withdrawal_author = Pubkey::new_unique();
     let event_timestamp = 1650988297;
     let event_transaction_lt = 1650988334;
+    let event_configuration = Pubkey::new_unique();
     let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 10;
     let bounty = 1;
@@ -2312,6 +2341,7 @@ async fn test_fill_withdrawal_sol() {
         &settings_address,
         event_timestamp,
         event_transaction_lt,
+        &event_configuration,
     );
 
     let withdrawal_account_data = WithdrawalToken {
@@ -2325,6 +2355,7 @@ async fn test_fill_withdrawal_sol() {
         pda: PDA {
             event_timestamp,
             event_transaction_lt,
+            event_configuration,
             author: withdrawal_author,
             settings: settings_address,
         },
@@ -2585,6 +2616,7 @@ async fn test_change_bounty_for_withdrawal_sol() {
     let author = Keypair::new();
     let event_timestamp = 1650988297;
     let event_transaction_lt = 1650988334;
+    let event_configuration = Pubkey::new_unique();
     let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
 
     let amount = 10;
@@ -2594,6 +2626,7 @@ async fn test_change_bounty_for_withdrawal_sol() {
         &settings_address,
         event_timestamp,
         event_transaction_lt,
+        &event_configuration,
     );
 
     let withdrawal_account_data = WithdrawalToken {
@@ -2608,6 +2641,7 @@ async fn test_change_bounty_for_withdrawal_sol() {
         pda: PDA {
             event_timestamp,
             event_transaction_lt,
+            event_configuration,
             author: author.pubkey(),
             settings: settings_address,
         },

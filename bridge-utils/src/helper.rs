@@ -18,6 +18,7 @@ pub fn get_associated_proposal_address(
     settings: &Pubkey,
     event_timestamp: u32,
     event_transaction_lt: u64,
+    event_configuration: &Pubkey,
 ) -> Pubkey {
     Pubkey::find_program_address(
         &[
@@ -26,6 +27,7 @@ pub fn get_associated_proposal_address(
             &settings.to_bytes(),
             &event_timestamp.to_le_bytes(),
             &event_transaction_lt.to_le_bytes(),
+            &event_configuration.to_bytes(),
         ],
         program_id,
     )
@@ -75,6 +77,7 @@ pub fn validate_proposal_account(
     settings: &Pubkey,
     event_timestamp: u32,
     event_transaction_lt: u64,
+    event_configuration: &Pubkey,
     proposal_account_info: &AccountInfo,
 ) -> Result<u8, ProgramError> {
     let (account, nonce) = Pubkey::find_program_address(
@@ -84,6 +87,7 @@ pub fn validate_proposal_account(
             &settings.to_bytes(),
             &event_timestamp.to_le_bytes(),
             &event_transaction_lt.to_le_bytes(),
+            &event_configuration.to_bytes(),
         ],
         program_id,
     );

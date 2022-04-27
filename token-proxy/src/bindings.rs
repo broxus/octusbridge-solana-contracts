@@ -22,6 +22,7 @@ pub fn get_withdrawal_address(
     settings: &Pubkey,
     event_timestamp: u32,
     event_transaction_lt: u64,
+    event_configuration: &Pubkey,
 ) -> Pubkey {
     let program_id = &id();
     bridge_utils::helper::get_associated_proposal_address(
@@ -30,6 +31,7 @@ pub fn get_withdrawal_address(
         settings,
         event_timestamp,
         event_transaction_lt,
+        event_configuration,
     )
 }
 
@@ -215,6 +217,7 @@ pub fn withdrawal_request_ix(
     settings_pubkey: &Pubkey,
     event_timestamp: u32,
     event_transaction_lt: u64,
+    event_configuration: Pubkey,
     round_number: u32,
     sender_address: EverAddress,
     recipient_address: Pubkey,
@@ -225,6 +228,7 @@ pub fn withdrawal_request_ix(
         settings_pubkey,
         event_timestamp,
         event_transaction_lt,
+        &event_configuration,
     );
     let relay_round_pubkey =
         round_loader::get_associated_relay_round_address(&round_loader::id(), round_number);
@@ -232,6 +236,7 @@ pub fn withdrawal_request_ix(
     let data = TokenProxyInstruction::WithdrawRequest {
         event_timestamp,
         event_transaction_lt,
+        event_configuration,
         sender_address,
         recipient_address,
         amount,

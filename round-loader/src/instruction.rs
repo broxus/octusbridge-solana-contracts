@@ -1,5 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use bridge_utils::types::Vote;
+use solana_program::pubkey::Pubkey;
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub enum RoundLoaderInstruction {
@@ -32,6 +33,8 @@ pub enum RoundLoaderInstruction {
         event_timestamp: u32,
         // Ever event transaction lt
         event_transaction_lt: u64,
+        // Ever event configuration
+        event_configuration: Pubkey,
     },
 
     /// Write Relay Round data into an proposal account
@@ -43,6 +46,8 @@ pub enum RoundLoaderInstruction {
         event_timestamp: u32,
         // Ever event transaction lt
         event_transaction_lt: u64,
+        // Ever event configuration
+        event_configuration: Pubkey,
         // Offset at which to write the given bytes
         offset: u32,
         // Serialized set of keys of for a new round
@@ -58,6 +63,8 @@ pub enum RoundLoaderInstruction {
         event_timestamp: u32,
         // Ever event transaction lt
         event_transaction_lt: u64,
+        // Ever event configuration
+        event_configuration: Pubkey,
     },
 
     /// Execute proposal

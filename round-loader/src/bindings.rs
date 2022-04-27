@@ -22,6 +22,7 @@ pub fn get_proposal_address(
     settings: &Pubkey,
     event_timestamp: u32,
     event_transaction_lt: u64,
+    event_configuration: &Pubkey,
 ) -> Pubkey {
     let program_id = &id();
     bridge_utils::helper::get_associated_proposal_address(
@@ -30,6 +31,7 @@ pub fn get_proposal_address(
         settings,
         event_timestamp,
         event_transaction_lt,
+        event_configuration,
     )
 }
 
@@ -74,6 +76,7 @@ pub fn create_proposal_ix(
     creator_pubkey: &Pubkey,
     event_timestamp: u32,
     event_transaction_lt: u64,
+    event_configuration: Pubkey,
 ) -> Instruction {
     let program_id = &id();
 
@@ -85,11 +88,13 @@ pub fn create_proposal_ix(
         &settings,
         event_timestamp,
         event_transaction_lt,
+        &event_configuration,
     );
 
     let data = RoundLoaderInstruction::CreateProposal {
         event_timestamp,
         event_transaction_lt,
+        event_configuration,
     }
     .try_to_vec()
     .expect("pack");
@@ -110,6 +115,7 @@ pub fn write_proposal_ix(
     creator_pubkey: &Pubkey,
     event_timestamp: u32,
     event_transaction_lt: u64,
+    event_configuration: Pubkey,
     offset: u32,
     bytes: Vec<u8>,
 ) -> Instruction {
@@ -123,11 +129,13 @@ pub fn write_proposal_ix(
         &settings,
         event_timestamp,
         event_transaction_lt,
+        &event_configuration,
     );
 
     let data = RoundLoaderInstruction::WriteProposal {
         event_timestamp,
         event_transaction_lt,
+        event_configuration,
         offset,
         bytes,
     }
@@ -148,6 +156,7 @@ pub fn finalize_proposal_ix(
     creator_pubkey: &Pubkey,
     event_timestamp: u32,
     event_transaction_lt: u64,
+    event_configuration: Pubkey,
     round_number: u32,
 ) -> Instruction {
     let program_id = &id();
@@ -160,12 +169,14 @@ pub fn finalize_proposal_ix(
         &settings_pubkey,
         event_timestamp,
         event_transaction_lt,
+        &event_configuration,
     );
     let relay_round_pubkey = get_associated_relay_round_address(program_id, round_number);
 
     let data = RoundLoaderInstruction::FinalizeProposal {
         event_timestamp,
         event_transaction_lt,
+        event_configuration,
     }
     .try_to_vec()
     .expect("pack");

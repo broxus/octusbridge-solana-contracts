@@ -18,6 +18,7 @@ pub const LOAD_DATA_BEGIN_OFFSET: usize = 1 // is_executed
     + PUBKEY_BYTES                          // settings
     + 4                                     // event_timestamp
     + 8                                     // event_transaction_lt
+    + PUBKEY_BYTES                          // event_configuration
 ;
 
 pub const LOAD_DATA_END_OFFSET: usize = LOAD_DATA_BEGIN_OFFSET
@@ -128,5 +129,11 @@ impl RelayRoundProposalMetaWithLen {
             len: RELAY_ROUND_PROPOSAL_META_LEN as u32,
             data: RelayRoundProposalMeta { is_executed: false },
         }
+    }
+}
+
+impl Default for RelayRoundProposalMetaWithLen {
+    fn default() -> Self {
+        Self::new()
     }
 }

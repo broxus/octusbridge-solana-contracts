@@ -183,12 +183,14 @@ async fn test_create_proposal() {
     // Create Proposal
     let event_timestamp = 1650988297;
     let event_transaction_lt = 1650988334;
+    let event_configuration = Pubkey::new_unique();
 
     let mut transaction = Transaction::new_with_payer(
         &[round_loader::create_proposal_ix(
             &proposal_creator.pubkey(),
             event_timestamp,
             event_transaction_lt,
+            event_configuration,
         )],
         Some(&funder.pubkey()),
     );
@@ -219,6 +221,7 @@ async fn test_create_proposal() {
                 &proposal_creator.pubkey(),
                 event_timestamp,
                 event_transaction_lt,
+                event_configuration,
                 (i * chunk_size) as u32,
                 chunk.to_vec(),
             )],
@@ -238,6 +241,7 @@ async fn test_create_proposal() {
             &proposal_creator.pubkey(),
             event_timestamp,
             event_transaction_lt,
+            event_configuration,
             round_number,
         )],
         Some(&funder.pubkey()),
@@ -255,6 +259,7 @@ async fn test_create_proposal() {
         &settings_address,
         event_timestamp,
         event_transaction_lt,
+        &event_configuration,
     );
 
     let proposal_info = banks_client

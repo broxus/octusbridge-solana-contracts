@@ -96,6 +96,7 @@ impl Processor {
                 event_timestamp,
                 event_transaction_lt,
                 sender_address,
+                event_configuration,
                 recipient_address,
                 amount,
             } => {
@@ -105,6 +106,7 @@ impl Processor {
                     accounts,
                     event_timestamp,
                     event_transaction_lt,
+                    event_configuration,
                     sender_address,
                     recipient_address,
                     amount,
@@ -677,6 +679,7 @@ impl Processor {
         accounts: &[AccountInfo],
         event_timestamp: u32,
         event_transaction_lt: u64,
+        event_configuration: Pubkey,
         sender_address: EverAddress,
         recipient_address: Pubkey,
         amount: u64,
@@ -736,6 +739,7 @@ impl Processor {
             settings_account_info.key,
             event_timestamp,
             event_transaction_lt,
+            &event_configuration,
             withdrawal_account_info,
         )?;
         let withdrawal_account_signer_seeds: &[&[_]] = &[
@@ -744,6 +748,7 @@ impl Processor {
             &settings_account_info.key.to_bytes(),
             &event_timestamp.to_le_bytes(),
             &event_transaction_lt.to_le_bytes(),
+            &event_configuration.to_bytes(),
             &[withdrawal_nonce],
         ];
 
@@ -778,6 +783,7 @@ impl Processor {
                 settings: *settings_account_info.key,
                 event_timestamp,
                 event_transaction_lt,
+                event_configuration,
             },
         };
 
@@ -814,6 +820,7 @@ impl Processor {
         let settings = withdrawal_account_data.pda.settings;
         let event_timestamp = withdrawal_account_data.pda.event_timestamp;
         let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
+        let event_configuration = withdrawal_account_data.pda.event_configuration;
 
         bridge_utils::helper::validate_proposal_account(
             program_id,
@@ -821,6 +828,7 @@ impl Processor {
             &settings,
             event_timestamp,
             event_transaction_lt,
+            &event_configuration,
             withdrawal_account_info,
         )?;
 
@@ -877,6 +885,7 @@ impl Processor {
         let settings = withdrawal_account_data.pda.settings;
         let event_timestamp = withdrawal_account_data.pda.event_timestamp;
         let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
+        let event_configuration = withdrawal_account_data.pda.event_configuration;
 
         bridge_utils::helper::validate_proposal_account(
             program_id,
@@ -884,6 +893,7 @@ impl Processor {
             &settings,
             event_timestamp,
             event_transaction_lt,
+            &event_configuration,
             withdrawal_account_info,
         )?;
 
@@ -963,6 +973,7 @@ impl Processor {
         let settings = withdrawal_account_data.pda.settings;
         let event_timestamp = withdrawal_account_data.pda.event_timestamp;
         let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
+        let event_configuration = withdrawal_account_data.pda.event_configuration;
 
         bridge_utils::helper::validate_proposal_account(
             program_id,
@@ -970,6 +981,7 @@ impl Processor {
             &settings,
             event_timestamp,
             event_transaction_lt,
+            &event_configuration,
             withdrawal_account_info,
         )?;
 
@@ -1062,6 +1074,7 @@ impl Processor {
         let settings = withdrawal_account_data.pda.settings;
         let event_timestamp = withdrawal_account_data.pda.event_timestamp;
         let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
+        let event_configuration = withdrawal_account_data.pda.event_configuration;
 
         bridge_utils::helper::validate_proposal_account(
             program_id,
@@ -1069,6 +1082,7 @@ impl Processor {
             &settings,
             event_timestamp,
             event_transaction_lt,
+            &event_configuration,
             withdrawal_account_info,
         )?;
 
@@ -1175,6 +1189,7 @@ impl Processor {
         let settings = withdrawal_account_data.pda.settings;
         let event_timestamp = withdrawal_account_data.pda.event_timestamp;
         let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
+        let event_configuration = withdrawal_account_data.pda.event_configuration;
 
         bridge_utils::helper::validate_proposal_account(
             program_id,
@@ -1182,6 +1197,7 @@ impl Processor {
             &settings,
             event_timestamp,
             event_transaction_lt,
+            &event_configuration,
             withdrawal_account_info,
         )?;
 
@@ -1282,6 +1298,7 @@ impl Processor {
         let settings = withdrawal_account_data.pda.settings;
         let event_timestamp = withdrawal_account_data.pda.event_timestamp;
         let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
+        let event_configuration = withdrawal_account_data.pda.event_configuration;
 
         bridge_utils::helper::validate_proposal_account(
             program_id,
@@ -1289,6 +1306,7 @@ impl Processor {
             &settings,
             event_timestamp,
             event_transaction_lt,
+            &event_configuration,
             withdrawal_account_info,
         )?;
 
@@ -1351,6 +1369,7 @@ impl Processor {
         let settings = withdrawal_account_data.pda.settings;
         let event_timestamp = withdrawal_account_data.pda.event_timestamp;
         let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
+        let event_configuration = withdrawal_account_data.pda.event_configuration;
 
         bridge_utils::helper::validate_proposal_account(
             program_id,
@@ -1358,6 +1377,7 @@ impl Processor {
             &settings,
             event_timestamp,
             event_transaction_lt,
+            &event_configuration,
             withdrawal_account_info,
         )?;
 
@@ -1456,6 +1476,7 @@ impl Processor {
         let settings = withdrawal_account_data.pda.settings;
         let event_timestamp = withdrawal_account_data.pda.event_timestamp;
         let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
+        let event_configuration = withdrawal_account_data.pda.event_configuration;
 
         bridge_utils::helper::validate_proposal_account(
             program_id,
@@ -1463,6 +1484,7 @@ impl Processor {
             &settings,
             event_timestamp,
             event_transaction_lt,
+            &event_configuration,
             withdrawal_account_info,
         )?;
 
@@ -1574,6 +1596,7 @@ impl Processor {
         let settings = withdrawal_account_data.pda.settings;
         let event_timestamp = withdrawal_account_data.pda.event_timestamp;
         let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
+        let event_configuration = withdrawal_account_data.pda.event_configuration;
 
         bridge_utils::helper::validate_proposal_account(
             program_id,
@@ -1581,6 +1604,7 @@ impl Processor {
             &settings,
             event_timestamp,
             event_transaction_lt,
+            &event_configuration,
             withdrawal_account_info,
         )?;
 
@@ -1784,6 +1808,7 @@ impl Processor {
         let settings = withdrawal_account_data.pda.settings;
         let event_timestamp = withdrawal_account_data.pda.event_timestamp;
         let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
+        let event_configuration = withdrawal_account_data.pda.event_configuration;
 
         bridge_utils::helper::validate_proposal_account(
             program_id,
@@ -1791,6 +1816,7 @@ impl Processor {
             &settings,
             event_timestamp,
             event_transaction_lt,
+            &event_configuration,
             withdrawal_account_info,
         )?;
 

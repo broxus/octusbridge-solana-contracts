@@ -35,6 +35,7 @@ pub struct PDA {
     pub settings: Pubkey,
     pub event_timestamp: u32,
     pub event_transaction_lt: u64,
+    pub event_configuration: Pubkey,
 }
 
 #[derive(

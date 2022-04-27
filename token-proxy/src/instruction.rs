@@ -85,6 +85,8 @@ pub enum TokenProxyInstruction {
         event_timestamp: u32,
         // Ever event transaction lt
         event_transaction_lt: u64,
+        // Ever event configuration
+        event_configuration: Pubkey,
         // Sender address
         sender_address: EverAddress,
         // Sender address

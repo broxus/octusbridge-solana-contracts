@@ -35,6 +35,7 @@ impl Processor {
             RoundLoaderInstruction::CreateProposal {
                 event_timestamp,
                 event_transaction_lt,
+                event_configuration,
             } => {
                 msg!("Instruction: Create");
                 Self::process_create_proposal(
@@ -42,11 +43,13 @@ impl Processor {
                     accounts,
                     event_timestamp,
                     event_transaction_lt,
+                    event_configuration,
                 )?;
             }
             RoundLoaderInstruction::WriteProposal {
                 event_timestamp,
                 event_transaction_lt,
+                event_configuration,
                 offset,
                 bytes,
             } => {
@@ -56,6 +59,7 @@ impl Processor {
                     accounts,
                     event_timestamp,
                     event_transaction_lt,
+                    event_configuration,
                     offset,
                     bytes,
                 )?;
@@ -63,6 +67,7 @@ impl Processor {
             RoundLoaderInstruction::FinalizeProposal {
                 event_timestamp,
                 event_transaction_lt,
+                event_configuration,
             } => {
                 msg!("Instruction: Finalize");
                 Self::process_finalize_proposal(
@@ -70,6 +75,7 @@ impl Processor {
                     accounts,
                     event_timestamp,
                     event_transaction_lt,
+                    event_configuration,
                 )?;
             }
             RoundLoaderInstruction::VoteForProposal { vote } => {
@@ -192,6 +198,7 @@ impl Processor {
         accounts: &[AccountInfo],
         event_timestamp: u32,
         event_transaction_lt: u64,
+        event_configuration: Pubkey,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -216,6 +223,7 @@ impl Processor {
             &settings,
             event_timestamp,
             event_transaction_lt,
+            &event_configuration,
             proposal_account_info,
         )?;
         let proposal_account_signer_seeds: &[&[_]] = &[
@@ -224,6 +232,7 @@ impl Processor {
             &settings.to_bytes(),
             &event_timestamp.to_le_bytes(),
             &event_transaction_lt.to_le_bytes(),
+            &event_configuration.to_bytes(),
             &[proposal_nonce],
         ];
 
@@ -252,6 +261,7 @@ impl Processor {
         accounts: &[AccountInfo],
         event_timestamp: u32,
         event_transaction_lt: u64,
+        event_configuration: Pubkey,
         offset: u32,
         bytes: Vec<u8>,
     ) -> ProgramResult {
@@ -273,6 +283,7 @@ impl Processor {
             &settings,
             event_timestamp,
             event_transaction_lt,
+            &event_configuration,
             proposal_account_info,
         )?;
 
@@ -299,6 +310,7 @@ impl Processor {
         accounts: &[AccountInfo],
         event_timestamp: u32,
         event_transaction_lt: u64,
+        event_configuration: Pubkey,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -346,6 +358,7 @@ impl Processor {
             settings_account_info.key,
             event_timestamp,
             event_transaction_lt,
+            &event_configuration,
             proposal_account_info,
         )?;
 
@@ -365,6 +378,7 @@ impl Processor {
             settings: *settings_account_info.key,
             event_timestamp,
             event_transaction_lt,
+            event_configuration,
         };
 
         proposal.is_initialized = true;
@@ -374,7 +388,7 @@ impl Processor {
         proposal.pda = pda;
         proposal.signers = vec![Vote::None; proposal.event.data.relays.len()];
 
-        proposal.meta = RelayRoundProposalMetaWithLen::new();
+        proposal.meta = RelayRoundProposalMetaWithLen::default();
 
         RelayRoundProposal::pack(proposal, &mut proposal_account_info.data.borrow_mut())?;
 
@@ -406,6 +420,7 @@ impl Processor {
         let settings = proposal_account_data.pda.settings;
         let event_timestamp = proposal_account_data.pda.event_timestamp;
         let event_transaction_lt = proposal_account_data.pda.event_transaction_lt;
+        let event_configuration = proposal_account_data.pda.event_configuration;
 
         bridge_utils::helper::validate_proposal_account(
             program_id,
@@ -413,6 +428,7 @@ impl Processor {
             &settings,
             event_timestamp,
             event_transaction_lt,
+            &event_configuration,
             proposal_account_info,
         )?;
 
