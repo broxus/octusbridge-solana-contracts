@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 
 use solana_program::program_error::ProgramError;
 use solana_program::program_pack::{IsInitialized, Pack, Sealed};
+use solana_program::pubkey::Pubkey;
 
 use super::types::Vote;
 
@@ -14,6 +15,7 @@ pub struct Proposal {
     pub account_kind: AccountKind,
     pub round_number: u32,
     pub required_votes: u32,
+    pub pda: PDA,
     pub event: Vec<u8>,
     pub meta: Vec<u8>,
     pub signers: Vec<Vote>,
@@ -25,6 +27,14 @@ impl IsInitialized for Proposal {
     fn is_initialized(&self) -> bool {
         self.is_initialized
     }
+}
+
+#[derive(Debug, BorshSerialize, BorshDeserialize)]
+pub struct PDA {
+    pub author: Pubkey,
+    pub settings: Pubkey,
+    pub event_timestamp: u32,
+    pub event_transaction_lt: u64,
 }
 
 #[derive(

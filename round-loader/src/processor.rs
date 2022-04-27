@@ -1,5 +1,5 @@
 use borsh::BorshDeserialize;
-use bridge_utils::state::{AccountKind, Proposal};
+use bridge_utils::state::{AccountKind, Proposal, PDA};
 use bridge_utils::types::Vote;
 
 use solana_program::account_info::{next_account_info, AccountInfo};
@@ -32,35 +32,49 @@ impl Processor {
                 msg!("Instruction: Initialize");
                 Self::process_initialize(program_id, accounts, round_number, round_end)?;
             }
-            RoundLoaderInstruction::CreateProposal { proposal_seed } => {
+            RoundLoaderInstruction::CreateProposal {
+                event_timestamp,
+                event_transaction_lt,
+            } => {
                 msg!("Instruction: Create");
-                Self::process_create_proposal(program_id, accounts, proposal_seed)?;
+                Self::process_create_proposal(
+                    program_id,
+                    accounts,
+                    event_timestamp,
+                    event_transaction_lt,
+                )?;
             }
             RoundLoaderInstruction::WriteProposal {
-                proposal_seed,
+                event_timestamp,
+                event_transaction_lt,
                 offset,
                 bytes,
             } => {
                 msg!("Instruction: Write");
-                Self::process_write_proposal(program_id, accounts, proposal_seed, offset, bytes)?;
-            }
-            RoundLoaderInstruction::FinalizeProposal { proposal_seed } => {
-                msg!("Instruction: Finalize");
-                Self::process_finalize_proposal(program_id, accounts, proposal_seed)?;
-            }
-            RoundLoaderInstruction::VoteForProposal {
-                proposal_seed,
-                settings_address,
-                vote,
-            } => {
-                msg!("Instruction: Vote");
-                Self::process_vote_for_proposal(
+                Self::process_write_proposal(
                     program_id,
                     accounts,
-                    proposal_seed,
-                    settings_address,
-                    vote,
+                    event_timestamp,
+                    event_transaction_lt,
+                    offset,
+                    bytes,
                 )?;
+            }
+            RoundLoaderInstruction::FinalizeProposal {
+                event_timestamp,
+                event_transaction_lt,
+            } => {
+                msg!("Instruction: Finalize");
+                Self::process_finalize_proposal(
+                    program_id,
+                    accounts,
+                    event_timestamp,
+                    event_transaction_lt,
+                )?;
+            }
+            RoundLoaderInstruction::VoteForProposal { vote } => {
+                msg!("Instruction: Vote");
+                Self::process_vote_for_proposal(program_id, accounts, vote)?;
             }
             RoundLoaderInstruction::ExecuteProposal => {
                 msg!("Instruction: Execute");
@@ -79,8 +93,7 @@ impl Processor {
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
-        let funder_account_info = next_account_info(account_info_iter)?;
-        let creator_account_info = next_account_info(account_info_iter)?;
+        let initializer_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
         let relay_round_account_info = next_account_info(account_info_iter)?;
         let programdata_account_info = next_account_info(account_info_iter)?;
@@ -88,7 +101,7 @@ impl Processor {
         let rent_sysvar_info = next_account_info(account_info_iter)?;
         let rent = &Rent::from_account_info(rent_sysvar_info)?;
 
-        if !creator_account_info.is_signer {
+        if !initializer_account_info.is_signer {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
@@ -97,7 +110,7 @@ impl Processor {
             programdata_account_info.key,
         )?;
         bridge_utils::helper::validate_initializer_account(
-            creator_account_info.key,
+            initializer_account_info.key,
             programdata_account_info,
         )?;
 
@@ -108,14 +121,14 @@ impl Processor {
         // Create Settings Account
         invoke_signed(
             &system_instruction::create_account(
-                funder_account_info.key,
+                initializer_account_info.key,
                 settings_account_info.key,
                 1.max(rent.minimum_balance(Settings::LEN)),
                 Settings::LEN as u64,
                 program_id,
             ),
             &[
-                funder_account_info.clone(),
+                initializer_account_info.clone(),
                 settings_account_info.clone(),
                 system_program_info.clone(),
             ],
@@ -143,14 +156,14 @@ impl Processor {
         // Create Relay Round Account
         invoke_signed(
             &system_instruction::create_account(
-                funder_account_info.key,
+                initializer_account_info.key,
                 relay_round_account_info.key,
                 1.max(rent.minimum_balance(RelayRound::LEN)),
                 RelayRound::LEN as u64,
                 program_id,
             ),
             &[
-                funder_account_info.clone(),
+                initializer_account_info.clone(),
                 relay_round_account_info.clone(),
                 system_program_info.clone(),
             ],
@@ -163,7 +176,7 @@ impl Processor {
             account_kind: AccountKind::RelayRound,
             round_number,
             round_end,
-            relays: vec![*creator_account_info.key],
+            relays: vec![*initializer_account_info.key],
         };
 
         RelayRound::pack(
@@ -177,44 +190,54 @@ impl Processor {
     fn process_create_proposal(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        proposal_seed: u128,
+        event_timestamp: u32,
+        event_transaction_lt: u64,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
-        let funder_account_info = next_account_info(account_info_iter)?;
+        let creator_account_info = next_account_info(account_info_iter)?;
         let proposal_account_info = next_account_info(account_info_iter)?;
         let system_program_info = next_account_info(account_info_iter)?;
 
         let rent_sysvar_info = next_account_info(account_info_iter)?;
         let rent = &Rent::from_account_info(rent_sysvar_info)?;
 
-        let settings_address = get_associated_settings_address(program_id);
+        if !creator_account_info.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        let author = creator_account_info.key;
+        let settings = get_associated_settings_address(program_id);
 
         // Validate Proposal Account
         let proposal_nonce = bridge_utils::helper::validate_proposal_account(
             program_id,
-            proposal_seed,
-            &settings_address,
+            author,
+            &settings,
+            event_timestamp,
+            event_transaction_lt,
             proposal_account_info,
         )?;
         let proposal_account_signer_seeds: &[&[_]] = &[
             br"proposal",
-            &proposal_seed.to_le_bytes(),
-            &settings_address.to_bytes(),
+            &author.to_bytes(),
+            &settings.to_bytes(),
+            &event_timestamp.to_le_bytes(),
+            &event_transaction_lt.to_le_bytes(),
             &[proposal_nonce],
         ];
 
         // Create Proposal Account
         invoke_signed(
             &system_instruction::create_account(
-                funder_account_info.key,
+                creator_account_info.key,
                 proposal_account_info.key,
                 1.max(rent.minimum_balance(RelayRoundProposal::LEN)),
                 RelayRoundProposal::LEN as u64,
                 program_id,
             ),
             &[
-                funder_account_info.clone(),
+                creator_account_info.clone(),
                 proposal_account_info.clone(),
                 system_program_info.clone(),
             ],
@@ -227,21 +250,29 @@ impl Processor {
     fn process_write_proposal(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        proposal_seed: u128,
+        event_timestamp: u32,
+        event_transaction_lt: u64,
         offset: u32,
         bytes: Vec<u8>,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
+        let creator_account_info = next_account_info(account_info_iter)?;
         let proposal_account_info = next_account_info(account_info_iter)?;
 
-        let settings_address = get_associated_settings_address(program_id);
+        if !creator_account_info.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        let settings = get_associated_settings_address(program_id);
 
         // Validate Proposal Account
         bridge_utils::helper::validate_proposal_account(
             program_id,
-            proposal_seed,
-            &settings_address,
+            creator_account_info.key,
+            &settings,
+            event_timestamp,
+            event_transaction_lt,
             proposal_account_info,
         )?;
 
@@ -266,7 +297,8 @@ impl Processor {
     fn process_finalize_proposal(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        proposal_seed: u128,
+        event_timestamp: u32,
+        event_transaction_lt: u64,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -310,8 +342,10 @@ impl Processor {
         // Validate Proposal Account
         bridge_utils::helper::validate_proposal_account(
             program_id,
-            proposal_seed,
+            creator_account_info.key,
             settings_account_info.key,
+            event_timestamp,
+            event_transaction_lt,
             proposal_account_info,
         )?;
 
@@ -326,13 +360,21 @@ impl Processor {
             return Err(ProgramError::AccountAlreadyInitialized);
         }
 
+        let pda = PDA {
+            author: *creator_account_info.key,
+            settings: *settings_account_info.key,
+            event_timestamp,
+            event_transaction_lt,
+        };
+
         proposal.is_initialized = true;
         proposal.account_kind = AccountKind::Proposal;
         proposal.round_number = round_number;
         proposal.required_votes = required_votes;
+        proposal.pda = pda;
         proposal.signers = vec![Vote::None; proposal.event.data.relays.len()];
 
-        proposal.meta = RelayRoundProposalMetaWithLen::new(*creator_account_info.key);
+        proposal.meta = RelayRoundProposalMetaWithLen::new();
 
         RelayRoundProposal::pack(proposal, &mut proposal_account_info.data.borrow_mut())?;
 
@@ -342,8 +384,6 @@ impl Processor {
     fn process_vote_for_proposal(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        proposal_seed: u128,
-        settings_address: Pubkey,
         vote: Vote,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
@@ -357,18 +397,25 @@ impl Processor {
         }
 
         // Validate Proposal Account
-        bridge_utils::helper::validate_proposal_account(
-            program_id,
-            proposal_seed,
-            &settings_address,
-            proposal_account_info,
-        )?;
-
         if proposal_account_info.owner != program_id {
             return Err(ProgramError::InvalidArgument);
         }
 
         let mut proposal_account_data = Proposal::unpack(&proposal_account_info.data.borrow())?;
+        let author = proposal_account_data.pda.author;
+        let settings = proposal_account_data.pda.settings;
+        let event_timestamp = proposal_account_data.pda.event_timestamp;
+        let event_transaction_lt = proposal_account_data.pda.event_transaction_lt;
+
+        bridge_utils::helper::validate_proposal_account(
+            program_id,
+            &author,
+            &settings,
+            event_timestamp,
+            event_transaction_lt,
+            proposal_account_info,
+        )?;
+
         let round_number = proposal_account_data.round_number;
 
         // Validate Relay Round Account
@@ -380,7 +427,7 @@ impl Processor {
 
         let relay_round_account_data = RelayRound::unpack(&relay_round_account_info.data.borrow())?;
 
-        // Vote for withdraw request
+        // Vote for proposal request
         let index = relay_round_account_data
             .relays
             .iter()

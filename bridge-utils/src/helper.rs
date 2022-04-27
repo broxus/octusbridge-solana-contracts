@@ -14,14 +14,18 @@ pub fn get_associated_relay_round_address(program_id: &Pubkey, round_number: u32
 
 pub fn get_associated_proposal_address(
     program_id: &Pubkey,
-    seed: u128,
-    settings_address: &Pubkey,
+    author: &Pubkey,
+    settings: &Pubkey,
+    event_timestamp: u32,
+    event_transaction_lt: u64,
 ) -> Pubkey {
     Pubkey::find_program_address(
         &[
             br"proposal",
-            &seed.to_le_bytes(),
-            &settings_address.to_bytes(),
+            &author.to_bytes(),
+            &settings.to_bytes(),
+            &event_timestamp.to_le_bytes(),
+            &event_transaction_lt.to_le_bytes(),
         ],
         program_id,
     )
@@ -67,15 +71,19 @@ pub fn validate_initializer_account(
 
 pub fn validate_proposal_account(
     program_id: &Pubkey,
-    seed: u128,
-    settings_address: &Pubkey,
+    author: &Pubkey,
+    settings: &Pubkey,
+    event_timestamp: u32,
+    event_transaction_lt: u64,
     proposal_account_info: &AccountInfo,
 ) -> Result<u8, ProgramError> {
     let (account, nonce) = Pubkey::find_program_address(
         &[
             br"proposal",
-            &seed.to_le_bytes(),
-            &settings_address.to_bytes(),
+            &author.to_bytes(),
+            &settings.to_bytes(),
+            &event_timestamp.to_le_bytes(),
+            &event_transaction_lt.to_le_bytes(),
         ],
         program_id,
     );

@@ -1,6 +1,6 @@
 #![cfg(feature = "test-bpf")]
 
-use bridge_utils::state::{AccountKind, Proposal};
+use bridge_utils::state::{AccountKind, Proposal, PDA};
 use bridge_utils::types::{EverAddress, Vote};
 
 use solana_program::bpf_loader_upgradeable::UpgradeableLoaderState;
@@ -286,7 +286,7 @@ async fn test_deposit_ever() {
     program_test.add_account(
         sender.pubkey(),
         Account {
-            lamports: 0,
+            lamports: 100000000,
             data: vec![],
             owner: solana_program::system_program::id(),
             executable: false,
@@ -358,7 +358,6 @@ async fn test_deposit_ever() {
 
     let mut transaction = Transaction::new_with_payer(
         &[token_proxy::deposit_ever_ix(
-            &funder.pubkey(),
             &sender.pubkey(),
             &name,
             deposit_seed,
@@ -392,7 +391,7 @@ async fn test_deposit_ever() {
     let sender_data = spl_token::state::Account::unpack(sender_info.data()).expect("token unpack");
     assert_eq!(sender_data.amount, 100 - amount);
 
-    let deposit_address = get_proposal_address(deposit_seed, &settings_address);
+    let deposit_address = get_deposit_address(deposit_seed, &settings_address);
     let deposit_info = banks_client
         .get_account(deposit_address)
         .await
@@ -474,7 +473,7 @@ async fn test_deposit_sol() {
     program_test.add_account(
         sender.pubkey(),
         Account {
-            lamports: 0,
+            lamports: 100000000,
             data: vec![],
             owner: solana_program::system_program::id(),
             executable: false,
@@ -552,9 +551,8 @@ async fn test_deposit_sol() {
 
     let mut transaction = Transaction::new_with_payer(
         &[token_proxy::deposit_sol_ix(
-            &funder.pubkey(),
-            &mint.pubkey(),
             &sender.pubkey(),
+            &mint.pubkey(),
             &name,
             deposit_seed,
             recipient_address,
@@ -579,7 +577,7 @@ async fn test_deposit_sol() {
     let vault_data = spl_token::state::Account::unpack(vault_info.data()).expect("mint unpack");
     assert_eq!(vault_data.amount, amount);
 
-    let deposit_address = get_proposal_address(deposit_seed, &settings_address);
+    let deposit_address = get_deposit_address(deposit_seed, &settings_address);
     let deposit_info = banks_client
         .get_account(deposit_address)
         .await
@@ -699,21 +697,34 @@ async fn test_withdrawal_request() {
         },
     );
 
+    // Add Author Account
+    let author = Keypair::new();
+    program_test.add_account(
+        author.pubkey(),
+        Account {
+            lamports: 100000000,
+            data: vec![],
+            owner: solana_program::system_program::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
     // Start Program Test
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
-    let author = Keypair::new();
-    let withdrawal_seed = uuid::Uuid::new_v4().as_u128();
+    let event_timestamp = 1650988297;
+    let event_transaction_lt = 1650988334;
     let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 32;
 
     let mut transaction = Transaction::new_with_payer(
         &[token_proxy::withdrawal_request_ix(
-            &funder.pubkey(),
             &author.pubkey(),
+            &settings_address,
+            event_timestamp,
+            event_transaction_lt,
             round_number,
-            withdrawal_seed,
-            settings_address,
             sender_address,
             recipient_address,
             amount,
@@ -727,7 +738,12 @@ async fn test_withdrawal_request() {
         .await
         .expect("process_transaction");
 
-    let withdrawal_address = get_proposal_address(withdrawal_seed, &settings_address);
+    let withdrawal_address = get_withdrawal_address(
+        &author.pubkey(),
+        &settings_address,
+        event_timestamp,
+        event_transaction_lt,
+    );
     let withdrawal_info = banks_client
         .get_account(withdrawal_address)
         .await
@@ -737,6 +753,15 @@ async fn test_withdrawal_request() {
     let withdrawal_data = WithdrawalToken::unpack(withdrawal_info.data()).expect("mint unpack");
 
     assert_eq!(withdrawal_data.is_initialized, true);
+
+    assert_eq!(withdrawal_data.pda.author, author.pubkey());
+    assert_eq!(withdrawal_data.pda.settings, settings_address);
+    assert_eq!(withdrawal_data.pda.event_timestamp, event_timestamp);
+    assert_eq!(
+        withdrawal_data.pda.event_transaction_lt,
+        event_transaction_lt
+    );
+
     assert_eq!(withdrawal_data.event.data.amount, amount);
     assert_eq!(withdrawal_data.meta.data.status, WithdrawalTokenStatus::New);
 
@@ -822,21 +847,34 @@ async fn test_vote_for_withdrawal_request() {
     );
 
     // Add Withdrawal Account
-    let withdrawal_seed = uuid::Uuid::new_v4().as_u128();
+    let author = Pubkey::new_unique();
+    let event_timestamp = 1650988297;
+    let event_transaction_lt = 1650988334;
     let recipient_address = Pubkey::new_unique();
     let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 10;
 
-    let withdrawal_address = get_proposal_address(withdrawal_seed, &settings_address);
+    let withdrawal_address = get_withdrawal_address(
+        &author,
+        &settings_address,
+        event_timestamp,
+        event_transaction_lt,
+    );
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
         account_kind: AccountKind::Proposal,
         round_number,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address).unwrap(),
-        meta: WithdrawalTokenMetaWithLen::new(Pubkey::new_unique(), WithdrawalTokenStatus::New, 0),
+        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::New, 0),
         required_votes: relays.len() as u32,
         signers: relays.iter().map(|_| Vote::None).collect(),
+        pda: PDA {
+            author,
+            event_timestamp,
+            event_transaction_lt,
+            settings: settings_address,
+        },
     };
 
     let mut withdrawal_packed = vec![0; WithdrawalToken::LEN];
@@ -860,9 +898,8 @@ async fn test_vote_for_withdrawal_request() {
         let mut transaction = Transaction::new_with_payer(
             &[token_proxy::vote_for_withdrawal_request_ix(
                 &relay.pubkey(),
+                &withdrawal_address,
                 round_number,
-                withdrawal_seed,
-                settings_address,
                 bridge_utils::types::Vote::Confirm,
             )],
             Some(&funder.pubkey()),
@@ -875,7 +912,6 @@ async fn test_vote_for_withdrawal_request() {
             .expect("process_transaction");
     }
 
-    let withdrawal_address = get_proposal_address(withdrawal_seed, &settings_address);
     let withdrawal_info = banks_client
         .get_account(withdrawal_address)
         .await
@@ -937,21 +973,34 @@ async fn test_update_withdrawal_status() {
     );
 
     // Add Withdrawal Account
-    let withdrawal_seed = uuid::Uuid::new_v4().as_u128();
+    let author = Pubkey::new_unique();
+    let event_timestamp = 1650988297;
+    let event_transaction_lt = 1650988334;
     let recipient_address = Pubkey::new_unique();
     let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 10;
 
-    let withdrawal_address = token_proxy::get_proposal_address(withdrawal_seed, &settings_address);
+    let withdrawal_address = token_proxy::get_withdrawal_address(
+        &author,
+        &settings_address,
+        event_timestamp,
+        event_transaction_lt,
+    );
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
         account_kind: AccountKind::Proposal,
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address).unwrap(),
-        meta: WithdrawalTokenMetaWithLen::new(Pubkey::new_unique(), WithdrawalTokenStatus::New, 0),
+        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::New, 0),
         required_votes: 0,
         signers: vec![],
+        pda: PDA {
+            author,
+            event_timestamp,
+            event_transaction_lt,
+            settings: settings_address,
+        },
     };
 
     let mut withdrawal_packed = vec![0; WithdrawalToken::LEN];
@@ -972,9 +1021,8 @@ async fn test_update_withdrawal_status() {
 
     let mut transaction = Transaction::new_with_payer(
         &[token_proxy::update_withdrawal_status_ix(
-            &name,
-            withdrawal_seed,
-            settings_address,
+            &withdrawal_address,
+            &settings_address,
         )],
         Some(&funder.pubkey()),
     );
@@ -985,7 +1033,6 @@ async fn test_update_withdrawal_status() {
         .await
         .expect("process_transaction");
 
-    let withdrawal_address = get_proposal_address(withdrawal_seed, &settings_address);
     let withdrawal_info = banks_client
         .get_account(withdrawal_address)
         .await
@@ -1098,24 +1145,33 @@ async fn test_withdrawal_ever() {
     );
 
     // Add Withdrawal Account
-    let withdrawal_seed = uuid::Uuid::new_v4().as_u128();
+    let author = Pubkey::new_unique();
+    let event_timestamp = 1650988297;
+    let event_transaction_lt = 1650988334;
     let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 10;
 
-    let withdrawal_address = get_proposal_address(withdrawal_seed, &settings_address);
+    let withdrawal_address = get_withdrawal_address(
+        &author,
+        &settings_address,
+        event_timestamp,
+        event_transaction_lt,
+    );
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
         account_kind: AccountKind::Proposal,
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address).unwrap(),
-        meta: WithdrawalTokenMetaWithLen::new(
-            Pubkey::new_unique(),
-            WithdrawalTokenStatus::WaitingForRelease,
-            0,
-        ),
+        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::WaitingForRelease, 0),
         required_votes: 0,
         signers: vec![],
+        pda: PDA {
+            author,
+            event_timestamp,
+            event_transaction_lt,
+            settings: settings_address,
+        },
     };
 
     let mut withdrawal_packed = vec![0; WithdrawalToken::LEN];
@@ -1137,8 +1193,8 @@ async fn test_withdrawal_ever() {
     let mut transaction = Transaction::new_with_payer(
         &[token_proxy::withdrawal_ever_ix(
             &recipient_address,
+            &withdrawal_address,
             &name,
-            withdrawal_seed,
         )],
         Some(&funder.pubkey()),
     );
@@ -1295,24 +1351,33 @@ async fn test_withdrawal_sol() {
     );
 
     // Add Withdrawal Account
-    let withdrawal_seed = uuid::Uuid::new_v4().as_u128();
+    let author = Pubkey::new_unique();
+    let event_timestamp = 1650988297;
+    let event_transaction_lt = 1650988334;
     let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 10;
 
-    let withdrawal_address = get_proposal_address(withdrawal_seed, &settings_address);
+    let withdrawal_address = get_withdrawal_address(
+        &author,
+        &settings_address,
+        event_timestamp,
+        event_transaction_lt,
+    );
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
         account_kind: AccountKind::Proposal,
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address).unwrap(),
-        meta: WithdrawalTokenMetaWithLen::new(
-            Pubkey::new_unique(),
-            WithdrawalTokenStatus::WaitingForRelease,
-            0,
-        ),
+        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::WaitingForRelease, 0),
         required_votes: 0,
         signers: vec![],
+        pda: PDA {
+            author,
+            event_timestamp,
+            event_transaction_lt,
+            settings: settings_address,
+        },
     };
 
     let mut withdrawal_packed = vec![0; WithdrawalToken::LEN];
@@ -1333,10 +1398,10 @@ async fn test_withdrawal_sol() {
 
     let mut transaction = Transaction::new_with_payer(
         &[token_proxy::withdrawal_sol_ix(
-            &mint.pubkey(),
             &recipient_address,
+            &mint.pubkey(),
+            &withdrawal_address,
             &name,
-            withdrawal_seed,
         )],
         Some(&funder.pubkey()),
     );
@@ -1465,25 +1530,34 @@ async fn test_approve_withdrawal_ever() {
         },
     );
 
-    // Add Withdrawal Round Account
-    let withdrawal_seed = uuid::Uuid::new_v4().as_u128();
+    // Add Withdrawal Account
+    let author = Pubkey::new_unique();
+    let event_timestamp = 1650988297;
+    let event_transaction_lt = 1650988334;
     let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 10;
 
-    let withdrawal_address = get_proposal_address(withdrawal_seed, &settings_address);
+    let withdrawal_address = get_withdrawal_address(
+        &author,
+        &settings_address,
+        event_timestamp,
+        event_transaction_lt,
+    );
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
         account_kind: AccountKind::Proposal,
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address).unwrap(),
-        meta: WithdrawalTokenMetaWithLen::new(
-            Pubkey::new_unique(),
-            WithdrawalTokenStatus::WaitingForApprove,
-            0,
-        ),
+        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::WaitingForApprove, 0),
         required_votes: 0,
         signers: vec![],
+        pda: PDA {
+            author,
+            event_timestamp,
+            event_transaction_lt,
+            settings: settings_address,
+        },
     };
 
     let mut withdrawal_packed = vec![0; WithdrawalToken::LEN];
@@ -1506,8 +1580,8 @@ async fn test_approve_withdrawal_ever() {
         &[token_proxy::approve_withdrawal_ever_ix(
             &admin.pubkey(),
             &recipient_address,
+            &withdrawal_address,
             &name,
-            withdrawal_seed,
         )],
         Some(&funder.pubkey()),
     );
@@ -1602,12 +1676,19 @@ async fn test_approve_withdrawal_sol() {
         },
     );
 
-    // Add Withdrawal Round Account
-    let withdrawal_seed = uuid::Uuid::new_v4().as_u128();
+    // Add Withdrawal Account
+    let author = Pubkey::new_unique();
+    let event_timestamp = 1650988297;
+    let event_transaction_lt = 1650988334;
     let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 10;
 
-    let withdrawal_address = get_proposal_address(withdrawal_seed, &settings_address);
+    let withdrawal_address = get_withdrawal_address(
+        &author,
+        &settings_address,
+        event_timestamp,
+        event_transaction_lt,
+    );
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
@@ -1615,13 +1696,15 @@ async fn test_approve_withdrawal_sol() {
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, Pubkey::new_unique())
             .unwrap(),
-        meta: WithdrawalTokenMetaWithLen::new(
-            Pubkey::new_unique(),
-            WithdrawalTokenStatus::WaitingForApprove,
-            0,
-        ),
+        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::WaitingForApprove, 0),
         required_votes: 0,
         signers: vec![],
+        pda: PDA {
+            author,
+            event_timestamp,
+            event_transaction_lt,
+            settings: settings_address,
+        },
     };
 
     let mut withdrawal_packed = vec![0; WithdrawalToken::LEN];
@@ -1643,8 +1726,8 @@ async fn test_approve_withdrawal_sol() {
     let mut transaction = Transaction::new_with_payer(
         &[token_proxy::approve_withdrawal_sol_ix(
             &admin.pubkey(),
-            withdrawal_seed,
-            settings_address,
+            &withdrawal_address,
+            &name,
         )],
         Some(&funder.pubkey()),
     );
@@ -1683,6 +1766,10 @@ async fn test_cancel_withdrawal_sol() {
 
     let name = "USDT".to_string();
     let decimals = 9;
+    let deposit_limit = 10000000;
+    let withdrawal_limit = 10000;
+    let withdrawal_daily_limit = 1000;
+    let admin = Pubkey::new_unique();
 
     let mint_account_data = spl_token::state::Mint {
         is_initialized: true,
@@ -1728,15 +1815,64 @@ async fn test_cancel_withdrawal_sol() {
         },
     );
 
+    // Add Settings Account
     let settings_address = get_settings_address(&name);
 
-    // Add Withdrawal Round Account
+    let settings_account_data = Settings {
+        is_initialized: true,
+        account_kind: AccountKind::Settings,
+        name: name.clone(),
+        emergency: false,
+        kind: TokenKind::Solana {
+            mint: mint.pubkey(),
+            vault: vault_address,
+        },
+        withdrawal_daily_amount: 0,
+        withdrawal_ttl: 0,
+        deposit_limit,
+        withdrawal_limit,
+        withdrawal_daily_limit,
+        admin,
+    };
+
+    let mut settings_packed = vec![0; Settings::LEN];
+    Settings::pack(settings_account_data, &mut settings_packed).unwrap();
+    program_test.add_account(
+        settings_address,
+        Account {
+            lamports: Rent::default().minimum_balance(Settings::LEN),
+            data: settings_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Author Account
     let author = Keypair::new();
-    let withdrawal_seed = uuid::Uuid::new_v4().as_u128();
+    program_test.add_account(
+        author.pubkey(),
+        Account {
+            lamports: 100000000,
+            data: vec![],
+            owner: solana_program::system_program::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Withdrawal Account
+    let event_timestamp = 1650988297;
+    let event_transaction_lt = 1650988334;
     let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 10;
 
-    let withdrawal_address = get_proposal_address(withdrawal_seed, &settings_address);
+    let withdrawal_address = get_withdrawal_address(
+        &author.pubkey(),
+        &settings_address,
+        event_timestamp,
+        event_transaction_lt,
+    );
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
@@ -1744,9 +1880,15 @@ async fn test_cancel_withdrawal_sol() {
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, Pubkey::new_unique())
             .unwrap(),
-        meta: WithdrawalTokenMetaWithLen::new(author.pubkey(), WithdrawalTokenStatus::Pending, 0),
+        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::Pending, 0),
         required_votes: 0,
         signers: vec![],
+        pda: PDA {
+            author: author.pubkey(),
+            event_timestamp,
+            event_transaction_lt,
+            settings: settings_address,
+        },
     };
 
     let mut withdrawal_packed = vec![0; WithdrawalToken::LEN];
@@ -1769,11 +1911,10 @@ async fn test_cancel_withdrawal_sol() {
 
     let mut transaction = Transaction::new_with_payer(
         &[token_proxy::cancel_withdrawal_sol_ix(
-            &funder.pubkey(),
             &author.pubkey(),
-            withdrawal_seed,
+            &withdrawal_address,
             deposit_seed,
-            settings_address,
+            &name,
         )],
         Some(&funder.pubkey()),
     );
@@ -1784,7 +1925,6 @@ async fn test_cancel_withdrawal_sol() {
         .await
         .expect("process_transaction");
 
-    let withdrawal_address = get_proposal_address(withdrawal_seed, &settings_address);
     let withdrawal_info = banks_client
         .get_account(withdrawal_address)
         .await
@@ -1799,7 +1939,7 @@ async fn test_cancel_withdrawal_sol() {
         WithdrawalTokenStatus::Cancelled
     );
 
-    let new_deposit_address = get_proposal_address(deposit_seed, &settings_address);
+    let new_deposit_address = get_deposit_address(deposit_seed, &settings_address);
     let new_deposit_info = banks_client
         .get_account(new_deposit_address)
         .await
@@ -1936,25 +2076,34 @@ async fn test_force_withdrawal_sol() {
         },
     );
 
-    // Add Withdrawal Round Account
-    let withdrawal_seed = uuid::Uuid::new_v4().as_u128();
+    // Add Withdrawal Account
+    let author = Pubkey::new_unique();
+    let event_timestamp = 1650988297;
+    let event_transaction_lt = 1650988334;
     let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 10;
 
-    let withdrawal_address = get_proposal_address(withdrawal_seed, &settings_address);
+    let withdrawal_address = get_withdrawal_address(
+        &author,
+        &settings_address,
+        event_timestamp,
+        event_transaction_lt,
+    );
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
         account_kind: AccountKind::Proposal,
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address).unwrap(),
-        meta: WithdrawalTokenMetaWithLen::new(
-            Pubkey::new_unique(),
-            WithdrawalTokenStatus::Pending,
-            0,
-        ),
+        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::Pending, 0),
         required_votes: 0,
         signers: vec![],
+        pda: PDA {
+            author,
+            event_timestamp,
+            event_transaction_lt,
+            settings: settings_address,
+        },
     };
 
     let mut withdrawal_packed = vec![0; WithdrawalToken::LEN];
@@ -1975,10 +2124,10 @@ async fn test_force_withdrawal_sol() {
 
     let mut transaction = Transaction::new_with_payer(
         &[token_proxy::force_withdrawal_sol_ix(
-            &mint.pubkey(),
             &recipient_address,
+            &mint.pubkey(),
+            &withdrawal_address,
             name,
-            withdrawal_seed,
         )],
         Some(&funder.pubkey()),
     );
@@ -2043,12 +2192,12 @@ async fn test_fill_withdrawal_sol() {
         },
     );
 
-    // Add Sender Account
-    let sender = Keypair::new();
+    // Add Author Account
+    let author = Keypair::new();
     program_test.add_account(
-        sender.pubkey(),
+        author.pubkey(),
         Account {
-            lamports: 0,
+            lamports: 100000000,
             data: vec![],
             owner: solana_program::system_program::id(),
             executable: false,
@@ -2056,28 +2205,27 @@ async fn test_fill_withdrawal_sol() {
         },
     );
 
-    // Add Sender Token Account
-    let sender_associated_token_address =
-        spl_associated_token_account::get_associated_token_address(
-            &sender.pubkey(),
-            &mint.pubkey(),
-        );
+    // Add Author Token Account
+    let author_token_address = spl_associated_token_account::get_associated_token_address(
+        &author.pubkey(),
+        &mint.pubkey(),
+    );
 
-    let sender_account_data = spl_token::state::Account {
+    let author_token_account_data = spl_token::state::Account {
         mint: mint.pubkey(),
-        owner: sender.pubkey(),
+        owner: author.pubkey(),
         amount: 100,
         state: AccountState::Initialized,
         ..Default::default()
     };
 
-    let mut sender_packed = vec![0; spl_token::state::Account::LEN];
-    spl_token::state::Account::pack(sender_account_data, &mut sender_packed).unwrap();
+    let mut author_token_packed = vec![0; spl_token::state::Account::LEN];
+    spl_token::state::Account::pack(author_token_account_data, &mut author_token_packed).unwrap();
     program_test.add_account(
-        sender_associated_token_address,
+        author_token_address,
         Account {
             lamports: Rent::default().minimum_balance(spl_token::state::Account::LEN),
-            data: sender_packed,
+            data: author_token_packed,
             owner: spl_token::id(),
             executable: false,
             rent_epoch: 0,
@@ -2086,26 +2234,26 @@ async fn test_fill_withdrawal_sol() {
 
     // Add Recipient Token Account
     let recipient_address = Pubkey::new_unique();
-    let recipient_associated_token_address =
-        spl_associated_token_account::get_associated_token_address(
-            &recipient_address,
-            &mint.pubkey(),
-        );
+    let recipient_token_address = spl_associated_token_account::get_associated_token_address(
+        &recipient_address,
+        &mint.pubkey(),
+    );
 
-    let recipient_account_data = spl_token::state::Account {
+    let recipient_token_account_data = spl_token::state::Account {
         mint: mint.pubkey(),
         owner: recipient_address,
         state: AccountState::Initialized,
         ..Default::default()
     };
 
-    let mut recipient_packed = vec![0; spl_token::state::Account::LEN];
-    spl_token::state::Account::pack(recipient_account_data, &mut recipient_packed).unwrap();
+    let mut recipient_token_packed = vec![0; spl_token::state::Account::LEN];
+    spl_token::state::Account::pack(recipient_token_account_data, &mut recipient_token_packed)
+        .unwrap();
     program_test.add_account(
-        recipient_associated_token_address,
+        recipient_token_address,
         Account {
             lamports: Rent::default().minimum_balance(spl_token::state::Account::LEN),
-            data: recipient_packed,
+            data: recipient_token_packed,
             owner: spl_token::id(),
             executable: false,
             rent_epoch: 0,
@@ -2113,28 +2261,73 @@ async fn test_fill_withdrawal_sol() {
     );
 
     let name = "USTD".to_string();
+    let deposit_limit = 10000000;
+    let withdrawal_limit = 10000;
+    let withdrawal_daily_limit = 1000;
+    let admin = Pubkey::new_unique();
+
+    // Add Settings Account
     let settings_address = get_settings_address(&name);
 
+    let settings_account_data = Settings {
+        is_initialized: true,
+        account_kind: AccountKind::Settings,
+        name: name.clone(),
+        emergency: false,
+        kind: TokenKind::Solana {
+            mint: mint.pubkey(),
+            vault: Pubkey::new_unique(),
+        },
+        withdrawal_daily_amount: 0,
+        withdrawal_ttl: 0,
+        deposit_limit,
+        withdrawal_limit,
+        withdrawal_daily_limit,
+        admin,
+    };
+
+    let mut settings_packed = vec![0; Settings::LEN];
+    Settings::pack(settings_account_data, &mut settings_packed).unwrap();
+    program_test.add_account(
+        settings_address,
+        Account {
+            lamports: Rent::default().minimum_balance(Settings::LEN),
+            data: settings_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
     // Add Withdrawal Account
-    let withdrawal_seed = uuid::Uuid::new_v4().as_u128();
+    let withdrawal_author = Pubkey::new_unique();
+    let event_timestamp = 1650988297;
+    let event_transaction_lt = 1650988334;
     let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 10;
     let bounty = 1;
 
-    let withdrawal_address = get_proposal_address(withdrawal_seed, &settings_address);
+    let withdrawal_address = get_withdrawal_address(
+        &withdrawal_author,
+        &settings_address,
+        event_timestamp,
+        event_transaction_lt,
+    );
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
         account_kind: AccountKind::Proposal,
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address).unwrap(),
-        meta: WithdrawalTokenMetaWithLen::new(
-            Pubkey::new_unique(),
-            WithdrawalTokenStatus::Pending,
-            bounty,
-        ),
+        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::Pending, bounty),
         required_votes: 0,
         signers: vec![],
+        pda: PDA {
+            event_timestamp,
+            event_transaction_lt,
+            author: withdrawal_author,
+            settings: settings_address,
+        },
     };
 
     let mut withdrawal_packed = vec![0; WithdrawalToken::LEN];
@@ -2158,47 +2351,44 @@ async fn test_fill_withdrawal_sol() {
 
     let mut transaction = Transaction::new_with_payer(
         &[token_proxy::fill_withdrawal_sol_ix(
-            &funder.pubkey(),
-            &sender.pubkey(),
-            &mint.pubkey(),
+            &author.pubkey(),
             &recipient_address,
-            withdrawal_seed,
+            &mint.pubkey(),
+            &withdrawal_address,
+            &name,
             deposit_seed,
-            settings_address,
             ever_recipient_address,
         )],
         Some(&funder.pubkey()),
     );
-    transaction.sign(&[&funder, &sender], recent_blockhash);
+    transaction.sign(&[&funder, &author], recent_blockhash);
 
     banks_client
         .process_transaction(transaction)
         .await
         .expect("process_transaction");
 
-    let sender_associated_token_info = banks_client
-        .get_account(sender_associated_token_address)
+    let author_token_info = banks_client
+        .get_account(author_token_address)
         .await
         .expect("get_account")
         .expect("account");
 
-    let sender_associated_token_data =
-        spl_token::state::Account::unpack(sender_associated_token_info.data())
-            .expect("sender unpack");
-    assert_eq!(sender_associated_token_data.amount, 100 - amount + bounty);
+    let author_token_data =
+        spl_token::state::Account::unpack(author_token_info.data()).expect("sender unpack");
+    assert_eq!(author_token_data.amount, 100 - amount + bounty);
 
-    let recipient_associated_token_info = banks_client
-        .get_account(recipient_associated_token_address)
+    let recipient_token_info = banks_client
+        .get_account(recipient_token_address)
         .await
         .expect("get_account")
         .expect("account");
 
-    let recipient_associated_token_data =
-        spl_token::state::Account::unpack(recipient_associated_token_info.data())
-            .expect("recipient unpack");
-    assert_eq!(recipient_associated_token_data.amount, amount - bounty);
+    let recipient_token_data =
+        spl_token::state::Account::unpack(recipient_token_info.data()).expect("recipient unpack");
+    assert_eq!(recipient_token_data.amount, amount - bounty);
 
-    let deposit_address = get_proposal_address(deposit_seed, &settings_address);
+    let deposit_address = get_deposit_address(deposit_seed, &settings_address);
     let deposit_info = banks_client
         .get_account(deposit_address)
         .await
@@ -2393,12 +2583,18 @@ async fn test_change_bounty_for_withdrawal_sol() {
 
     // Add Withdrawal Account
     let author = Keypair::new();
-    let withdrawal_seed = uuid::Uuid::new_v4().as_u128();
+    let event_timestamp = 1650988297;
+    let event_transaction_lt = 1650988334;
     let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
 
     let amount = 10;
 
-    let withdrawal_address = get_proposal_address(withdrawal_seed, &settings_address);
+    let withdrawal_address = get_withdrawal_address(
+        &author.pubkey(),
+        &settings_address,
+        event_timestamp,
+        event_transaction_lt,
+    );
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
@@ -2406,9 +2602,15 @@ async fn test_change_bounty_for_withdrawal_sol() {
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, Pubkey::new_unique())
             .unwrap(),
-        meta: WithdrawalTokenMetaWithLen::new(author.pubkey(), WithdrawalTokenStatus::Pending, 0),
+        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::Pending, 0),
         required_votes: 0,
         signers: vec![],
+        pda: PDA {
+            event_timestamp,
+            event_transaction_lt,
+            author: author.pubkey(),
+            settings: settings_address,
+        },
     };
 
     let mut withdrawal_packed = vec![0; WithdrawalToken::LEN];
@@ -2431,8 +2633,7 @@ async fn test_change_bounty_for_withdrawal_sol() {
     let mut transaction = Transaction::new_with_payer(
         &[token_proxy::change_bounty_for_withdrawal_sol_ix(
             &author.pubkey(),
-            withdrawal_seed,
-            settings_address,
+            &withdrawal_address,
             bounty,
         )],
         Some(&funder.pubkey()),

@@ -1,6 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use bridge_derive::BridgePack;
-use bridge_utils::state::AccountKind;
+use bridge_utils::state::{AccountKind, PDA};
 use bridge_utils::types::{EverAddress, Vote};
 use enum_as_inner::EnumAsInner;
 use serde::{Deserialize, Serialize};
@@ -16,9 +16,8 @@ const WITHDRAWAL_TOKEN_EVENT_LEN: usize = 8 // amount
     + PUBKEY_BYTES                          // solana recipient address
 ;
 
-const WITHDRAWAL_TOKEN_META_LEN: usize = PUBKEY_BYTES   // author
-    + 1                                                 // status
-    + 8                                                 // bounty
+const WITHDRAWAL_TOKEN_META_LEN: usize = 1  // status
+    + 8                                     // bounty
 ;
 
 const DEPOSIT_TOKEN_EVENT_LEN: usize = 8    // amount
@@ -115,6 +114,7 @@ pub struct WithdrawalToken {
     pub account_kind: AccountKind,
     pub round_number: u32,
     pub required_votes: u32,
+    pub pda: PDA,
     pub event: WithdrawalTokenEventWithLen,
     pub meta: WithdrawalTokenMetaWithLen,
     pub signers: Vec<Vote>,
@@ -160,7 +160,6 @@ impl WithdrawalTokenEventWithLen {
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 pub struct WithdrawalTokenMeta {
-    pub author: Pubkey,
     pub status: WithdrawalTokenStatus,
     pub bounty: u64,
 }
@@ -172,14 +171,10 @@ pub struct WithdrawalTokenMetaWithLen {
 }
 
 impl WithdrawalTokenMetaWithLen {
-    pub fn new(author: Pubkey, status: WithdrawalTokenStatus, bounty: u64) -> Self {
+    pub fn new(status: WithdrawalTokenStatus, bounty: u64) -> Self {
         Self {
             len: WITHDRAWAL_TOKEN_META_LEN as u32,
-            data: WithdrawalTokenMeta {
-                author,
-                status,
-                bounty,
-            },
+            data: WithdrawalTokenMeta { status, bounty },
         }
     }
 }

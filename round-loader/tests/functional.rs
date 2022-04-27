@@ -6,9 +6,7 @@ use bridge_utils::types::Vote;
 use bridge_utils::state::AccountKind;
 use solana_program::bpf_loader_upgradeable::UpgradeableLoaderState;
 use solana_program::rent::Rent;
-use solana_program::{
-    bpf_loader_upgradeable, program_pack::Pack, pubkey::Pubkey, system_instruction,
-};
+use solana_program::{bpf_loader_upgradeable, program_pack::Pack, pubkey::Pubkey};
 use solana_program_test::{processor, tokio, ProgramTest};
 use solana_sdk::account::{Account, ReadableAccount};
 use solana_sdk::signature::{Keypair, Signer};
@@ -26,6 +24,16 @@ async fn test_init_relay_loader() {
 
     // Setup environment
     let creator = Keypair::new();
+    program_test.add_account(
+        creator.pubkey(),
+        Account {
+            lamports: 100000000,
+            data: vec![],
+            owner: solana_program::system_program::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
 
     let programdata_address = Pubkey::find_program_address(
         &[round_loader::id().as_ref()],
@@ -60,7 +68,6 @@ async fn test_init_relay_loader() {
 
     let mut transaction = Transaction::new_with_payer(
         &[round_loader::initialize_ix(
-            &funder.pubkey(),
             &creator.pubkey(),
             round_number,
             round_end,
@@ -102,7 +109,6 @@ async fn test_init_relay_loader() {
     assert_eq!(relay_round_data.round_end, round_end);
     assert_eq!(relay_round_data.relays, vec![creator.pubkey()]);
 }
-
 #[tokio::test]
 async fn test_create_proposal() {
     let mut program_test = ProgramTest::new(
@@ -113,6 +119,16 @@ async fn test_create_proposal() {
 
     // Setup environment
     let proposal_creator = Keypair::new();
+    program_test.add_account(
+        proposal_creator.pubkey(),
+        Account {
+            lamports: 100000000,
+            data: vec![],
+            owner: solana_program::system_program::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
 
     let round_number = 0;
     let round_end = 1759950985;
@@ -164,44 +180,19 @@ async fn test_create_proposal() {
     // Start Program Test
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
-    // TODO: fix this workaround
-    // Fund a balance of creator since test stucks
-    let require_balance = Rent::default().minimum_balance(RelayRoundProposal::LEN);
-
-    let mut transaction = Transaction::new_with_payer(
-        &[system_instruction::transfer(
-            &funder.pubkey(),
-            &proposal_creator.pubkey(),
-            require_balance,
-        )],
-        Some(&funder.pubkey()),
-    );
-    transaction.sign(&[&funder], recent_blockhash);
-
-    banks_client
-        .process_transaction(transaction)
-        .await
-        .expect("process_transaction");
-
-    assert_eq!(
-        banks_client
-            .get_balance(proposal_creator.pubkey())
-            .await
-            .expect("get_balance"),
-        require_balance
-    );
-
     // Create Proposal
-    let proposal_seed = uuid::Uuid::new_v4().as_u128();
+    let event_timestamp = 1650988297;
+    let event_transaction_lt = 1650988334;
 
     let mut transaction = Transaction::new_with_payer(
         &[round_loader::create_proposal_ix(
-            &funder.pubkey(),
-            proposal_seed,
+            &proposal_creator.pubkey(),
+            event_timestamp,
+            event_transaction_lt,
         )],
         Some(&funder.pubkey()),
     );
-    transaction.sign(&[&funder], recent_blockhash);
+    transaction.sign(&[&funder, &proposal_creator], recent_blockhash);
 
     banks_client
         .process_transaction(transaction)
@@ -225,13 +216,15 @@ async fn test_create_proposal() {
     for (chunk, i) in write_data.try_to_vec().unwrap().chunks(chunk_size).zip(0..) {
         let mut transaction = Transaction::new_with_payer(
             &[round_loader::write_proposal_ix(
-                proposal_seed,
+                &proposal_creator.pubkey(),
+                event_timestamp,
+                event_transaction_lt,
                 (i * chunk_size) as u32,
                 chunk.to_vec(),
             )],
-            Some(&proposal_creator.pubkey()),
+            Some(&funder.pubkey()),
         );
-        transaction.sign(&[&proposal_creator], recent_blockhash);
+        transaction.sign(&[&funder, &proposal_creator], recent_blockhash);
 
         banks_client
             .process_transaction(transaction)
@@ -243,12 +236,13 @@ async fn test_create_proposal() {
     let mut transaction = Transaction::new_with_payer(
         &[round_loader::finalize_proposal_ix(
             &proposal_creator.pubkey(),
-            proposal_seed,
+            event_timestamp,
+            event_transaction_lt,
             round_number,
         )],
-        Some(&proposal_creator.pubkey()),
+        Some(&funder.pubkey()),
     );
-    transaction.sign(&[&proposal_creator], recent_blockhash);
+    transaction.sign(&[&funder, &proposal_creator], recent_blockhash);
 
     banks_client
         .process_transaction(transaction)
@@ -256,7 +250,12 @@ async fn test_create_proposal() {
         .expect("process_transaction");
 
     // Check created Proposal
-    let proposal_address = get_proposal_address(proposal_seed, &settings_address);
+    let proposal_address = get_proposal_address(
+        &proposal_creator.pubkey(),
+        &settings_address,
+        event_timestamp,
+        event_transaction_lt,
+    );
 
     let proposal_info = banks_client
         .get_account(proposal_address)
@@ -267,25 +266,31 @@ async fn test_create_proposal() {
     let proposal_data = RelayRoundProposal::unpack(proposal_info.data()).expect("proposal unpack");
 
     assert_eq!(proposal_data.is_initialized, true);
+    assert_eq!(proposal_data.account_kind, AccountKind::Proposal);
     assert_eq!(proposal_data.round_number, round_number);
-    assert_eq!(proposal_data.signers, vec![Vote::None; relays.len()]);
     assert_eq!(
         proposal_data.required_votes,
         (relays.len() * 2 / 3 + 1) as u32
     );
 
+    assert_eq!(proposal_data.pda.author, proposal_creator.pubkey());
+    assert_eq!(proposal_data.pda.settings, settings_address);
+    assert_eq!(proposal_data.pda.event_timestamp, event_timestamp);
+    assert_eq!(proposal_data.pda.event_transaction_lt, event_transaction_lt);
+
+    assert_eq!(proposal_data.signers, vec![Vote::None; relays.len()]);
+
     assert_eq!(proposal_data.event.data.relays, new_relays);
     assert_eq!(proposal_data.event.data.round_end, new_round_end);
 
     assert_eq!(proposal_data.meta.data.is_executed, false);
-    assert_eq!(proposal_data.meta.data.author, proposal_creator.pubkey());
 
     // Vote for Proposal
     for relay in &relays {
         let mut transaction = Transaction::new_with_payer(
             &[round_loader::vote_for_proposal_ix(
                 &relay.pubkey(),
-                proposal_seed,
+                &proposal_address,
                 round_number,
                 Vote::Confirm,
             )],
@@ -313,7 +318,7 @@ async fn test_create_proposal() {
     let mut transaction = Transaction::new_with_payer(
         &[round_loader::execute_proposal_ix(
             &funder.pubkey(),
-            proposal_seed,
+            &proposal_address,
             new_round_number,
         )],
         Some(&funder.pubkey()),

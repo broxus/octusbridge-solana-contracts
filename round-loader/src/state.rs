@@ -1,6 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use bridge_derive::BridgePack;
-use bridge_utils::state::AccountKind;
+use bridge_utils::state::{AccountKind, PDA};
 use bridge_utils::types::Vote;
 
 use solana_program::program_error::ProgramError;
@@ -14,6 +14,10 @@ pub const LOAD_DATA_BEGIN_OFFSET: usize = 1 // is_executed
     + 1                                     // account_kind
     + 4                                     // round_number
     + 4                                     // required_votes
+    + PUBKEY_BYTES                          // author
+    + PUBKEY_BYTES                          // settings
+    + 4                                     // event_timestamp
+    + 8                                     // event_transaction_lt
 ;
 
 pub const LOAD_DATA_END_OFFSET: usize = LOAD_DATA_BEGIN_OFFSET
@@ -24,7 +28,6 @@ pub const LOAD_DATA_END_OFFSET: usize = LOAD_DATA_BEGIN_OFFSET
 ;
 
 const RELAY_ROUND_PROPOSAL_META_LEN: usize = 1  // is_executed
-    + PUBKEY_BYTES                              // author
 ;
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
@@ -68,6 +71,7 @@ pub struct RelayRoundProposal {
     pub account_kind: AccountKind,
     pub round_number: u32,
     pub required_votes: u32,
+    pub pda: PDA,
     pub event: RelayRoundProposalEventWithLen,
     pub meta: RelayRoundProposalMetaWithLen,
     pub signers: Vec<Vote>,
@@ -109,7 +113,6 @@ impl RelayRoundProposalEventWithLen {
 
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub struct RelayRoundProposalMeta {
-    pub author: Pubkey,
     pub is_executed: bool,
 }
 
@@ -120,13 +123,10 @@ pub struct RelayRoundProposalMetaWithLen {
 }
 
 impl RelayRoundProposalMetaWithLen {
-    pub fn new(author: Pubkey) -> Self {
+    pub fn new() -> Self {
         Self {
             len: RELAY_ROUND_PROPOSAL_META_LEN as u32,
-            data: RelayRoundProposalMeta {
-                author,
-                is_executed: false,
-            },
+            data: RelayRoundProposalMeta { is_executed: false },
         }
     }
 }

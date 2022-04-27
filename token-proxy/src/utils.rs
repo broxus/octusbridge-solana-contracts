@@ -14,6 +14,22 @@ pub fn get_associated_mint_address(program_id: &Pubkey, name: &str) -> Pubkey {
     Pubkey::find_program_address(&[br"mint", name.as_bytes()], program_id).0
 }
 
+pub fn get_associated_deposit_address(
+    program_id: &Pubkey,
+    seed: u128,
+    settings_address: &Pubkey,
+) -> Pubkey {
+    Pubkey::find_program_address(
+        &[
+            br"deposit",
+            &seed.to_le_bytes(),
+            &settings_address.to_bytes(),
+        ],
+        program_id,
+    )
+    .0
+}
+
 pub fn validate_settings_account(
     program_id: &Pubkey,
     name: &str,
@@ -23,6 +39,28 @@ pub fn validate_settings_account(
         Pubkey::find_program_address(&[br"settings", name.as_bytes()], program_id);
 
     if account != *account_info.key {
+        return Err(ProgramError::InvalidArgument);
+    }
+
+    Ok(nonce)
+}
+
+pub fn validate_deposit_account(
+    program_id: &Pubkey,
+    seed: u128,
+    settings_address: &Pubkey,
+    deposit_account_info: &AccountInfo,
+) -> Result<u8, ProgramError> {
+    let (account, nonce) = Pubkey::find_program_address(
+        &[
+            br"deposit",
+            &seed.to_le_bytes(),
+            &settings_address.to_bytes(),
+        ],
+        program_id,
+    );
+
+    if account != *deposit_account_info.key {
         return Err(ProgramError::InvalidArgument);
     }
 

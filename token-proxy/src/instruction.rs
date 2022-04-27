@@ -10,10 +10,6 @@ pub enum TokenProxyInstruction {
     /// # Account references
     /// ...
     VoteForWithdrawRequest {
-        // Withdrawal seed
-        withdrawal_seed: u128,
-        // Settings address
-        settings_address: Pubkey,
         // Vote type
         vote: Vote,
     },
@@ -85,10 +81,10 @@ pub enum TokenProxyInstruction {
     /// # Account references
     /// ...
     WithdrawRequest {
-        // Withdrawal seed
-        withdrawal_seed: u128,
-        // Settings address
-        settings_address: Pubkey,
+        // Ever event timestamp
+        event_timestamp: u32,
+        // Ever event transaction lt
+        event_transaction_lt: u64,
         // Sender address
         sender_address: EverAddress,
         // Sender address
@@ -101,80 +97,54 @@ pub enum TokenProxyInstruction {
     ///
     /// # Account references
     /// ...
-    UpdateWithdrawStatus {
-        // Withdrawal seed
-        withdrawal_seed: u128,
-    },
+    UpdateWithdrawStatus,
 
     /// Withdraw EVER
     ///
     /// # Account references
     /// ...
-    WithdrawEver {
-        // Withdrawal seed
-        withdrawal_seed: u128,
-    },
+    WithdrawEver,
 
     /// Withdraw SOL
     ///
     /// # Account references
     /// ...
-    WithdrawSol {
-        // Withdrawal seed
-        withdrawal_seed: u128,
-    },
+    WithdrawSol,
 
     /// Approve Withdraw Ever
     ///
     /// # Account references
     /// ...
-    ApproveWithdrawEver {
-        // Withdrawal seed
-        withdrawal_seed: u128,
-    },
+    ApproveWithdrawEver,
 
     /// Approve Withdraw SOL
     ///
     /// # Account references
     /// ...
-    ApproveWithdrawSol {
-        // Withdrawal seed
-        withdrawal_seed: u128,
-    },
+    ApproveWithdrawSol,
 
     /// Cancel Withdraw SOL
     ///
     /// # Account references
     /// ...
     CancelWithdrawSol {
-        // Withdrawal seed
-        withdrawal_seed: u128,
         // Deposit seed
         deposit_seed: u128,
-        // Settings address
-        settings_address: Pubkey,
     },
+
     /// Force Withdraw SOL
     ///
     /// # Account references
     /// ...
-    ForceWithdrawSol {
-        // Withdrawal seed
-        withdrawal_seed: u128,
-    },
+    ForceWithdrawSol,
 
     /// Fill Withdraw SOL
     ///
     /// # Account references
     /// ...
-    /**/
     FillWithdrawSol {
-        // Withdrawal seed
-        withdrawal_seed: u128,
         // Deposit seed
         deposit_seed: u128,
-        // Settings address
-        settings_address: Pubkey,
         // Recipient address
         recipient_address: EverAddress,
     },
@@ -193,10 +163,6 @@ pub enum TokenProxyInstruction {
     /// # Account references
     /// ...
     ChangeBountyForWithdrawSol {
-        // Withdrawal seed
-        withdrawal_seed: u128,
-        // Settings address
-        settings_address: Pubkey,
         // New bounty value
         bounty: u64,
     },
