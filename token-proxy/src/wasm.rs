@@ -4,11 +4,13 @@ use borsh::BorshSerialize;
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
-use solana_program::hash::Hash;
 use solana_program::instruction::{AccountMeta, Instruction};
 use solana_program::program_pack::Pack;
 use solana_program::pubkey::Pubkey;
 use solana_program::{system_program, sysvar};
+
+use bridge_utils::state::*;
+use bridge_utils::types::*;
 
 use crate::*;
 
@@ -27,9 +29,9 @@ pub fn initialize_mint_ix(
     let initializer_pubkey = Pubkey::from_str(initializer_pubkey.as_str()).unwrap();
     let admin = Pubkey::from_str(admin.as_str()).unwrap();
 
-    let mint_pubkey = get_associated_mint_address(&name);
-    let settings_pubkey = get_associated_settings_address(&name);
-    let program_data_pubkey = get_program_data_address();
+    let mint_pubkey = get_mint_address(&name);
+    let settings_pubkey = get_settings_address(&name);
+    let program_data_pubkey = get_programdata_address();
 
     let data = TokenProxyInstruction::InitializeMint {
         name,
@@ -66,7 +68,6 @@ pub fn initialize_vault_ix(
     initializer_pubkey: String,
     mint_pubkey: String,
     name: String,
-    decimals: u8,
     deposit_limit: u64,
     withdrawal_limit: u64,
     withdrawal_daily_limit: u64,
@@ -77,13 +78,12 @@ pub fn initialize_vault_ix(
     let mint_pubkey = Pubkey::from_str(mint_pubkey.as_str()).unwrap();
     let admin = Pubkey::from_str(admin.as_str()).unwrap();
 
-    let vault_pubkey = get_associated_vault_address(&name);
-    let settings_pubkey = get_associated_settings_address(&name);
-    let program_data_pubkey = get_program_data_address();
+    let vault_pubkey = get_vault_address(&name);
+    let settings_pubkey = get_settings_address(&name);
+    let program_data_pubkey = get_programdata_address();
 
     let data = TokenProxyInstruction::InitializeVault {
         name,
-        decimals,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
@@ -111,25 +111,73 @@ pub fn initialize_vault_ix(
     return JsValue::from_serde(&ix).unwrap();
 }
 
+#[wasm_bindgen(js_name = "processWithdrawRequest")]
+pub fn process_withdraw_request(
+    author_pubkey: String,
+    withdrawal_pubkey: String,
+    name: String,
+    event_timestamp: u32,
+    event_transaction_lt: u64,
+    event_configuration: String,
+    sender_address: String,
+    recipient_address: String,
+    amount: u64,
+    round_number: u32,
+) -> JsValue {
+    let author_pubkey = Pubkey::from_str(author_pubkey.as_str()).unwrap();
+    let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).unwrap();
+    let recipient_address = Pubkey::from_str(recipient_address.as_str()).unwrap();
+    let event_configuration = Pubkey::from_str(event_configuration.as_str()).unwrap();
+    let settings_pubkey = get_settings_address(&name);
+    let relay_round_pubkey = round_loader::get_relay_round_address(round_number);
+    let sender_address = sender_address.as_bytes().try_into().unwrap();
+
+    let data = TokenProxyInstruction::WithdrawRequest {
+        event_timestamp,
+        event_transaction_lt,
+        sender_address: EverAddress::with_standart(0, sender_address),
+        event_configuration,
+        recipient_address,
+        amount,
+    }
+    .try_to_vec()
+    .expect("pack");
+
+    let ix = Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(author_pubkey, true),
+            AccountMeta::new(withdrawal_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new_readonly(relay_round_pubkey, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+            AccountMeta::new_readonly(sysvar::clock::id(), false),
+            AccountMeta::new_readonly(sysvar::rent::id(), false),
+        ],
+        data,
+    };
+
+    return JsValue::from_serde(&ix).unwrap();
+}
+
 #[wasm_bindgen(js_name = "approveWithdrawalEver")]
 pub fn approve_withdrawal_ever_ix(
     authority_pubkey: String,
     to_pubkey: String,
     name: String,
-    payload_id: String,
+    withdrawal_pubkey: String,
 ) -> JsValue {
     let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).unwrap();
     let to_pubkey = Pubkey::from_str(to_pubkey.as_str()).unwrap();
-    let payload_id = Hash::from_str(payload_id.as_str()).unwrap();
 
-    let settings_pubkey = get_associated_settings_address(&name);
-    let withdrawal_pubkey = get_associated_withdrawal_address(&payload_id);
+    let settings_pubkey = get_settings_address(&name);
+    let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).unwrap();
 
-    let mint_pubkey = get_associated_mint_address(&name);
+    let mint_pubkey = get_mint_address(&name);
     let recipient_pubkey =
         spl_associated_token_account::get_associated_token_address(&to_pubkey, &mint_pubkey);
 
-    let data = TokenProxyInstruction::ApproveWithdrawEver { name, payload_id }
+    let data = TokenProxyInstruction::ApproveWithdrawEver
         .try_to_vec()
         .expect("pack");
 
@@ -153,15 +201,13 @@ pub fn approve_withdrawal_ever_ix(
 pub fn approve_withdrawal_sol_ix(
     authority_pubkey: String,
     name: String,
-    payload_id: String,
+    withdrawal_pubkey: String,
 ) -> JsValue {
     let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).unwrap();
-    let payload_id = Hash::from_str(payload_id.as_str()).unwrap();
+    let settings_pubkey = get_settings_address(&name);
+    let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).unwrap();
 
-    let settings_pubkey = get_associated_settings_address(&name);
-    let withdrawal_pubkey = get_associated_withdrawal_address(&payload_id);
-
-    let data = TokenProxyInstruction::ApproveWithdrawSol { name, payload_id }
+    let data = TokenProxyInstruction::ApproveWithdrawSol
         .try_to_vec()
         .expect("pack");
 
@@ -178,24 +224,18 @@ pub fn approve_withdrawal_sol_ix(
     return JsValue::from_serde(&ix).unwrap();
 }
 
-#[wasm_bindgen(js_name = "confirmWithdrawRequest")]
-pub fn confirm_withdraw_request_ix(
+#[wasm_bindgen(js_name = "voteForWithdrawRequest")]
+pub fn vote_for_withdraw_request_ix(
     authority_pubkey: String,
-    name: String,
-    payload_id: String,
+    withdrawal_pubkey: String,
     round_number: u32,
 ) -> JsValue {
     let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).unwrap();
-    let payload_id = Hash::from_str(payload_id.as_str()).unwrap();
+    let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).unwrap();
+    let relay_round_pubkey = round_loader::get_relay_round_address(round_number);
 
-    let settings_pubkey = get_associated_settings_address(&name);
-    let withdrawal_pubkey = get_associated_withdrawal_address(&payload_id);
-    let relay_round_pubkey = round_loader::get_associated_relay_round_address(round_number);
-
-    let data = TokenProxyInstruction::ConfirmWithdrawRequest {
-        name,
-        payload_id,
-        round_number,
+    let data = TokenProxyInstruction::VoteForWithdrawRequest {
+        vote: Vote::Confirm,
     }
     .try_to_vec()
     .expect("pack");
@@ -205,9 +245,7 @@ pub fn confirm_withdraw_request_ix(
         accounts: vec![
             AccountMeta::new(authority_pubkey, true),
             AccountMeta::new(withdrawal_pubkey, false),
-            AccountMeta::new_readonly(settings_pubkey, false),
             AccountMeta::new_readonly(relay_round_pubkey, false),
-            AccountMeta::new_readonly(sysvar::clock::id(), false),
         ],
         data,
     };
@@ -221,9 +259,10 @@ pub fn unpack_settings(data: Vec<u8>) -> JsValue {
 
     let s = Settings {
         is_initialized: settings.is_initialized,
+        account_kind: settings.account_kind,
+        name: settings.name,
         kind: settings.kind,
         admin: settings.admin,
-        decimals: settings.decimals,
         emergency: settings.emergency,
         deposit_limit: settings.deposit_limit,
         withdrawal_limit: settings.withdrawal_limit,
@@ -237,16 +276,17 @@ pub fn unpack_settings(data: Vec<u8>) -> JsValue {
 
 #[wasm_bindgen(js_name = "unpackWithdrawal")]
 pub fn unpack_withdrawal(data: Vec<u8>) -> JsValue {
-    let withdrawal = crate::Withdrawal::unpack(&data).unwrap();
+    let withdrawal = crate::WithdrawalToken::unpack(&data).unwrap();
 
     let w = Withdrawal {
         is_initialized: withdrawal.is_initialized,
-        payload_id: withdrawal.payload_id,
+        account_kind: withdrawal.account_kind,
         round_number: withdrawal.round_number,
         required_votes: withdrawal.required_votes,
-        signers: withdrawal.signers,
+        pda: withdrawal.pda,
         event: withdrawal.event,
         meta: withdrawal.meta,
+        signers: withdrawal.signers,
     };
 
     return JsValue::from_serde(&w).unwrap();
@@ -255,9 +295,10 @@ pub fn unpack_withdrawal(data: Vec<u8>) -> JsValue {
 #[derive(Serialize, Deserialize)]
 pub struct Settings {
     pub is_initialized: bool,
+    pub account_kind: AccountKind,
+    pub name: String,
     pub kind: TokenKind,
     pub admin: Pubkey,
-    pub decimals: u8,
     pub emergency: bool,
     pub deposit_limit: u64,
     pub withdrawal_limit: u64,
@@ -269,10 +310,11 @@ pub struct Settings {
 #[derive(Serialize, Deserialize)]
 pub struct Withdrawal {
     pub is_initialized: bool,
-    pub payload_id: Hash,
+    pub account_kind: AccountKind,
     pub round_number: u32,
     pub required_votes: u32,
-    pub signers: Vec<Pubkey>,
-    pub event: WithdrawalEvent,
-    pub meta: WithdrawalMeta,
+    pub pda: PDA,
+    pub event: WithdrawalTokenEventWithLen,
+    pub meta: WithdrawalTokenMetaWithLen,
+    pub signers: Vec<Vote>,
 }

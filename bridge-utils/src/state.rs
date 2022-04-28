@@ -29,7 +29,7 @@ impl IsInitialized for Proposal {
     }
 }
 
-#[derive(Debug, BorshSerialize, BorshDeserialize)]
+#[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 pub struct PDA {
     pub author: Pubkey,
     pub settings: Pubkey,
