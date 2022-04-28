@@ -9,6 +9,7 @@ use solana_program::program_pack::Pack;
 use solana_program::pubkey::Pubkey;
 use solana_program::{system_program, sysvar};
 
+use bridge_utils::helper::*;
 use bridge_utils::state::*;
 use bridge_utils::types::*;
 
@@ -25,13 +26,15 @@ pub fn initialize_mint_ix(
     withdrawal_daily_limit: u64,
     admin: String,
 ) -> JsValue {
+    let program_id = &id();
+
     let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).unwrap();
     let initializer_pubkey = Pubkey::from_str(initializer_pubkey.as_str()).unwrap();
     let admin = Pubkey::from_str(admin.as_str()).unwrap();
 
-    let mint_pubkey = get_mint_address(&name);
-    let settings_pubkey = get_settings_address(&name);
-    let program_data_pubkey = get_programdata_address();
+    let mint_pubkey = get_associated_mint_address(program_id, &name);
+    let settings_pubkey = get_associated_settings_address(program_id, &name);
+    let program_data_pubkey = bridge_utils::helper::get_programdata_address(program_id);
 
     let data = TokenProxyInstruction::InitializeMint {
         name,
@@ -73,14 +76,16 @@ pub fn initialize_vault_ix(
     withdrawal_daily_limit: u64,
     admin: String,
 ) -> JsValue {
+    let program_id = &id();
+
     let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).unwrap();
     let initializer_pubkey = Pubkey::from_str(initializer_pubkey.as_str()).unwrap();
     let mint_pubkey = Pubkey::from_str(mint_pubkey.as_str()).unwrap();
     let admin = Pubkey::from_str(admin.as_str()).unwrap();
 
-    let vault_pubkey = get_vault_address(&name);
-    let settings_pubkey = get_settings_address(&name);
-    let program_data_pubkey = get_programdata_address();
+    let vault_pubkey = get_associated_vault_address(program_id, &name);
+    let settings_pubkey = get_associated_settings_address(program_id, &name);
+    let program_data_pubkey = bridge_utils::helper::get_programdata_address(program_id);
 
     let data = TokenProxyInstruction::InitializeVault {
         name,
@@ -124,12 +129,14 @@ pub fn process_withdraw_request(
     amount: u64,
     round_number: u32,
 ) -> JsValue {
+    let program_id = &id();
+
     let author_pubkey = Pubkey::from_str(author_pubkey.as_str()).unwrap();
     let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).unwrap();
     let recipient_address = Pubkey::from_str(recipient_address.as_str()).unwrap();
     let event_configuration = Pubkey::from_str(event_configuration.as_str()).unwrap();
-    let settings_pubkey = get_settings_address(&name);
-    let relay_round_pubkey = round_loader::get_relay_round_address(round_number);
+    let settings_pubkey = get_associated_settings_address(program_id, &name);
+    let relay_round_pubkey = get_associated_relay_round_address(&round_loader::id(), round_number);
     let sender_address = sender_address.as_bytes().try_into().unwrap();
 
     let data = TokenProxyInstruction::WithdrawRequest {
@@ -167,13 +174,15 @@ pub fn approve_withdrawal_ever_ix(
     name: String,
     withdrawal_pubkey: String,
 ) -> JsValue {
+    let program_id = &id();
+
     let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).unwrap();
     let to_pubkey = Pubkey::from_str(to_pubkey.as_str()).unwrap();
 
-    let settings_pubkey = get_settings_address(&name);
+    let settings_pubkey = get_associated_settings_address(program_id, &name);
     let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).unwrap();
 
-    let mint_pubkey = get_mint_address(&name);
+    let mint_pubkey = get_associated_mint_address(program_id, &name);
     let recipient_pubkey =
         spl_associated_token_account::get_associated_token_address(&to_pubkey, &mint_pubkey);
 
@@ -203,8 +212,10 @@ pub fn approve_withdrawal_sol_ix(
     name: String,
     withdrawal_pubkey: String,
 ) -> JsValue {
+    let program_id = &id();
+
     let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).unwrap();
-    let settings_pubkey = get_settings_address(&name);
+    let settings_pubkey = get_associated_settings_address(program_id, &name);
     let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).unwrap();
 
     let data = TokenProxyInstruction::ApproveWithdrawSol
@@ -232,7 +243,7 @@ pub fn vote_for_withdraw_request_ix(
 ) -> JsValue {
     let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).unwrap();
     let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).unwrap();
-    let relay_round_pubkey = round_loader::get_relay_round_address(round_number);
+    let relay_round_pubkey = get_associated_relay_round_address(&round_loader::id(), round_number);
 
     let data = TokenProxyInstruction::VoteForWithdrawRequest {
         vote: Vote::Confirm,
