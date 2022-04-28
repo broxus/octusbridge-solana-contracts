@@ -22,6 +22,8 @@ pub enum RoundLoaderInstruction {
         round_number: u32,
         // End of round
         round_end: u32,
+        // Relays keys
+        relays: Vec<Pubkey>,
     },
 
     /// Create proposal account for a new Relay Round

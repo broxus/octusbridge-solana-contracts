@@ -28,9 +28,10 @@ impl Processor {
             RoundLoaderInstruction::Initialize {
                 round_number,
                 round_end,
+                relays,
             } => {
                 msg!("Instruction: Initialize");
-                Self::process_initialize(program_id, accounts, round_number, round_end)?;
+                Self::process_initialize(program_id, accounts, round_number, round_end, relays)?;
             }
             RoundLoaderInstruction::CreateProposal {
                 event_timestamp,
@@ -96,6 +97,7 @@ impl Processor {
         accounts: &[AccountInfo],
         round_number: u32,
         round_end: u32,
+        relays: Vec<Pubkey>,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -182,7 +184,7 @@ impl Processor {
             account_kind: AccountKind::RelayRound,
             round_number,
             round_end,
-            relays: vec![*initializer_account_info.key],
+            relays,
         };
 
         RelayRound::pack(

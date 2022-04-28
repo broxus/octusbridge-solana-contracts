@@ -44,6 +44,7 @@ pub fn initialize_ix(
     initializer_pubkey: &Pubkey,
     round_number: u32,
     round_end: u32,
+    relays: Vec<Pubkey>,
 ) -> Instruction {
     let program_id = &id();
 
@@ -54,6 +55,7 @@ pub fn initialize_ix(
     let data = RoundLoaderInstruction::Initialize {
         round_number,
         round_end,
+        relays,
     }
     .try_to_vec()
     .expect("pack");

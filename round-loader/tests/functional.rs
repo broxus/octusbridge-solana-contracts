@@ -65,12 +65,18 @@ async fn test_init_relay_loader() {
 
     let round_number = 0;
     let round_end = 1645086922;
+    let relays = vec![
+        Pubkey::new_unique(),
+        Pubkey::new_unique(),
+        Pubkey::new_unique(),
+    ];
 
     let mut transaction = Transaction::new_with_payer(
         &[round_loader::initialize_ix(
             &creator.pubkey(),
             round_number,
             round_end,
+            relays.clone(),
         )],
         Some(&funder.pubkey()),
     );
@@ -107,7 +113,7 @@ async fn test_init_relay_loader() {
     assert_eq!(relay_round_data.is_initialized, true);
     assert_eq!(relay_round_data.round_number, round_number);
     assert_eq!(relay_round_data.round_end, round_end);
-    assert_eq!(relay_round_data.relays, vec![creator.pubkey()]);
+    assert_eq!(relay_round_data.relays, relays);
 }
 #[tokio::test]
 async fn test_create_proposal() {
