@@ -119,7 +119,6 @@ pub fn initialize_vault_ix(
 #[wasm_bindgen(js_name = "processWithdrawRequest")]
 pub fn process_withdraw_request(
     author_pubkey: String,
-    withdrawal_pubkey: String,
     name: String,
     event_timestamp: u32,
     event_transaction_lt: u64,
@@ -132,12 +131,20 @@ pub fn process_withdraw_request(
     let program_id = &id();
 
     let author_pubkey = Pubkey::from_str(author_pubkey.as_str()).unwrap();
-    let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).unwrap();
     let recipient_address = Pubkey::from_str(recipient_address.as_str()).unwrap();
     let event_configuration = Pubkey::from_str(event_configuration.as_str()).unwrap();
     let settings_pubkey = get_associated_settings_address(program_id, &name);
     let relay_round_pubkey = get_associated_relay_round_address(&round_loader::id(), round_number);
     let sender_address = sender_address.as_bytes().try_into().unwrap();
+
+    let withdrawal_pubkey = get_associated_proposal_address(
+        program_id,
+        &author_pubkey,
+        &settings_pubkey,
+        event_timestamp,
+        event_transaction_lt,
+        &event_configuration,
+    );
 
     let data = TokenProxyInstruction::WithdrawRequest {
         event_timestamp,
