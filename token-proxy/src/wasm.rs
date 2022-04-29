@@ -315,6 +315,110 @@ pub fn withdrawal_sol_ix(
     return JsValue::from_serde(&ix).unwrap();
 }
 
+#[wasm_bindgen(js_name = "depositEver")]
+pub fn deposit_ever_ix(
+    authority_pubkey: String,
+    name: String,
+    deposit_seed: String,
+    recipient_address: String,
+    amount: u64,
+) -> JsValue {
+    let program_id = &id();
+
+    let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).unwrap();
+
+    let settings_pubkey = get_associated_settings_address(program_id, &name);
+
+    let deposit_seed = u128::from_str(&deposit_seed).unwrap();
+
+    let deposit_pubkey = get_associated_deposit_address(program_id, deposit_seed,&settings_pubkey);
+
+    let mint_pubkey = get_associated_mint_address(program_id, &name);
+
+    let sender_pubkey =
+        spl_associated_token_account::get_associated_token_address(&authority_pubkey, &mint_pubkey);
+
+    let recipient_address = recipient_address.as_bytes().try_into().unwrap();
+
+    let data = TokenProxyInstruction::DepositEver {
+        deposit_seed,
+        recipient_address: EverAddress::with_standart(0, recipient_address),
+        amount,
+    }
+        .try_to_vec()
+        .expect("pack");
+
+    let ix = Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(authority_pubkey, true),
+            AccountMeta::new(sender_pubkey, false),
+            AccountMeta::new(deposit_pubkey, false),
+            AccountMeta::new_readonly(mint_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+            AccountMeta::new_readonly(spl_token::id(), false),
+            AccountMeta::new_readonly(sysvar::rent::id(), false),
+        ],
+        data,
+    };
+
+    return JsValue::from_serde(&ix).unwrap();
+}
+
+#[wasm_bindgen(js_name = "depositSol")]
+pub fn deposit_sol_ix(
+    authority_pubkey: String,
+    name: String,
+    deposit_seed: String,
+    recipient_address: String,
+    amount: u64,
+) -> JsValue {
+    let program_id = &id();
+
+    let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).unwrap();
+
+    let vault_pubkey = get_associated_vault_address(program_id, &name);
+    let settings_pubkey = get_associated_settings_address(program_id, &name);
+
+    let deposit_seed = u128::from_str(&deposit_seed).unwrap();
+
+    let deposit_pubkey = get_associated_deposit_address(program_id, deposit_seed,&settings_pubkey);
+
+    let mint_pubkey = get_associated_mint_address(program_id, &name);
+
+    let sender_pubkey =
+        spl_associated_token_account::get_associated_token_address(&authority_pubkey, &mint_pubkey);
+
+    let recipient_address = recipient_address.as_bytes().try_into().unwrap();
+
+    let data = TokenProxyInstruction::DepositSol {
+        deposit_seed,
+        recipient_address: EverAddress::with_standart(0, recipient_address),
+        amount,
+    }
+        .try_to_vec()
+        .expect("pack");
+
+    let ix = Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(authority_pubkey, true),
+            AccountMeta::new(sender_pubkey, false),
+            AccountMeta::new(vault_pubkey, false),
+            AccountMeta::new(deposit_pubkey, false),
+            AccountMeta::new_readonly(mint_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+            AccountMeta::new_readonly(spl_token::id(), false),
+            AccountMeta::new_readonly(sysvar::rent::id(), false),
+        ],
+        data,
+    };
+
+    return JsValue::from_serde(&ix).unwrap();
+}
+
 #[wasm_bindgen(js_name = "voteForWithdrawRequest")]
 pub fn vote_for_withdraw_request_ix(
     authority_pubkey: String,
