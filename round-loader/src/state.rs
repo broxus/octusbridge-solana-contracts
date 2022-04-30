@@ -7,6 +7,9 @@ use solana_program::program_error::ProgramError;
 use solana_program::program_pack::{IsInitialized, Pack, Sealed};
 use solana_program::pubkey::{Pubkey, PUBKEY_BYTES};
 
+/// Minimum Relays in round
+pub const MIN_RELAYS: usize = 3;
+
 /// Maximum Relays in round
 pub const MAX_RELAYS: usize = 100;
 
