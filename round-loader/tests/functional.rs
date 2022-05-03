@@ -142,17 +142,19 @@ async fn test_create_proposal() {
     let relays = vec![Keypair::new(), Keypair::new(), Keypair::new()];
 
     let settings_address = get_settings_address();
-    let setting_data = Settings {
+    let settings_account_data = Settings {
         is_initialized: true,
         account_kind: AccountKind::Settings,
         round_number,
     };
 
+    let mut settings_packed = vec![0; Settings::LEN];
+    Settings::pack(settings_account_data, &mut settings_packed).unwrap();
     program_test.add_account(
         settings_address,
         Account {
             lamports: Rent::default().minimum_balance(Settings::LEN),
-            data: setting_data.try_to_vec().expect("try_to_vec"),
+            data: settings_packed,
             owner: round_loader::id(),
             executable: false,
             rent_epoch: 0,
@@ -208,11 +210,7 @@ async fn test_create_proposal() {
         .expect("process_transaction");
 
     // Write Proposal
-    let new_relays = vec![
-        Pubkey::new_unique(),
-        Pubkey::new_unique(),
-        Pubkey::new_unique(),
-    ];
+    let new_relays = vec![Pubkey::new_unique(); 100];
     let new_round_number = round_number + 1;
     let new_round_end = 1759950990;
     let write_data =

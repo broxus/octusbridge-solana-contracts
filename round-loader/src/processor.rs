@@ -388,7 +388,7 @@ impl Processor {
         proposal.round_number = round_number;
         proposal.required_votes = required_votes;
         proposal.pda = pda;
-        proposal.signers = vec![Vote::None; proposal.event.data.relays.len()];
+        proposal.signers = vec![Vote::None; relay_round_account_data.relays.len()];
 
         proposal.meta = RelayRoundProposalMetaWithLen::default();
 
@@ -417,7 +417,9 @@ impl Processor {
             return Err(ProgramError::InvalidArgument);
         }
 
-        let mut proposal_account_data = Proposal::unpack(&proposal_account_info.data.borrow())?;
+        let mut proposal_account_data =
+            Proposal::unpack_from_slice(&proposal_account_info.data.borrow())?;
+
         let author = proposal_account_data.pda.author;
         let settings = proposal_account_data.pda.settings;
         let event_timestamp = proposal_account_data.pda.event_timestamp;
@@ -453,10 +455,7 @@ impl Processor {
             .ok_or(RoundLoaderError::InvalidRelay)?;
         proposal_account_data.signers[index] = vote;
 
-        Proposal::pack(
-            proposal_account_data,
-            &mut proposal_account_info.data.borrow_mut(),
-        )?;
+        proposal_account_data.pack_into_slice(&mut proposal_account_info.data.borrow_mut());
 
         Ok(())
     }

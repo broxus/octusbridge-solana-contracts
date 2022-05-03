@@ -24,6 +24,8 @@ pub enum TokenProxyError {
     RelayAlreadyVoted,
     #[error("Arithmetics error")]
     ArithmeticsError,
+    #[error("Token name is too long")]
+    TokenNameLenLimit,
 }
 
 impl From<TokenProxyError> for ProgramError {

@@ -9,6 +9,7 @@ use solana_program::program_error::ProgramError;
 use solana_program::program_pack::{IsInitialized, Pack, Sealed};
 use solana_program::pubkey::{Pubkey, PUBKEY_BYTES};
 
+pub const MAX_NAME_LEN: usize = 10;
 pub const WITHDRAWAL_TOKEN_PERIOD: i64 = 86400;
 
 const WITHDRAWAL_TOKEN_EVENT_LEN: usize = 8 // amount
@@ -26,7 +27,7 @@ const DEPOSIT_TOKEN_EVENT_LEN: usize = 8    // amount
 ;
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
-#[bridge_pack(length = 500)]
+#[bridge_pack(length = 300)] // 154 + reserve
 pub struct Settings {
     pub is_initialized: bool,
     pub account_kind: AccountKind,
@@ -50,7 +51,7 @@ impl IsInitialized for Settings {
 }
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
-#[bridge_pack(length = 5000)]
+#[bridge_pack(length = 1)]
 pub struct Deposit {
     pub is_initialized: bool,
     pub account_kind: AccountKind,
@@ -66,7 +67,7 @@ impl IsInitialized for Deposit {
 }
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
-#[bridge_pack(length = 5000)]
+#[bridge_pack(length = 80)]
 pub struct DepositToken {
     pub is_initialized: bool,
     pub account_kind: AccountKind,
@@ -108,7 +109,7 @@ impl DepositTokenEventWithLen {
 }
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
-#[bridge_pack(length = 5000)]
+#[bridge_pack(length = 313)]
 pub struct WithdrawalToken {
     pub is_initialized: bool,
     pub account_kind: AccountKind,

@@ -1,6 +1,6 @@
 #![cfg(feature = "test-bpf")]
 
-use bridge_utils::state::{AccountKind, Proposal, PDA};
+use bridge_utils::state::{AccountKind, PDA};
 use bridge_utils::types::{EverAddress, Vote};
 
 use solana_program::bpf_loader_upgradeable::UpgradeableLoaderState;
@@ -753,7 +753,8 @@ async fn test_withdrawal_request() {
         .expect("get_account")
         .expect("account");
 
-    let withdrawal_data = WithdrawalToken::unpack(withdrawal_info.data()).expect("mint unpack");
+    let withdrawal_data =
+        WithdrawalToken::unpack(withdrawal_info.data()).expect("withdrawal token unpack");
 
     assert_eq!(withdrawal_data.is_initialized, true);
 
@@ -925,7 +926,7 @@ async fn test_vote_for_withdrawal_request() {
         .expect("get_account")
         .expect("account");
 
-    let withdrawal_data = Proposal::unpack(withdrawal_info.data()).expect("mint unpack");
+    let withdrawal_data = WithdrawalToken::unpack(withdrawal_info.data()).expect("mint unpack");
     assert_eq!(withdrawal_data.signers.len(), relays.len());
     for (i, _) in relays.iter().enumerate() {
         assert_eq!(withdrawal_data.signers[i], Vote::Confirm);

@@ -222,6 +222,10 @@ impl Processor {
             programdata_account_info,
         )?;
 
+        if name.len() > MAX_NAME_LEN {
+            return Err(TokenProxyError::TokenNameLenLimit.into());
+        }
+
         // Validate Mint Account
         let mint_nonce = validate_mint_account(program_id, &name, mint_account_info)?;
         let mint_account_signer_seeds: &[&[_]] = &[br"mint", name.as_bytes(), &[mint_nonce]];
@@ -510,8 +514,8 @@ impl Processor {
             &system_instruction::create_account(
                 creator_account_info.key,
                 deposit_account_info.key,
-                1.max(rent.minimum_balance(Deposit::LEN)),
-                Deposit::LEN as u64,
+                1.max(rent.minimum_balance(DepositToken::LEN)),
+                DepositToken::LEN as u64,
                 program_id,
             ),
             &[
@@ -642,8 +646,8 @@ impl Processor {
             &system_instruction::create_account(
                 creator_account_info.key,
                 deposit_account_info.key,
-                1.max(rent.minimum_balance(Deposit::LEN)),
-                Deposit::LEN as u64,
+                1.max(rent.minimum_balance(DepositToken::LEN)),
+                DepositToken::LEN as u64,
                 program_id,
             ),
             &[
@@ -815,7 +819,9 @@ impl Processor {
             return Err(ProgramError::InvalidArgument);
         }
 
-        let mut withdrawal_account_data = Proposal::unpack(&withdrawal_account_info.data.borrow())?;
+        let mut withdrawal_account_data =
+            Proposal::unpack_from_slice(&withdrawal_account_info.data.borrow())?;
+
         let author = withdrawal_account_data.pda.author;
         let settings = withdrawal_account_data.pda.settings;
         let event_timestamp = withdrawal_account_data.pda.event_timestamp;
@@ -855,10 +861,7 @@ impl Processor {
             .ok_or(TokenProxyError::InvalidRelay)?;
         withdrawal_account_data.signers[index] = vote;
 
-        Proposal::pack(
-            withdrawal_account_data,
-            &mut withdrawal_account_info.data.borrow_mut(),
-        )?;
+        withdrawal_account_data.pack_into_slice(&mut withdrawal_account_info.data.borrow_mut());
 
         Ok(())
     }
@@ -1420,8 +1423,8 @@ impl Processor {
             &system_instruction::create_account(
                 author_account_info.key,
                 new_deposit_account_info.key,
-                1.max(rent.minimum_balance(Deposit::LEN)),
-                Deposit::LEN as u64,
+                1.max(rent.minimum_balance(DepositToken::LEN)),
+                DepositToken::LEN as u64,
                 program_id,
             ),
             &[
@@ -1681,8 +1684,8 @@ impl Processor {
             &system_instruction::create_account(
                 author_account_info.key,
                 new_deposit_account_info.key,
-                1.max(rent.minimum_balance(Deposit::LEN)),
-                Deposit::LEN as u64,
+                1.max(rent.minimum_balance(DepositToken::LEN)),
+                DepositToken::LEN as u64,
                 program_id,
             ),
             &[

@@ -1,15 +1,12 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use bridge_derive::BridgePack;
 use serde::{Deserialize, Serialize};
 
 use solana_program::program_error::ProgramError;
-use solana_program::program_pack::{IsInitialized, Pack, Sealed};
 use solana_program::pubkey::Pubkey;
 
 use super::types::Vote;
 
-#[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
-#[bridge_pack(length = 5000)]
+#[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub struct Proposal {
     pub is_initialized: bool,
     pub account_kind: AccountKind,
@@ -21,11 +18,16 @@ pub struct Proposal {
     pub signers: Vec<Vote>,
 }
 
-impl Sealed for Proposal {}
+impl Proposal {
+    pub fn pack_into_slice(&self, dst: &mut [u8]) {
+        let data = self.try_to_vec().unwrap();
+        let (left, _) = dst.split_at_mut(data.len());
+        left.copy_from_slice(&data);
+    }
 
-impl IsInitialized for Proposal {
-    fn is_initialized(&self) -> bool {
-        self.is_initialized
+    pub fn unpack_from_slice(mut src: &[u8]) -> Result<Self, ProgramError> {
+        let unpacked = Self::deserialize(&mut src)?;
+        Ok(unpacked)
     }
 }
 
