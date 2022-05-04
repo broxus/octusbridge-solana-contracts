@@ -1,7 +1,7 @@
 #![cfg(feature = "test-bpf")]
 
 use bridge_utils::state::{AccountKind, PDA};
-use bridge_utils::types::{EverAddress, Vote};
+use bridge_utils::types::{EverAddress, Vote, RELAY_REPARATION};
 
 use solana_program::bpf_loader_upgradeable::UpgradeableLoaderState;
 use solana_program::rent::Rent;
@@ -823,8 +823,21 @@ async fn test_vote_for_withdrawal_request() {
         },
     );
 
-    // Add Relay Round Account
+    // Add Relays Accounts
     let relays = vec![Keypair::new(), Keypair::new(), Keypair::new()];
+    let relay_init_lamports = 100000;
+    for relay in &relays {
+        program_test.add_account(
+            relay.pubkey(),
+            Account {
+                lamports: relay_init_lamports,
+                data: vec![],
+                owner: solana_program::system_program::id(),
+                executable: false,
+                rent_epoch: 0,
+            },
+        );
+    }
 
     let round_number = 12;
     let relay_round_address =
@@ -890,7 +903,7 @@ async fn test_vote_for_withdrawal_request() {
     program_test.add_account(
         withdrawal_address,
         Account {
-            lamports: Rent::default().minimum_balance(WithdrawalToken::LEN),
+            lamports: Rent::default().minimum_balance(WithdrawalToken::LEN) + RELAY_REPARATION * 3,
             data: withdrawal_packed,
             owner: token_proxy::id(),
             executable: false,
@@ -930,6 +943,21 @@ async fn test_vote_for_withdrawal_request() {
     assert_eq!(withdrawal_data.signers.len(), relays.len());
     for (i, _) in relays.iter().enumerate() {
         assert_eq!(withdrawal_data.signers[i], Vote::Confirm);
+    }
+
+    assert_eq!(
+        withdrawal_info.lamports,
+        Rent::default().minimum_balance(WithdrawalToken::LEN)
+    );
+
+    for relay in &relays {
+        let relay_info = banks_client
+            .get_account(relay.pubkey())
+            .await
+            .expect("get_account")
+            .expect("account");
+
+        assert_eq!(relay_info.lamports, relay_init_lamports + RELAY_REPARATION);
     }
 }
 

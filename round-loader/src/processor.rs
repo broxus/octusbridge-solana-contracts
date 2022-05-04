@@ -1,11 +1,11 @@
 use borsh::BorshDeserialize;
 use bridge_utils::state::{AccountKind, Proposal, PDA};
-use bridge_utils::types::Vote;
+use bridge_utils::types::{Vote, RELAY_REPARATION};
 
 use solana_program::account_info::{next_account_info, AccountInfo};
 use solana_program::clock::Clock;
 use solana_program::entrypoint::ProgramResult;
-use solana_program::program::invoke_signed;
+use solana_program::program::{invoke, invoke_signed};
 use solana_program::program_error::ProgramError;
 use solana_program::program_pack::Pack;
 use solana_program::pubkey::Pubkey;
@@ -320,6 +320,7 @@ impl Processor {
         let proposal_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
         let relay_round_account_info = next_account_info(account_info_iter)?;
+        let system_program_info = next_account_info(account_info_iter)?;
 
         let clock_info = next_account_info(account_info_iter)?;
         let clock = Clock::from_account_info(clock_info)?;
@@ -394,6 +395,20 @@ impl Processor {
 
         RelayRoundProposal::pack(proposal, &mut proposal_account_info.data.borrow_mut())?;
 
+        // Send voting reparation for Relay to withdrawal account
+        invoke(
+            &system_instruction::transfer(
+                creator_account_info.key,
+                proposal_account_info.key,
+                RELAY_REPARATION * relay_round_account_data.relays.len() as u64,
+            ),
+            &[
+                creator_account_info.clone(),
+                proposal_account_info.clone(),
+                system_program_info.clone(),
+            ],
+        )?;
+
         Ok(())
     }
 
@@ -456,6 +471,10 @@ impl Processor {
         proposal_account_data.signers[index] = vote;
 
         proposal_account_data.pack_into_slice(&mut proposal_account_info.data.borrow_mut());
+
+        // Get back voting reparation to Relay
+        **proposal_account_info.try_borrow_mut_lamports()? -= RELAY_REPARATION;
+        **voter_account_info.try_borrow_mut_lamports()? += RELAY_REPARATION;
 
         Ok(())
     }

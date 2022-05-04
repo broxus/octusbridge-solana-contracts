@@ -139,7 +139,21 @@ async fn test_create_proposal() {
     let round_number = 0;
     let round_end = 1759950985;
 
+    // Add Relays Accounts
     let relays = vec![Keypair::new(), Keypair::new(), Keypair::new()];
+    let relay_init_lamports = 100000;
+    for relay in &relays {
+        program_test.add_account(
+            relay.pubkey(),
+            Account {
+                lamports: relay_init_lamports,
+                data: vec![],
+                owner: solana_program::system_program::id(),
+                executable: false,
+                rent_epoch: 0,
+            },
+        );
+    }
 
     let settings_address = get_settings_address();
     let settings_account_data = Settings {

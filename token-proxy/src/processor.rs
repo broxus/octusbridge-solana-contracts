@@ -1,6 +1,6 @@
 use borsh::BorshDeserialize;
 use bridge_utils::state::{AccountKind, Proposal, PDA};
-use bridge_utils::types::{EverAddress, Vote};
+use bridge_utils::types::{EverAddress, Vote, RELAY_REPARATION};
 use round_loader::RelayRound;
 
 use solana_program::account_info::{next_account_info, AccountInfo};
@@ -796,6 +796,20 @@ impl Processor {
             &mut withdrawal_account_info.data.borrow_mut(),
         )?;
 
+        // Send voting reparation for Relay to withdrawal account
+        invoke(
+            &system_instruction::transfer(
+                author_account_info.key,
+                withdrawal_account_info.key,
+                RELAY_REPARATION * relay_round_account_data.relays.len() as u64,
+            ),
+            &[
+                author_account_info.clone(),
+                withdrawal_account_info.clone(),
+                system_program_info.clone(),
+            ],
+        )?;
+
         Ok(())
     }
 
@@ -862,6 +876,10 @@ impl Processor {
         withdrawal_account_data.signers[index] = vote;
 
         withdrawal_account_data.pack_into_slice(&mut withdrawal_account_info.data.borrow_mut());
+
+        // Get back voting reparation to Relay
+        **withdrawal_account_info.try_borrow_mut_lamports()? -= RELAY_REPARATION;
+        **relay_account_info.try_borrow_mut_lamports()? += RELAY_REPARATION;
 
         Ok(())
     }

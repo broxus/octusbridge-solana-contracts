@@ -243,11 +243,7 @@ pub fn approve_withdrawal_sol_ix(
 }
 
 #[wasm_bindgen(js_name = "withdrawalEver")]
-pub fn withdrawal_ever_ix(
-    to_pubkey: String,
-    name: String,
-    withdrawal_pubkey: String,
-) -> JsValue {
+pub fn withdrawal_ever_ix(to_pubkey: String, name: String, withdrawal_pubkey: String) -> JsValue {
     let program_id = &id();
 
     let to_pubkey = Pubkey::from_str(to_pubkey.as_str()).unwrap();
@@ -279,11 +275,7 @@ pub fn withdrawal_ever_ix(
 }
 
 #[wasm_bindgen(js_name = "withdrawalSol")]
-pub fn withdrawal_sol_ix(
-    to_pubkey: String,
-    name: String,
-    withdrawal_pubkey: String,
-) -> JsValue {
+pub fn withdrawal_sol_ix(to_pubkey: String, name: String, withdrawal_pubkey: String) -> JsValue {
     let program_id = &id();
     let to_pubkey = Pubkey::from_str(to_pubkey.as_str()).unwrap();
 
@@ -331,7 +323,7 @@ pub fn deposit_ever_ix(
 
     let deposit_seed = u128::from_str(&deposit_seed).unwrap();
 
-    let deposit_pubkey = get_associated_deposit_address(program_id, deposit_seed,&settings_pubkey);
+    let deposit_pubkey = get_associated_deposit_address(program_id, deposit_seed, &settings_pubkey);
 
     let mint_pubkey = get_associated_mint_address(program_id, &name);
 
@@ -345,8 +337,8 @@ pub fn deposit_ever_ix(
         recipient_address: EverAddress::with_standart(0, recipient_address),
         amount,
     }
-        .try_to_vec()
-        .expect("pack");
+    .try_to_vec()
+    .expect("pack");
 
     let ix = Instruction {
         program_id: id(),
@@ -383,7 +375,7 @@ pub fn deposit_sol_ix(
 
     let deposit_seed = u128::from_str(&deposit_seed).unwrap();
 
-    let deposit_pubkey = get_associated_deposit_address(program_id, deposit_seed,&settings_pubkey);
+    let deposit_pubkey = get_associated_deposit_address(program_id, deposit_seed, &settings_pubkey);
 
     let mint_pubkey = get_associated_mint_address(program_id, &name);
 
@@ -397,8 +389,8 @@ pub fn deposit_sol_ix(
         recipient_address: EverAddress::with_standart(0, recipient_address),
         amount,
     }
-        .try_to_vec()
-        .expect("pack");
+    .try_to_vec()
+    .expect("pack");
 
     let ix = Instruction {
         program_id: id(),

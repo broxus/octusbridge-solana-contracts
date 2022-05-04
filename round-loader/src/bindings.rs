@@ -190,6 +190,7 @@ pub fn finalize_proposal_ix(
             AccountMeta::new(proposal_pubkey, false),
             AccountMeta::new_readonly(settings_pubkey, false),
             AccountMeta::new_readonly(relay_round_pubkey, false),
+            AccountMeta::new_readonly(system_program::id(), false),
             AccountMeta::new_readonly(sysvar::clock::id(), false),
         ],
         data,
