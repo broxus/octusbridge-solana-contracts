@@ -25,10 +25,10 @@ pub const LOAD_DATA_BEGIN_OFFSET: usize = 1 // is_executed
 ;
 
 pub const LOAD_DATA_END_OFFSET: usize = LOAD_DATA_BEGIN_OFFSET
-    + 4                             // relays len
-    + 4                             // round_num
-    + 4 + PUBKEY_BYTES * MAX_RELAYS // relays
-    + 4                             // round_end
+    + 4                                         // relays len
+    + 4                                         // round_num
+    + 4 + (4 + PUBKEY_BYTES) * MAX_RELAYS       // relays
+    + 4                                         // round_end
 ;
 
 const RELAY_ROUND_PROPOSAL_META_LEN: usize = 1  // is_executed
@@ -69,7 +69,7 @@ impl IsInitialized for RelayRound {
 }
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
-#[bridge_pack(length = 3443)]
+#[bridge_pack(length = 3843)]
 pub struct RelayRoundProposal {
     pub is_initialized: bool,
     pub account_kind: AccountKind,
@@ -92,7 +92,7 @@ impl IsInitialized for RelayRoundProposal {
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub struct RelayRoundProposalEvent {
     pub round_num: u32,
-    pub relays: Vec<Pubkey>,
+    pub relays: Vec<Vec<u8>>,
     pub round_end: u32,
 }
 
@@ -104,12 +104,17 @@ pub struct RelayRoundProposalEventWithLen {
 
 impl RelayRoundProposalEventWithLen {
     pub fn new(round_num: u32, relays: Vec<Pubkey>, round_end: u32) -> Result<Self, ProgramError> {
+        let relays = relays
+            .into_iter()
+            .map(|relay| relay.to_bytes().to_vec())
+            .collect::<Vec<Vec<u8>>>();
+
         Ok(Self {
-            len: 4 + relays.try_to_vec()?.len() as u32 + 4,
+            len: 4 + 4 + relays.try_to_vec()?.len() as u32,
             data: RelayRoundProposalEvent {
                 round_num,
-                relays,
                 round_end,
+                relays,
             },
         })
     }

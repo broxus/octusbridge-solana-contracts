@@ -289,7 +289,13 @@ async fn test_create_proposal() {
 
     assert_eq!(proposal_data.signers, vec![Vote::None; relays.len()]);
 
-    assert_eq!(proposal_data.event.data.relays, new_relays);
+    assert_eq!(
+        proposal_data.event.data.relays,
+        new_relays
+            .iter()
+            .map(|relay| relay.to_bytes().to_vec())
+            .collect::<Vec<Vec<u8>>>()
+    );
     assert_eq!(proposal_data.event.data.round_end, new_round_end);
 
     assert_eq!(proposal_data.meta.data.is_executed, false);

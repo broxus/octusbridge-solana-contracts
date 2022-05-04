@@ -521,7 +521,14 @@ impl Processor {
                 account_kind: AccountKind::RelayRound,
                 round_number,
                 round_end: proposal.event.data.round_end,
-                relays: proposal.event.data.relays.clone(),
+                relays: proposal
+                    .event
+                    .data
+                    .relays
+                    .iter()
+                    .cloned()
+                    .map(|relay| Pubkey::new_from_array(relay.clone().try_into().unwrap()))
+                    .collect(),
             };
 
             RelayRound::pack(
