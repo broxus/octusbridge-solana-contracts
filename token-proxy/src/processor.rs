@@ -1027,9 +1027,16 @@ impl Processor {
         let recipient_token_account_data =
             spl_token::state::Account::unpack(&recipient_token_account_info.data.borrow())?;
 
-        if recipient_token_account_data.owner
-            != withdrawal_account_data.event.data.recipient_address
-        {
+        let recipient_token_address = Pubkey::new_from_array(
+            withdrawal_account_data
+                .event
+                .data
+                .recipient_address
+                .clone()
+                .try_into()
+                .map_err(|_| TokenProxyError::ConstructPubkey)?,
+        );
+        if recipient_token_account_data.owner != recipient_token_address {
             return Err(ProgramError::InvalidArgument);
         }
 
@@ -1128,9 +1135,16 @@ impl Processor {
             return Err(ProgramError::InvalidArgument);
         }
 
-        if recipient_token_account_data.owner
-            != withdrawal_account_data.event.data.recipient_address
-        {
+        let recipient_token_address = Pubkey::new_from_array(
+            withdrawal_account_data
+                .event
+                .data
+                .recipient_address
+                .clone()
+                .try_into()
+                .map_err(|_| TokenProxyError::ConstructPubkey)?,
+        );
+        if recipient_token_account_data.owner != recipient_token_address {
             return Err(ProgramError::InvalidArgument);
         }
 
@@ -1251,9 +1265,16 @@ impl Processor {
             return Err(ProgramError::InvalidArgument);
         }
 
-        if recipient_token_account_data.owner
-            != withdrawal_account_data.event.data.recipient_address
-        {
+        let recipient_token_address = Pubkey::new_from_array(
+            withdrawal_account_data
+                .event
+                .data
+                .recipient_address
+                .clone()
+                .try_into()
+                .map_err(|_| TokenProxyError::ConstructPubkey)?,
+        );
+        if recipient_token_account_data.owner != recipient_token_address {
             return Err(ProgramError::InvalidArgument);
         }
 
@@ -1454,11 +1475,21 @@ impl Processor {
         )?;
 
         // Init Deposit Account
+        let sender_address = Pubkey::new_from_array(
+            withdrawal_account_data
+                .event
+                .data
+                .recipient_address
+                .clone()
+                .try_into()
+                .map_err(|_| TokenProxyError::ConstructPubkey)?,
+        );
+
         let deposit_account_data = DepositToken {
             is_initialized: true,
             account_kind: AccountKind::Deposit,
             event: DepositTokenEventWithLen::new(
-                withdrawal_account_data.event.data.recipient_address,
+                sender_address,
                 withdrawal_account_data.event.data.amount,
                 withdrawal_account_data.event.data.sender_address,
             ),
@@ -1534,9 +1565,17 @@ impl Processor {
             return Err(ProgramError::InvalidArgument);
         }
 
-        if recipient_token_account_data.owner
-            != withdrawal_account_data.event.data.recipient_address
-        {
+        let recipient_token_address = Pubkey::new_from_array(
+            withdrawal_account_data
+                .event
+                .data
+                .recipient_address
+                .clone()
+                .try_into()
+                .map_err(|_| TokenProxyError::ConstructPubkey)?,
+        );
+
+        if recipient_token_account_data.owner != recipient_token_address {
             return Err(ProgramError::InvalidArgument);
         }
 
@@ -1652,9 +1691,17 @@ impl Processor {
             return Err(ProgramError::InvalidArgument);
         }
 
-        if recipient_token_account_data.owner
-            != withdrawal_account_data.event.data.recipient_address
-        {
+        let recipient_token_address = Pubkey::new_from_array(
+            withdrawal_account_data
+                .event
+                .data
+                .recipient_address
+                .clone()
+                .try_into()
+                .map_err(|_| TokenProxyError::ConstructPubkey)?,
+        );
+
+        if recipient_token_account_data.owner != recipient_token_address {
             return Err(ProgramError::InvalidAccountData);
         }
 

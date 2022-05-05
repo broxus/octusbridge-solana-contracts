@@ -26,6 +26,8 @@ pub enum TokenProxyError {
     ArithmeticsError,
     #[error("Token name is too long")]
     TokenNameLenLimit,
+    #[error("Failed to construct public key")]
+    ConstructPubkey,
 }
 
 impl From<TokenProxyError> for ProgramError {
