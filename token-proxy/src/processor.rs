@@ -1,5 +1,5 @@
 use borsh::BorshDeserialize;
-use bridge_utils::state::{AccountKind, Proposal, PDA};
+use bridge_utils::state::{Proposal, PDA};
 use bridge_utils::types::{EverAddress, Vote, RELAY_REPARATION};
 use round_loader::RelayRound;
 
@@ -289,7 +289,6 @@ impl Processor {
         // Init Settings Account
         let settings_account_data = Settings {
             is_initialized: true,
-            account_kind: AccountKind::Settings,
             emergency: false,
             kind: TokenKind::Ever {
                 mint: *mint_account_info.key,
@@ -411,7 +410,6 @@ impl Processor {
         // Init Settings Account
         let settings_account_data = Settings {
             is_initialized: true,
-            account_kind: AccountKind::Settings,
             emergency: false,
             kind: TokenKind::Solana {
                 mint: *mint_account_info.key,
@@ -529,7 +527,6 @@ impl Processor {
         // Init Deposit Account
         let deposit_account_data = DepositToken {
             is_initialized: true,
-            account_kind: AccountKind::Deposit,
             event: DepositTokenEventWithLen::new(
                 *creator_account_info.key,
                 amount,
@@ -661,7 +658,6 @@ impl Processor {
         // Init Deposit Account
         let deposit_account_data = DepositToken {
             is_initialized: true,
-            account_kind: AccountKind::Deposit,
             event: DepositTokenEventWithLen::new(
                 *creator_account_info.key,
                 amount,
@@ -778,7 +774,6 @@ impl Processor {
             is_initialized: true,
             round_number,
             required_votes,
-            account_kind: AccountKind::Proposal,
             event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address)?,
             meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::New, 0),
             signers: vec![Vote::None; relay_round_account_data.relays.len()],
@@ -1487,7 +1482,6 @@ impl Processor {
 
         let deposit_account_data = DepositToken {
             is_initialized: true,
-            account_kind: AccountKind::Deposit,
             event: DepositTokenEventWithLen::new(
                 sender_address,
                 withdrawal_account_data.event.data.amount,
@@ -1764,7 +1758,6 @@ impl Processor {
         // Init Deposit Account
         let deposit_account_data = DepositToken {
             is_initialized: true,
-            account_kind: AccountKind::Deposit,
             event: DepositTokenEventWithLen::new(
                 *author_account_info.key,
                 withdrawal_account_data.event.data.amount,

@@ -1,5 +1,5 @@
 use borsh::BorshDeserialize;
-use bridge_utils::state::{AccountKind, Proposal, PDA};
+use bridge_utils::state::{Proposal, PDA};
 use bridge_utils::types::{Vote, RELAY_REPARATION};
 
 use solana_program::account_info::{next_account_info, AccountInfo};
@@ -146,7 +146,6 @@ impl Processor {
         // Init Settings Account
         let settings_account_data = Settings {
             is_initialized: true,
-            account_kind: AccountKind::Settings,
             round_number,
         };
 
@@ -181,7 +180,6 @@ impl Processor {
         // Init Relay Round Account
         let relay_round_account_data = RelayRound {
             is_initialized: true,
-            account_kind: AccountKind::RelayRound,
             round_number,
             round_end,
             relays,
@@ -385,7 +383,6 @@ impl Processor {
         };
 
         proposal.is_initialized = true;
-        proposal.account_kind = AccountKind::Proposal;
         proposal.round_number = round_number;
         proposal.required_votes = required_votes;
         proposal.pda = pda;
@@ -537,7 +534,6 @@ impl Processor {
             // Init a new Relay Round Account
             let relay_round_account_data = RelayRound {
                 is_initialized: true,
-                account_kind: AccountKind::RelayRound,
                 round_number,
                 round_end: proposal.event.data.round_end,
                 relays: proposal

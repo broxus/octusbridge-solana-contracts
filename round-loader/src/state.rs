@@ -1,6 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use bridge_derive::BridgePack;
-use bridge_utils::state::{AccountKind, PDA};
+use bridge_utils::state::PDA;
 use bridge_utils::types::Vote;
 
 use solana_program::program_error::ProgramError;
@@ -14,7 +14,6 @@ pub const MIN_RELAYS: usize = 3;
 pub const MAX_RELAYS: usize = 100;
 
 pub const LOAD_DATA_BEGIN_OFFSET: usize = 1 // is_executed
-    + 1                                     // account_kind
     + 4                                     // round_number
     + 4                                     // required_votes
     + PUBKEY_BYTES                          // author
@@ -35,10 +34,9 @@ const RELAY_ROUND_PROPOSAL_META_LEN: usize = 1  // is_executed
 ;
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
-#[bridge_pack(length = 50)] // 6 + reserve
+#[bridge_pack(length = 50)] // 5 + reserve
 pub struct Settings {
     pub is_initialized: bool,
-    pub account_kind: AccountKind,
     pub round_number: u32,
 }
 
@@ -51,10 +49,9 @@ impl IsInitialized for Settings {
 }
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
-#[bridge_pack(length = 3214)]
+#[bridge_pack(length = 3213)]
 pub struct RelayRound {
     pub is_initialized: bool,
-    pub account_kind: AccountKind,
     pub round_number: u32,
     pub round_end: u32,
     pub relays: Vec<Pubkey>,
@@ -69,10 +66,9 @@ impl IsInitialized for RelayRound {
 }
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
-#[bridge_pack(length = 3843)]
+#[bridge_pack(length = 3842)]
 pub struct RelayRoundProposal {
     pub is_initialized: bool,
-    pub account_kind: AccountKind,
     pub round_number: u32,
     pub required_votes: u32,
     pub pda: PDA,

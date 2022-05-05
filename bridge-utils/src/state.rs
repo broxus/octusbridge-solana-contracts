@@ -9,7 +9,6 @@ use super::types::Vote;
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub struct Proposal {
     pub is_initialized: bool,
-    pub account_kind: AccountKind,
     pub round_number: u32,
     pub required_votes: u32,
     pub pda: PDA,
@@ -38,14 +37,4 @@ pub struct PDA {
     pub event_timestamp: u32,
     pub event_transaction_lt: u64,
     pub event_configuration: Pubkey,
-}
-
-#[derive(
-    Debug, Copy, Clone, BorshSerialize, BorshDeserialize, Serialize, Deserialize, PartialEq, Eq,
-)]
-pub enum AccountKind {
-    Deposit,
-    Proposal,
-    Settings,
-    RelayRound,
 }

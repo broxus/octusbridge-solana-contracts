@@ -1,6 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use bridge_derive::BridgePack;
-use bridge_utils::state::{AccountKind, PDA};
+use bridge_utils::state::PDA;
 use bridge_utils::types::{EverAddress, Vote};
 use enum_as_inner::EnumAsInner;
 use serde::{Deserialize, Serialize};
@@ -27,10 +27,9 @@ const DEPOSIT_TOKEN_EVENT_LEN: usize = 8    // amount
 ;
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
-#[bridge_pack(length = 300)] // 154 + reserve
+#[bridge_pack(length = 300)] // 153 + reserve
 pub struct Settings {
     pub is_initialized: bool,
-    pub account_kind: AccountKind,
     pub name: String,
     pub kind: TokenKind,
     pub admin: Pubkey,
@@ -54,7 +53,6 @@ impl IsInitialized for Settings {
 #[bridge_pack(length = 1)]
 pub struct Deposit {
     pub is_initialized: bool,
-    pub account_kind: AccountKind,
     pub event: Vec<u8>,
 }
 
@@ -67,10 +65,9 @@ impl IsInitialized for Deposit {
 }
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
-#[bridge_pack(length = 84)]
+#[bridge_pack(length = 83)]
 pub struct DepositToken {
     pub is_initialized: bool,
-    pub account_kind: AccountKind,
     pub event: DepositTokenEventWithLen,
 }
 
@@ -109,10 +106,9 @@ impl DepositTokenEventWithLen {
 }
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
-#[bridge_pack(length = 317)]
+#[bridge_pack(length = 316)]
 pub struct WithdrawalToken {
     pub is_initialized: bool,
-    pub account_kind: AccountKind,
     pub round_number: u32,
     pub required_votes: u32,
     pub pda: PDA,
