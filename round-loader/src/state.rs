@@ -2,6 +2,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use bridge_derive::BridgePack;
 use bridge_utils::state::PDA;
 use bridge_utils::types::Vote;
+use serde::{Deserialize, Serialize};
 
 use solana_program::program_error::ProgramError;
 use solana_program::program_pack::{IsInitialized, Pack, Sealed};
@@ -85,14 +86,14 @@ impl IsInitialized for RelayRoundProposal {
     }
 }
 
-#[derive(Debug, BorshSerialize, BorshDeserialize)]
+#[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 pub struct RelayRoundProposalEvent {
     pub round_num: u32,
     pub relays: Vec<Vec<u8>>,
     pub round_end: u32,
 }
 
-#[derive(Debug, BorshSerialize, BorshDeserialize)]
+#[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 pub struct RelayRoundProposalEventWithLen {
     pub len: u32,
     pub data: RelayRoundProposalEvent,
@@ -116,12 +117,12 @@ impl RelayRoundProposalEventWithLen {
     }
 }
 
-#[derive(Debug, BorshSerialize, BorshDeserialize)]
+#[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 pub struct RelayRoundProposalMeta {
     pub is_executed: bool,
 }
 
-#[derive(Debug, BorshSerialize, BorshDeserialize)]
+#[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 pub struct RelayRoundProposalMetaWithLen {
     pub len: u32,
     pub data: RelayRoundProposalMeta,

@@ -3,6 +3,7 @@ use std::str::FromStr;
 use borsh::BorshSerialize;
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
+use wasm_bindgen::{JsCast, JsValue};
 
 use solana_program::instruction::{AccountMeta, Instruction};
 use solana_program::program_pack::Pack;
@@ -25,16 +26,16 @@ pub fn initialize_mint_ix(
     withdrawal_limit: u64,
     withdrawal_daily_limit: u64,
     admin: String,
-) -> JsValue {
+) -> Result<JsValue, JsValue> {
     let program_id = &id();
 
-    let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).unwrap();
-    let initializer_pubkey = Pubkey::from_str(initializer_pubkey.as_str()).unwrap();
-    let admin = Pubkey::from_str(admin.as_str()).unwrap();
+    let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
+    let initializer_pubkey = Pubkey::from_str(initializer_pubkey.as_str()).handle_error()?;
+    let admin = Pubkey::from_str(admin.as_str()).handle_error()?;
 
     let mint_pubkey = get_associated_mint_address(program_id, &name);
     let settings_pubkey = get_associated_settings_address(program_id, &name);
-    let program_data_pubkey = bridge_utils::helper::get_programdata_address(program_id);
+    let program_data_pubkey = get_programdata_address(program_id);
 
     let data = TokenProxyInstruction::InitializeMint {
         name,
@@ -45,7 +46,7 @@ pub fn initialize_mint_ix(
         admin,
     }
     .try_to_vec()
-    .expect("pack");
+    .handle_error()?;
 
     let ix = Instruction {
         program_id: id(),
@@ -62,7 +63,7 @@ pub fn initialize_mint_ix(
         data,
     };
 
-    return JsValue::from_serde(&ix).unwrap();
+    return JsValue::from_serde(&ix).handle_error();
 }
 
 #[wasm_bindgen(js_name = "initializeVault")]
@@ -75,17 +76,17 @@ pub fn initialize_vault_ix(
     withdrawal_limit: u64,
     withdrawal_daily_limit: u64,
     admin: String,
-) -> JsValue {
+) -> Result<JsValue, JsValue> {
     let program_id = &id();
 
-    let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).unwrap();
-    let initializer_pubkey = Pubkey::from_str(initializer_pubkey.as_str()).unwrap();
-    let mint_pubkey = Pubkey::from_str(mint_pubkey.as_str()).unwrap();
-    let admin = Pubkey::from_str(admin.as_str()).unwrap();
+    let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
+    let initializer_pubkey = Pubkey::from_str(initializer_pubkey.as_str()).handle_error()?;
+    let mint_pubkey = Pubkey::from_str(mint_pubkey.as_str()).handle_error()?;
+    let admin = Pubkey::from_str(admin.as_str()).handle_error()?;
 
     let vault_pubkey = get_associated_vault_address(program_id, &name);
     let settings_pubkey = get_associated_settings_address(program_id, &name);
-    let program_data_pubkey = bridge_utils::helper::get_programdata_address(program_id);
+    let program_data_pubkey = get_programdata_address(program_id);
 
     let data = TokenProxyInstruction::InitializeVault {
         name,
@@ -95,7 +96,7 @@ pub fn initialize_vault_ix(
         admin,
     }
     .try_to_vec()
-    .expect("pack");
+    .handle_error()?;
 
     let ix = Instruction {
         program_id: id(),
@@ -113,7 +114,7 @@ pub fn initialize_vault_ix(
         data,
     };
 
-    return JsValue::from_serde(&ix).unwrap();
+    return JsValue::from_serde(&ix).handle_error();
 }
 
 #[wasm_bindgen(js_name = "processWithdrawRequest")]
@@ -127,15 +128,16 @@ pub fn process_withdraw_request(
     recipient_address: String,
     amount: u64,
     round_number: u32,
-) -> JsValue {
+) -> Result<JsValue, JsValue> {
     let program_id = &id();
 
-    let author_pubkey = Pubkey::from_str(author_pubkey.as_str()).unwrap();
-    let recipient_address = Pubkey::from_str(recipient_address.as_str()).unwrap();
-    let event_configuration = Pubkey::from_str(event_configuration.as_str()).unwrap();
+    let author_pubkey = Pubkey::from_str(author_pubkey.as_str()).handle_error()?;
+    let recipient_address = Pubkey::from_str(recipient_address.as_str()).handle_error()?;
+    let event_configuration = Pubkey::from_str(event_configuration.as_str()).handle_error()?;
     let settings_pubkey = get_associated_settings_address(program_id, &name);
     let relay_round_pubkey = get_associated_relay_round_address(&round_loader::id(), round_number);
-    let sender_address = sender_address.as_bytes().try_into().unwrap();
+
+    let sender_address = EverAddress::from_str(&sender_address).handle_error()?;
 
     let withdrawal_pubkey = get_associated_proposal_address(
         program_id,
@@ -149,13 +151,13 @@ pub fn process_withdraw_request(
     let data = TokenProxyInstruction::WithdrawRequest {
         event_timestamp,
         event_transaction_lt,
-        sender_address: EverAddress::with_standart(0, sender_address),
+        sender_address,
         event_configuration,
         recipient_address,
         amount,
     }
     .try_to_vec()
-    .expect("pack");
+    .handle_error()?;
 
     let ix = Instruction {
         program_id: id(),
@@ -171,7 +173,7 @@ pub fn process_withdraw_request(
         data,
     };
 
-    return JsValue::from_serde(&ix).unwrap();
+    return JsValue::from_serde(&ix).handle_error();
 }
 
 #[wasm_bindgen(js_name = "approveWithdrawalEver")]
@@ -180,14 +182,14 @@ pub fn approve_withdrawal_ever_ix(
     to_pubkey: String,
     name: String,
     withdrawal_pubkey: String,
-) -> JsValue {
+) -> Result<JsValue, JsValue> {
     let program_id = &id();
 
-    let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).unwrap();
-    let to_pubkey = Pubkey::from_str(to_pubkey.as_str()).unwrap();
+    let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
+    let to_pubkey = Pubkey::from_str(to_pubkey.as_str()).handle_error()?;
 
     let settings_pubkey = get_associated_settings_address(program_id, &name);
-    let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).unwrap();
+    let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).handle_error()?;
 
     let mint_pubkey = get_associated_mint_address(program_id, &name);
     let recipient_pubkey =
@@ -195,7 +197,7 @@ pub fn approve_withdrawal_ever_ix(
 
     let data = TokenProxyInstruction::ApproveWithdrawEver
         .try_to_vec()
-        .expect("pack");
+        .handle_error()?;
 
     let ix = Instruction {
         program_id: id(),
@@ -210,7 +212,7 @@ pub fn approve_withdrawal_ever_ix(
         data,
     };
 
-    return JsValue::from_serde(&ix).unwrap();
+    return JsValue::from_serde(&ix).handle_error();
 }
 
 #[wasm_bindgen(js_name = "approveWithdrawalSol")]
@@ -218,16 +220,16 @@ pub fn approve_withdrawal_sol_ix(
     authority_pubkey: String,
     name: String,
     withdrawal_pubkey: String,
-) -> JsValue {
+) -> Result<JsValue, JsValue> {
     let program_id = &id();
 
-    let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).unwrap();
+    let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
     let settings_pubkey = get_associated_settings_address(program_id, &name);
-    let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).unwrap();
+    let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).handle_error()?;
 
     let data = TokenProxyInstruction::ApproveWithdrawSol
         .try_to_vec()
-        .expect("pack");
+        .handle_error()?;
 
     let ix = Instruction {
         program_id: id(),
@@ -239,17 +241,21 @@ pub fn approve_withdrawal_sol_ix(
         data,
     };
 
-    return JsValue::from_serde(&ix).unwrap();
+    return JsValue::from_serde(&ix).handle_error();
 }
 
 #[wasm_bindgen(js_name = "withdrawalEver")]
-pub fn withdrawal_ever_ix(to_pubkey: String, name: String, withdrawal_pubkey: String) -> JsValue {
+pub fn withdrawal_ever_ix(
+    to_pubkey: String,
+    name: String,
+    withdrawal_pubkey: String,
+) -> Result<JsValue, JsValue> {
     let program_id = &id();
 
-    let to_pubkey = Pubkey::from_str(to_pubkey.as_str()).unwrap();
+    let to_pubkey = Pubkey::from_str(to_pubkey.as_str()).handle_error()?;
 
     let settings_pubkey = get_associated_settings_address(program_id, &name);
-    let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).unwrap();
+    let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).handle_error()?;
 
     let mint_pubkey = get_associated_mint_address(program_id, &name);
     let recipient_pubkey =
@@ -257,7 +263,7 @@ pub fn withdrawal_ever_ix(to_pubkey: String, name: String, withdrawal_pubkey: St
 
     let data = TokenProxyInstruction::WithdrawEver
         .try_to_vec()
-        .expect("pack");
+        .handle_error()?;
 
     let ix = Instruction {
         program_id: id(),
@@ -271,17 +277,21 @@ pub fn withdrawal_ever_ix(to_pubkey: String, name: String, withdrawal_pubkey: St
         data,
     };
 
-    return JsValue::from_serde(&ix).unwrap();
+    return JsValue::from_serde(&ix).handle_error();
 }
 
 #[wasm_bindgen(js_name = "withdrawalSol")]
-pub fn withdrawal_sol_ix(to_pubkey: String, name: String, withdrawal_pubkey: String) -> JsValue {
+pub fn withdrawal_sol_ix(
+    to_pubkey: String,
+    name: String,
+    withdrawal_pubkey: String,
+) -> Result<JsValue, JsValue> {
     let program_id = &id();
-    let to_pubkey = Pubkey::from_str(to_pubkey.as_str()).unwrap();
+    let to_pubkey = Pubkey::from_str(to_pubkey.as_str()).handle_error()?;
 
     let vault_pubkey = get_associated_vault_address(program_id, &name);
     let settings_pubkey = get_associated_settings_address(program_id, &name);
-    let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).unwrap();
+    let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).handle_error()?;
 
     let mint_pubkey = get_associated_mint_address(program_id, &name);
 
@@ -290,7 +300,7 @@ pub fn withdrawal_sol_ix(to_pubkey: String, name: String, withdrawal_pubkey: Str
 
     let data = TokenProxyInstruction::WithdrawSol
         .try_to_vec()
-        .expect("pack");
+        .handle_error()?;
 
     let ix = Instruction {
         program_id: id(),
@@ -304,7 +314,7 @@ pub fn withdrawal_sol_ix(to_pubkey: String, name: String, withdrawal_pubkey: Str
         data,
     };
 
-    return JsValue::from_serde(&ix).unwrap();
+    return JsValue::from_serde(&ix).handle_error();
 }
 
 #[wasm_bindgen(js_name = "depositEver")]
@@ -314,14 +324,14 @@ pub fn deposit_ever_ix(
     deposit_seed: String,
     recipient_address: String,
     amount: u64,
-) -> JsValue {
+) -> Result<JsValue, JsValue> {
     let program_id = &id();
 
-    let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).unwrap();
+    let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
 
     let settings_pubkey = get_associated_settings_address(program_id, &name);
 
-    let deposit_seed = u128::from_str(&deposit_seed).unwrap();
+    let deposit_seed = u128::from_str(&deposit_seed).handle_error()?;
 
     let deposit_pubkey = get_associated_deposit_address(program_id, deposit_seed, &settings_pubkey);
 
@@ -330,15 +340,15 @@ pub fn deposit_ever_ix(
     let sender_pubkey =
         spl_associated_token_account::get_associated_token_address(&authority_pubkey, &mint_pubkey);
 
-    let recipient_address = recipient_address.as_bytes().try_into().unwrap();
+    let recipient_address = EverAddress::from_str(&recipient_address).handle_error()?;
 
     let data = TokenProxyInstruction::DepositEver {
         deposit_seed,
-        recipient_address: EverAddress::with_standart(0, recipient_address),
+        recipient_address,
         amount,
     }
     .try_to_vec()
-    .expect("pack");
+    .handle_error()?;
 
     let ix = Instruction {
         program_id: id(),
@@ -355,7 +365,7 @@ pub fn deposit_ever_ix(
         data,
     };
 
-    return JsValue::from_serde(&ix).unwrap();
+    return JsValue::from_serde(&ix).handle_error();
 }
 
 #[wasm_bindgen(js_name = "depositSol")]
@@ -365,15 +375,15 @@ pub fn deposit_sol_ix(
     deposit_seed: String,
     recipient_address: String,
     amount: u64,
-) -> JsValue {
+) -> Result<JsValue, JsValue> {
     let program_id = &id();
 
-    let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).unwrap();
+    let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
 
     let vault_pubkey = get_associated_vault_address(program_id, &name);
     let settings_pubkey = get_associated_settings_address(program_id, &name);
 
-    let deposit_seed = u128::from_str(&deposit_seed).unwrap();
+    let deposit_seed = u128::from_str(&deposit_seed).handle_error()?;
 
     let deposit_pubkey = get_associated_deposit_address(program_id, deposit_seed, &settings_pubkey);
 
@@ -382,15 +392,15 @@ pub fn deposit_sol_ix(
     let sender_pubkey =
         spl_associated_token_account::get_associated_token_address(&authority_pubkey, &mint_pubkey);
 
-    let recipient_address = recipient_address.as_bytes().try_into().unwrap();
+    let recipient_address = EverAddress::from_str(&recipient_address).handle_error()?;
 
     let data = TokenProxyInstruction::DepositSol {
         deposit_seed,
-        recipient_address: EverAddress::with_standart(0, recipient_address),
+        recipient_address,
         amount,
     }
     .try_to_vec()
-    .expect("pack");
+    .handle_error()?;
 
     let ix = Instruction {
         program_id: id(),
@@ -408,7 +418,7 @@ pub fn deposit_sol_ix(
         data,
     };
 
-    return JsValue::from_serde(&ix).unwrap();
+    return JsValue::from_serde(&ix).handle_error();
 }
 
 #[wasm_bindgen(js_name = "voteForWithdrawRequest")]
@@ -416,16 +426,16 @@ pub fn vote_for_withdraw_request_ix(
     authority_pubkey: String,
     withdrawal_pubkey: String,
     round_number: u32,
-) -> JsValue {
-    let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).unwrap();
-    let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).unwrap();
+) -> Result<JsValue, JsValue> {
+    let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
+    let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).handle_error()?;
     let relay_round_pubkey = get_associated_relay_round_address(&round_loader::id(), round_number);
 
     let data = TokenProxyInstruction::VoteForWithdrawRequest {
         vote: Vote::Confirm,
     }
     .try_to_vec()
-    .expect("pack");
+    .handle_error()?;
 
     let ix = Instruction {
         program_id: id(),
@@ -437,14 +447,14 @@ pub fn vote_for_withdraw_request_ix(
         data,
     };
 
-    return JsValue::from_serde(&ix).unwrap();
+    return JsValue::from_serde(&ix).handle_error();
 }
 
 #[wasm_bindgen(js_name = "unpackSettings")]
-pub fn unpack_settings(data: Vec<u8>) -> JsValue {
-    let settings = crate::Settings::unpack(&data).unwrap();
+pub fn unpack_settings(data: Vec<u8>) -> Result<JsValue, JsValue> {
+    let settings = Settings::unpack(&data).handle_error()?;
 
-    let s = Settings {
+    let s = WasmSettings {
         is_initialized: settings.is_initialized,
         name: settings.name,
         kind: settings.kind,
@@ -457,14 +467,14 @@ pub fn unpack_settings(data: Vec<u8>) -> JsValue {
         withdrawal_ttl: settings.withdrawal_ttl,
     };
 
-    return JsValue::from_serde(&s).unwrap();
+    return JsValue::from_serde(&s).handle_error();
 }
 
 #[wasm_bindgen(js_name = "unpackWithdrawal")]
-pub fn unpack_withdrawal(data: Vec<u8>) -> JsValue {
-    let withdrawal = crate::WithdrawalToken::unpack(&data).unwrap();
+pub fn unpack_withdrawal(data: Vec<u8>) -> Result<JsValue, JsValue> {
+    let withdrawal = WithdrawalToken::unpack(&data).handle_error()?;
 
-    let w = Withdrawal {
+    let w = WasmWithdrawalToken {
         is_initialized: withdrawal.is_initialized,
         round_number: withdrawal.round_number,
         required_votes: withdrawal.required_votes,
@@ -474,11 +484,11 @@ pub fn unpack_withdrawal(data: Vec<u8>) -> JsValue {
         signers: withdrawal.signers,
     };
 
-    return JsValue::from_serde(&w).unwrap();
+    return JsValue::from_serde(&w).handle_error();
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct Settings {
+pub struct WasmSettings {
     pub is_initialized: bool,
     pub name: String,
     pub kind: TokenKind,
@@ -492,7 +502,7 @@ pub struct Settings {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct Withdrawal {
+pub struct WasmWithdrawalToken {
     pub is_initialized: bool,
     pub round_number: u32,
     pub required_votes: u32,
@@ -500,4 +510,24 @@ pub struct Withdrawal {
     pub event: WithdrawalTokenEventWithLen,
     pub meta: WithdrawalTokenMetaWithLen,
     pub signers: Vec<Vote>,
+}
+
+impl<T, E> HandleError for Result<T, E>
+where
+    E: ToString,
+{
+    type Output = T;
+
+    fn handle_error(self) -> Result<Self::Output, JsValue> {
+        self.map_err(|e| {
+            let error = e.to_string();
+            js_sys::Error::new(&error).unchecked_into()
+        })
+    }
+}
+
+pub trait HandleError {
+    type Output;
+
+    fn handle_error(self) -> Result<Self::Output, JsValue>;
 }

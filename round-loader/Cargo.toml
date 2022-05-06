@@ -8,7 +8,7 @@ edition = "2021"
 no-entrypoint = []
 test-bpf = ["bindings"]
 bindings = ["no-entrypoint"]
-wasm = ["no-entrypoint", "wasm-bindgen"]
+wasm = ["no-entrypoint", "wasm-bindgen", "js-sys"]
 
 [dependencies]
 bincode = "1.3"
@@ -16,6 +16,8 @@ borsh = "0.9"
 serde = { version = "1.0", features = ["derive"] }
 solana-program = "1.10"
 thiserror = "1.0"
+
+js-sys = { version = "0.3", optional = true }
 wasm-bindgen = { version = "0.2.79", features = ["serde-serialize"], optional = true }
 
 bridge-derive = { path = "../bridge-derive" }

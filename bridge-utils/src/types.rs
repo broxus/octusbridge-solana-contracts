@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 
@@ -22,6 +24,25 @@ pub enum EverAddress {
 impl EverAddress {
     pub fn with_standart(workchain_id: i8, address: [u8; 32]) -> Self {
         EverAddress::AddrStd(MsgAddrStd::with_address(workchain_id, address))
+    }
+}
+
+impl FromStr for EverAddress {
+    type Err = Box<dyn std::error::Error>;
+    fn from_str(string: &str) -> Result<Self, Self::Err> {
+        let parts: Vec<&str> = string.split(':').take(4).collect();
+        let len = parts.len();
+        if len != 2 {
+            return Err(format!("wrong format").into());
+        }
+
+        let workchain_id = parts[len - 2].parse::<i8>()?;
+        let address = hex::decode(parts[len - 1])?;
+
+        Ok(EverAddress::with_standart(
+            workchain_id,
+            <[u8; 32]>::try_from(address.as_slice())?,
+        ))
     }
 }
 
