@@ -302,8 +302,6 @@ dependencies = [
  "hex",
  "serde",
  "solana-program",
- "spl-associated-token-account",
- "spl-token",
 ]
 
 [[package]]
