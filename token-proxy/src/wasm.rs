@@ -456,6 +456,7 @@ pub fn unpack_settings(data: Vec<u8>) -> Result<JsValue, JsValue> {
 
     let s = WasmSettings {
         is_initialized: settings.is_initialized,
+        account_kind: settings.account_kind,
         name: settings.name,
         kind: settings.kind,
         admin: settings.admin,
@@ -476,6 +477,7 @@ pub fn unpack_withdrawal(data: Vec<u8>) -> Result<JsValue, JsValue> {
 
     let w = WasmWithdrawalToken {
         is_initialized: withdrawal.is_initialized,
+        account_kind: withdrawal.account_kind,
         round_number: withdrawal.round_number,
         required_votes: withdrawal.required_votes,
         pda: withdrawal.pda,
@@ -490,6 +492,7 @@ pub fn unpack_withdrawal(data: Vec<u8>) -> Result<JsValue, JsValue> {
 #[derive(Serialize, Deserialize)]
 pub struct WasmSettings {
     pub is_initialized: bool,
+    pub account_kind: AccountKind,
     pub name: String,
     pub kind: TokenKind,
     pub admin: Pubkey,
@@ -504,6 +507,7 @@ pub struct WasmSettings {
 #[derive(Serialize, Deserialize)]
 pub struct WasmWithdrawalToken {
     pub is_initialized: bool,
+    pub account_kind: AccountKind,
     pub round_number: u32,
     pub required_votes: u32,
     pub pda: PDA,
