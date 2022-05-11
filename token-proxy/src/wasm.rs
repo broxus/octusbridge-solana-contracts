@@ -370,7 +370,8 @@ pub fn deposit_ever_ix(
 
 #[wasm_bindgen(js_name = "depositSol")]
 pub fn deposit_sol_ix(
-    authority_pubkey: String,
+    author_pubkey: String,
+    mint_pubkey: String,
     name: String,
     deposit_seed: String,
     recipient_address: String,
@@ -378,7 +379,10 @@ pub fn deposit_sol_ix(
 ) -> Result<JsValue, JsValue> {
     let program_id = &id();
 
-    let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
+    let mint_pubkey = Pubkey::from_str(mint_pubkey.as_str()).handle_error()?;
+    let author_pubkey = Pubkey::from_str(author_pubkey.as_str()).handle_error()?;
+    let author_token_pubkey =
+        spl_associated_token_account::get_associated_token_address(&author_pubkey, &mint_pubkey);
 
     let vault_pubkey = get_associated_vault_address(program_id, &name);
     let settings_pubkey = get_associated_settings_address(program_id, &name);
@@ -386,11 +390,6 @@ pub fn deposit_sol_ix(
     let deposit_seed = u128::from_str(&deposit_seed).handle_error()?;
 
     let deposit_pubkey = get_associated_deposit_address(program_id, deposit_seed, &settings_pubkey);
-
-    let mint_pubkey = get_associated_mint_address(program_id, &name);
-
-    let sender_pubkey =
-        spl_associated_token_account::get_associated_token_address(&authority_pubkey, &mint_pubkey);
 
     let recipient_address = EverAddress::from_str(&recipient_address).handle_error()?;
 
@@ -405,8 +404,8 @@ pub fn deposit_sol_ix(
     let ix = Instruction {
         program_id: id(),
         accounts: vec![
-            AccountMeta::new(authority_pubkey, true),
-            AccountMeta::new(sender_pubkey, false),
+            AccountMeta::new(author_pubkey, true),
+            AccountMeta::new(author_token_pubkey, false),
             AccountMeta::new(vault_pubkey, false),
             AccountMeta::new(deposit_pubkey, false),
             AccountMeta::new_readonly(mint_pubkey, false),
