@@ -222,6 +222,7 @@ impl Processor {
             programdata_account_info,
         )?;
 
+        // Check asset name length
         if name.len() > MAX_NAME_LEN {
             return Err(TokenProxyError::TokenNameLenLimit.into());
         }
@@ -347,6 +348,11 @@ impl Processor {
             initializer_account_info.key,
             programdata_account_info,
         )?;
+
+        // Check asset name length
+        if name.len() > MAX_NAME_LEN {
+            return Err(TokenProxyError::TokenNameLenLimit.into());
+        }
 
         // Validate Vault Account
         let vault_nonce = validate_vault_account(program_id, &name, vault_account_info)?;

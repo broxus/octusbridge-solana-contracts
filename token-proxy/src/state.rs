@@ -9,7 +9,7 @@ use solana_program::program_error::ProgramError;
 use solana_program::program_pack::{IsInitialized, Pack, Sealed};
 use solana_program::pubkey::{Pubkey, PUBKEY_BYTES};
 
-pub const MAX_NAME_LEN: usize = 10;
+pub const MAX_NAME_LEN: usize = 32;
 pub const WITHDRAWAL_TOKEN_PERIOD: i64 = 86400;
 
 const WITHDRAWAL_TOKEN_EVENT_LEN: usize = 8 // amount
@@ -27,7 +27,7 @@ const DEPOSIT_TOKEN_EVENT_LEN: usize = 8    // amount
 ;
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
-#[bridge_pack(length = 300)] // 154 + reserve
+#[bridge_pack(length = 300)]
 pub struct Settings {
     pub is_initialized: bool,
     pub account_kind: AccountKind,
