@@ -398,7 +398,7 @@ async fn test_deposit_ever() {
         .expect("get_account")
         .expect("account");
 
-    let deposit_data = DepositToken::unpack(deposit_info.data()).expect("deposit unpack");
+    let deposit_data = DepositToken::unpack(deposit_info.data()).expect("deposit token unpack");
     assert_eq!(
         deposit_data.event.data.sender_address,
         sender.pubkey().to_bytes().to_vec()
@@ -587,7 +587,7 @@ async fn test_deposit_sol() {
         .expect("get_account")
         .expect("account");
 
-    let deposit_data = DepositToken::unpack(deposit_info.data()).expect("deposit unpack");
+    let deposit_data = DepositToken::unpack(deposit_info.data()).expect("deposit token unpack");
     assert_eq!(
         deposit_data.event.data.sender_address,
         sender.pubkey().to_bytes().to_vec()
@@ -1259,8 +1259,8 @@ async fn test_withdrawal_ever() {
         .expect("get_account")
         .expect("account");
 
-    let withdrawal_data = spl_token::state::Mint::unpack(mint_info.data()).expect("mint unpack");
-    assert_eq!(withdrawal_data.supply, amount);
+    let mint_data = spl_token::state::Mint::unpack(mint_info.data()).expect("mint unpack");
+    assert_eq!(mint_data.supply, amount);
 
     let recipient_info = banks_client
         .get_account(recipient_associated_token_address)

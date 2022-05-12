@@ -50,12 +50,24 @@ impl IsInitialized for Settings {
     }
 }
 
-#[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
-#[bridge_pack(length = 1)]
+#[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub struct Deposit {
     pub is_initialized: bool,
     pub account_kind: AccountKind,
     pub event: Vec<u8>,
+}
+
+impl Deposit {
+    pub fn pack_into_slice(&self, dst: &mut [u8]) {
+        let data = self.try_to_vec().unwrap();
+        let (left, _) = dst.split_at_mut(data.len());
+        left.copy_from_slice(&data);
+    }
+
+    pub fn unpack_from_slice(mut src: &[u8]) -> Result<Self, ProgramError> {
+        let unpacked = Self::deserialize(&mut src)?;
+        Ok(unpacked)
+    }
 }
 
 impl Sealed for Deposit {}
