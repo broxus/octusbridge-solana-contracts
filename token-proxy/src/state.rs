@@ -155,19 +155,15 @@ pub struct WithdrawalTokenEventWithLen {
 }
 
 impl WithdrawalTokenEventWithLen {
-    pub fn new(
-        sender_address: EverAddress,
-        amount: u64,
-        recipient_address: Pubkey,
-    ) -> Result<Self, ProgramError> {
-        Ok(Self {
+    pub fn new(sender_address: EverAddress, amount: u64, recipient_address: Pubkey) -> Self {
+        Self {
             len: WITHDRAWAL_TOKEN_EVENT_LEN as u32,
             data: WithdrawalTokenEvent {
                 sender_address,
                 amount,
                 recipient_address: recipient_address.to_bytes().to_vec(),
             },
-        })
+        }
     }
 }
 

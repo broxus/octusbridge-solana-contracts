@@ -696,6 +696,8 @@ impl Processor {
         recipient_address: Pubkey,
         amount: u64,
     ) -> ProgramResult {
+        msg!("1");
+
         let account_info_iter = &mut accounts.iter();
 
         let funder_account_info = next_account_info(account_info_iter)?;
@@ -711,24 +713,34 @@ impl Processor {
         let rent_sysvar_info = next_account_info(account_info_iter)?;
         let rent = &Rent::from_account_info(rent_sysvar_info)?;
 
+        msg!("2");
+
         if !author_account_info.is_signer {
             return Err(ProgramError::MissingRequiredSignature);
         }
+
+        msg!("3");
 
         // Validate Setting Account
         if settings_account_info.owner != program_id {
             return Err(ProgramError::InvalidArgument);
         }
 
+        msg!("4");
+
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
 
         let name = &settings_account_data.name;
         validate_settings_account(program_id, name, settings_account_info)?;
 
+        msg!("5");
+
         // Validate Relay Round Account
         if relay_round_account_info.owner != &round_loader::id() {
             return Err(ProgramError::InvalidArgument);
         }
+
+        msg!("6");
 
         let relay_round_account_data = RelayRound::unpack(&relay_round_account_info.data.borrow())?;
 
@@ -739,11 +751,15 @@ impl Processor {
             relay_round_account_info,
         )?;
 
+        msg!("7");
+
         if relay_round_account_data.round_end <= clock.unix_timestamp as u32 {
             return Err(TokenProxyError::RelayRoundExpired.into());
         }
 
         let required_votes = (relay_round_account_data.relays.len() * 2 / 3 + 1) as u32;
+
+        msg!("8");
 
         // Validate Withdrawal Account
         let withdrawal_nonce = bridge_utils::helper::validate_proposal_account(
@@ -765,6 +781,8 @@ impl Processor {
             &[withdrawal_nonce],
         ];
 
+        msg!("9");
+
         // Create Withdraw Account
         invoke_signed(
             &system_instruction::create_account(
@@ -782,13 +800,15 @@ impl Processor {
             &[withdrawal_account_signer_seeds],
         )?;
 
+        msg!("10");
+
         // Init Withdraw Account
         let withdrawal_account_data = WithdrawalToken {
             is_initialized: true,
             round_number,
             required_votes,
             account_kind: AccountKind::Proposal,
-            event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address)?,
+            event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
             meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::New, 0),
             signers: vec![Vote::None; relay_round_account_data.relays.len()],
             pda: PDA {
@@ -805,19 +825,23 @@ impl Processor {
             &mut withdrawal_account_info.data.borrow_mut(),
         )?;
 
+        msg!("11");
+
         // Send voting reparation for Relay to withdrawal account
         invoke(
             &system_instruction::transfer(
-                author_account_info.key,
+                funder_account_info.key,
                 withdrawal_account_info.key,
                 RELAY_REPARATION * relay_round_account_data.relays.len() as u64,
             ),
             &[
-                author_account_info.clone(),
+                funder_account_info.clone(),
                 withdrawal_account_info.clone(),
                 system_program_info.clone(),
             ],
         )?;
+
+        msg!("12");
 
         Ok(())
     }
