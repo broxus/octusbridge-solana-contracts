@@ -247,6 +247,33 @@ pub fn approve_withdrawal_sol_ix(
     return JsValue::from_serde(&ix).handle_error();
 }
 
+#[wasm_bindgen(js_name = "updateWithdrawalStatus")]
+pub fn update_withdrawal_status_ix(
+    name: String,
+    withdrawal_pubkey: String,
+) -> Result<JsValue, JsValue> {
+    let program_id = &id();
+
+    let settings_pubkey = get_associated_settings_address(program_id, &name);
+    let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).handle_error()?;
+
+    let data = TokenProxyInstruction::UpdateWithdrawStatus
+        .try_to_vec()
+        .handle_error()?;
+
+    let ix = Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new(withdrawal_pubkey, false),
+            AccountMeta::new_readonly(sysvar::clock::id(), false),
+        ],
+        data,
+    };
+
+    return JsValue::from_serde(&ix).handle_error();
+}
+
 #[wasm_bindgen(js_name = "withdrawalEver")]
 pub fn withdrawal_ever_ix(
     to_pubkey: String,
@@ -283,38 +310,12 @@ pub fn withdrawal_ever_ix(
     return JsValue::from_serde(&ix).handle_error();
 }
 
-#[wasm_bindgen(js_name = "updateWithdrawalStatus")]
-pub fn update_withdrawal_status_ix(
-    name: String,
-    withdrawal_pubkey: String,
-) -> Result<JsValue, JsValue> {
-    let program_id = &id();
-
-    let settings_pubkey = get_associated_settings_address(program_id, &name);
-    let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).handle_error()?;
-
-    let data = TokenProxyInstruction::UpdateWithdrawStatus
-        .try_to_vec()
-        .handle_error()?;
-
-    let ix = Instruction {
-        program_id: id(),
-        accounts: vec![
-            AccountMeta::new(settings_pubkey, false),
-            AccountMeta::new(withdrawal_pubkey, false),
-            AccountMeta::new_readonly(sysvar::clock::id(), false),
-        ],
-        data,
-    };
-
-    return JsValue::from_serde(&ix).handle_error();
-}
-
 #[wasm_bindgen(js_name = "withdrawalSol")]
 pub fn withdrawal_sol_ix(
     to_pubkey: String,
-    name: String,
+    mint_pubkey: String,
     withdrawal_pubkey: String,
+    name: String,
 ) -> Result<JsValue, JsValue> {
     let program_id = &id();
     let to_pubkey = Pubkey::from_str(to_pubkey.as_str()).handle_error()?;
@@ -322,8 +323,6 @@ pub fn withdrawal_sol_ix(
     let vault_pubkey = get_associated_vault_address(program_id, &name);
     let settings_pubkey = get_associated_settings_address(program_id, &name);
     let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).handle_error()?;
-
-    let mint_pubkey = get_associated_mint_address(program_id, &name);
 
     let recipient_pubkey =
         spl_associated_token_account::get_associated_token_address(&to_pubkey, &mint_pubkey);
