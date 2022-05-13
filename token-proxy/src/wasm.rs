@@ -117,8 +117,9 @@ pub fn initialize_vault_ix(
     return JsValue::from_serde(&ix).handle_error();
 }
 
-#[wasm_bindgen(js_name = "processWithdrawRequest")]
-pub fn process_withdraw_request(
+#[wasm_bindgen(js_name = "processWithdrawalRequest")]
+pub fn process_withdrawal_request(
+    funder_pubkey: String,
     author_pubkey: String,
     name: String,
     event_timestamp: u32,
@@ -131,6 +132,7 @@ pub fn process_withdraw_request(
 ) -> Result<JsValue, JsValue> {
     let program_id = &id();
 
+    let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
     let author_pubkey = Pubkey::from_str(author_pubkey.as_str()).handle_error()?;
     let recipient_address = Pubkey::from_str(recipient_address.as_str()).handle_error()?;
     let event_configuration = Pubkey::from_str(event_configuration.as_str()).handle_error()?;
@@ -162,6 +164,7 @@ pub fn process_withdraw_request(
     let ix = Instruction {
         program_id: id(),
         accounts: vec![
+            AccountMeta::new(funder_pubkey, true),
             AccountMeta::new(author_pubkey, true),
             AccountMeta::new(withdrawal_pubkey, false),
             AccountMeta::new_readonly(settings_pubkey, false),
@@ -319,6 +322,7 @@ pub fn withdrawal_sol_ix(
 
 #[wasm_bindgen(js_name = "depositEver")]
 pub fn deposit_ever_ix(
+    funder_pubkey: String,
     authority_pubkey: String,
     name: String,
     deposit_seed: String,
@@ -327,6 +331,7 @@ pub fn deposit_ever_ix(
 ) -> Result<JsValue, JsValue> {
     let program_id = &id();
 
+    let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
     let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
 
     let settings_pubkey = get_associated_settings_address(program_id, &name);
@@ -353,6 +358,7 @@ pub fn deposit_ever_ix(
     let ix = Instruction {
         program_id: id(),
         accounts: vec![
+            AccountMeta::new(funder_pubkey, true),
             AccountMeta::new(authority_pubkey, true),
             AccountMeta::new(sender_pubkey, false),
             AccountMeta::new(deposit_pubkey, false),
@@ -370,6 +376,7 @@ pub fn deposit_ever_ix(
 
 #[wasm_bindgen(js_name = "depositSol")]
 pub fn deposit_sol_ix(
+    funder_pubkey: String,
     author_pubkey: String,
     mint_pubkey: String,
     name: String,
@@ -380,6 +387,7 @@ pub fn deposit_sol_ix(
     let program_id = &id();
 
     let mint_pubkey = Pubkey::from_str(mint_pubkey.as_str()).handle_error()?;
+    let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
     let author_pubkey = Pubkey::from_str(author_pubkey.as_str()).handle_error()?;
     let author_token_pubkey =
         spl_associated_token_account::get_associated_token_address(&author_pubkey, &mint_pubkey);
@@ -404,6 +412,7 @@ pub fn deposit_sol_ix(
     let ix = Instruction {
         program_id: id(),
         accounts: vec![
+            AccountMeta::new(funder_pubkey, true),
             AccountMeta::new(author_pubkey, true),
             AccountMeta::new(author_token_pubkey, false),
             AccountMeta::new(vault_pubkey, false),

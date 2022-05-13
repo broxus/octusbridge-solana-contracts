@@ -449,6 +449,7 @@ impl Processor {
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
+        let funder_account_info = next_account_info(account_info_iter)?;
         let creator_account_info = next_account_info(account_info_iter)?;
         let creator_token_account_info = next_account_info(account_info_iter)?;
         let deposit_account_info = next_account_info(account_info_iter)?;
@@ -518,14 +519,14 @@ impl Processor {
         // Create Deposit Account
         invoke_signed(
             &system_instruction::create_account(
-                creator_account_info.key,
+                funder_account_info.key,
                 deposit_account_info.key,
                 1.max(rent.minimum_balance(DepositToken::LEN)),
                 DepositToken::LEN as u64,
                 program_id,
             ),
             &[
-                creator_account_info.clone(),
+                funder_account_info.clone(),
                 deposit_account_info.clone(),
                 system_program_info.clone(),
             ],
@@ -560,6 +561,7 @@ impl Processor {
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
+        let funder_account_info = next_account_info(account_info_iter)?;
         let creator_account_info = next_account_info(account_info_iter)?;
         let creator_token_account_info = next_account_info(account_info_iter)?;
         let vault_account_info = next_account_info(account_info_iter)?;
@@ -650,14 +652,14 @@ impl Processor {
         // Create Deposit Account
         invoke_signed(
             &system_instruction::create_account(
-                creator_account_info.key,
+                funder_account_info.key,
                 deposit_account_info.key,
                 1.max(rent.minimum_balance(DepositToken::LEN)),
                 DepositToken::LEN as u64,
                 program_id,
             ),
             &[
-                creator_account_info.clone(),
+                funder_account_info.clone(),
                 deposit_account_info.clone(),
                 system_program_info.clone(),
             ],
@@ -696,6 +698,7 @@ impl Processor {
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
+        let funder_account_info = next_account_info(account_info_iter)?;
         let author_account_info = next_account_info(account_info_iter)?;
         let withdrawal_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
@@ -765,14 +768,14 @@ impl Processor {
         // Create Withdraw Account
         invoke_signed(
             &system_instruction::create_account(
-                author_account_info.key,
+                funder_account_info.key,
                 withdrawal_account_info.key,
                 1.max(rent.minimum_balance(WithdrawalToken::LEN)),
                 WithdrawalToken::LEN as u64,
                 program_id,
             ),
             &[
-                author_account_info.clone(),
+                funder_account_info.clone(),
                 withdrawal_account_info.clone(),
                 system_program_info.clone(),
             ],
@@ -1394,6 +1397,7 @@ impl Processor {
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
+        let funder_account_info = next_account_info(account_info_iter)?;
         let author_account_info = next_account_info(account_info_iter)?;
         let withdrawal_account_info = next_account_info(account_info_iter)?;
         let new_deposit_account_info = next_account_info(account_info_iter)?;
@@ -1466,14 +1470,14 @@ impl Processor {
         // Create a new Deposit Account
         invoke_signed(
             &system_instruction::create_account(
-                author_account_info.key,
+                funder_account_info.key,
                 new_deposit_account_info.key,
                 1.max(rent.minimum_balance(DepositToken::LEN)),
                 DepositToken::LEN as u64,
                 program_id,
             ),
             &[
-                author_account_info.clone(),
+                funder_account_info.clone(),
                 new_deposit_account_info.clone(),
                 system_program_info.clone(),
             ],
@@ -1636,6 +1640,7 @@ impl Processor {
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
+        let funder_account_info = next_account_info(account_info_iter)?;
         let author_account_info = next_account_info(account_info_iter)?;
         let author_token_account_info = next_account_info(account_info_iter)?;
         let recipient_token_account_info = next_account_info(account_info_iter)?;
@@ -1753,14 +1758,14 @@ impl Processor {
         // Create a new Deposit Account
         invoke_signed(
             &system_instruction::create_account(
-                author_account_info.key,
+                funder_account_info.key,
                 new_deposit_account_info.key,
                 1.max(rent.minimum_balance(DepositToken::LEN)),
                 DepositToken::LEN as u64,
                 program_id,
             ),
             &[
-                author_account_info.clone(),
+                funder_account_info.clone(),
                 new_deposit_account_info.clone(),
                 system_program_info.clone(),
             ],

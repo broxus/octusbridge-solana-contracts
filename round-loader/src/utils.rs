@@ -17,7 +17,7 @@ pub fn validate_settings_account(
     let (account, nonce) = Pubkey::find_program_address(&[br"settings"], program_id);
 
     if account != *account_info.key {
-        return Err(ProgramError::InvalidArgument);
+        return Err(ProgramError::UnsupportedSysvar);
     }
 
     Ok(nonce)
@@ -31,7 +31,7 @@ pub fn validate_relay_round_account(
     let (account, nonce) = Pubkey::find_program_address(&[&round_number.to_le_bytes()], program_id);
 
     if account != *account_info.key {
-        return Err(ProgramError::InvalidArgument);
+        return Err(ProgramError::MaxAccountsDataSizeExceeded);
     }
 
     Ok(nonce)

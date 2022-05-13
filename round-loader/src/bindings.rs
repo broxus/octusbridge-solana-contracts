@@ -41,6 +41,7 @@ pub fn get_relay_round_address(round_number: u32) -> Pubkey {
 }
 
 pub fn initialize_ix(
+    funder_pubkey: &Pubkey,
     initializer_pubkey: &Pubkey,
     round_number: u32,
     round_end: u32,
@@ -63,6 +64,7 @@ pub fn initialize_ix(
     Instruction {
         program_id: id(),
         accounts: vec![
+            AccountMeta::new(*funder_pubkey, true),
             AccountMeta::new(*initializer_pubkey, true),
             AccountMeta::new(setting_pubkey, false),
             AccountMeta::new(relay_round_pubkey, false),
@@ -75,6 +77,7 @@ pub fn initialize_ix(
 }
 
 pub fn create_proposal_ix(
+    funder_pubkey: &Pubkey,
     creator_pubkey: &Pubkey,
     event_timestamp: u32,
     event_transaction_lt: u64,
@@ -104,6 +107,7 @@ pub fn create_proposal_ix(
     Instruction {
         program_id: id(),
         accounts: vec![
+            AccountMeta::new(*funder_pubkey, true),
             AccountMeta::new(*creator_pubkey, true),
             AccountMeta::new(proposal_pubkey, false),
             AccountMeta::new_readonly(system_program::id(), false),

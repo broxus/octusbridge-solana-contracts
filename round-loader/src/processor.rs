@@ -101,6 +101,7 @@ impl Processor {
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
+        let funder_account_info = next_account_info(account_info_iter)?;
         let initializer_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
         let relay_round_account_info = next_account_info(account_info_iter)?;
@@ -129,14 +130,14 @@ impl Processor {
         // Create Settings Account
         invoke_signed(
             &system_instruction::create_account(
-                initializer_account_info.key,
+                funder_account_info.key,
                 settings_account_info.key,
                 1.max(rent.minimum_balance(Settings::LEN)),
                 Settings::LEN as u64,
                 program_id,
             ),
             &[
-                initializer_account_info.clone(),
+                funder_account_info.clone(),
                 settings_account_info.clone(),
                 system_program_info.clone(),
             ],
@@ -164,14 +165,14 @@ impl Processor {
         // Create Relay Round Account
         invoke_signed(
             &system_instruction::create_account(
-                initializer_account_info.key,
+                funder_account_info.key,
                 relay_round_account_info.key,
                 1.max(rent.minimum_balance(RelayRound::LEN)),
                 RelayRound::LEN as u64,
                 program_id,
             ),
             &[
-                initializer_account_info.clone(),
+                funder_account_info.clone(),
                 relay_round_account_info.clone(),
                 system_program_info.clone(),
             ],
@@ -204,6 +205,7 @@ impl Processor {
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
+        let funder_account_info = next_account_info(account_info_iter)?;
         let creator_account_info = next_account_info(account_info_iter)?;
         let proposal_account_info = next_account_info(account_info_iter)?;
         let system_program_info = next_account_info(account_info_iter)?;
@@ -241,14 +243,14 @@ impl Processor {
         // Create Proposal Account
         invoke_signed(
             &system_instruction::create_account(
-                creator_account_info.key,
+                funder_account_info.key,
                 proposal_account_info.key,
                 1.max(rent.minimum_balance(RelayRoundProposal::LEN)),
                 RelayRoundProposal::LEN as u64,
                 program_id,
             ),
             &[
-                creator_account_info.clone(),
+                funder_account_info.clone(),
                 proposal_account_info.clone(),
                 system_program_info.clone(),
             ],

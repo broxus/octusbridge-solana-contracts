@@ -19,6 +19,7 @@ use crate::*;
 
 #[wasm_bindgen(js_name = "initialize")]
 pub fn initialize_ix(
+    funder_pubkey: String,
     creator_pubkey: String,
     round_number: u32,
     round_end: u32,
@@ -26,6 +27,7 @@ pub fn initialize_ix(
 ) -> Result<JsValue, JsValue> {
     let program_id = &id();
 
+    let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
     let creator_pubkey = Pubkey::from_str(creator_pubkey.as_str()).handle_error()?;
 
     let relays: Vec<String> = relays.into_serde().handle_error()?;
@@ -49,6 +51,7 @@ pub fn initialize_ix(
     let ix = Instruction {
         program_id: id(),
         accounts: vec![
+            AccountMeta::new(funder_pubkey, true),
             AccountMeta::new(creator_pubkey, true),
             AccountMeta::new(setting_pubkey, false),
             AccountMeta::new(relay_round_pubkey, false),

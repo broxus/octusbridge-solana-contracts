@@ -135,6 +135,7 @@ pub fn initialize_vault_ix(
 }
 
 pub fn deposit_ever_ix(
+    funder_pubkey: &Pubkey,
     author_pubkey: &Pubkey,
     token_name: &str,
     deposit_seed: u128,
@@ -158,6 +159,7 @@ pub fn deposit_ever_ix(
     Instruction {
         program_id: id(),
         accounts: vec![
+            AccountMeta::new(*funder_pubkey, true),
             AccountMeta::new(*author_pubkey, true),
             AccountMeta::new(author_token_pubkey, false),
             AccountMeta::new(deposit_pubkey, false),
@@ -172,6 +174,7 @@ pub fn deposit_ever_ix(
 }
 
 pub fn deposit_sol_ix(
+    funder_pubkey: &Pubkey,
     author_pubkey: &Pubkey,
     mint_pubkey: &Pubkey,
     token_name: &str,
@@ -197,6 +200,7 @@ pub fn deposit_sol_ix(
     Instruction {
         program_id: id(),
         accounts: vec![
+            AccountMeta::new(*funder_pubkey, true),
             AccountMeta::new(*author_pubkey, true),
             AccountMeta::new(author_token_pubkey, false),
             AccountMeta::new(vault_pubkey, false),
@@ -213,6 +217,7 @@ pub fn deposit_sol_ix(
 
 #[allow(clippy::too_many_arguments)]
 pub fn withdrawal_request_ix(
+    funder_pubkey: &Pubkey,
     author_pubkey: &Pubkey,
     settings_pubkey: &Pubkey,
     event_timestamp: u32,
@@ -247,6 +252,7 @@ pub fn withdrawal_request_ix(
     Instruction {
         program_id: id(),
         accounts: vec![
+            AccountMeta::new(*funder_pubkey, true),
             AccountMeta::new(*author_pubkey, true),
             AccountMeta::new(withdrawal_pubkey, false),
             AccountMeta::new_readonly(*settings_pubkey, false),
@@ -411,6 +417,7 @@ pub fn approve_withdrawal_sol_ix(
 }
 
 pub fn cancel_withdrawal_sol_ix(
+    funder_pubkey: &Pubkey,
     author_pubkey: &Pubkey,
     withdrawal_pubkey: &Pubkey,
     deposit_seed: u128,
@@ -426,6 +433,7 @@ pub fn cancel_withdrawal_sol_ix(
     Instruction {
         program_id: id(),
         accounts: vec![
+            AccountMeta::new(*funder_pubkey, true),
             AccountMeta::new(*author_pubkey, true),
             AccountMeta::new(*withdrawal_pubkey, false),
             AccountMeta::new(deposit_pubkey, false),
@@ -468,6 +476,7 @@ pub fn force_withdrawal_sol_ix(
 
 #[allow(clippy::too_many_arguments)]
 pub fn fill_withdrawal_sol_ix(
+    funder_pubkey: &Pubkey,
     author_pubkey: &Pubkey,
     to_pubkey: &Pubkey,
     mint_pubkey: &Pubkey,
@@ -494,6 +503,7 @@ pub fn fill_withdrawal_sol_ix(
     Instruction {
         program_id: id(),
         accounts: vec![
+            AccountMeta::new(*funder_pubkey, true),
             AccountMeta::new(*author_pubkey, true),
             AccountMeta::new(author_token_pubkey, false),
             AccountMeta::new(recipient_token_pubkey, false),

@@ -58,7 +58,7 @@ async fn test_init_mint() {
     let withdrawal_daily_limit = 1000;
     let admin = Pubkey::new_unique();
     let mut transaction = Transaction::new_with_payer(
-        &[token_proxy::initialize_mint_ix(
+        &[initialize_mint_ix(
             &funder.pubkey(),
             &initializer.pubkey(),
             name.clone(),
@@ -77,7 +77,7 @@ async fn test_init_mint() {
         .await
         .expect("process_transaction");
 
-    let mint_address = token_proxy::get_mint_address(&name);
+    let mint_address = get_mint_address(&name);
     let mint_info = banks_client
         .get_account(mint_address)
         .await
@@ -181,7 +181,7 @@ async fn test_init_vault() {
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
     let mut transaction = Transaction::new_with_payer(
-        &[token_proxy::initialize_vault_ix(
+        &[initialize_vault_ix(
             &funder.pubkey(),
             &initializer.pubkey(),
             &mint.pubkey(),
@@ -357,7 +357,8 @@ async fn test_deposit_ever() {
     let amount = 32;
 
     let mut transaction = Transaction::new_with_payer(
-        &[token_proxy::deposit_ever_ix(
+        &[deposit_ever_ix(
+            &funder.pubkey(),
             &sender.pubkey(),
             &name,
             deposit_seed,
@@ -553,7 +554,8 @@ async fn test_deposit_sol() {
     let amount = 32;
 
     let mut transaction = Transaction::new_with_payer(
-        &[token_proxy::deposit_sol_ix(
+        &[deposit_sol_ix(
+            &funder.pubkey(),
             &sender.pubkey(),
             &mint.pubkey(),
             &name,
@@ -726,7 +728,8 @@ async fn test_withdrawal_request() {
     let amount = 32;
 
     let mut transaction = Transaction::new_with_payer(
-        &[token_proxy::withdrawal_request_ix(
+        &[withdrawal_request_ix(
+            &funder.pubkey(),
             &author.pubkey(),
             &settings_address,
             event_timestamp,
@@ -923,11 +926,11 @@ async fn test_vote_for_withdrawal_request() {
     // Vote for withdrawal request
     for relay in &relays {
         let mut transaction = Transaction::new_with_payer(
-            &[token_proxy::vote_for_withdrawal_request_ix(
+            &[vote_for_withdrawal_request_ix(
                 &relay.pubkey(),
                 &withdrawal_address,
                 round_number,
-                bridge_utils::types::Vote::Confirm,
+                Vote::Confirm,
             )],
             Some(&funder.pubkey()),
         );
@@ -1023,7 +1026,7 @@ async fn test_update_withdrawal_status() {
     let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 10;
 
-    let withdrawal_address = token_proxy::get_withdrawal_address(
+    let withdrawal_address = get_withdrawal_address(
         &author,
         &settings_address,
         event_timestamp,
@@ -1065,7 +1068,7 @@ async fn test_update_withdrawal_status() {
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
     let mut transaction = Transaction::new_with_payer(
-        &[token_proxy::update_withdrawal_status_ix(
+        &[update_withdrawal_status_ix(
             &withdrawal_address,
             &settings_address,
         )],
@@ -1239,7 +1242,7 @@ async fn test_withdrawal_ever() {
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
     let mut transaction = Transaction::new_with_payer(
-        &[token_proxy::withdrawal_ever_ix(
+        &[withdrawal_ever_ix(
             &recipient_address,
             &withdrawal_address,
             &name,
@@ -1448,7 +1451,7 @@ async fn test_withdrawal_sol() {
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
     let mut transaction = Transaction::new_with_payer(
-        &[token_proxy::withdrawal_sol_ix(
+        &[withdrawal_sol_ix(
             &recipient_address,
             &mint.pubkey(),
             &withdrawal_address,
@@ -1631,7 +1634,7 @@ async fn test_approve_withdrawal_ever() {
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
     let mut transaction = Transaction::new_with_payer(
-        &[token_proxy::approve_withdrawal_ever_ix(
+        &[approve_withdrawal_ever_ix(
             &admin.pubkey(),
             &recipient_address,
             &withdrawal_address,
@@ -1781,7 +1784,7 @@ async fn test_approve_withdrawal_sol() {
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
     let mut transaction = Transaction::new_with_payer(
-        &[token_proxy::approve_withdrawal_sol_ix(
+        &[approve_withdrawal_sol_ix(
             &admin.pubkey(),
             &withdrawal_address,
             &name,
@@ -1970,7 +1973,8 @@ async fn test_cancel_withdrawal_sol() {
     let deposit_seed = uuid::Uuid::new_v4().as_u128();
 
     let mut transaction = Transaction::new_with_payer(
-        &[token_proxy::cancel_withdrawal_sol_ix(
+        &[cancel_withdrawal_sol_ix(
+            &funder.pubkey(),
             &author.pubkey(),
             &withdrawal_address,
             deposit_seed,
@@ -2186,7 +2190,7 @@ async fn test_force_withdrawal_sol() {
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
     let mut transaction = Transaction::new_with_payer(
-        &[token_proxy::force_withdrawal_sol_ix(
+        &[force_withdrawal_sol_ix(
             &recipient_address,
             &mint.pubkey(),
             &withdrawal_address,
@@ -2416,7 +2420,8 @@ async fn test_fill_withdrawal_sol() {
     let ever_recipient_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
 
     let mut transaction = Transaction::new_with_payer(
-        &[token_proxy::fill_withdrawal_sol_ix(
+        &[fill_withdrawal_sol_ix(
+            &funder.pubkey(),
             &author.pubkey(),
             &recipient_address,
             &mint.pubkey(),
@@ -2598,7 +2603,7 @@ async fn test_transfer_from_vault() {
     let amount = 10;
 
     let mut transaction = Transaction::new_with_payer(
-        &[token_proxy::transfer_from_vault_ix(
+        &[transfer_from_vault_ix(
             &admin.pubkey(),
             &mint.pubkey(),
             &recipient_address,
@@ -2700,7 +2705,7 @@ async fn test_change_bounty_for_withdrawal_sol() {
 
     let bounty = 5;
     let mut transaction = Transaction::new_with_payer(
-        &[token_proxy::change_bounty_for_withdrawal_sol_ix(
+        &[change_bounty_for_withdrawal_sol_ix(
             &author.pubkey(),
             &withdrawal_address,
             bounty,
@@ -2804,7 +2809,7 @@ async fn test_change_settings() {
     let new_withdrawal_daily_limit = 1000;
 
     let mut transaction = Transaction::new_with_payer(
-        &[token_proxy::change_settings_ix(
+        &[change_settings_ix(
             &admin.pubkey(),
             name,
             new_emergency,

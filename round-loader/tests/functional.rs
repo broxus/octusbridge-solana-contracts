@@ -2,6 +2,7 @@
 
 use borsh::BorshSerialize;
 use bridge_utils::types::Vote;
+use std::str::FromStr;
 
 use bridge_utils::state::AccountKind;
 use solana_program::bpf_loader_upgradeable::UpgradeableLoaderState;
@@ -64,15 +65,12 @@ async fn test_init_relay_loader() {
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
     let round_number = 0;
-    let round_end = 1645086922;
-    let relays = vec![
-        Pubkey::new_unique(),
-        Pubkey::new_unique(),
-        Pubkey::new_unique(),
-    ];
+    let round_end = 1752375045;
+    let relays = vec![Pubkey::from_str("2Xzby8BnopnMbCS12YgASrxJoemVFJFgSbSB8pbU1am3").unwrap()];
 
     let mut transaction = Transaction::new_with_payer(
-        &[round_loader::initialize_ix(
+        &[initialize_ix(
+            &funder.pubkey(),
             &creator.pubkey(),
             round_number,
             round_end,
@@ -208,7 +206,8 @@ async fn test_create_proposal() {
     let event_configuration = Pubkey::new_unique();
 
     let mut transaction = Transaction::new_with_payer(
-        &[round_loader::create_proposal_ix(
+        &[create_proposal_ix(
+            &funder.pubkey(),
             &proposal_creator.pubkey(),
             event_timestamp,
             event_transaction_lt,
@@ -235,7 +234,7 @@ async fn test_create_proposal() {
 
     for (chunk, i) in write_data.try_to_vec().unwrap().chunks(chunk_size).zip(0..) {
         let mut transaction = Transaction::new_with_payer(
-            &[round_loader::write_proposal_ix(
+            &[write_proposal_ix(
                 &proposal_creator.pubkey(),
                 event_timestamp,
                 event_transaction_lt,
@@ -255,7 +254,7 @@ async fn test_create_proposal() {
 
     // Finalize Proposal
     let mut transaction = Transaction::new_with_payer(
-        &[round_loader::finalize_proposal_ix(
+        &[finalize_proposal_ix(
             &proposal_creator.pubkey(),
             event_timestamp,
             event_transaction_lt,
@@ -317,7 +316,7 @@ async fn test_create_proposal() {
     // Vote for Proposal
     for relay in &relays {
         let mut transaction = Transaction::new_with_payer(
-            &[round_loader::vote_for_proposal_ix(
+            &[vote_for_proposal_ix(
                 &relay.pubkey(),
                 &proposal_address,
                 round_number,
@@ -345,7 +344,7 @@ async fn test_create_proposal() {
 
     // Execute Proposal
     let mut transaction = Transaction::new_with_payer(
-        &[round_loader::execute_proposal_ix(
+        &[execute_proposal_ix(
             &funder.pubkey(),
             &proposal_address,
             new_round_number,
