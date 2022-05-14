@@ -1040,8 +1040,8 @@ async fn test_update_withdrawal_status() {
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
         meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::New, 0),
-        required_votes: 0,
-        signers: vec![],
+        required_votes: 1,
+        signers: vec![Vote::Confirm],
         pda: PDA {
             author,
             event_timestamp,
