@@ -319,6 +319,7 @@ pub fn withdrawal_sol_ix(
 ) -> Result<JsValue, JsValue> {
     let program_id = &id();
     let to_pubkey = Pubkey::from_str(to_pubkey.as_str()).handle_error()?;
+    let mint_pubkey = Pubkey::from_str(mint_pubkey.as_str()).handle_error()?;
 
     let vault_pubkey = get_associated_vault_address(program_id, &name);
     let settings_pubkey = get_associated_settings_address(program_id, &name);
