@@ -214,5 +214,4 @@ pub enum WithdrawalTokenStatus {
     Cancelled,
     Pending,
     WaitingForApprove,
-    WaitingForRelease,
 }

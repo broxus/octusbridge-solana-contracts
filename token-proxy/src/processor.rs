@@ -116,10 +116,6 @@ impl Processor {
                 msg!("Instruction: Vote for Withdraw EVER/SOL request");
                 Self::process_vote_for_withdraw_request(program_id, accounts, vote)?;
             }
-            TokenProxyInstruction::UpdateWithdrawStatus => {
-                msg!("Instruction: Update Withdraw status");
-                Self::process_update_withdraw_status(program_id, accounts)?;
-            }
             TokenProxyInstruction::WithdrawEver => {
                 msg!("Instruction: Withdraw EVER");
                 Self::process_withdraw_ever(program_id, accounts)?;
@@ -893,14 +889,14 @@ impl Processor {
         Ok(())
     }
 
-    fn process_update_withdraw_status(
-        program_id: &Pubkey,
-        accounts: &[AccountInfo],
-    ) -> ProgramResult {
+    fn process_withdraw_ever(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
-        let settings_account_info = next_account_info(account_info_iter)?;
+        let mint_account_info = next_account_info(account_info_iter)?;
         let withdrawal_account_info = next_account_info(account_info_iter)?;
+        let recipient_token_account_info = next_account_info(account_info_iter)?;
+        let settings_account_info = next_account_info(account_info_iter)?;
+        let token_program_info = next_account_info(account_info_iter)?;
         let clock_info = next_account_info(account_info_iter)?;
         let clock = Clock::from_account_info(clock_info)?;
 
@@ -937,36 +933,89 @@ impl Processor {
         if sig_count >= withdrawal_account_data.required_votes
             && withdrawal_account_data.meta.data.status == WithdrawalTokenStatus::New
         {
-            // Validate Settings Account
+            let current_timestamp = clock.unix_timestamp;
+
+            // Validate Setting Account
             if *settings_account_info.key != settings {
                 return Err(ProgramError::InvalidArgument);
             }
 
             let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
 
-            let current_timestamp = clock.unix_timestamp;
+            if settings_account_data.emergency {
+                return Err(TokenProxyError::EmergencyEnabled.into());
+            }
 
             // If current timestamp has expired
             if settings_account_data.withdrawal_ttl < current_timestamp {
                 settings_account_data.withdrawal_ttl = current_timestamp + WITHDRAWAL_TOKEN_PERIOD;
-                settings_account_data.withdrawal_daily_amount = 0;
+                settings_account_data.withdrawal_daily_amount = Default::default();
             }
 
-            if settings_account_data.withdrawal_limit >= withdrawal_account_data.event.data.amount
-                && settings_account_data.withdrawal_daily_limit
-                    >= settings_account_data
-                        .withdrawal_daily_amount
-                        .checked_add(withdrawal_account_data.event.data.amount)
-                        .ok_or(TokenProxyError::ArithmeticsError)?
-            {
-                settings_account_data.withdrawal_daily_amount = settings_account_data
-                    .withdrawal_daily_amount
-                    .checked_add(withdrawal_account_data.event.data.amount)
-                    .ok_or(TokenProxyError::ArithmeticsError)?;
+            // Increase withdrawal daily amount
+            settings_account_data.withdrawal_daily_amount = settings_account_data
+                .withdrawal_daily_amount
+                .checked_add(withdrawal_account_data.event.data.amount)
+                .ok_or(TokenProxyError::ArithmeticsError)?;
 
-                withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::WaitingForRelease;
-            } else {
+            if withdrawal_account_data.event.data.amount > settings_account_data.withdrawal_limit
+                || settings_account_data.withdrawal_daily_amount
+                    > settings_account_data.withdrawal_daily_limit
+            {
                 withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::WaitingForApprove;
+            } else {
+                // Validate Recipient Account
+                if recipient_token_account_info.owner != &spl_token::id() {
+                    return Err(ProgramError::InvalidArgument);
+                }
+
+                let recipient_token_account_data =
+                    spl_token::state::Account::unpack(&recipient_token_account_info.data.borrow())?;
+
+                let recipient_token_address = Pubkey::new_from_array(
+                    withdrawal_account_data
+                        .event
+                        .data
+                        .recipient_address
+                        .clone()
+                        .try_into()
+                        .map_err(|_| TokenProxyError::ConstructPubkey)?,
+                );
+                if recipient_token_account_data.owner != recipient_token_address {
+                    return Err(ProgramError::InvalidArgument);
+                }
+
+                // Validate Mint Account
+                let name = &settings_account_data.name;
+
+                let mint_nonce = validate_mint_account(program_id, name, mint_account_info)?;
+                let mint_account_signer_seeds: &[&[_]] =
+                    &[br"mint", name.as_bytes(), &[mint_nonce]];
+
+                if mint_account_info.owner != &spl_token::id() {
+                    return Err(ProgramError::InvalidArgument);
+                }
+
+                // Mint EVER tokens to Recipient Account
+                invoke_signed(
+                    &spl_token::instruction::mint_to(
+                        &spl_token::id(),
+                        mint_account_info.key,
+                        recipient_token_account_info.key,
+                        mint_account_info.key,
+                        &[mint_account_info.key],
+                        withdrawal_account_data.event.data.amount,
+                    )?,
+                    &[
+                        token_program_info.clone(),
+                        mint_account_info.clone(),
+                        recipient_token_account_info.clone(),
+                        mint_account_info.clone(),
+                    ],
+                    &[mint_account_signer_seeds],
+                )?;
+
+                withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Processed;
             }
 
             Settings::pack(
@@ -974,114 +1023,6 @@ impl Processor {
                 &mut settings_account_info.data.borrow_mut(),
             )?;
         }
-
-        WithdrawalToken::pack(
-            withdrawal_account_data,
-            &mut withdrawal_account_info.data.borrow_mut(),
-        )?;
-
-        Ok(())
-    }
-
-    fn process_withdraw_ever(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
-        let account_info_iter = &mut accounts.iter();
-
-        let mint_account_info = next_account_info(account_info_iter)?;
-        let withdrawal_account_info = next_account_info(account_info_iter)?;
-        let recipient_token_account_info = next_account_info(account_info_iter)?;
-        let settings_account_info = next_account_info(account_info_iter)?;
-        let token_program_info = next_account_info(account_info_iter)?;
-
-        // Validate Withdrawal Account
-        if withdrawal_account_info.owner != program_id {
-            return Err(ProgramError::InvalidArgument);
-        }
-
-        let mut withdrawal_account_data =
-            WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
-        let author = withdrawal_account_data.pda.author;
-        let settings = withdrawal_account_data.pda.settings;
-        let event_timestamp = withdrawal_account_data.pda.event_timestamp;
-        let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
-        let event_configuration = withdrawal_account_data.pda.event_configuration;
-
-        bridge_utils::helper::validate_proposal_account(
-            program_id,
-            &author,
-            &settings,
-            event_timestamp,
-            event_transaction_lt,
-            &event_configuration,
-            withdrawal_account_info,
-        )?;
-
-        // Validate Setting Account
-        if *settings_account_info.key != settings {
-            return Err(ProgramError::InvalidArgument);
-        }
-
-        let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
-
-        if settings_account_data.emergency {
-            return Err(TokenProxyError::EmergencyEnabled.into());
-        }
-
-        let name = &settings_account_data.name;
-
-        // Validate Recipient Account
-        if recipient_token_account_info.owner != &spl_token::id() {
-            return Err(ProgramError::InvalidArgument);
-        }
-
-        let recipient_token_account_data =
-            spl_token::state::Account::unpack(&recipient_token_account_info.data.borrow())?;
-
-        let recipient_token_address = Pubkey::new_from_array(
-            withdrawal_account_data
-                .event
-                .data
-                .recipient_address
-                .clone()
-                .try_into()
-                .map_err(|_| TokenProxyError::ConstructPubkey)?,
-        );
-        if recipient_token_account_data.owner != recipient_token_address {
-            return Err(ProgramError::InvalidArgument);
-        }
-
-        // Validate Mint Account
-        let mint_nonce = validate_mint_account(program_id, name, mint_account_info)?;
-        let mint_account_signer_seeds: &[&[_]] = &[br"mint", name.as_bytes(), &[mint_nonce]];
-
-        if mint_account_info.owner != &spl_token::id() {
-            return Err(ProgramError::InvalidArgument);
-        }
-
-        // Validate status
-        if withdrawal_account_data.meta.data.status != WithdrawalTokenStatus::WaitingForRelease {
-            return Err(TokenProxyError::InvalidWithdrawalStatus.into());
-        }
-
-        // Mint EVER tokens to Recipient Account
-        invoke_signed(
-            &spl_token::instruction::mint_to(
-                &spl_token::id(),
-                mint_account_info.key,
-                recipient_token_account_info.key,
-                mint_account_info.key,
-                &[mint_account_info.key],
-                withdrawal_account_data.event.data.amount,
-            )?,
-            &[
-                token_program_info.clone(),
-                mint_account_info.clone(),
-                recipient_token_account_info.clone(),
-                mint_account_info.clone(),
-            ],
-            &[mint_account_signer_seeds],
-        )?;
-
-        withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Processed;
 
         WithdrawalToken::pack(
             withdrawal_account_data,
@@ -1099,6 +1040,8 @@ impl Processor {
         let recipient_token_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
         let token_program_info = next_account_info(account_info_iter)?;
+        let clock_info = next_account_info(account_info_iter)?;
+        let clock = Clock::from_account_info(clock_info)?;
 
         // Validate Withdrawal Account
         if withdrawal_account_info.owner != program_id {
@@ -1123,78 +1066,111 @@ impl Processor {
             withdrawal_account_info,
         )?;
 
-        // Validate Setting Account
-        if *settings_account_info.key != settings {
-            return Err(ProgramError::InvalidArgument);
-        }
+        // Do we have enough signers.
+        let sig_count = withdrawal_account_data
+            .signers
+            .iter()
+            .filter(|vote| **vote == Vote::Confirm)
+            .count() as u32;
 
-        let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+        if sig_count >= withdrawal_account_data.required_votes
+            && withdrawal_account_data.meta.data.status == WithdrawalTokenStatus::New
+        {
+            let current_timestamp = clock.unix_timestamp;
 
-        if settings_account_data.emergency {
-            return Err(TokenProxyError::EmergencyEnabled.into());
-        }
+            // Validate Setting Account
+            if *settings_account_info.key != settings {
+                return Err(ProgramError::InvalidArgument);
+            }
 
-        let name = &settings_account_data.name;
+            let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
 
-        // Validate Recipient Account
-        let recipient_token_account_data =
-            spl_token::state::Account::unpack(&recipient_token_account_info.data.borrow())?;
+            if settings_account_data.emergency {
+                return Err(TokenProxyError::EmergencyEnabled.into());
+            }
 
-        if recipient_token_account_info.owner != &spl_token::id() {
-            return Err(ProgramError::InvalidArgument);
-        }
+            // If current timestamp has expired
+            if settings_account_data.withdrawal_ttl < current_timestamp {
+                settings_account_data.withdrawal_ttl = current_timestamp + WITHDRAWAL_TOKEN_PERIOD;
+                settings_account_data.withdrawal_daily_amount = Default::default();
+            }
 
-        let recipient_token_address = Pubkey::new_from_array(
-            withdrawal_account_data
-                .event
-                .data
-                .recipient_address
-                .clone()
-                .try_into()
-                .map_err(|_| TokenProxyError::ConstructPubkey)?,
-        );
-        if recipient_token_account_data.owner != recipient_token_address {
-            return Err(ProgramError::InvalidArgument);
-        }
+            // Increase withdrawal daily amount
+            settings_account_data.withdrawal_daily_amount = settings_account_data
+                .withdrawal_daily_amount
+                .checked_add(withdrawal_account_data.event.data.amount)
+                .ok_or(TokenProxyError::ArithmeticsError)?;
 
-        // Validate status
-        if withdrawal_account_data.meta.data.status != WithdrawalTokenStatus::WaitingForRelease {
-            return Err(TokenProxyError::InvalidWithdrawalStatus.into());
-        }
+            if withdrawal_account_data.event.data.amount > settings_account_data.withdrawal_limit
+                || settings_account_data.withdrawal_daily_amount
+                    > settings_account_data.withdrawal_daily_limit
+            {
+                withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::WaitingForApprove;
+            } else {
+                // Validate Recipient Account
+                let recipient_token_account_data =
+                    spl_token::state::Account::unpack(&recipient_token_account_info.data.borrow())?;
 
-        // Validate Vault Account
-        let vault_nonce = validate_vault_account(program_id, name, vault_account_info)?;
-        let vault_account_signer_seeds: &[&[_]] = &[br"vault", name.as_bytes(), &[vault_nonce]];
+                if recipient_token_account_info.owner != &spl_token::id() {
+                    return Err(ProgramError::InvalidArgument);
+                }
 
-        if vault_account_info.owner != &spl_token::id() {
-            return Err(ProgramError::InvalidArgument);
-        }
+                let recipient_token_address = Pubkey::new_from_array(
+                    withdrawal_account_data
+                        .event
+                        .data
+                        .recipient_address
+                        .clone()
+                        .try_into()
+                        .map_err(|_| TokenProxyError::ConstructPubkey)?,
+                );
+                if recipient_token_account_data.owner != recipient_token_address {
+                    return Err(ProgramError::InvalidArgument);
+                }
 
-        let vault_account_data =
-            spl_token::state::Account::unpack(&vault_account_info.data.borrow())?;
+                // Validate Vault Account
+                let name = &settings_account_data.name;
 
-        if vault_account_data.amount >= withdrawal_account_data.event.data.amount {
-            // Transfer tokens from Vault Account to Recipient Account
-            invoke_signed(
-                &spl_token::instruction::transfer(
-                    &spl_token::id(),
-                    vault_account_info.key,
-                    recipient_token_account_info.key,
-                    vault_account_info.key,
-                    &[vault_account_info.key],
-                    withdrawal_account_data.event.data.amount,
-                )?,
-                &[
-                    token_program_info.clone(),
-                    vault_account_info.clone(),
-                    recipient_token_account_info.clone(),
-                ],
-                &[vault_account_signer_seeds],
+                let vault_nonce = validate_vault_account(program_id, name, vault_account_info)?;
+                let vault_account_signer_seeds: &[&[_]] =
+                    &[br"vault", name.as_bytes(), &[vault_nonce]];
+
+                if vault_account_info.owner != &spl_token::id() {
+                    return Err(ProgramError::InvalidArgument);
+                }
+
+                let vault_account_data =
+                    spl_token::state::Account::unpack(&vault_account_info.data.borrow())?;
+
+                if vault_account_data.amount >= withdrawal_account_data.event.data.amount {
+                    // Transfer tokens from Vault Account to Recipient Account
+                    invoke_signed(
+                        &spl_token::instruction::transfer(
+                            &spl_token::id(),
+                            vault_account_info.key,
+                            recipient_token_account_info.key,
+                            vault_account_info.key,
+                            &[vault_account_info.key],
+                            withdrawal_account_data.event.data.amount,
+                        )?,
+                        &[
+                            token_program_info.clone(),
+                            vault_account_info.clone(),
+                            recipient_token_account_info.clone(),
+                        ],
+                        &[vault_account_signer_seeds],
+                    )?;
+
+                    withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Processed;
+                } else {
+                    withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Pending;
+                }
+            }
+
+            Settings::pack(
+                settings_account_data,
+                &mut settings_account_info.data.borrow_mut(),
             )?;
-
-            withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Processed;
-        } else {
-            withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Pending;
         }
 
         WithdrawalToken::pack(

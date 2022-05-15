@@ -247,33 +247,6 @@ pub fn approve_withdrawal_sol_ix(
     return JsValue::from_serde(&ix).handle_error();
 }
 
-#[wasm_bindgen(js_name = "updateWithdrawalStatus")]
-pub fn update_withdrawal_status_ix(
-    name: String,
-    withdrawal_pubkey: String,
-) -> Result<JsValue, JsValue> {
-    let program_id = &id();
-
-    let settings_pubkey = get_associated_settings_address(program_id, &name);
-    let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).handle_error()?;
-
-    let data = TokenProxyInstruction::UpdateWithdrawStatus
-        .try_to_vec()
-        .handle_error()?;
-
-    let ix = Instruction {
-        program_id: id(),
-        accounts: vec![
-            AccountMeta::new(settings_pubkey, false),
-            AccountMeta::new(withdrawal_pubkey, false),
-            AccountMeta::new_readonly(sysvar::clock::id(), false),
-        ],
-        data,
-    };
-
-    return JsValue::from_serde(&ix).handle_error();
-}
-
 #[wasm_bindgen(js_name = "withdrawalEver")]
 pub fn withdrawal_ever_ix(
     to_pubkey: String,
@@ -301,8 +274,9 @@ pub fn withdrawal_ever_ix(
             AccountMeta::new(mint_pubkey, false),
             AccountMeta::new(withdrawal_pubkey, false),
             AccountMeta::new(recipient_pubkey, false),
-            AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new(settings_pubkey, false),
             AccountMeta::new_readonly(spl_token::id(), false),
+            AccountMeta::new_readonly(sysvar::clock::id(), false),
         ],
         data,
     };
@@ -338,8 +312,9 @@ pub fn withdrawal_sol_ix(
             AccountMeta::new(vault_pubkey, false),
             AccountMeta::new(withdrawal_pubkey, false),
             AccountMeta::new(recipient_pubkey, false),
-            AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new(settings_pubkey, false),
             AccountMeta::new_readonly(spl_token::id(), false),
+            AccountMeta::new_readonly(sysvar::clock::id(), false),
         ],
         data,
     };

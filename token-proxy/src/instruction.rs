@@ -95,12 +95,6 @@ pub enum TokenProxyInstruction {
         amount: u64,
     },
 
-    /// Update withdraw status
-    ///
-    /// # Account references
-    /// ...
-    UpdateWithdrawStatus,
-
     /// Withdraw EVER
     ///
     /// # Account references

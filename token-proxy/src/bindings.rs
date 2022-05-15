@@ -289,25 +289,6 @@ pub fn vote_for_withdrawal_request_ix(
     }
 }
 
-pub fn update_withdrawal_status_ix(
-    withdrawal_pubkey: &Pubkey,
-    settings_pubkey: &Pubkey,
-) -> Instruction {
-    let data = TokenProxyInstruction::UpdateWithdrawStatus
-        .try_to_vec()
-        .expect("pack");
-
-    Instruction {
-        program_id: id(),
-        accounts: vec![
-            AccountMeta::new(*settings_pubkey, false),
-            AccountMeta::new(*withdrawal_pubkey, false),
-            AccountMeta::new_readonly(sysvar::clock::id(), false),
-        ],
-        data,
-    }
-}
-
 pub fn withdrawal_ever_ix(
     to_pubkey: &Pubkey,
     withdrawal_pubkey: &Pubkey,
@@ -328,8 +309,9 @@ pub fn withdrawal_ever_ix(
             AccountMeta::new(mint_pubkey, false),
             AccountMeta::new(*withdrawal_pubkey, false),
             AccountMeta::new(recipient_token_pubkey, false),
-            AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new(settings_pubkey, false),
             AccountMeta::new_readonly(spl_token::id(), false),
+            AccountMeta::new_readonly(sysvar::clock::id(), false),
         ],
         data,
     }
@@ -357,8 +339,9 @@ pub fn withdrawal_sol_ix(
             AccountMeta::new(vault_pubkey, false),
             AccountMeta::new(*withdrawal_pubkey, false),
             AccountMeta::new(recipient_token_pubkey, false),
-            AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new(settings_pubkey, false),
             AccountMeta::new_readonly(spl_token::id(), false),
+            AccountMeta::new_readonly(sysvar::clock::id(), false),
         ],
         data,
     }
