@@ -3,7 +3,7 @@ use std::str::FromStr;
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 
-pub const RELAY_REPARATION: u64 = 100000;
+pub const RELAY_REPARATION: u64 = 20000;
 
 #[derive(
     Debug, Copy, Clone, PartialEq, Eq, BorshSerialize, BorshDeserialize, Serialize, Deserialize,
