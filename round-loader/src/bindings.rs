@@ -47,11 +47,9 @@ pub fn initialize_ix(
     round_end: u32,
     relays: Vec<Pubkey>,
 ) -> Instruction {
-    let program_id = &id();
-
-    let setting_pubkey = get_associated_settings_address(program_id);
-    let relay_round_pubkey = get_associated_relay_round_address(program_id, round_number);
-    let program_data_pubkey = bridge_utils::helper::get_programdata_address(program_id);
+    let setting_pubkey = get_settings_address();
+    let program_data_pubkey = get_programdata_address();
+    let relay_round_pubkey = get_relay_round_address(round_number);
 
     let data = RoundLoaderInstruction::Initialize {
         round_number,
@@ -83,12 +81,9 @@ pub fn create_proposal_ix(
     event_transaction_lt: u64,
     event_configuration: Pubkey,
 ) -> Instruction {
-    let program_id = &id();
+    let settings = get_settings_address();
 
-    let settings = get_associated_settings_address(program_id);
-
-    let proposal_pubkey = bridge_utils::helper::get_associated_proposal_address(
-        program_id,
+    let proposal_pubkey = get_proposal_address(
         creator_pubkey,
         &settings,
         event_timestamp,
@@ -125,12 +120,9 @@ pub fn write_proposal_ix(
     offset: u32,
     bytes: Vec<u8>,
 ) -> Instruction {
-    let program_id = &id();
+    let settings = get_settings_address();
 
-    let settings = get_associated_settings_address(program_id);
-
-    let proposal_pubkey = bridge_utils::helper::get_associated_proposal_address(
-        program_id,
+    let proposal_pubkey = get_proposal_address(
         creator_pubkey,
         &settings,
         event_timestamp,
@@ -165,19 +157,16 @@ pub fn finalize_proposal_ix(
     event_configuration: Pubkey,
     round_number: u32,
 ) -> Instruction {
-    let program_id = &id();
+    let settings_pubkey = get_settings_address();
 
-    let settings_pubkey = get_associated_settings_address(program_id);
-
-    let proposal_pubkey = bridge_utils::helper::get_associated_proposal_address(
-        program_id,
+    let proposal_pubkey = get_proposal_address(
         creator_pubkey,
         &settings_pubkey,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
     );
-    let relay_round_pubkey = get_associated_relay_round_address(program_id, round_number);
+    let relay_round_pubkey = get_relay_round_address(round_number);
 
     let data = RoundLoaderInstruction::FinalizeProposal {
         event_timestamp,
@@ -207,9 +196,7 @@ pub fn vote_for_proposal_ix(
     round_number: u32,
     vote: Vote,
 ) -> Instruction {
-    let program_id = &id();
-
-    let relay_round_pubkey = get_associated_relay_round_address(program_id, round_number);
+    let relay_round_pubkey = get_relay_round_address(round_number);
 
     let data = RoundLoaderInstruction::VoteForProposal { vote }
         .try_to_vec()
@@ -231,10 +218,8 @@ pub fn execute_proposal_ix(
     proposal_pubkey: &Pubkey,
     round_number: u32,
 ) -> Instruction {
-    let program_id = &id();
-
-    let settings_pubkey = get_associated_settings_address(program_id);
-    let relay_round_pubkey = get_associated_relay_round_address(program_id, round_number);
+    let settings_pubkey = get_settings_address();
+    let relay_round_pubkey = get_relay_round_address(round_number);
 
     let data = RoundLoaderInstruction::ExecuteProposal
         .try_to_vec()

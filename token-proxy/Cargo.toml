@@ -7,8 +7,8 @@ edition = "2021"
 [features]
 no-entrypoint = []
 test-bpf = ["bindings"]
-bindings = ["no-entrypoint", "spl-associated-token-account"]
-wasm = ["no-entrypoint", "wasm-bindgen", "js-sys", "spl-associated-token-account"]
+bindings = ["no-entrypoint", "spl-associated-token-account", "uuid", "getrandom"]
+wasm = ["no-entrypoint", "bindings", "wasm-bindgen", "js-sys"]
 
 [dependencies]
 bincode = "1.3"
@@ -19,9 +19,11 @@ serde = { version = "1.0", features = ["derive"] }
 spl-token = {version = "3.2", features = ["no-entrypoint"]}
 thiserror = "1.0"
 
+getrandom = { version = "0.2", features = ["js"], optional = true }
 js-sys = { version = "0.3", optional = true }
 spl-associated-token-account = {version = "1.0", features = ["no-entrypoint"], optional = true }
 wasm-bindgen = { version = "0.2.79", features = ["serde-serialize"], optional = true }
+uuid = { version = "0.8", features = ["v4", "serde"], optional = true }
 
 bridge-derive = { path = "../bridge-derive" }
 bridge-utils = { path = "../bridge-utils" }
@@ -30,7 +32,6 @@ round-loader = { path = "../round-loader", features = ["no-entrypoint"] }
 [dev-dependencies]
 solana-program-test = "1.10"
 solana-sdk = "1.10"
-uuid = { version = "0.8", features = ["v4", "serde"] }
 
 [lib]
 crate-type = ["cdylib", "lib"]

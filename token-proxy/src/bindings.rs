@@ -1,5 +1,6 @@
 use borsh::BorshSerialize;
 use bridge_utils::types::{EverAddress, Vote};
+use uuid::Uuid;
 
 use solana_program::instruction::{AccountMeta, Instruction};
 use solana_program::pubkey::Pubkey;
@@ -138,7 +139,7 @@ pub fn deposit_ever_ix(
     funder_pubkey: &Pubkey,
     author_pubkey: &Pubkey,
     token_name: &str,
-    deposit_seed: u128,
+    deposit_seed: Uuid,
     recipient_address: EverAddress,
     amount: u64,
 ) -> Instruction {
@@ -146,6 +147,8 @@ pub fn deposit_ever_ix(
     let settings_pubkey = get_settings_address(token_name);
     let author_token_pubkey =
         spl_associated_token_account::get_associated_token_address(author_pubkey, &mint_pubkey);
+
+    let deposit_seed = deposit_seed.as_u128();
     let deposit_pubkey = get_deposit_address(deposit_seed, &settings_pubkey);
 
     let data = TokenProxyInstruction::DepositEver {
@@ -178,13 +181,14 @@ pub fn deposit_sol_ix(
     author_pubkey: &Pubkey,
     mint_pubkey: &Pubkey,
     token_name: &str,
-    deposit_seed: u128,
+    deposit_seed: Uuid,
     recipient_address: EverAddress,
     amount: u64,
 ) -> Instruction {
     let vault_pubkey = get_vault_address(token_name);
     let settings_pubkey = get_settings_address(token_name);
 
+    let deposit_seed = deposit_seed.as_u128();
     let deposit_pubkey = get_deposit_address(deposit_seed, &settings_pubkey);
     let author_token_pubkey =
         spl_associated_token_account::get_associated_token_address(author_pubkey, mint_pubkey);
@@ -403,9 +407,10 @@ pub fn cancel_withdrawal_sol_ix(
     funder_pubkey: &Pubkey,
     author_pubkey: &Pubkey,
     withdrawal_pubkey: &Pubkey,
-    deposit_seed: u128,
+    deposit_seed: Uuid,
     token_name: &str,
 ) -> Instruction {
+    let deposit_seed = deposit_seed.as_u128();
     let settings_pubkey = get_settings_address(token_name);
     let deposit_pubkey = get_deposit_address(deposit_seed, &settings_pubkey);
 
@@ -436,7 +441,7 @@ pub fn fill_withdrawal_sol_ix(
     mint_pubkey: &Pubkey,
     withdrawal_pubkey: &Pubkey,
     token_name: &str,
-    deposit_seed: u128,
+    deposit_seed: Uuid,
     recipient_address: EverAddress,
 ) -> Instruction {
     let author_token_pubkey =
@@ -444,6 +449,7 @@ pub fn fill_withdrawal_sol_ix(
     let recipient_token_pubkey =
         spl_associated_token_account::get_associated_token_address(to_pubkey, mint_pubkey);
 
+    let deposit_seed = deposit_seed.as_u128();
     let settings_pubkey = get_settings_address(token_name);
     let new_deposit_pubkey = get_deposit_address(deposit_seed, &settings_pubkey);
 

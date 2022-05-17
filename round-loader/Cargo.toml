@@ -8,7 +8,7 @@ edition = "2021"
 no-entrypoint = []
 test-bpf = ["bindings"]
 bindings = ["no-entrypoint"]
-wasm = ["no-entrypoint", "wasm-bindgen", "js-sys"]
+wasm = ["no-entrypoint", "bindings", "wasm-bindgen", "js-sys"]
 
 [dependencies]
 bincode = "1.3"

@@ -10,9 +10,10 @@ use solana_program::program_pack::Pack;
 use solana_program::pubkey::Pubkey;
 use solana_program::{system_program, sysvar};
 
-use bridge_utils::helper::*;
 use bridge_utils::state::*;
 use bridge_utils::types::*;
+
+use bridge_utils::helper::get_associated_relay_round_address;
 
 use crate::*;
 
@@ -27,15 +28,13 @@ pub fn initialize_mint_ix(
     withdrawal_daily_limit: u64,
     admin: String,
 ) -> Result<JsValue, JsValue> {
-    let program_id = &id();
+    let mint_pubkey = get_mint_address(&name);
+    let settings_pubkey = get_settings_address(&name);
+    let program_data_pubkey = get_programdata_address();
 
+    let admin = Pubkey::from_str(admin.as_str()).handle_error()?;
     let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
     let initializer_pubkey = Pubkey::from_str(initializer_pubkey.as_str()).handle_error()?;
-    let admin = Pubkey::from_str(admin.as_str()).handle_error()?;
-
-    let mint_pubkey = get_associated_mint_address(program_id, &name);
-    let settings_pubkey = get_associated_settings_address(program_id, &name);
-    let program_data_pubkey = get_programdata_address(program_id);
 
     let data = TokenProxyInstruction::InitializeMint {
         name,
@@ -77,16 +76,14 @@ pub fn initialize_vault_ix(
     withdrawal_daily_limit: u64,
     admin: String,
 ) -> Result<JsValue, JsValue> {
-    let program_id = &id();
+    let vault_pubkey = get_vault_address(&name);
+    let settings_pubkey = get_settings_address(&name);
+    let program_data_pubkey = get_programdata_address();
 
+    let admin = Pubkey::from_str(admin.as_str()).handle_error()?;
+    let mint_pubkey = Pubkey::from_str(mint_pubkey.as_str()).handle_error()?;
     let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
     let initializer_pubkey = Pubkey::from_str(initializer_pubkey.as_str()).handle_error()?;
-    let mint_pubkey = Pubkey::from_str(mint_pubkey.as_str()).handle_error()?;
-    let admin = Pubkey::from_str(admin.as_str()).handle_error()?;
-
-    let vault_pubkey = get_associated_vault_address(program_id, &name);
-    let settings_pubkey = get_associated_settings_address(program_id, &name);
-    let program_data_pubkey = get_programdata_address(program_id);
 
     let data = TokenProxyInstruction::InitializeVault {
         name,
@@ -130,19 +127,18 @@ pub fn process_withdrawal_request(
     amount: u64,
     round_number: u32,
 ) -> Result<JsValue, JsValue> {
-    let program_id = &id();
+    let settings_pubkey = get_settings_address(&name);
 
     let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
     let author_pubkey = Pubkey::from_str(author_pubkey.as_str()).handle_error()?;
     let recipient_address = Pubkey::from_str(recipient_address.as_str()).handle_error()?;
     let event_configuration = Pubkey::from_str(event_configuration.as_str()).handle_error()?;
-    let settings_pubkey = get_associated_settings_address(program_id, &name);
-    let relay_round_pubkey = get_associated_relay_round_address(&round_loader::id(), round_number);
 
     let sender_address = EverAddress::from_str(&sender_address).handle_error()?;
 
-    let withdrawal_pubkey = get_associated_proposal_address(
-        program_id,
+    let relay_round_pubkey = get_associated_relay_round_address(&round_loader::id(), round_number);
+
+    let withdrawal_pubkey = get_withdrawal_address(
         &author_pubkey,
         &settings_pubkey,
         event_timestamp,
@@ -186,15 +182,13 @@ pub fn approve_withdrawal_ever_ix(
     name: String,
     withdrawal_pubkey: String,
 ) -> Result<JsValue, JsValue> {
-    let program_id = &id();
+    let mint_pubkey = get_mint_address(&name);
+    let settings_pubkey = get_settings_address(&name);
 
-    let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
     let to_pubkey = Pubkey::from_str(to_pubkey.as_str()).handle_error()?;
-
-    let settings_pubkey = get_associated_settings_address(program_id, &name);
+    let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
     let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).handle_error()?;
 
-    let mint_pubkey = get_associated_mint_address(program_id, &name);
     let recipient_pubkey =
         spl_associated_token_account::get_associated_token_address(&to_pubkey, &mint_pubkey);
 
@@ -224,10 +218,9 @@ pub fn approve_withdrawal_sol_ix(
     name: String,
     withdrawal_pubkey: String,
 ) -> Result<JsValue, JsValue> {
-    let program_id = &id();
+    let settings_pubkey = get_settings_address(&name);
 
     let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
-    let settings_pubkey = get_associated_settings_address(program_id, &name);
     let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).handle_error()?;
 
     let data = TokenProxyInstruction::ApproveWithdrawSol
@@ -253,14 +246,12 @@ pub fn withdrawal_ever_ix(
     name: String,
     withdrawal_pubkey: String,
 ) -> Result<JsValue, JsValue> {
-    let program_id = &id();
+    let mint_pubkey = get_mint_address(&name);
+    let settings_pubkey = get_settings_address(&name);
 
     let to_pubkey = Pubkey::from_str(to_pubkey.as_str()).handle_error()?;
-
-    let settings_pubkey = get_associated_settings_address(program_id, &name);
     let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).handle_error()?;
 
-    let mint_pubkey = get_associated_mint_address(program_id, &name);
     let recipient_pubkey =
         spl_associated_token_account::get_associated_token_address(&to_pubkey, &mint_pubkey);
 
@@ -291,12 +282,11 @@ pub fn withdrawal_sol_ix(
     withdrawal_pubkey: String,
     name: String,
 ) -> Result<JsValue, JsValue> {
-    let program_id = &id();
+    let vault_pubkey = get_vault_address(&name);
+    let settings_pubkey = get_settings_address(&name);
+
     let to_pubkey = Pubkey::from_str(to_pubkey.as_str()).handle_error()?;
     let mint_pubkey = Pubkey::from_str(mint_pubkey.as_str()).handle_error()?;
-
-    let vault_pubkey = get_associated_vault_address(program_id, &name);
-    let settings_pubkey = get_associated_settings_address(program_id, &name);
     let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).handle_error()?;
 
     let recipient_pubkey =
@@ -330,16 +320,16 @@ pub fn cancel_withdrawal_sol_ix(
     deposit_seed: String,
     name: String,
 ) -> Result<JsValue, JsValue> {
-    let program_id = &id();
+    let deposit_seed = uuid::Uuid::from_str(&deposit_seed)
+        .handle_error()?
+        .as_u128();
+
+    let settings_pubkey = get_settings_address(&name);
+    let deposit_pubkey = get_deposit_address(deposit_seed, &settings_pubkey);
 
     let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
     let author_pubkey = Pubkey::from_str(author_pubkey.as_str()).handle_error()?;
     let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).handle_error()?;
-
-    let settings_pubkey = get_associated_settings_address(program_id, &name);
-
-    let deposit_seed = u128::from_str(&deposit_seed).handle_error()?;
-    let deposit_pubkey = get_associated_deposit_address(program_id, deposit_seed, &settings_pubkey);
 
     let data = TokenProxyInstruction::CancelWithdrawSol { deposit_seed }
         .try_to_vec()
@@ -373,26 +363,25 @@ pub fn fill_withdrawal_sol_ix(
     deposit_seed: String,
     recipient_address: String,
 ) -> Result<JsValue, JsValue> {
-    let program_id = &id();
+    let deposit_seed = uuid::Uuid::from_str(&deposit_seed)
+        .handle_error()?
+        .as_u128();
 
-    let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
-    let author_pubkey = Pubkey::from_str(author_pubkey.as_str()).handle_error()?;
+    let settings_pubkey = get_settings_address(&name);
+    let new_deposit_pubkey = get_deposit_address(deposit_seed, &settings_pubkey);
+
     let to_pubkey = Pubkey::from_str(to_pubkey.as_str()).handle_error()?;
     let mint_pubkey = Pubkey::from_str(mint_pubkey.as_str()).handle_error()?;
+    let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
+    let author_pubkey = Pubkey::from_str(author_pubkey.as_str()).handle_error()?;
     let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).handle_error()?;
+
+    let recipient_address = EverAddress::from_str(&recipient_address).handle_error()?;
 
     let author_token_pubkey =
         spl_associated_token_account::get_associated_token_address(&author_pubkey, &mint_pubkey);
     let recipient_token_pubkey =
         spl_associated_token_account::get_associated_token_address(&to_pubkey, &mint_pubkey);
-
-    let settings_pubkey = get_associated_settings_address(program_id, &name);
-
-    let deposit_seed = u128::from_str(&deposit_seed).handle_error()?;
-    let new_deposit_pubkey =
-        get_associated_deposit_address(program_id, deposit_seed, &settings_pubkey);
-
-    let recipient_address = EverAddress::from_str(&recipient_address).handle_error()?;
 
     let data = TokenProxyInstruction::FillWithdrawSol {
         deposit_seed,
@@ -430,23 +419,21 @@ pub fn deposit_ever_ix(
     recipient_address: String,
     amount: u64,
 ) -> Result<JsValue, JsValue> {
-    let program_id = &id();
+    let deposit_seed = uuid::Uuid::from_str(&deposit_seed)
+        .handle_error()?
+        .as_u128();
+
+    let mint_pubkey = get_mint_address(&name);
+    let settings_pubkey = get_settings_address(&name);
+    let deposit_pubkey = get_deposit_address(deposit_seed, &settings_pubkey);
 
     let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
     let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
 
-    let settings_pubkey = get_associated_settings_address(program_id, &name);
-
-    let deposit_seed = u128::from_str(&deposit_seed).handle_error()?;
-
-    let deposit_pubkey = get_associated_deposit_address(program_id, deposit_seed, &settings_pubkey);
-
-    let mint_pubkey = get_associated_mint_address(program_id, &name);
+    let recipient_address = EverAddress::from_str(&recipient_address).handle_error()?;
 
     let sender_pubkey =
         spl_associated_token_account::get_associated_token_address(&authority_pubkey, &mint_pubkey);
-
-    let recipient_address = EverAddress::from_str(&recipient_address).handle_error()?;
 
     let data = TokenProxyInstruction::DepositEver {
         deposit_seed,
@@ -485,22 +472,22 @@ pub fn deposit_sol_ix(
     recipient_address: String,
     amount: u64,
 ) -> Result<JsValue, JsValue> {
-    let program_id = &id();
+    let deposit_seed = uuid::Uuid::from_str(&deposit_seed)
+        .handle_error()?
+        .as_u128();
+
+    let vault_pubkey = get_vault_address(&name);
+    let settings_pubkey = get_settings_address(&name);
+    let deposit_pubkey = get_deposit_address(deposit_seed, &settings_pubkey);
 
     let mint_pubkey = Pubkey::from_str(mint_pubkey.as_str()).handle_error()?;
     let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
     let author_pubkey = Pubkey::from_str(author_pubkey.as_str()).handle_error()?;
-    let author_token_pubkey =
-        spl_associated_token_account::get_associated_token_address(&author_pubkey, &mint_pubkey);
-
-    let vault_pubkey = get_associated_vault_address(program_id, &name);
-    let settings_pubkey = get_associated_settings_address(program_id, &name);
-
-    let deposit_seed = u128::from_str(&deposit_seed).handle_error()?;
-
-    let deposit_pubkey = get_associated_deposit_address(program_id, deposit_seed, &settings_pubkey);
 
     let recipient_address = EverAddress::from_str(&recipient_address).handle_error()?;
+
+    let author_token_pubkey =
+        spl_associated_token_account::get_associated_token_address(&author_pubkey, &mint_pubkey);
 
     let data = TokenProxyInstruction::DepositSol {
         deposit_seed,
@@ -538,6 +525,7 @@ pub fn vote_for_withdraw_request_ix(
 ) -> Result<JsValue, JsValue> {
     let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
     let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).handle_error()?;
+
     let relay_round_pubkey = get_associated_relay_round_address(&round_loader::id(), round_number);
 
     let data = TokenProxyInstruction::VoteForWithdrawRequest {
@@ -568,9 +556,8 @@ pub fn change_settings_ix(
     withdrawal_limit: u64,
     withdrawal_daily_limit: u64,
 ) -> Result<JsValue, JsValue> {
-    let program_id = &id();
+    let settings_pubkey = get_settings_address(&name);
 
-    let settings_pubkey = get_associated_settings_address(program_id, &name);
     let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
 
     let data = TokenProxyInstruction::ChangeSettings {
@@ -600,13 +587,11 @@ pub fn change_admin_ix(
     name: String,
     new_admin: String,
 ) -> Result<JsValue, JsValue> {
-    let program_id = &id();
+    let settings_pubkey = get_settings_address(&name);
+    let program_data_pubkey = get_programdata_address();
 
-    let settings_pubkey = get_associated_settings_address(program_id, &name);
-    let program_data_pubkey = get_programdata_address(program_id);
-
-    let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
     let new_admin = Pubkey::from_str(new_admin.as_str()).handle_error()?;
+    let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
 
     let data = TokenProxyInstruction::ChangeAdmin { new_admin }
         .try_to_vec()

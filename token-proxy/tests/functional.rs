@@ -352,7 +352,7 @@ async fn test_deposit_ever() {
     // Start Program Test
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
-    let deposit_seed = uuid::Uuid::new_v4().as_u128();
+    let deposit_seed = uuid::Uuid::new_v4();
     let recipient_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 32;
 
@@ -392,7 +392,7 @@ async fn test_deposit_ever() {
     let sender_data = spl_token::state::Account::unpack(sender_info.data()).expect("token unpack");
     assert_eq!(sender_data.amount, 100 - amount);
 
-    let deposit_address = get_deposit_address(deposit_seed, &settings_address);
+    let deposit_address = get_deposit_address(deposit_seed.as_u128(), &settings_address);
     let deposit_info = banks_client
         .get_account(deposit_address)
         .await
@@ -549,7 +549,7 @@ async fn test_deposit_sol() {
     // Start Program Test
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
-    let deposit_seed = uuid::Uuid::new_v4().as_u128();
+    let deposit_seed = uuid::Uuid::new_v4();
     let recipient_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 32;
 
@@ -582,7 +582,7 @@ async fn test_deposit_sol() {
     let vault_data = spl_token::state::Account::unpack(vault_info.data()).expect("mint unpack");
     assert_eq!(vault_data.amount, amount);
 
-    let deposit_address = get_deposit_address(deposit_seed, &settings_address);
+    let deposit_address = get_deposit_address(deposit_seed.as_u128(), &settings_address);
     let deposit_info = banks_client
         .get_account(deposit_address)
         .await
@@ -2224,7 +2224,7 @@ async fn test_cancel_withdrawal_sol() {
     // Start Program Test
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
-    let deposit_seed = uuid::Uuid::new_v4().as_u128();
+    let deposit_seed = uuid::Uuid::new_v4();
 
     let mut transaction = Transaction::new_with_payer(
         &[cancel_withdrawal_sol_ix(
@@ -2257,7 +2257,7 @@ async fn test_cancel_withdrawal_sol() {
         WithdrawalTokenStatus::Cancelled
     );
 
-    let new_deposit_address = get_deposit_address(deposit_seed, &settings_address);
+    let new_deposit_address = get_deposit_address(deposit_seed.as_u128(), &settings_address);
     let new_deposit_info = banks_client
         .get_account(new_deposit_address)
         .await
@@ -2460,7 +2460,7 @@ async fn test_fill_withdrawal_sol() {
     // Start Program Test
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
-    let deposit_seed = uuid::Uuid::new_v4().as_u128();
+    let deposit_seed = uuid::Uuid::new_v4();
     let ever_recipient_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
 
     let mut transaction = Transaction::new_with_payer(
@@ -2503,7 +2503,7 @@ async fn test_fill_withdrawal_sol() {
         spl_token::state::Account::unpack(recipient_token_info.data()).expect("recipient unpack");
     assert_eq!(recipient_token_data.amount, amount - bounty);
 
-    let deposit_address = get_deposit_address(deposit_seed, &settings_address);
+    let deposit_address = get_deposit_address(deposit_seed.as_u128(), &settings_address);
     let deposit_info = banks_client
         .get_account(deposit_address)
         .await
