@@ -322,6 +322,46 @@ pub fn withdrawal_sol_ix(
     return JsValue::from_serde(&ix).handle_error();
 }
 
+#[wasm_bindgen(js_name = "cancelWithdrawalSol")]
+pub fn cancel_withdrawal_sol_ix(
+    funder_pubkey: String,
+    author_pubkey: String,
+    withdrawal_pubkey: String,
+    deposit_seed: String,
+    name: String,
+) -> Result<JsValue, JsValue> {
+    let program_id = &id();
+
+    let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
+    let author_pubkey = Pubkey::from_str(author_pubkey.as_str()).handle_error()?;
+    let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).handle_error()?;
+
+    let settings_pubkey = get_associated_settings_address(program_id, &name);
+
+    let deposit_seed = u128::from_str(&deposit_seed).handle_error()?;
+    let deposit_pubkey = get_associated_deposit_address(program_id, deposit_seed, &settings_pubkey);
+
+    let data = TokenProxyInstruction::CancelWithdrawSol { deposit_seed }
+        .try_to_vec()
+        .handle_error()?;
+
+    let ix = Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(funder_pubkey, true),
+            AccountMeta::new(author_pubkey, true),
+            AccountMeta::new(withdrawal_pubkey, false),
+            AccountMeta::new(deposit_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+            AccountMeta::new_readonly(sysvar::rent::id(), false),
+        ],
+        data,
+    };
+
+    return JsValue::from_serde(&ix).handle_error();
+}
+
 #[wasm_bindgen(js_name = "depositEver")]
 pub fn deposit_ever_ix(
     funder_pubkey: String,
