@@ -177,4 +177,13 @@ pub enum TokenProxyInstruction {
         // Withdrawal daily limit
         withdrawal_daily_limit: u64,
     },
+
+    /// Change Admin
+    ///
+    /// # Account references
+    /// ...
+    ChangeAdmin {
+        // New admin pubkey
+        new_admin: Pubkey,
+    },
 }

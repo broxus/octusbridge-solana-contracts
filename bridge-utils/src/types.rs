@@ -33,7 +33,7 @@ impl FromStr for EverAddress {
         let parts: Vec<&str> = string.split(':').take(4).collect();
         let len = parts.len();
         if len != 2 {
-            return Err(format!("wrong format").into());
+            return Err("wrong format".to_string().into());
         }
 
         let workchain_id = parts[len - 2].parse::<i8>()?;

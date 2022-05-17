@@ -471,23 +471,54 @@ pub fn change_settings_ix(
 ) -> Result<JsValue, JsValue> {
     let program_id = &id();
 
-    let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
     let settings_pubkey = get_associated_settings_address(program_id, &name);
+    let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
 
     let data = TokenProxyInstruction::ChangeSettings {
         emergency,
         deposit_limit,
         withdrawal_limit,
-        withdrawal_daily_limit
+        withdrawal_daily_limit,
     }
     .try_to_vec()
-    .handle_error()?;
+    .expect("pack");
 
     let ix = Instruction {
         program_id: id(),
         accounts: vec![
             AccountMeta::new(authority_pubkey, true),
             AccountMeta::new(settings_pubkey, false),
+        ],
+        data,
+    };
+
+    return JsValue::from_serde(&ix).handle_error();
+}
+
+#[wasm_bindgen(js_name = "changeAdmin")]
+pub fn change_admin_ix(
+    authority_pubkey: String,
+    name: String,
+    new_admin: String,
+) -> Result<JsValue, JsValue> {
+    let program_id = &id();
+
+    let settings_pubkey = get_associated_settings_address(program_id, &name);
+    let program_data_pubkey = get_programdata_address(program_id);
+
+    let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
+    let new_admin = Pubkey::from_str(new_admin.as_str()).handle_error()?;
+
+    let data = TokenProxyInstruction::ChangeAdmin { new_admin }
+        .try_to_vec()
+        .expect("pack");
+
+    let ix = Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(authority_pubkey, true),
+            AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new_readonly(program_data_pubkey, false),
         ],
         data,
     };

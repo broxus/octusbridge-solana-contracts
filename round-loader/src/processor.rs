@@ -22,7 +22,7 @@ impl Processor {
         accounts: &[AccountInfo],
         instruction_data: &[u8],
     ) -> ProgramResult {
-        let instruction = RoundLoaderInstruction::try_from_slice(instruction_data).unwrap();
+        let instruction = RoundLoaderInstruction::try_from_slice(instruction_data)?;
 
         match instruction {
             RoundLoaderInstruction::Initialize {
@@ -548,7 +548,7 @@ impl Processor {
                     .relays
                     .iter()
                     .cloned()
-                    .map(|relay| Pubkey::new_from_array(relay.clone().try_into().unwrap()))
+                    .map(|relay| Pubkey::new_from_array(relay.try_into().unwrap()))
                     .collect(),
             };
 

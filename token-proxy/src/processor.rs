@@ -23,7 +23,7 @@ impl Processor {
         accounts: &[AccountInfo],
         instruction_data: &[u8],
     ) -> ProgramResult {
-        let instruction = TokenProxyInstruction::try_from_slice(instruction_data).unwrap();
+        let instruction = TokenProxyInstruction::try_from_slice(instruction_data)?;
 
         match instruction {
             TokenProxyInstruction::InitializeMint {
@@ -175,6 +175,10 @@ impl Processor {
                     withdrawal_limit,
                     withdrawal_daily_limit,
                 )?;
+            }
+            TokenProxyInstruction::ChangeAdmin { new_admin } => {
+                msg!("Instruction: Update admin");
+                Self::process_change_admin(program_id, accounts, new_admin)?;
             }
         };
 
@@ -1928,6 +1932,51 @@ impl Processor {
         settings_account_data.deposit_limit = deposit_limit;
         settings_account_data.withdrawal_limit = withdrawal_limit;
         settings_account_data.withdrawal_daily_limit = withdrawal_daily_limit;
+
+        Settings::pack(
+            settings_account_data,
+            &mut settings_account_info.data.borrow_mut(),
+        )?;
+
+        Ok(())
+    }
+
+    fn process_change_admin(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        new_admin: Pubkey,
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+
+        let authority_account_info = next_account_info(account_info_iter)?;
+        let settings_account_info = next_account_info(account_info_iter)?;
+        let programdata_account_info = next_account_info(account_info_iter)?;
+
+        if !authority_account_info.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        // Validate Initializer Account
+        bridge_utils::helper::validate_programdata_account(
+            program_id,
+            programdata_account_info.key,
+        )?;
+        bridge_utils::helper::validate_initializer_account(
+            authority_account_info.key,
+            programdata_account_info,
+        )?;
+
+        let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+
+        // Validate Setting Account
+        let name = &settings_account_data.name;
+        validate_settings_account(program_id, name, settings_account_info)?;
+
+        if settings_account_info.owner != program_id {
+            return Err(ProgramError::InvalidArgument);
+        }
+
+        settings_account_data.admin = new_admin;
 
         Settings::pack(
             settings_account_data,

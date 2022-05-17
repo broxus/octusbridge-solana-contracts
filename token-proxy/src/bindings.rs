@@ -578,3 +578,22 @@ pub fn change_settings_ix(
         data,
     }
 }
+
+pub fn change_admin_ix(authority_pubkey: &Pubkey, name: &str, new_admin: Pubkey) -> Instruction {
+    let settings_pubkey = get_settings_address(name);
+    let program_data_pubkey = get_programdata_address();
+
+    let data = TokenProxyInstruction::ChangeAdmin { new_admin }
+        .try_to_vec()
+        .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(*authority_pubkey, true),
+            AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new_readonly(program_data_pubkey, false),
+        ],
+        data,
+    }
+}
