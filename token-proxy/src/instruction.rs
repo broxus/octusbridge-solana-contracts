@@ -128,12 +128,6 @@ pub enum TokenProxyInstruction {
         deposit_seed: u128,
     },
 
-    /// Force Withdraw SOL
-    ///
-    /// # Account references
-    /// ...
-    ForceWithdrawSol,
-
     /// Fill Withdraw SOL
     ///
     /// # Account references

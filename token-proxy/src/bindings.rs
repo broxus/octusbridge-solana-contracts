@@ -428,35 +428,6 @@ pub fn cancel_withdrawal_sol_ix(
     }
 }
 
-pub fn force_withdrawal_sol_ix(
-    to_pubkey: &Pubkey,
-    mint_pubkey: &Pubkey,
-    withdrawal_pubkey: &Pubkey,
-    name: String,
-) -> Instruction {
-    let settings_pubkey = get_settings_address(&name);
-
-    let vault_account = get_vault_address(&name);
-    let recipient_token_pubkey =
-        spl_associated_token_account::get_associated_token_address(to_pubkey, mint_pubkey);
-
-    let data = TokenProxyInstruction::ForceWithdrawSol
-        .try_to_vec()
-        .expect("pack");
-
-    Instruction {
-        program_id: id(),
-        accounts: vec![
-            AccountMeta::new(vault_account, false),
-            AccountMeta::new(*withdrawal_pubkey, false),
-            AccountMeta::new(recipient_token_pubkey, false),
-            AccountMeta::new_readonly(settings_pubkey, false),
-            AccountMeta::new_readonly(spl_token::id(), false),
-        ],
-        data,
-    }
-}
-
 #[allow(clippy::too_many_arguments)]
 pub fn fill_withdrawal_sol_ix(
     funder_pubkey: &Pubkey,
