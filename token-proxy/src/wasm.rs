@@ -610,6 +610,31 @@ pub fn change_admin_ix(
     return JsValue::from_serde(&ix).handle_error();
 }
 
+#[wasm_bindgen(js_name = "changeBounty")]
+pub fn change_bounty_ix(
+    author_pubkey: String,
+    withdrawal_pubkey: String,
+    bounty: u64,
+) -> Result<JsValue, JsValue> {
+    let author_pubkey = Pubkey::from_str(author_pubkey.as_str()).handle_error()?;
+    let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).handle_error()?;
+
+    let data = TokenProxyInstruction::ChangeBountyForWithdrawSol { bounty }
+        .try_to_vec()
+        .expect("pack");
+
+    let ix = Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(author_pubkey, true),
+            AccountMeta::new(withdrawal_pubkey, false),
+        ],
+        data,
+    };
+
+    return JsValue::from_serde(&ix).handle_error();
+}
+
 #[wasm_bindgen(js_name = "unpackSettings")]
 pub fn unpack_settings(data: Vec<u8>) -> Result<JsValue, JsValue> {
     let settings = Settings::unpack(&data).handle_error()?;
@@ -649,6 +674,19 @@ pub fn unpack_withdrawal(data: Vec<u8>) -> Result<JsValue, JsValue> {
     return JsValue::from_serde(&w).handle_error();
 }
 
+#[wasm_bindgen(js_name = "unpackDeposit")]
+pub fn unpack_deposit(data: Vec<u8>) -> Result<JsValue, JsValue> {
+    let deposit = DepositToken::unpack(&data).handle_error()?;
+
+    let d = WasmDepositToken {
+        is_initialized: deposit.is_initialized,
+        account_kind: deposit.account_kind,
+        event: deposit.event,
+    };
+
+    return JsValue::from_serde(&d).handle_error();
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct WasmSettings {
     pub is_initialized: bool,
@@ -674,6 +712,13 @@ pub struct WasmWithdrawalToken {
     pub event: WithdrawalTokenEventWithLen,
     pub meta: WithdrawalTokenMetaWithLen,
     pub signers: Vec<Vote>,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct WasmDepositToken {
+    pub is_initialized: bool,
+    pub account_kind: AccountKind,
+    pub event: DepositTokenEventWithLen,
 }
 
 impl<T, E> HandleError for Result<T, E>
