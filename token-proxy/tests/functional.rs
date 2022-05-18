@@ -406,6 +406,7 @@ async fn test_deposit_ever() {
     );
     assert_eq!(deposit_data.event.data.amount, amount);
     assert_eq!(deposit_data.event.data.recipient_address, recipient_address);
+    assert_eq!(deposit_data.meta.data.seed, deposit_seed.as_u128());
 }
 
 #[tokio::test]
@@ -596,6 +597,7 @@ async fn test_deposit_sol() {
     );
     assert_eq!(deposit_data.event.data.amount, amount);
     assert_eq!(deposit_data.event.data.recipient_address, recipient_address);
+    assert_eq!(deposit_data.meta.data.seed, deposit_seed.as_u128());
 }
 
 #[tokio::test]
@@ -2267,6 +2269,7 @@ async fn test_cancel_withdrawal_sol() {
     let deposit_data = DepositToken::unpack(new_deposit_info.data()).expect("deposit unpack");
     assert_eq!(deposit_data.is_initialized, true);
     assert_eq!(deposit_data.event.data.amount, amount);
+    assert_eq!(deposit_data.meta.data.seed, deposit_seed.as_u128());
 }
 
 #[tokio::test]
@@ -2514,6 +2517,7 @@ async fn test_fill_withdrawal_sol() {
 
     assert_eq!(deposit_data.is_initialized, true);
     assert_eq!(deposit_data.event.data.amount, amount);
+    assert_eq!(deposit_data.meta.data.seed, deposit_seed.as_u128());
 }
 
 #[tokio::test]

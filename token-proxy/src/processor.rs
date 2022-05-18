@@ -538,6 +538,7 @@ impl Processor {
                 amount,
                 recipient_address,
             ),
+            meta: DepositTokenMetaWithLen::new(deposit_seed),
         };
 
         DepositToken::pack(
@@ -671,6 +672,7 @@ impl Processor {
                 amount,
                 recipient_address,
             ),
+            meta: DepositTokenMetaWithLen::new(deposit_seed),
         };
 
         DepositToken::pack(
@@ -1496,6 +1498,7 @@ impl Processor {
                 withdrawal_account_data.event.data.amount,
                 withdrawal_account_data.event.data.sender_address,
             ),
+            meta: DepositTokenMetaWithLen::new(deposit_seed),
         };
 
         DepositToken::pack(
@@ -1660,6 +1663,7 @@ impl Processor {
                 withdrawal_account_data.event.data.amount,
                 recipient_address,
             ),
+            meta: DepositTokenMetaWithLen::new(deposit_seed),
         };
 
         DepositToken::pack(

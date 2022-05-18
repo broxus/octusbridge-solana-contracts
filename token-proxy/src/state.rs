@@ -26,6 +26,9 @@ const DEPOSIT_TOKEN_EVENT_LEN: usize = 8    // amount
     + 4 + PUBKEY_BYTES                      // solana sender address
 ;
 
+const DEPOSIT_TOKEN_META_LEN: usize = 16    // seed
+;
+
 #[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
 #[bridge_pack(length = 300)]
 pub struct Settings {
@@ -79,11 +82,12 @@ impl IsInitialized for Deposit {
 }
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
-#[bridge_pack(length = 84)]
+#[bridge_pack(length = 104)]
 pub struct DepositToken {
     pub is_initialized: bool,
     pub account_kind: AccountKind,
     pub event: DepositTokenEventWithLen,
+    pub meta: DepositTokenMetaWithLen,
 }
 
 impl Sealed for DepositToken {}
@@ -116,6 +120,26 @@ impl DepositTokenEventWithLen {
                 amount,
                 recipient_address,
             },
+        }
+    }
+}
+
+#[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+pub struct DepositTokenMeta {
+    pub seed: u128,
+}
+
+#[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+pub struct DepositTokenMetaWithLen {
+    pub len: u32,
+    pub data: DepositTokenMeta,
+}
+
+impl DepositTokenMetaWithLen {
+    pub fn new(seed: u128) -> Self {
+        Self {
+            len: DEPOSIT_TOKEN_META_LEN as u32,
+            data: DepositTokenMeta { seed },
         }
     }
 }

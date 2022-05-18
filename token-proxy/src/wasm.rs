@@ -682,6 +682,7 @@ pub fn unpack_deposit(data: Vec<u8>) -> Result<JsValue, JsValue> {
         is_initialized: deposit.is_initialized,
         account_kind: deposit.account_kind,
         event: deposit.event,
+        meta: deposit.meta,
     };
 
     return JsValue::from_serde(&d).handle_error();
@@ -719,6 +720,7 @@ pub struct WasmDepositToken {
     pub is_initialized: bool,
     pub account_kind: AccountKind,
     pub event: DepositTokenEventWithLen,
+    pub meta: DepositTokenMetaWithLen,
 }
 
 impl<T, E> HandleError for Result<T, E>
