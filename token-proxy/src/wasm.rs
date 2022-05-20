@@ -139,11 +139,13 @@ pub fn process_withdrawal_request(
     let relay_round_pubkey = get_associated_relay_round_address(&round_loader::id(), round_number);
 
     let withdrawal_pubkey = get_withdrawal_address(
-        &author_pubkey,
         &settings_pubkey,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
+        sender_address,
+        recipient_address,
+        amount,
     );
 
     let data = TokenProxyInstruction::WithdrawRequest {
