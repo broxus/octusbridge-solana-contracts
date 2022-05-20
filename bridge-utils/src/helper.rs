@@ -1,6 +1,7 @@
 use solana_program::account_info::AccountInfo;
 use solana_program::bpf_loader_upgradeable;
 use solana_program::bpf_loader_upgradeable::UpgradeableLoaderState;
+use solana_program::hash::Hash;
 use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
 
@@ -14,20 +15,20 @@ pub fn get_associated_relay_round_address(program_id: &Pubkey, round_number: u32
 
 pub fn get_associated_proposal_address(
     program_id: &Pubkey,
-    author: &Pubkey,
     settings: &Pubkey,
     event_timestamp: u32,
     event_transaction_lt: u64,
     event_configuration: &Pubkey,
+    event_data: &[u8],
 ) -> Pubkey {
     Pubkey::find_program_address(
         &[
             br"proposal",
-            &author.to_bytes(),
             &settings.to_bytes(),
             &event_timestamp.to_le_bytes(),
             &event_transaction_lt.to_le_bytes(),
             &event_configuration.to_bytes(),
+            event_data,
         ],
         program_id,
     )
@@ -73,21 +74,21 @@ pub fn validate_initializer_account(
 
 pub fn validate_proposal_account(
     program_id: &Pubkey,
-    author: &Pubkey,
     settings: &Pubkey,
     event_timestamp: u32,
     event_transaction_lt: u64,
     event_configuration: &Pubkey,
+    event_data: &Hash,
     proposal_account_info: &AccountInfo,
 ) -> Result<u8, ProgramError> {
     let (account, nonce) = Pubkey::find_program_address(
         &[
             br"proposal",
-            &author.to_bytes(),
             &settings.to_bytes(),
             &event_timestamp.to_le_bytes(),
             &event_transaction_lt.to_le_bytes(),
             &event_configuration.to_bytes(),
+            &event_data.to_bytes(),
         ],
         program_id,
     );

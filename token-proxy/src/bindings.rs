@@ -2,6 +2,7 @@ use borsh::BorshSerialize;
 use bridge_utils::types::{EverAddress, Vote};
 use uuid::Uuid;
 
+use solana_program::hash::hash;
 use solana_program::instruction::{AccountMeta, Instruction};
 use solana_program::pubkey::Pubkey;
 use solana_program::{system_program, sysvar};
@@ -19,20 +20,30 @@ pub fn get_settings_address(name: &str) -> Pubkey {
 }
 
 pub fn get_withdrawal_address(
-    author: &Pubkey,
     settings: &Pubkey,
     event_timestamp: u32,
     event_transaction_lt: u64,
     event_configuration: &Pubkey,
+    sender_address: EverAddress,
+    recipient_address: Pubkey,
+    amount: u64,
 ) -> Pubkey {
     let program_id = &id();
+
+    let event_data = hash(
+        &WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address)
+            .try_to_vec()
+            .expect("pack"),
+    )
+    .to_bytes();
+
     bridge_utils::helper::get_associated_proposal_address(
         program_id,
-        author,
         settings,
         event_timestamp,
         event_transaction_lt,
         event_configuration,
+        &event_data,
     )
 }
 
@@ -233,11 +244,13 @@ pub fn withdrawal_request_ix(
     amount: u64,
 ) -> Instruction {
     let withdrawal_pubkey = get_withdrawal_address(
-        author_pubkey,
         settings_pubkey,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
+        sender_address,
+        recipient_address,
+        amount,
     );
     let relay_round_pubkey =
         round_loader::get_associated_relay_round_address(&round_loader::id(), round_number);

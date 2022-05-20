@@ -15,10 +15,10 @@ pub const MIN_RELAYS: usize = 3;
 pub const MAX_RELAYS: usize = 100;
 
 pub const LOAD_DATA_BEGIN_OFFSET: usize = 1 // is_executed
+    + PUBKEY_BYTES                          // author
     + 1                                     // account_kind
     + 4                                     // round_number
     + 4                                     // required_votes
-    + PUBKEY_BYTES                          // author
     + PUBKEY_BYTES                          // settings
     + 4                                     // event_timestamp
     + 8                                     // event_transaction_lt
@@ -69,10 +69,11 @@ impl IsInitialized for RelayRound {
     }
 }
 
-#[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
+#[derive(Debug, Default, BorshSerialize, BorshDeserialize, BridgePack)]
 #[bridge_pack(length = 3843)]
 pub struct RelayRoundProposal {
     pub is_initialized: bool,
+    pub author: Pubkey,
     pub account_kind: AccountKind,
     pub round_number: u32,
     pub required_votes: u32,
@@ -90,14 +91,14 @@ impl IsInitialized for RelayRoundProposal {
     }
 }
 
-#[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+#[derive(Debug, Default, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 pub struct RelayRoundProposalEvent {
     pub round_num: u32,
     pub relays: Vec<Vec<u8>>,
     pub round_end: u32,
 }
 
-#[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+#[derive(Debug, Default, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 pub struct RelayRoundProposalEventWithLen {
     pub len: u32,
     pub data: RelayRoundProposalEvent,

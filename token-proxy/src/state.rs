@@ -148,6 +148,7 @@ impl DepositTokenMetaWithLen {
 #[bridge_pack(length = 317)]
 pub struct WithdrawalToken {
     pub is_initialized: bool,
+    pub author: Pubkey,
     pub account_kind: AccountKind,
     pub round_number: u32,
     pub required_votes: u32,

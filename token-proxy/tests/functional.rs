@@ -752,11 +752,13 @@ async fn test_withdrawal_request() {
         .expect("process_transaction");
 
     let withdrawal_address = get_withdrawal_address(
-        &author.pubkey(),
         &settings_address,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
+        sender_address,
+        recipient_address,
+        amount,
     );
     let withdrawal_info = banks_client
         .get_account(withdrawal_address)
@@ -769,7 +771,6 @@ async fn test_withdrawal_request() {
 
     assert_eq!(withdrawal_data.is_initialized, true);
 
-    assert_eq!(withdrawal_data.pda.author, author.pubkey());
     assert_eq!(withdrawal_data.pda.settings, settings_address);
     assert_eq!(withdrawal_data.pda.event_timestamp, event_timestamp);
     assert_eq!(
@@ -885,15 +886,18 @@ async fn test_vote_for_withdrawal_request() {
     let amount = 10;
 
     let withdrawal_address = get_withdrawal_address(
-        &author,
         &settings_address,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
+        sender_address,
+        recipient_address,
+        amount,
     );
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
+        author,
         account_kind: AccountKind::Proposal,
         round_number,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
@@ -901,7 +905,6 @@ async fn test_vote_for_withdrawal_request() {
         required_votes: relays.len() as u32,
         signers: relays.iter().map(|_| Vote::None).collect(),
         pda: PDA {
-            author,
             event_timestamp,
             event_transaction_lt,
             event_configuration,
@@ -1079,15 +1082,18 @@ async fn test_withdrawal_ever() {
     let amount = 10;
 
     let withdrawal_address = get_withdrawal_address(
-        &author,
         &settings_address,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
+        sender_address,
+        recipient_address,
+        amount,
     );
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
+        author,
         account_kind: AccountKind::Proposal,
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
@@ -1095,7 +1101,6 @@ async fn test_withdrawal_ever() {
         required_votes: 0,
         signers: vec![],
         pda: PDA {
-            author,
             event_timestamp,
             event_transaction_lt,
             event_configuration,
@@ -1261,15 +1266,18 @@ async fn test_withdrawal_ever_2() {
     let amount = 1001;
 
     let withdrawal_address = get_withdrawal_address(
-        &author,
         &settings_address,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
+        sender_address,
+        recipient_address,
+        amount,
     );
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
+        author,
         account_kind: AccountKind::Proposal,
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
@@ -1277,7 +1285,6 @@ async fn test_withdrawal_ever_2() {
         required_votes: 0,
         signers: vec![],
         pda: PDA {
-            author,
             event_timestamp,
             event_transaction_lt,
             event_configuration,
@@ -1464,15 +1471,18 @@ async fn test_withdrawal_sol() {
     let amount = 10;
 
     let withdrawal_address = get_withdrawal_address(
-        &author,
         &settings_address,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
+        sender_address,
+        recipient_address,
+        amount,
     );
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
+        author,
         account_kind: AccountKind::Proposal,
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
@@ -1480,7 +1490,6 @@ async fn test_withdrawal_sol() {
         required_votes: 0,
         signers: vec![],
         pda: PDA {
-            author,
             event_timestamp,
             event_transaction_lt,
             event_configuration,
@@ -1674,15 +1683,18 @@ async fn test_withdrawal_sol_2() {
     let amount = 101;
 
     let withdrawal_address = get_withdrawal_address(
-        &author,
         &settings_address,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
+        sender_address,
+        recipient_address,
+        amount,
     );
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
+        author,
         account_kind: AccountKind::Proposal,
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
@@ -1690,7 +1702,6 @@ async fn test_withdrawal_sol_2() {
         required_votes: 0,
         signers: vec![],
         pda: PDA {
-            author,
             event_timestamp,
             event_transaction_lt,
             event_configuration,
@@ -1851,15 +1862,18 @@ async fn test_approve_withdrawal_ever() {
     let amount = 10;
 
     let withdrawal_address = get_withdrawal_address(
-        &author,
         &settings_address,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
+        sender_address,
+        recipient_address,
+        amount,
     );
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
+        author,
         account_kind: AccountKind::Proposal,
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
@@ -1867,7 +1881,6 @@ async fn test_approve_withdrawal_ever() {
         required_votes: 0,
         signers: vec![],
         pda: PDA {
-            author,
             event_timestamp,
             event_transaction_lt,
             event_configuration,
@@ -1997,26 +2010,29 @@ async fn test_approve_withdrawal_sol() {
     let event_transaction_lt = 1650988334;
     let event_configuration = Pubkey::new_unique();
     let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
+    let recipient_address = Pubkey::new_unique();
     let amount = 10;
 
     let withdrawal_address = get_withdrawal_address(
-        &author,
         &settings_address,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
+        sender_address,
+        recipient_address,
+        amount,
     );
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
+        author,
         account_kind: AccountKind::Proposal,
         round_number: 5,
-        event: WithdrawalTokenEventWithLen::new(sender_address, amount, Pubkey::new_unique()),
+        event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
         meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::WaitingForApprove, 0),
         required_votes: 0,
         signers: vec![],
         pda: PDA {
-            author,
             event_timestamp,
             event_transaction_lt,
             event_configuration,
@@ -2183,26 +2199,29 @@ async fn test_cancel_withdrawal_sol() {
     let event_transaction_lt = 1650988334;
     let event_configuration = Pubkey::new_unique();
     let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
+    let recipient_address = Pubkey::new_unique();
     let amount = 10;
 
     let withdrawal_address = get_withdrawal_address(
-        &author.pubkey(),
         &settings_address,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
+        sender_address,
+        recipient_address,
+        amount,
     );
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
+        author: author.pubkey(),
         account_kind: AccountKind::Proposal,
         round_number: 5,
-        event: WithdrawalTokenEventWithLen::new(sender_address, amount, Pubkey::new_unique()),
+        event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
         meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::Pending, 0),
         required_votes: 0,
         signers: vec![],
         pda: PDA {
-            author: author.pubkey(),
             event_timestamp,
             event_transaction_lt,
             event_configuration,
@@ -2423,15 +2442,18 @@ async fn test_fill_withdrawal_sol() {
     let bounty = 1;
 
     let withdrawal_address = get_withdrawal_address(
-        &withdrawal_author,
         &settings_address,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
+        sender_address,
+        recipient_address,
+        amount,
     );
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
+        author: withdrawal_author,
         account_kind: AccountKind::Proposal,
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
@@ -2442,7 +2464,6 @@ async fn test_fill_withdrawal_sol() {
             event_timestamp,
             event_transaction_lt,
             event_configuration,
-            author: withdrawal_author,
             settings: settings_address,
         },
     };
@@ -2706,22 +2727,26 @@ async fn test_change_bounty_for_withdrawal_sol() {
     let event_transaction_lt = 1650988334;
     let event_configuration = Pubkey::new_unique();
     let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
+    let recipient_address = Pubkey::new_unique();
 
     let amount = 10;
 
     let withdrawal_address = get_withdrawal_address(
-        &author.pubkey(),
         &settings_address,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
+        sender_address,
+        recipient_address,
+        amount,
     );
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
+        author: author.pubkey(),
         account_kind: AccountKind::Proposal,
         round_number: 5,
-        event: WithdrawalTokenEventWithLen::new(sender_address, amount, Pubkey::new_unique()),
+        event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
         meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::Pending, 0),
         required_votes: 0,
         signers: vec![],
@@ -2729,7 +2754,6 @@ async fn test_change_bounty_for_withdrawal_sol() {
             event_timestamp,
             event_transaction_lt,
             event_configuration,
-            author: author.pubkey(),
             settings: settings_address,
         },
     };

@@ -1,4 +1,4 @@
-use borsh::BorshDeserialize;
+use borsh::{BorshDeserialize, BorshSerialize};
 use bridge_utils::state::{AccountKind, Proposal, PDA};
 use bridge_utils::types::{EverAddress, Vote, RELAY_REPARATION};
 use round_loader::RelayRound;
@@ -6,6 +6,7 @@ use round_loader::RelayRound;
 use solana_program::account_info::{next_account_info, AccountInfo};
 use solana_program::clock::Clock;
 use solana_program::entrypoint::ProgramResult;
+use solana_program::hash::hash;
 use solana_program::program::{invoke, invoke_signed};
 use solana_program::program_error::ProgramError;
 use solana_program::program_pack::Pack;
@@ -743,23 +744,43 @@ impl Processor {
 
         let required_votes = (relay_round_account_data.relays.len() * 2 / 3 + 1) as u32;
 
+        // Init Withdraw Account
+        let withdrawal_account_data = WithdrawalToken {
+            is_initialized: true,
+            author: *author_account_info.key,
+            round_number,
+            required_votes,
+            account_kind: AccountKind::Proposal,
+            event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
+            meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::New, 0),
+            signers: vec![Vote::None; relay_round_account_data.relays.len()],
+            pda: PDA {
+                settings: *settings_account_info.key,
+                event_timestamp,
+                event_transaction_lt,
+                event_configuration,
+            },
+        };
+
+        let event_data = hash(&withdrawal_account_data.event.try_to_vec()?);
+
         // Validate Withdrawal Account
         let withdrawal_nonce = bridge_utils::helper::validate_proposal_account(
             program_id,
-            author_account_info.key,
             settings_account_info.key,
             event_timestamp,
             event_transaction_lt,
             &event_configuration,
+            &event_data,
             withdrawal_account_info,
         )?;
         let withdrawal_account_signer_seeds: &[&[_]] = &[
             br"proposal",
-            &author_account_info.key.to_bytes(),
             &settings_account_info.key.to_bytes(),
             &event_timestamp.to_le_bytes(),
             &event_transaction_lt.to_le_bytes(),
             &event_configuration.to_bytes(),
+            &event_data.to_bytes(),
             &[withdrawal_nonce],
         ];
 
@@ -779,24 +800,6 @@ impl Processor {
             ],
             &[withdrawal_account_signer_seeds],
         )?;
-
-        // Init Withdraw Account
-        let withdrawal_account_data = WithdrawalToken {
-            is_initialized: true,
-            round_number,
-            required_votes,
-            account_kind: AccountKind::Proposal,
-            event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
-            meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::New, 0),
-            signers: vec![Vote::None; relay_round_account_data.relays.len()],
-            pda: PDA {
-                author: *author_account_info.key,
-                settings: *settings_account_info.key,
-                event_timestamp,
-                event_transaction_lt,
-                event_configuration,
-            },
-        };
 
         WithdrawalToken::pack(
             withdrawal_account_data,
@@ -843,19 +846,19 @@ impl Processor {
         let mut withdrawal_account_data =
             Proposal::unpack_from_slice(&withdrawal_account_info.data.borrow())?;
 
-        let author = withdrawal_account_data.pda.author;
         let settings = withdrawal_account_data.pda.settings;
         let event_timestamp = withdrawal_account_data.pda.event_timestamp;
         let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
         let event_configuration = withdrawal_account_data.pda.event_configuration;
+        let event_data = hash(&withdrawal_account_data.event.try_to_vec()?);
 
         bridge_utils::helper::validate_proposal_account(
             program_id,
-            &author,
             &settings,
             event_timestamp,
             event_transaction_lt,
             &event_configuration,
+            &event_data,
             withdrawal_account_info,
         )?;
 
@@ -909,19 +912,19 @@ impl Processor {
 
         let mut withdrawal_account_data =
             WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
-        let author = withdrawal_account_data.pda.author;
         let settings = withdrawal_account_data.pda.settings;
         let event_timestamp = withdrawal_account_data.pda.event_timestamp;
         let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
         let event_configuration = withdrawal_account_data.pda.event_configuration;
+        let event_data = hash(&withdrawal_account_data.event.try_to_vec()?);
 
         bridge_utils::helper::validate_proposal_account(
             program_id,
-            &author,
             &settings,
             event_timestamp,
             event_transaction_lt,
             &event_configuration,
+            &event_data,
             withdrawal_account_info,
         )?;
 
@@ -1052,19 +1055,19 @@ impl Processor {
 
         let mut withdrawal_account_data =
             WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
-        let author = withdrawal_account_data.pda.author;
         let settings = withdrawal_account_data.pda.settings;
         let event_timestamp = withdrawal_account_data.pda.event_timestamp;
         let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
         let event_configuration = withdrawal_account_data.pda.event_configuration;
+        let event_data = hash(&withdrawal_account_data.event.try_to_vec()?);
 
         bridge_utils::helper::validate_proposal_account(
             program_id,
-            &author,
             &settings,
             event_timestamp,
             event_transaction_lt,
             &event_configuration,
+            &event_data,
             withdrawal_account_info,
         )?;
 
@@ -1224,19 +1227,19 @@ impl Processor {
 
         let mut withdrawal_account_data =
             WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
-        let author = withdrawal_account_data.pda.author;
         let settings = withdrawal_account_data.pda.settings;
         let event_timestamp = withdrawal_account_data.pda.event_timestamp;
         let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
         let event_configuration = withdrawal_account_data.pda.event_configuration;
+        let event_data = hash(&withdrawal_account_data.event.try_to_vec()?);
 
         bridge_utils::helper::validate_proposal_account(
             program_id,
-            &author,
             &settings,
             event_timestamp,
             event_transaction_lt,
             &event_configuration,
+            &event_data,
             withdrawal_account_info,
         )?;
 
@@ -1340,19 +1343,19 @@ impl Processor {
 
         let mut withdrawal_account_data =
             WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
-        let author = withdrawal_account_data.pda.author;
         let settings = withdrawal_account_data.pda.settings;
         let event_timestamp = withdrawal_account_data.pda.event_timestamp;
         let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
         let event_configuration = withdrawal_account_data.pda.event_configuration;
+        let event_data = hash(&withdrawal_account_data.event.try_to_vec()?);
 
         bridge_utils::helper::validate_proposal_account(
             program_id,
-            &author,
             &settings,
             event_timestamp,
             event_transaction_lt,
             &event_configuration,
+            &event_data,
             withdrawal_account_info,
         )?;
 
@@ -1412,19 +1415,19 @@ impl Processor {
 
         let mut withdrawal_account_data =
             WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
-        let author = withdrawal_account_data.pda.author;
         let settings = withdrawal_account_data.pda.settings;
         let event_timestamp = withdrawal_account_data.pda.event_timestamp;
         let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
         let event_configuration = withdrawal_account_data.pda.event_configuration;
+        let event_data = hash(&withdrawal_account_data.event.try_to_vec()?);
 
         bridge_utils::helper::validate_proposal_account(
             program_id,
-            &author,
             &settings,
             event_timestamp,
             event_transaction_lt,
             &event_configuration,
+            &event_data,
             withdrawal_account_info,
         )?;
 
@@ -1438,7 +1441,7 @@ impl Processor {
             return Err(TokenProxyError::EmergencyEnabled.into());
         }
 
-        if author != *author_account_info.key {
+        if withdrawal_account_data.author != *author_account_info.key {
             return Err(ProgramError::IllegalOwner);
         }
 
@@ -1545,19 +1548,19 @@ impl Processor {
 
         let mut withdrawal_account_data =
             WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
-        let author = withdrawal_account_data.pda.author;
         let settings = withdrawal_account_data.pda.settings;
         let event_timestamp = withdrawal_account_data.pda.event_timestamp;
         let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
         let event_configuration = withdrawal_account_data.pda.event_configuration;
+        let event_data = hash(&withdrawal_account_data.event.try_to_vec()?);
 
         bridge_utils::helper::validate_proposal_account(
             program_id,
-            &author,
             &settings,
             event_timestamp,
             event_transaction_lt,
             &event_configuration,
+            &event_data,
             withdrawal_account_info,
         )?;
 
@@ -1766,19 +1769,19 @@ impl Processor {
 
         let mut withdrawal_account_data =
             WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
-        let author = withdrawal_account_data.pda.author;
         let settings = withdrawal_account_data.pda.settings;
         let event_timestamp = withdrawal_account_data.pda.event_timestamp;
         let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
         let event_configuration = withdrawal_account_data.pda.event_configuration;
+        let event_data = hash(&withdrawal_account_data.event.try_to_vec()?);
 
         bridge_utils::helper::validate_proposal_account(
             program_id,
-            &author,
             &settings,
             event_timestamp,
             event_transaction_lt,
             &event_configuration,
+            &event_data,
             withdrawal_account_info,
         )?;
 
@@ -1786,7 +1789,7 @@ impl Processor {
             return Err(TokenProxyError::InvalidWithdrawalStatus.into());
         }
 
-        if withdrawal_account_data.pda.author != *author_account_info.key {
+        if withdrawal_account_data.author != *author_account_info.key {
             return Err(ProgramError::IllegalOwner);
         }
 

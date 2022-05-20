@@ -205,6 +205,24 @@ async fn test_create_proposal() {
     let event_transaction_lt = 1650988334;
     let event_configuration = Pubkey::new_unique();
 
+    let new_relays = vec![Pubkey::new_unique(); 100];
+    let new_round_number = round_number + 1;
+    let new_round_end = 1759950990;
+    let write_data =
+        RelayRoundProposalEventWithLen::new(new_round_number, new_relays.clone(), new_round_end)
+            .unwrap();
+
+    let serialized_write_data = write_data
+        .try_to_vec()
+        .expect("serialize proposal event data");
+
+    let proposal_pubkey = get_proposal_address(
+        event_timestamp,
+        event_transaction_lt,
+        &event_configuration,
+        &serialized_write_data,
+    );
+
     let mut transaction = Transaction::new_with_payer(
         &[create_proposal_ix(
             &funder.pubkey(),
@@ -212,6 +230,7 @@ async fn test_create_proposal() {
             event_timestamp,
             event_transaction_lt,
             event_configuration,
+            &serialized_write_data,
         )],
         Some(&funder.pubkey()),
     );
@@ -223,22 +242,13 @@ async fn test_create_proposal() {
         .expect("process_transaction");
 
     // Write Proposal
-    let new_relays = vec![Pubkey::new_unique(); 100];
-    let new_round_number = round_number + 1;
-    let new_round_end = 1759950990;
-    let write_data =
-        RelayRoundProposalEventWithLen::new(new_round_number, new_relays.clone(), new_round_end)
-            .unwrap();
-
     let chunk_size = 800;
 
     for (chunk, i) in write_data.try_to_vec().unwrap().chunks(chunk_size).zip(0..) {
         let mut transaction = Transaction::new_with_payer(
             &[write_proposal_ix(
                 &proposal_creator.pubkey(),
-                event_timestamp,
-                event_transaction_lt,
-                event_configuration,
+                &proposal_pubkey,
                 (i * chunk_size) as u32,
                 chunk.to_vec(),
             )],
@@ -256,9 +266,7 @@ async fn test_create_proposal() {
     let mut transaction = Transaction::new_with_payer(
         &[finalize_proposal_ix(
             &proposal_creator.pubkey(),
-            event_timestamp,
-            event_transaction_lt,
-            event_configuration,
+            &proposal_pubkey,
             round_number,
         )],
         Some(&funder.pubkey()),
@@ -271,16 +279,8 @@ async fn test_create_proposal() {
         .expect("process_transaction");
 
     // Check created Proposal
-    let proposal_address = get_proposal_address(
-        &proposal_creator.pubkey(),
-        &settings_address,
-        event_timestamp,
-        event_transaction_lt,
-        &event_configuration,
-    );
-
     let proposal_info = banks_client
-        .get_account(proposal_address)
+        .get_account(proposal_pubkey)
         .await
         .expect("get_account")
         .expect("account");
@@ -295,7 +295,6 @@ async fn test_create_proposal() {
         (relays.len() * 2 / 3 + 1) as u32
     );
 
-    assert_eq!(proposal_data.pda.author, proposal_creator.pubkey());
     assert_eq!(proposal_data.pda.settings, settings_address);
     assert_eq!(proposal_data.pda.event_timestamp, event_timestamp);
     assert_eq!(proposal_data.pda.event_transaction_lt, event_transaction_lt);
@@ -318,7 +317,7 @@ async fn test_create_proposal() {
         let mut transaction = Transaction::new_with_payer(
             &[vote_for_proposal_ix(
                 &relay.pubkey(),
-                &proposal_address,
+                &proposal_pubkey,
                 round_number,
                 Vote::Confirm,
             )],
@@ -334,7 +333,7 @@ async fn test_create_proposal() {
 
     // Check created Proposal
     let proposal_info = banks_client
-        .get_account(proposal_address)
+        .get_account(proposal_pubkey)
         .await
         .expect("get_account")
         .expect("account");
@@ -346,7 +345,7 @@ async fn test_create_proposal() {
     let mut transaction = Transaction::new_with_payer(
         &[execute_proposal_ix(
             &funder.pubkey(),
-            &proposal_address,
+            &proposal_pubkey,
             new_round_number,
         )],
         Some(&funder.pubkey()),
@@ -360,7 +359,7 @@ async fn test_create_proposal() {
 
     // Check created Proposal
     let proposal_info = banks_client
-        .get_account(proposal_address)
+        .get_account(proposal_pubkey)
         .await
         .expect("get_account")
         .expect("account");

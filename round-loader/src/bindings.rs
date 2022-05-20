@@ -1,6 +1,7 @@
 use borsh::BorshSerialize;
 use bridge_utils::types::Vote;
 
+use solana_program::hash::hash;
 use solana_program::instruction::{AccountMeta, Instruction};
 use solana_program::pubkey::Pubkey;
 use solana_program::{system_program, sysvar};
@@ -18,20 +19,24 @@ pub fn get_settings_address() -> Pubkey {
 }
 
 pub fn get_proposal_address(
-    author: &Pubkey,
-    settings: &Pubkey,
     event_timestamp: u32,
     event_transaction_lt: u64,
     event_configuration: &Pubkey,
+    event_data: &[u8],
 ) -> Pubkey {
     let program_id = &id();
+
+    let settings = &get_settings_address();
+
+    let event_data = hash(event_data);
+
     bridge_utils::helper::get_associated_proposal_address(
         program_id,
-        author,
         settings,
         event_timestamp,
         event_transaction_lt,
         event_configuration,
+        &event_data.to_bytes(),
     )
 }
 
@@ -80,21 +85,22 @@ pub fn create_proposal_ix(
     event_timestamp: u32,
     event_transaction_lt: u64,
     event_configuration: Pubkey,
+    event_data: &[u8],
 ) -> Instruction {
-    let settings = get_settings_address();
-
     let proposal_pubkey = get_proposal_address(
-        creator_pubkey,
-        &settings,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
+        event_data,
     );
+
+    let event_data = hash(event_data);
 
     let data = RoundLoaderInstruction::CreateProposal {
         event_timestamp,
         event_transaction_lt,
         event_configuration,
+        event_data,
     }
     .try_to_vec()
     .expect("pack");
@@ -114,37 +120,19 @@ pub fn create_proposal_ix(
 
 pub fn write_proposal_ix(
     creator_pubkey: &Pubkey,
-    event_timestamp: u32,
-    event_transaction_lt: u64,
-    event_configuration: Pubkey,
+    proposal_pubkey: &Pubkey,
     offset: u32,
     bytes: Vec<u8>,
 ) -> Instruction {
-    let settings = get_settings_address();
-
-    let proposal_pubkey = get_proposal_address(
-        creator_pubkey,
-        &settings,
-        event_timestamp,
-        event_transaction_lt,
-        &event_configuration,
-    );
-
-    let data = RoundLoaderInstruction::WriteProposal {
-        event_timestamp,
-        event_transaction_lt,
-        event_configuration,
-        offset,
-        bytes,
-    }
-    .try_to_vec()
-    .expect("pack");
+    let data = RoundLoaderInstruction::WriteProposal { offset, bytes }
+        .try_to_vec()
+        .expect("pack");
 
     Instruction {
         program_id: id(),
         accounts: vec![
             AccountMeta::new(*creator_pubkey, true),
-            AccountMeta::new(proposal_pubkey, false),
+            AccountMeta::new(*proposal_pubkey, false),
         ],
         data,
     }
@@ -152,35 +140,21 @@ pub fn write_proposal_ix(
 
 pub fn finalize_proposal_ix(
     creator_pubkey: &Pubkey,
-    event_timestamp: u32,
-    event_transaction_lt: u64,
-    event_configuration: Pubkey,
+    proposal_pubkey: &Pubkey,
     round_number: u32,
 ) -> Instruction {
     let settings_pubkey = get_settings_address();
-
-    let proposal_pubkey = get_proposal_address(
-        creator_pubkey,
-        &settings_pubkey,
-        event_timestamp,
-        event_transaction_lt,
-        &event_configuration,
-    );
     let relay_round_pubkey = get_relay_round_address(round_number);
 
-    let data = RoundLoaderInstruction::FinalizeProposal {
-        event_timestamp,
-        event_transaction_lt,
-        event_configuration,
-    }
-    .try_to_vec()
-    .expect("pack");
+    let data = RoundLoaderInstruction::FinalizeProposal
+        .try_to_vec()
+        .expect("pack");
 
     Instruction {
         program_id: id(),
         accounts: vec![
             AccountMeta::new(*creator_pubkey, true),
-            AccountMeta::new(proposal_pubkey, false),
+            AccountMeta::new(*proposal_pubkey, false),
             AccountMeta::new_readonly(settings_pubkey, false),
             AccountMeta::new_readonly(relay_round_pubkey, false),
             AccountMeta::new_readonly(system_program::id(), false),

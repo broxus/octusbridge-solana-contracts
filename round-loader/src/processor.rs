@@ -1,10 +1,11 @@
-use borsh::BorshDeserialize;
+use borsh::{BorshDeserialize, BorshSerialize};
 use bridge_utils::state::{AccountKind, Proposal, PDA};
 use bridge_utils::types::{Vote, RELAY_REPARATION};
 
 use solana_program::account_info::{next_account_info, AccountInfo};
 use solana_program::clock::Clock;
 use solana_program::entrypoint::ProgramResult;
+use solana_program::hash::{hash, Hash};
 use solana_program::program::{invoke, invoke_signed};
 use solana_program::program_error::ProgramError;
 use solana_program::program_pack::Pack;
@@ -37,6 +38,7 @@ impl Processor {
                 event_timestamp,
                 event_transaction_lt,
                 event_configuration,
+                event_data,
             } => {
                 msg!("Instruction: Create");
                 Self::process_create_proposal(
@@ -45,39 +47,16 @@ impl Processor {
                     event_timestamp,
                     event_transaction_lt,
                     event_configuration,
+                    event_data,
                 )?;
             }
-            RoundLoaderInstruction::WriteProposal {
-                event_timestamp,
-                event_transaction_lt,
-                event_configuration,
-                offset,
-                bytes,
-            } => {
+            RoundLoaderInstruction::WriteProposal { offset, bytes } => {
                 msg!("Instruction: Write");
-                Self::process_write_proposal(
-                    program_id,
-                    accounts,
-                    event_timestamp,
-                    event_transaction_lt,
-                    event_configuration,
-                    offset,
-                    bytes,
-                )?;
+                Self::process_write_proposal(program_id, accounts, offset, bytes)?;
             }
-            RoundLoaderInstruction::FinalizeProposal {
-                event_timestamp,
-                event_transaction_lt,
-                event_configuration,
-            } => {
+            RoundLoaderInstruction::FinalizeProposal => {
                 msg!("Instruction: Finalize");
-                Self::process_finalize_proposal(
-                    program_id,
-                    accounts,
-                    event_timestamp,
-                    event_transaction_lt,
-                    event_configuration,
-                )?;
+                Self::process_finalize_proposal(program_id, accounts)?;
             }
             RoundLoaderInstruction::VoteForProposal { vote } => {
                 msg!("Instruction: Vote");
@@ -202,6 +181,7 @@ impl Processor {
         event_timestamp: u32,
         event_transaction_lt: u64,
         event_configuration: Pubkey,
+        event_data: Hash,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -217,26 +197,25 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        let author = creator_account_info.key;
         let settings = get_associated_settings_address(program_id);
 
         // Validate Proposal Account
         let proposal_nonce = bridge_utils::helper::validate_proposal_account(
             program_id,
-            author,
             &settings,
             event_timestamp,
             event_transaction_lt,
             &event_configuration,
+            &event_data,
             proposal_account_info,
         )?;
         let proposal_account_signer_seeds: &[&[_]] = &[
             br"proposal",
-            &author.to_bytes(),
             &settings.to_bytes(),
             &event_timestamp.to_le_bytes(),
             &event_transaction_lt.to_le_bytes(),
             &event_configuration.to_bytes(),
+            &event_data.to_bytes(),
             &[proposal_nonce],
         ];
 
@@ -257,15 +236,30 @@ impl Processor {
             &[proposal_account_signer_seeds],
         )?;
 
+        // Init Proposal Account
+        let proposal_account_data = RelayRoundProposal {
+            account_kind: AccountKind::Proposal,
+            author: *creator_account_info.key,
+            pda: PDA {
+                settings,
+                event_timestamp,
+                event_transaction_lt,
+                event_configuration,
+            },
+            ..Default::default()
+        };
+
+        RelayRoundProposal::pack(
+            proposal_account_data,
+            &mut proposal_account_info.data.borrow_mut(),
+        )?;
+
         Ok(())
     }
 
     fn process_write_proposal(
-        program_id: &Pubkey,
+        _program_id: &Pubkey,
         accounts: &[AccountInfo],
-        event_timestamp: u32,
-        event_transaction_lt: u64,
-        event_configuration: Pubkey,
         offset: u32,
         bytes: Vec<u8>,
     ) -> ProgramResult {
@@ -276,23 +270,6 @@ impl Processor {
 
         if !creator_account_info.is_signer {
             return Err(ProgramError::MissingRequiredSignature);
-        }
-
-        let settings = get_associated_settings_address(program_id);
-
-        // Validate Proposal Account
-        bridge_utils::helper::validate_proposal_account(
-            program_id,
-            creator_account_info.key,
-            &settings,
-            event_timestamp,
-            event_transaction_lt,
-            &event_configuration,
-            proposal_account_info,
-        )?;
-
-        if proposal_account_info.owner != program_id {
-            return Err(ProgramError::InvalidArgument);
         }
 
         let proposal = RelayRoundProposal::unpack_unchecked(&proposal_account_info.data.borrow())?;
@@ -309,13 +286,7 @@ impl Processor {
         Ok(())
     }
 
-    fn process_finalize_proposal(
-        program_id: &Pubkey,
-        accounts: &[AccountInfo],
-        event_timestamp: u32,
-        event_transaction_lt: u64,
-        event_configuration: Pubkey,
-    ) -> ProgramResult {
+    fn process_finalize_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
         let creator_account_info = next_account_info(account_info_iter)?;
@@ -356,21 +327,6 @@ impl Processor {
 
         let required_votes = (relay_round_account_data.relays.len() * 2 / 3 + 1) as u32;
 
-        // Validate Proposal Account
-        bridge_utils::helper::validate_proposal_account(
-            program_id,
-            creator_account_info.key,
-            settings_account_info.key,
-            event_timestamp,
-            event_transaction_lt,
-            &event_configuration,
-            proposal_account_info,
-        )?;
-
-        if proposal_account_info.owner != program_id {
-            return Err(ProgramError::InvalidArgument);
-        }
-
         let mut proposal =
             RelayRoundProposal::unpack_unchecked(&proposal_account_info.data.borrow())?;
 
@@ -378,19 +334,13 @@ impl Processor {
             return Err(ProgramError::AccountAlreadyInitialized);
         }
 
-        let pda = PDA {
-            author: *creator_account_info.key,
-            settings: *settings_account_info.key,
-            event_timestamp,
-            event_transaction_lt,
-            event_configuration,
-        };
+        if proposal.author != *creator_account_info.key {
+            return Err(ProgramError::IllegalOwner);
+        }
 
         proposal.is_initialized = true;
-        proposal.account_kind = AccountKind::Proposal;
         proposal.round_number = round_number;
         proposal.required_votes = required_votes;
-        proposal.pda = pda;
         proposal.signers = vec![Vote::None; relay_round_account_data.relays.len()];
 
         proposal.meta = RelayRoundProposalMetaWithLen::default();
@@ -437,19 +387,20 @@ impl Processor {
         let mut proposal_account_data =
             Proposal::unpack_from_slice(&proposal_account_info.data.borrow())?;
 
-        let author = proposal_account_data.pda.author;
         let settings = proposal_account_data.pda.settings;
         let event_timestamp = proposal_account_data.pda.event_timestamp;
         let event_transaction_lt = proposal_account_data.pda.event_transaction_lt;
         let event_configuration = proposal_account_data.pda.event_configuration;
 
+        let event_data = hash(&proposal_account_data.event.try_to_vec()?);
+
         bridge_utils::helper::validate_proposal_account(
             program_id,
-            &author,
             &settings,
             event_timestamp,
             event_transaction_lt,
             &event_configuration,
+            &event_data,
             proposal_account_info,
         )?;
 
