@@ -4,3 +4,4 @@
 /round-loader/target
 /token-proxy/target
 /.idea
+**/*.DS_Store
