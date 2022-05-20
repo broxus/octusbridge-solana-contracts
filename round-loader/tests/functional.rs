@@ -213,6 +213,7 @@ async fn test_create_proposal() {
             .unwrap();
 
     let serialized_write_data = write_data
+        .data
         .try_to_vec()
         .expect("serialize proposal event data");
 
@@ -220,7 +221,7 @@ async fn test_create_proposal() {
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
-        &serialized_write_data[4..],
+        &serialized_write_data,
     );
 
     let mut transaction = Transaction::new_with_payer(
@@ -230,7 +231,7 @@ async fn test_create_proposal() {
             event_timestamp,
             event_transaction_lt,
             event_configuration,
-            &serialized_write_data[4..],
+            &serialized_write_data,
         )],
         Some(&funder.pubkey()),
     );
