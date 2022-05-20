@@ -762,7 +762,7 @@ impl Processor {
             },
         };
 
-        let event_data = hash(&withdrawal_account_data.event.try_to_vec()?);
+        let event_data = hash(&withdrawal_account_data.event.data.try_to_vec()?);
 
         // Validate Withdrawal Account
         let withdrawal_nonce = bridge_utils::helper::validate_proposal_account(
@@ -850,7 +850,7 @@ impl Processor {
         let event_timestamp = withdrawal_account_data.pda.event_timestamp;
         let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
         let event_configuration = withdrawal_account_data.pda.event_configuration;
-        let event_data = hash(&withdrawal_account_data.event.try_to_vec()?);
+        let event_data = hash(&withdrawal_account_data.event.try_to_vec()?[4..]);
 
         bridge_utils::helper::validate_proposal_account(
             program_id,
@@ -916,7 +916,7 @@ impl Processor {
         let event_timestamp = withdrawal_account_data.pda.event_timestamp;
         let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
         let event_configuration = withdrawal_account_data.pda.event_configuration;
-        let event_data = hash(&withdrawal_account_data.event.try_to_vec()?);
+        let event_data = hash(&withdrawal_account_data.event.data.try_to_vec()?);
 
         bridge_utils::helper::validate_proposal_account(
             program_id,
@@ -1059,7 +1059,7 @@ impl Processor {
         let event_timestamp = withdrawal_account_data.pda.event_timestamp;
         let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
         let event_configuration = withdrawal_account_data.pda.event_configuration;
-        let event_data = hash(&withdrawal_account_data.event.try_to_vec()?);
+        let event_data = hash(&withdrawal_account_data.event.data.try_to_vec()?);
 
         bridge_utils::helper::validate_proposal_account(
             program_id,
@@ -1231,7 +1231,7 @@ impl Processor {
         let event_timestamp = withdrawal_account_data.pda.event_timestamp;
         let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
         let event_configuration = withdrawal_account_data.pda.event_configuration;
-        let event_data = hash(&withdrawal_account_data.event.try_to_vec()?);
+        let event_data = hash(&withdrawal_account_data.event.data.try_to_vec()?);
 
         bridge_utils::helper::validate_proposal_account(
             program_id,
@@ -1347,7 +1347,7 @@ impl Processor {
         let event_timestamp = withdrawal_account_data.pda.event_timestamp;
         let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
         let event_configuration = withdrawal_account_data.pda.event_configuration;
-        let event_data = hash(&withdrawal_account_data.event.try_to_vec()?);
+        let event_data = hash(&withdrawal_account_data.event.data.try_to_vec()?);
 
         bridge_utils::helper::validate_proposal_account(
             program_id,
@@ -1419,7 +1419,7 @@ impl Processor {
         let event_timestamp = withdrawal_account_data.pda.event_timestamp;
         let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
         let event_configuration = withdrawal_account_data.pda.event_configuration;
-        let event_data = hash(&withdrawal_account_data.event.try_to_vec()?);
+        let event_data = hash(&withdrawal_account_data.event.data.try_to_vec()?);
 
         bridge_utils::helper::validate_proposal_account(
             program_id,
@@ -1552,7 +1552,7 @@ impl Processor {
         let event_timestamp = withdrawal_account_data.pda.event_timestamp;
         let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
         let event_configuration = withdrawal_account_data.pda.event_configuration;
-        let event_data = hash(&withdrawal_account_data.event.try_to_vec()?);
+        let event_data = hash(&withdrawal_account_data.event.data.try_to_vec()?);
 
         bridge_utils::helper::validate_proposal_account(
             program_id,
@@ -1773,7 +1773,7 @@ impl Processor {
         let event_timestamp = withdrawal_account_data.pda.event_timestamp;
         let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
         let event_configuration = withdrawal_account_data.pda.event_configuration;
-        let event_data = hash(&withdrawal_account_data.event.try_to_vec()?);
+        let event_data = hash(&withdrawal_account_data.event.data.try_to_vec()?);
 
         bridge_utils::helper::validate_proposal_account(
             program_id,

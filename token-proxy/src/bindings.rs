@@ -32,6 +32,7 @@ pub fn get_withdrawal_address(
 
     let event_data = hash(
         &WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address)
+            .data
             .try_to_vec()
             .expect("pack"),
     )

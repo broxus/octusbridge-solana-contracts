@@ -220,7 +220,7 @@ async fn test_create_proposal() {
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
-        &serialized_write_data,
+        &serialized_write_data[4..],
     );
 
     let mut transaction = Transaction::new_with_payer(
@@ -230,7 +230,7 @@ async fn test_create_proposal() {
             event_timestamp,
             event_transaction_lt,
             event_configuration,
-            &serialized_write_data,
+            &serialized_write_data[4..],
         )],
         Some(&funder.pubkey()),
     );

@@ -392,7 +392,7 @@ impl Processor {
         let event_transaction_lt = proposal_account_data.pda.event_transaction_lt;
         let event_configuration = proposal_account_data.pda.event_configuration;
 
-        let event_data = hash(&proposal_account_data.event.try_to_vec()?);
+        let event_data = hash(&proposal_account_data.event.try_to_vec()?[4..]);
 
         bridge_utils::helper::validate_proposal_account(
             program_id,
