@@ -3,7 +3,6 @@ use bridge_utils::state::{AccountKind, Proposal, PDA};
 use bridge_utils::types::{Vote, RELAY_REPARATION};
 
 use solana_program::account_info::{next_account_info, AccountInfo};
-use solana_program::clock::Clock;
 use solana_program::entrypoint::ProgramResult;
 use solana_program::hash::{hash, Hash};
 use solana_program::program::{invoke, invoke_signed};
@@ -295,9 +294,6 @@ impl Processor {
         let relay_round_account_info = next_account_info(account_info_iter)?;
         let system_program_info = next_account_info(account_info_iter)?;
 
-        let clock_info = next_account_info(account_info_iter)?;
-        let clock = Clock::from_account_info(clock_info)?;
-
         if !creator_account_info.is_signer {
             return Err(ProgramError::MissingRequiredSignature);
         }
@@ -320,10 +316,6 @@ impl Processor {
         }
 
         let relay_round_account_data = RelayRound::unpack(&relay_round_account_info.data.borrow())?;
-
-        if relay_round_account_data.round_end <= clock.unix_timestamp as u32 {
-            return Err(RoundLoaderError::RelayRoundExpired.into());
-        }
 
         let required_votes = (relay_round_account_data.relays.len() * 2 / 3 + 1) as u32;
 
