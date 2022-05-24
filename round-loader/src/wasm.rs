@@ -65,6 +65,40 @@ pub fn initialize_ix(
     return JsValue::from_serde(&ix).handle_error();
 }
 
+#[wasm_bindgen(js_name = "execute")]
+pub fn execute_ix(
+    funder_pubkey: String,
+    proposal_pubkey: String,
+    round_number: u32,
+) -> Result<JsValue, JsValue> {
+    let program_id = &id();
+
+    let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
+    let proposal_pubkey = Pubkey::from_str(proposal_pubkey.as_str()).handle_error()?;
+
+    let settings_pubkey = get_associated_settings_address(program_id);
+    let relay_round_pubkey = get_associated_relay_round_address(program_id, round_number);
+
+    let data = RoundLoaderInstruction::ExecuteProposal
+        .try_to_vec()
+        .handle_error()?;
+
+    let ix = Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(funder_pubkey, true),
+            AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new(proposal_pubkey, false),
+            AccountMeta::new(relay_round_pubkey, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+            AccountMeta::new_readonly(sysvar::rent::id(), false),
+        ],
+        data,
+    };
+
+    return JsValue::from_serde(&ix).handle_error();
+}
+
 #[wasm_bindgen(js_name = "unpackSettings")]
 pub fn unpack_settings(data: Vec<u8>) -> Result<JsValue, JsValue> {
     let settings = Settings::unpack(&data).handle_error()?;
