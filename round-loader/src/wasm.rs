@@ -96,6 +96,79 @@ pub fn update_settings_ix(
     return JsValue::from_serde(&ix).handle_error();
 }
 
+#[wasm_bindgen(js_name = "createRelayRound")]
+pub fn create_relay_round_ix(
+    funder_pubkey: String,
+    creator_pubkey: String,
+    round_number: u32,
+    round_end: u32,
+    relays: JsValue,
+) -> Result<JsValue, JsValue> {
+    let program_id = &id();
+
+    let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
+    let creator_pubkey = Pubkey::from_str(creator_pubkey.as_str()).handle_error()?;
+
+    let setting_pubkey = get_associated_settings_address(program_id);
+    let relay_round_pubkey = get_associated_relay_round_address(program_id, round_number);
+
+    let relays: Vec<String> = relays.into_serde().handle_error()?;
+    let relays = relays
+        .into_iter()
+        .map(|x| Pubkey::from_str(x.as_str()).unwrap())
+        .collect();
+
+    let data = RoundLoaderInstruction::CreateRelayRound {
+        round_number,
+        round_end,
+        relays,
+    }
+    .try_to_vec()
+    .handle_error()?;
+
+    let ix = Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(funder_pubkey, true),
+            AccountMeta::new(creator_pubkey, true),
+            AccountMeta::new(setting_pubkey, false),
+            AccountMeta::new(relay_round_pubkey, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+            AccountMeta::new_readonly(sysvar::rent::id(), false),
+        ],
+        data,
+    };
+
+    return JsValue::from_serde(&ix).handle_error();
+}
+
+#[wasm_bindgen(js_name = "updateCurrentRelayRound")]
+pub fn update_current_relay_round_ix(
+    author_pubkey: String,
+    round_number: u32,
+) -> Result<JsValue, JsValue> {
+    let program_id = &id();
+
+    let author_pubkey = Pubkey::from_str(author_pubkey.as_str()).handle_error()?;
+
+    let setting_pubkey = get_associated_settings_address(program_id);
+
+    let data = RoundLoaderInstruction::UpdateCurrentRelayRound { round_number }
+        .try_to_vec()
+        .handle_error()?;
+
+    let ix = Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(author_pubkey, true),
+            AccountMeta::new(setting_pubkey, false),
+        ],
+        data,
+    };
+
+    return JsValue::from_serde(&ix).handle_error();
+}
+
 #[wasm_bindgen(js_name = "execute")]
 pub fn execute_ix(
     funder_pubkey: String,
