@@ -24,9 +24,9 @@ async fn test_init_relay_loader() {
     );
 
     // Setup environment
-    let creator = Keypair::new();
+    let initializer = Keypair::new();
     program_test.add_account(
-        creator.pubkey(),
+        initializer.pubkey(),
         Account {
             lamports: 100000000,
             data: vec![],
@@ -44,7 +44,7 @@ async fn test_init_relay_loader() {
 
     let programdata_data = UpgradeableLoaderState::ProgramData {
         slot: 0,
-        upgrade_authority_address: Some(creator.pubkey()),
+        upgrade_authority_address: Some(initializer.pubkey()),
     };
 
     let programdata_data_serialized =
@@ -64,21 +64,37 @@ async fn test_init_relay_loader() {
     // Start Program Test
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
-    let round_number = 0;
+    let creator = Keypair::new();
+
+    let round_submitter = creator.pubkey();
+    let genesis_round_number = 0;
+    let round_ttl = 10;
+
+    let round_number = 1;
     let round_end = 1752375045;
     let relays = vec![Pubkey::from_str("2Xzby8BnopnMbCS12YgASrxJoemVFJFgSbSB8pbU1am3").unwrap()];
 
     let mut transaction = Transaction::new_with_payer(
-        &[initialize_ix(
-            &funder.pubkey(),
-            &creator.pubkey(),
-            round_number,
-            round_end,
-            relays.clone(),
-        )],
+        &[
+            initialize_ix(
+                &funder.pubkey(),
+                &initializer.pubkey(),
+                genesis_round_number,
+                round_submitter,
+                round_ttl,
+            ),
+            create_relay_round_ix(
+                &funder.pubkey(),
+                &creator.pubkey(),
+                round_number,
+                round_end,
+                relays.clone(),
+            ),
+            update_current_relay_round_ix(&creator.pubkey(), round_number),
+        ],
         Some(&funder.pubkey()),
     );
-    transaction.sign(&[&funder, &creator], recent_blockhash);
+    transaction.sign(&[&funder, &creator, &initializer], recent_blockhash);
 
     banks_client
         .process_transaction(transaction)
@@ -96,7 +112,9 @@ async fn test_init_relay_loader() {
     let settings_data = Settings::unpack(settings_info.data()).expect("settings unpack");
 
     assert_eq!(settings_data.is_initialized, true);
-    assert_eq!(settings_data.round_number, round_number);
+    assert_eq!(settings_data.current_round_number, round_number);
+    assert_eq!(settings_data.round_submitter, round_submitter);
+    assert_eq!(settings_data.round_ttl, round_ttl);
 
     let relay_round_address = get_relay_round_address(round_number);
 
@@ -112,7 +130,37 @@ async fn test_init_relay_loader() {
     assert_eq!(relay_round_data.round_number, round_number);
     assert_eq!(relay_round_data.round_end, round_end);
     assert_eq!(relay_round_data.relays, relays);
+
+    let new_round_submitter = Pubkey::new_unique();
+    let new_round_ttl = 12;
+
+    let mut transaction = Transaction::new_with_payer(
+        &[update_settings_ix(
+            &initializer.pubkey(),
+            Some(new_round_submitter),
+            Some(new_round_ttl),
+        )],
+        Some(&initializer.pubkey()),
+    );
+    transaction.sign(&[&initializer], recent_blockhash);
+
+    banks_client
+        .process_transaction(transaction)
+        .await
+        .expect("process_transaction");
+
+    let settings_info = banks_client
+        .get_account(settings_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let settings_data = Settings::unpack(settings_info.data()).expect("settings unpack");
+
+    assert_eq!(settings_data.round_submitter, new_round_submitter);
+    assert_eq!(settings_data.round_ttl, new_round_ttl);
 }
+
 #[tokio::test]
 async fn test_create_proposal() {
     let mut program_test = ProgramTest::new(
@@ -157,7 +205,9 @@ async fn test_create_proposal() {
     let settings_account_data = Settings {
         is_initialized: true,
         account_kind: AccountKind::Settings,
-        round_number,
+        current_round_number: round_number,
+        round_submitter: Pubkey::new_unique(),
+        round_ttl: 0,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -392,5 +442,5 @@ async fn test_create_proposal() {
         .expect("account");
     let settings_data = Settings::unpack(settings_account.data()).expect("settings unpack");
 
-    assert_eq!(settings_data.round_number, new_round_number);
+    assert_eq!(settings_data.current_round_number, new_round_number);
 }

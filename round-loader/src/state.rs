@@ -36,11 +36,13 @@ const RELAY_ROUND_PROPOSAL_META_LEN: usize = 1  // is_executed
 ;
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
-#[bridge_pack(length = 50)] // 6 + reserve
+#[bridge_pack(length = 50)] // 42 + reserve
 pub struct Settings {
     pub is_initialized: bool,
     pub account_kind: AccountKind,
-    pub round_number: u32,
+    pub current_round_number: u32,
+    pub round_submitter: Pubkey,
+    pub round_ttl: u32,
 }
 
 impl Sealed for Settings {}

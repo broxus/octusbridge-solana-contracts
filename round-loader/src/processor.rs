@@ -26,12 +26,43 @@ impl Processor {
 
         match instruction {
             RoundLoaderInstruction::Initialize {
+                genesis_round_number,
+                round_submitter,
+                round_ttl,
+            } => {
+                msg!("Instruction: Initialize");
+                Self::process_initialize(
+                    program_id,
+                    accounts,
+                    genesis_round_number,
+                    round_submitter,
+                    round_ttl,
+                )?;
+            }
+            RoundLoaderInstruction::UpdateSettings {
+                round_submitter,
+                round_ttl,
+            } => {
+                msg!("Instruction: Update Settings");
+                Self::process_update_settings(program_id, accounts, round_submitter, round_ttl)?;
+            }
+            RoundLoaderInstruction::CreateRelayRound {
                 round_number,
                 round_end,
                 relays,
             } => {
-                msg!("Instruction: Initialize");
-                Self::process_initialize(program_id, accounts, round_number, round_end, relays)?;
+                msg!("Instruction: Create Relay Round");
+                Self::process_create_relay_round(
+                    program_id,
+                    accounts,
+                    round_number,
+                    round_end,
+                    relays,
+                )?;
+            }
+            RoundLoaderInstruction::UpdateCurrentRelayRound { round_number } => {
+                msg!("Instruction: Update Current Relay Round");
+                Self::process_update_current_relay_round(program_id, accounts, round_number)?;
             }
             RoundLoaderInstruction::CreateProposal {
                 event_timestamp,
@@ -73,16 +104,15 @@ impl Processor {
     fn process_initialize(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        round_number: u32,
-        round_end: u32,
-        relays: Vec<Pubkey>,
+        genesis_round_number: u32,
+        round_submitter: Pubkey,
+        round_ttl: u32,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
         let funder_account_info = next_account_info(account_info_iter)?;
         let initializer_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
-        let relay_round_account_info = next_account_info(account_info_iter)?;
         let programdata_account_info = next_account_info(account_info_iter)?;
         let system_program_info = next_account_info(account_info_iter)?;
         let rent_sysvar_info = next_account_info(account_info_iter)?;
@@ -126,13 +156,101 @@ impl Processor {
         let settings_account_data = Settings {
             is_initialized: true,
             account_kind: AccountKind::Settings,
-            round_number,
+            current_round_number: genesis_round_number,
+            round_submitter,
+            round_ttl,
         };
 
         Settings::pack(
             settings_account_data,
             &mut settings_account_info.data.borrow_mut(),
         )?;
+
+        Ok(())
+    }
+
+    fn process_update_settings(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        round_submitter: Option<Pubkey>,
+        round_ttl: Option<u32>,
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+
+        let author_account_info = next_account_info(account_info_iter)?;
+        let settings_account_info = next_account_info(account_info_iter)?;
+        let programdata_account_info = next_account_info(account_info_iter)?;
+
+        if !author_account_info.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        bridge_utils::helper::validate_programdata_account(
+            program_id,
+            programdata_account_info.key,
+        )?;
+        bridge_utils::helper::validate_initializer_account(
+            author_account_info.key,
+            programdata_account_info,
+        )?;
+
+        // Validate Settings Account
+        validate_settings_account(program_id, settings_account_info)?;
+
+        if settings_account_info.owner != program_id {
+            return Err(ProgramError::InvalidArgument);
+        }
+
+        let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+
+        if let Some(round_submitter) = round_submitter {
+            settings_account_data.round_submitter = round_submitter;
+        }
+
+        if let Some(round_ttl) = round_ttl {
+            settings_account_data.round_ttl = round_ttl;
+        }
+
+        Settings::pack(
+            settings_account_data,
+            &mut settings_account_info.data.borrow_mut(),
+        )?;
+
+        Ok(())
+    }
+
+    fn process_create_relay_round(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        round_number: u32,
+        round_end: u32,
+        relays: Vec<Pubkey>,
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+
+        let funder_account_info = next_account_info(account_info_iter)?;
+        let creator_account_info = next_account_info(account_info_iter)?;
+        let settings_account_info = next_account_info(account_info_iter)?;
+        let relay_round_account_info = next_account_info(account_info_iter)?;
+        let system_program_info = next_account_info(account_info_iter)?;
+        let rent_sysvar_info = next_account_info(account_info_iter)?;
+        let rent = &Rent::from_account_info(rent_sysvar_info)?;
+
+        if !creator_account_info.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        // Validate Settings Account
+        validate_settings_account(program_id, settings_account_info)?;
+
+        if settings_account_info.owner != program_id {
+            return Err(ProgramError::InvalidArgument);
+        }
+
+        let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+        if settings_account_data.round_submitter != *creator_account_info.key {
+            return Err(ProgramError::IllegalOwner);
+        }
 
         // Validate Relay Round Account
         let relay_round_nonce =
@@ -169,6 +287,42 @@ impl Processor {
         RelayRound::pack(
             relay_round_account_data,
             &mut relay_round_account_info.data.borrow_mut(),
+        )?;
+
+        Ok(())
+    }
+
+    fn process_update_current_relay_round(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        round_number: u32,
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+
+        let author_account_info = next_account_info(account_info_iter)?;
+        let settings_account_info = next_account_info(account_info_iter)?;
+
+        if !author_account_info.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        // Validate Settings Account
+        validate_settings_account(program_id, settings_account_info)?;
+
+        if settings_account_info.owner != program_id {
+            return Err(ProgramError::InvalidArgument);
+        }
+
+        let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+        if settings_account_data.round_submitter != *author_account_info.key {
+            return Err(ProgramError::IllegalOwner);
+        }
+
+        settings_account_data.current_round_number = round_number;
+
+        Settings::pack(
+            settings_account_data,
+            &mut settings_account_info.data.borrow_mut(),
         )?;
 
         Ok(())
@@ -306,7 +460,7 @@ impl Processor {
         }
 
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
-        let round_number = settings_account_data.round_number;
+        let round_number = settings_account_data.current_round_number;
 
         // Validate Relay Round Account
         validate_relay_round_account(program_id, round_number, relay_round_account_info)?;
@@ -501,7 +655,7 @@ impl Processor {
             )?;
 
             // Update Settings Account
-            settings_account_data.round_number = round_number;
+            settings_account_data.current_round_number = round_number;
 
             Settings::pack(
                 settings_account_data,

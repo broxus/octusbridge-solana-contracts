@@ -20,30 +20,24 @@ use crate::*;
 #[wasm_bindgen(js_name = "initialize")]
 pub fn initialize_ix(
     funder_pubkey: String,
-    creator_pubkey: String,
-    round_number: u32,
-    round_end: u32,
-    relays: JsValue,
+    initializer_pubkey: String,
+    genesis_round_number: u32,
+    round_submitter: String,
+    round_ttl: u32,
 ) -> Result<JsValue, JsValue> {
     let program_id = &id();
 
     let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
-    let creator_pubkey = Pubkey::from_str(creator_pubkey.as_str()).handle_error()?;
-
-    let relays: Vec<String> = relays.into_serde().handle_error()?;
-    let relays = relays
-        .into_iter()
-        .map(|x| Pubkey::from_str(x.as_str()).unwrap())
-        .collect();
+    let initializer_pubkey = Pubkey::from_str(initializer_pubkey.as_str()).handle_error()?;
+    let round_submitter = Pubkey::from_str(round_submitter.as_str()).handle_error()?;
 
     let setting_pubkey = get_associated_settings_address(program_id);
     let program_data_pubkey = get_programdata_address(program_id);
-    let relay_round_pubkey = get_associated_relay_round_address(program_id, round_number);
 
     let data = RoundLoaderInstruction::Initialize {
-        round_number,
-        round_end,
-        relays,
+        genesis_round_number,
+        round_submitter,
+        round_ttl,
     }
     .try_to_vec()
     .handle_error()?;
@@ -52,12 +46,49 @@ pub fn initialize_ix(
         program_id: id(),
         accounts: vec![
             AccountMeta::new(funder_pubkey, true),
-            AccountMeta::new(creator_pubkey, true),
+            AccountMeta::new(initializer_pubkey, true),
             AccountMeta::new(setting_pubkey, false),
-            AccountMeta::new(relay_round_pubkey, false),
             AccountMeta::new_readonly(program_data_pubkey, false),
             AccountMeta::new_readonly(system_program::id(), false),
             AccountMeta::new_readonly(sysvar::rent::id(), false),
+        ],
+        data,
+    };
+
+    return JsValue::from_serde(&ix).handle_error();
+}
+
+#[wasm_bindgen(js_name = "updateSettings")]
+pub fn update_settings_ix(
+    author_pubkey: String,
+    round_submitter: Option<String>,
+    round_ttl: Option<u32>,
+) -> Result<JsValue, JsValue> {
+    let program_id = &id();
+
+    let author_pubkey = Pubkey::from_str(author_pubkey.as_str()).handle_error()?;
+
+    let setting_pubkey = get_associated_settings_address(program_id);
+    let program_data_pubkey = get_programdata_address(program_id);
+
+    let round_submitter = round_submitter
+        .map(|value| Pubkey::from_str(value.as_str()))
+        .transpose()
+        .handle_error()?;
+
+    let data = RoundLoaderInstruction::UpdateSettings {
+        round_submitter,
+        round_ttl,
+    }
+    .try_to_vec()
+    .handle_error()?;
+
+    let ix = Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(author_pubkey, true),
+            AccountMeta::new(setting_pubkey, false),
+            AccountMeta::new_readonly(program_data_pubkey, false),
         ],
         data,
     };
@@ -105,7 +136,9 @@ pub fn unpack_settings(data: Vec<u8>) -> Result<JsValue, JsValue> {
 
     let s = WasmSettings {
         is_initialized: settings.is_initialized,
-        round_number: settings.round_number,
+        current_round_number: settings.current_round_number,
+        round_submitter: settings.round_submitter,
+        round_ttl: settings.round_ttl,
     };
 
     return JsValue::from_serde(&s).handle_error();
@@ -145,7 +178,9 @@ pub fn unpack_relay_round_proposal(data: Vec<u8>) -> Result<JsValue, JsValue> {
 #[derive(Serialize, Deserialize)]
 pub struct WasmSettings {
     pub is_initialized: bool,
-    pub round_number: u32,
+    pub current_round_number: u32,
+    pub round_submitter: Pubkey,
+    pub round_ttl: u32,
 }
 
 #[derive(Serialize, Deserialize)]

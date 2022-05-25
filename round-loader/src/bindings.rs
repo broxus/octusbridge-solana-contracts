@@ -48,15 +48,72 @@ pub fn get_relay_round_address(round_number: u32) -> Pubkey {
 pub fn initialize_ix(
     funder_pubkey: &Pubkey,
     initializer_pubkey: &Pubkey,
+    genesis_round_number: u32,
+    round_submitter: Pubkey,
+    round_ttl: u32,
+) -> Instruction {
+    let setting_pubkey = get_settings_address();
+    let program_data_pubkey = get_programdata_address();
+
+    let data = RoundLoaderInstruction::Initialize {
+        genesis_round_number,
+        round_submitter,
+        round_ttl,
+    }
+    .try_to_vec()
+    .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(*funder_pubkey, true),
+            AccountMeta::new(*initializer_pubkey, true),
+            AccountMeta::new(setting_pubkey, false),
+            AccountMeta::new_readonly(program_data_pubkey, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+            AccountMeta::new_readonly(sysvar::rent::id(), false),
+        ],
+        data,
+    }
+}
+
+pub fn update_settings_ix(
+    author_pubkey: &Pubkey,
+    round_submitter: Option<Pubkey>,
+    round_ttl: Option<u32>,
+) -> Instruction {
+    let setting_pubkey = get_settings_address();
+    let program_data_pubkey = get_programdata_address();
+
+    let data = RoundLoaderInstruction::UpdateSettings {
+        round_submitter,
+        round_ttl,
+    }
+    .try_to_vec()
+    .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(*author_pubkey, true),
+            AccountMeta::new(setting_pubkey, false),
+            AccountMeta::new_readonly(program_data_pubkey, false),
+        ],
+        data,
+    }
+}
+
+pub fn create_relay_round_ix(
+    funder_pubkey: &Pubkey,
+    creator_pubkey: &Pubkey,
     round_number: u32,
     round_end: u32,
     relays: Vec<Pubkey>,
 ) -> Instruction {
     let setting_pubkey = get_settings_address();
-    let program_data_pubkey = get_programdata_address();
     let relay_round_pubkey = get_relay_round_address(round_number);
 
-    let data = RoundLoaderInstruction::Initialize {
+    let data = RoundLoaderInstruction::CreateRelayRound {
         round_number,
         round_end,
         relays,
@@ -68,12 +125,28 @@ pub fn initialize_ix(
         program_id: id(),
         accounts: vec![
             AccountMeta::new(*funder_pubkey, true),
-            AccountMeta::new(*initializer_pubkey, true),
+            AccountMeta::new(*creator_pubkey, true),
             AccountMeta::new(setting_pubkey, false),
             AccountMeta::new(relay_round_pubkey, false),
-            AccountMeta::new_readonly(program_data_pubkey, false),
             AccountMeta::new_readonly(system_program::id(), false),
             AccountMeta::new_readonly(sysvar::rent::id(), false),
+        ],
+        data,
+    }
+}
+
+pub fn update_current_relay_round_ix(author_pubkey: &Pubkey, round_number: u32) -> Instruction {
+    let setting_pubkey = get_settings_address();
+
+    let data = RoundLoaderInstruction::UpdateCurrentRelayRound { round_number }
+        .try_to_vec()
+        .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(*author_pubkey, true),
+            AccountMeta::new(setting_pubkey, false),
         ],
         data,
     }

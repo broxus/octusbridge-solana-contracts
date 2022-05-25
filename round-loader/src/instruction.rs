@@ -14,17 +14,50 @@ pub enum RoundLoaderInstruction {
         vote: Vote,
     },
 
-    /// Initialize the first round
+    /// Initialize the genesis round
     ///
     /// # Account references
     /// ...
     Initialize {
-        // Genesis Relay Round number
+        // Genesis round number
+        genesis_round_number: u32,
+        // Relay Round submitter role
+        round_submitter: Pubkey,
+        // Round TTL
+        round_ttl: u32,
+    },
+
+    /// Update Settings
+    ///
+    /// # Account references
+    /// ...
+    UpdateSettings {
+        // Relay Round submitter role
+        round_submitter: Option<Pubkey>,
+        // Round TTL
+        round_ttl: Option<u32>,
+    },
+
+    /// Create Relay Round
+    ///
+    /// # Account references
+    /// ...
+    CreateRelayRound {
+        // Relay Round number
         round_number: u32,
         // End of round
         round_end: u32,
-        // Relays keys
+        // Relays keys in a new round
         relays: Vec<Pubkey>,
+    },
+
+    /// Set a new Current Relay Round
+    ///
+    /// # Account references
+    /// ...
+    UpdateCurrentRelayRound {
+        // Relay Round number
+        round_number: u32,
     },
 
     /// Create proposal account for a new Relay Round
