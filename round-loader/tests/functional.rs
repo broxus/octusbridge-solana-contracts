@@ -68,10 +68,9 @@ async fn test_init_relay_loader() {
 
     let round_submitter = creator.pubkey();
     let genesis_round_number = 0;
-    let round_ttl = 10;
+    let min_required_votes = 1;
 
     let round_number = 1;
-    let round_end = 1752375045;
     let relays = vec![Pubkey::from_str("2Xzby8BnopnMbCS12YgASrxJoemVFJFgSbSB8pbU1am3").unwrap()];
 
     let mut transaction = Transaction::new_with_payer(
@@ -81,13 +80,12 @@ async fn test_init_relay_loader() {
                 &initializer.pubkey(),
                 genesis_round_number,
                 round_submitter,
-                round_ttl,
+                min_required_votes,
             ),
             create_relay_round_ix(
                 &funder.pubkey(),
                 &creator.pubkey(),
                 round_number,
-                round_end,
                 relays.clone(),
             ),
         ],
@@ -113,7 +111,7 @@ async fn test_init_relay_loader() {
     assert_eq!(settings_data.is_initialized, true);
     assert_eq!(settings_data.current_round_number, round_number);
     assert_eq!(settings_data.round_submitter, round_submitter);
-    assert_eq!(settings_data.round_ttl, round_ttl);
+    assert_eq!(settings_data.min_required_votes, min_required_votes);
 
     let relay_round_address = get_relay_round_address(round_number);
 
@@ -127,19 +125,18 @@ async fn test_init_relay_loader() {
 
     assert_eq!(relay_round_data.is_initialized, true);
     assert_eq!(relay_round_data.round_number, round_number);
-    assert_eq!(relay_round_data.round_end, round_end);
     assert_eq!(relay_round_data.relays, relays);
 
     let new_current_round_number = 3;
     let new_round_submitter = Pubkey::new_unique();
-    let new_round_ttl = 12;
+    let new_min_required_votes = 12;
 
     let mut transaction = Transaction::new_with_payer(
         &[update_settings_ix(
             &initializer.pubkey(),
             Some(new_current_round_number),
             Some(new_round_submitter),
-            Some(new_round_ttl),
+            Some(new_min_required_votes),
         )],
         Some(&initializer.pubkey()),
     );
@@ -160,7 +157,7 @@ async fn test_init_relay_loader() {
 
     assert_eq!(settings_data.current_round_number, new_current_round_number);
     assert_eq!(settings_data.round_submitter, new_round_submitter);
-    assert_eq!(settings_data.round_ttl, new_round_ttl);
+    assert_eq!(settings_data.min_required_votes, new_min_required_votes);
 }
 
 #[tokio::test]
@@ -185,7 +182,6 @@ async fn test_create_proposal() {
     );
 
     let round_number = 0;
-    let round_end = 1759950985;
 
     // Add Relays Accounts
     let relays = vec![Keypair::new(), Keypair::new(), Keypair::new()];
@@ -209,7 +205,7 @@ async fn test_create_proposal() {
         account_kind: AccountKind::Settings,
         current_round_number: round_number,
         round_submitter: Pubkey::new_unique(),
-        round_ttl: 0,
+        min_required_votes: 1,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -231,7 +227,6 @@ async fn test_create_proposal() {
         is_initialized: true,
         account_kind: AccountKind::RelayRound,
         round_number,
-        round_end,
         relays: relays.iter().map(|pair| pair.pubkey()).collect(),
     };
 
@@ -432,7 +427,6 @@ async fn test_create_proposal() {
         RelayRound::unpack(relay_round_account.data()).expect("relay round unpack");
 
     assert_eq!(relay_round_data.is_initialized, true);
-    assert_eq!(relay_round_data.round_end, new_round_end);
     assert_eq!(relay_round_data.round_number, new_round_number);
     assert_eq!(relay_round_data.relays, new_relays);
 

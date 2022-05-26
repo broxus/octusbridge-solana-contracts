@@ -148,6 +148,8 @@ pub fn process_withdrawal_request(
         amount,
     );
 
+    let rl_settings_pubkey = round_loader::get_associated_settings_address(&round_loader::id());
+
     let data = TokenProxyInstruction::WithdrawRequest {
         event_timestamp,
         event_transaction_lt,
@@ -166,9 +168,9 @@ pub fn process_withdrawal_request(
             AccountMeta::new(author_pubkey, true),
             AccountMeta::new(withdrawal_pubkey, false),
             AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new_readonly(rl_settings_pubkey, false),
             AccountMeta::new_readonly(relay_round_pubkey, false),
             AccountMeta::new_readonly(system_program::id(), false),
-            AccountMeta::new_readonly(sysvar::clock::id(), false),
             AccountMeta::new_readonly(sysvar::rent::id(), false),
         ],
         data,

@@ -42,7 +42,7 @@ pub struct Settings {
     pub account_kind: AccountKind,
     pub current_round_number: u32,
     pub round_submitter: Pubkey,
-    pub round_ttl: u32,
+    pub min_required_votes: u32,
 }
 
 impl Sealed for Settings {}
@@ -54,12 +54,11 @@ impl IsInitialized for Settings {
 }
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
-#[bridge_pack(length = 3214)]
+#[bridge_pack(length = 3210)]
 pub struct RelayRound {
     pub is_initialized: bool,
     pub account_kind: AccountKind,
     pub round_number: u32,
-    pub round_end: u32,
     pub relays: Vec<Pubkey>,
 }
 

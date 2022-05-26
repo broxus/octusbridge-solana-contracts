@@ -28,7 +28,7 @@ impl Processor {
             RoundLoaderInstruction::Initialize {
                 genesis_round_number,
                 round_submitter,
-                round_ttl,
+                min_required_votes,
             } => {
                 msg!("Instruction: Initialize");
                 Self::process_initialize(
@@ -36,13 +36,13 @@ impl Processor {
                     accounts,
                     genesis_round_number,
                     round_submitter,
-                    round_ttl,
+                    min_required_votes,
                 )?;
             }
             RoundLoaderInstruction::UpdateSettings {
                 current_round_number,
                 round_submitter,
-                round_ttl,
+                min_required_votes,
             } => {
                 msg!("Instruction: Update Settings");
                 Self::process_update_settings(
@@ -50,22 +50,15 @@ impl Processor {
                     accounts,
                     current_round_number,
                     round_submitter,
-                    round_ttl,
+                    min_required_votes,
                 )?;
             }
             RoundLoaderInstruction::CreateRelayRound {
                 round_number,
-                round_end,
                 relays,
             } => {
                 msg!("Instruction: Create Relay Round");
-                Self::process_create_relay_round(
-                    program_id,
-                    accounts,
-                    round_number,
-                    round_end,
-                    relays,
-                )?;
+                Self::process_create_relay_round(program_id, accounts, round_number, relays)?;
             }
             RoundLoaderInstruction::CreateProposal {
                 event_timestamp,
@@ -109,7 +102,7 @@ impl Processor {
         accounts: &[AccountInfo],
         genesis_round_number: u32,
         round_submitter: Pubkey,
-        round_ttl: u32,
+        min_required_votes: u32,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -161,7 +154,7 @@ impl Processor {
             account_kind: AccountKind::Settings,
             current_round_number: genesis_round_number,
             round_submitter,
-            round_ttl,
+            min_required_votes,
         };
 
         Settings::pack(
@@ -177,7 +170,7 @@ impl Processor {
         accounts: &[AccountInfo],
         current_round_number: Option<u32>,
         round_submitter: Option<Pubkey>,
-        round_ttl: Option<u32>,
+        min_required_votes: Option<u32>,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -215,8 +208,8 @@ impl Processor {
             settings_account_data.round_submitter = round_submitter;
         }
 
-        if let Some(round_ttl) = round_ttl {
-            settings_account_data.round_ttl = round_ttl;
+        if let Some(min_required_votes) = min_required_votes {
+            settings_account_data.min_required_votes = min_required_votes;
         }
 
         Settings::pack(
@@ -231,7 +224,6 @@ impl Processor {
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         round_number: u32,
-        round_end: u32,
         relays: Vec<Pubkey>,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
@@ -295,7 +287,6 @@ impl Processor {
             is_initialized: true,
             account_kind: AccountKind::RelayRound,
             round_number,
-            round_end,
             relays,
         };
 
@@ -450,7 +441,10 @@ impl Processor {
 
         let relay_round_account_data = RelayRound::unpack(&relay_round_account_info.data.borrow())?;
 
-        let required_votes = (relay_round_account_data.relays.len() * 2 / 3 + 1) as u32;
+        let mut required_votes = (relay_round_account_data.relays.len() * 2 / 3 + 1) as u32;
+        if settings_account_data.min_required_votes > required_votes {
+            required_votes = settings_account_data.min_required_votes;
+        }
 
         let mut proposal =
             RelayRoundProposal::unpack_unchecked(&proposal_account_info.data.borrow())?;
@@ -631,7 +625,6 @@ impl Processor {
                 is_initialized: true,
                 account_kind: AccountKind::RelayRound,
                 round_number,
-                round_end: proposal.event.data.round_end,
                 relays: proposal
                     .event
                     .data

@@ -23,7 +23,7 @@ pub fn initialize_ix(
     initializer_pubkey: String,
     genesis_round_number: u32,
     round_submitter: String,
-    round_ttl: u32,
+    min_required_votes: u32,
 ) -> Result<JsValue, JsValue> {
     let program_id = &id();
 
@@ -37,7 +37,7 @@ pub fn initialize_ix(
     let data = RoundLoaderInstruction::Initialize {
         genesis_round_number,
         round_submitter,
-        round_ttl,
+        min_required_votes,
     }
     .try_to_vec()
     .handle_error()?;
@@ -61,8 +61,9 @@ pub fn initialize_ix(
 #[wasm_bindgen(js_name = "updateSettings")]
 pub fn update_settings_ix(
     author_pubkey: String,
+    current_round_number: Option<u32>,
     round_submitter: Option<String>,
-    round_ttl: Option<u32>,
+    min_required_votes: Option<u32>,
 ) -> Result<JsValue, JsValue> {
     let program_id = &id();
 
@@ -77,8 +78,9 @@ pub fn update_settings_ix(
         .handle_error()?;
 
     let data = RoundLoaderInstruction::UpdateSettings {
+        current_round_number,
         round_submitter,
-        round_ttl,
+        min_required_votes,
     }
     .try_to_vec()
     .handle_error()?;
@@ -101,7 +103,6 @@ pub fn create_relay_round_ix(
     funder_pubkey: String,
     creator_pubkey: String,
     round_number: u32,
-    round_end: u32,
     relays: JsValue,
 ) -> Result<JsValue, JsValue> {
     let program_id = &id();
@@ -120,7 +121,6 @@ pub fn create_relay_round_ix(
 
     let data = RoundLoaderInstruction::CreateRelayRound {
         round_number,
-        round_end,
         relays,
     }
     .try_to_vec()
@@ -135,33 +135,6 @@ pub fn create_relay_round_ix(
             AccountMeta::new(relay_round_pubkey, false),
             AccountMeta::new_readonly(system_program::id(), false),
             AccountMeta::new_readonly(sysvar::rent::id(), false),
-        ],
-        data,
-    };
-
-    return JsValue::from_serde(&ix).handle_error();
-}
-
-#[wasm_bindgen(js_name = "updateCurrentRelayRound")]
-pub fn update_current_relay_round_ix(
-    author_pubkey: String,
-    round_number: u32,
-) -> Result<JsValue, JsValue> {
-    let program_id = &id();
-
-    let author_pubkey = Pubkey::from_str(author_pubkey.as_str()).handle_error()?;
-
-    let setting_pubkey = get_associated_settings_address(program_id);
-
-    let data = RoundLoaderInstruction::UpdateCurrentRelayRound { round_number }
-        .try_to_vec()
-        .handle_error()?;
-
-    let ix = Instruction {
-        program_id: id(),
-        accounts: vec![
-            AccountMeta::new(author_pubkey, true),
-            AccountMeta::new(setting_pubkey, false),
         ],
         data,
     };
@@ -211,7 +184,7 @@ pub fn unpack_settings(data: Vec<u8>) -> Result<JsValue, JsValue> {
         is_initialized: settings.is_initialized,
         current_round_number: settings.current_round_number,
         round_submitter: settings.round_submitter,
-        round_ttl: settings.round_ttl,
+        min_required_votes: settings.min_required_votes,
     };
 
     return JsValue::from_serde(&s).handle_error();
@@ -224,7 +197,6 @@ pub fn unpack_relay_round(data: Vec<u8>) -> Result<JsValue, JsValue> {
     let rr = WasmRelayRound {
         is_initialized: relay_round.is_initialized,
         round_number: relay_round.round_number,
-        round_end: relay_round.round_end,
         relays: relay_round.relays,
     };
 
@@ -253,14 +225,13 @@ pub struct WasmSettings {
     pub is_initialized: bool,
     pub current_round_number: u32,
     pub round_submitter: Pubkey,
-    pub round_ttl: u32,
+    pub min_required_votes: u32,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct WasmRelayRound {
     pub is_initialized: bool,
     pub round_number: u32,
-    pub round_end: u32,
     pub relays: Vec<Pubkey>,
 }
 

@@ -253,6 +253,7 @@ pub fn withdrawal_request_ix(
         recipient_address,
         amount,
     );
+    let rl_settings_pubkey = round_loader::get_associated_settings_address(&round_loader::id());
     let relay_round_pubkey =
         round_loader::get_associated_relay_round_address(&round_loader::id(), round_number);
 
@@ -274,9 +275,9 @@ pub fn withdrawal_request_ix(
             AccountMeta::new(*author_pubkey, true),
             AccountMeta::new(withdrawal_pubkey, false),
             AccountMeta::new_readonly(*settings_pubkey, false),
+            AccountMeta::new_readonly(rl_settings_pubkey, false),
             AccountMeta::new_readonly(relay_round_pubkey, false),
             AccountMeta::new_readonly(system_program::id(), false),
-            AccountMeta::new_readonly(sysvar::clock::id(), false),
             AccountMeta::new_readonly(sysvar::rent::id(), false),
         ],
         data,

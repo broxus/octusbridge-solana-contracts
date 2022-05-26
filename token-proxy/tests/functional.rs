@@ -647,8 +647,32 @@ async fn test_withdrawal_request() {
         },
     );
 
-    // Add Relay Round Account
+    // Add Round Loader Settings Account
     let round_number = 12;
+    let rl_settings_address = round_loader::get_associated_settings_address(&round_loader::id());
+
+    let rl_settings_account_data = round_loader::Settings {
+        is_initialized: true,
+        account_kind: AccountKind::Settings,
+        current_round_number: round_number,
+        round_submitter: Pubkey::new_unique(),
+        min_required_votes: 1,
+    };
+
+    let mut rl_settings_packed = vec![0; round_loader::Settings::LEN];
+    round_loader::Settings::pack(rl_settings_account_data, &mut rl_settings_packed).unwrap();
+    program_test.add_account(
+        rl_settings_address,
+        Account {
+            lamports: Rent::default().minimum_balance(round_loader::Settings::LEN),
+            data: rl_settings_packed,
+            owner: round_loader::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Relay Round Account
     let relays = vec![
         Pubkey::new_unique(),
         Pubkey::new_unique(),
@@ -660,7 +684,6 @@ async fn test_withdrawal_request() {
     let relay_round_data = round_loader::RelayRound {
         is_initialized: true,
         account_kind: AccountKind::RelayRound,
-        round_end: 1946154867,
         relays: relays.clone(),
         round_number,
     };
@@ -858,7 +881,6 @@ async fn test_vote_for_withdrawal_request() {
     let relay_round_account_data = round_loader::RelayRound {
         is_initialized: true,
         account_kind: AccountKind::RelayRound,
-        round_end: 1946154867,
         relays: relays.iter().map(|pair| pair.pubkey()).collect(),
         round_number,
     };

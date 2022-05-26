@@ -23,8 +23,8 @@ pub enum RoundLoaderInstruction {
         genesis_round_number: u32,
         // Relay Round submitter role
         round_submitter: Pubkey,
-        // Round TTL
-        round_ttl: u32,
+        // Minimum required votes
+        min_required_votes: u32,
     },
 
     /// Update Settings
@@ -36,8 +36,8 @@ pub enum RoundLoaderInstruction {
         current_round_number: Option<u32>,
         // Relay Round submitter role
         round_submitter: Option<Pubkey>,
-        // Round TTL
-        round_ttl: Option<u32>,
+        // Minimum required votes
+        min_required_votes: Option<u32>,
     },
 
     /// Create Relay Round
@@ -47,8 +47,6 @@ pub enum RoundLoaderInstruction {
     CreateRelayRound {
         // Relay Round number
         round_number: u32,
-        // End of round
-        round_end: u32,
         // Relays keys in a new round
         relays: Vec<Pubkey>,
     },

@@ -701,11 +701,9 @@ impl Processor {
         let author_account_info = next_account_info(account_info_iter)?;
         let withdrawal_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
+        let rl_settings_account_info = next_account_info(account_info_iter)?;
         let relay_round_account_info = next_account_info(account_info_iter)?;
         let system_program_info = next_account_info(account_info_iter)?;
-
-        let clock_info = next_account_info(account_info_iter)?;
-        let clock = Clock::from_account_info(clock_info)?;
 
         let rent_sysvar_info = next_account_info(account_info_iter)?;
         let rent = &Rent::from_account_info(rent_sysvar_info)?;
@@ -724,6 +722,18 @@ impl Processor {
         let name = &settings_account_data.name;
         validate_settings_account(program_id, name, settings_account_info)?;
 
+        // Validate Round Loader Settings Account
+        if rl_settings_account_info.owner != &round_loader::id() {
+            return Err(ProgramError::InvalidArgument);
+        }
+
+        round_loader::validate_settings_account(&round_loader::id(), rl_settings_account_info)?;
+
+        let rl_settings_account_data =
+            round_loader::Settings::unpack(&rl_settings_account_info.data.borrow())?;
+
+        let round_number = rl_settings_account_data.current_round_number;
+
         // Validate Relay Round Account
         if relay_round_account_info.owner != &round_loader::id() {
             return Err(ProgramError::InvalidArgument);
@@ -731,18 +741,16 @@ impl Processor {
 
         let relay_round_account_data = RelayRound::unpack(&relay_round_account_info.data.borrow())?;
 
-        let round_number = relay_round_account_data.round_number;
         round_loader::validate_relay_round_account(
             &round_loader::id(),
             round_number,
             relay_round_account_info,
         )?;
 
-        if relay_round_account_data.round_end <= clock.unix_timestamp as u32 {
-            return Err(TokenProxyError::RelayRoundExpired.into());
+        let mut required_votes = (relay_round_account_data.relays.len() * 2 / 3 + 1) as u32;
+        if rl_settings_account_data.min_required_votes > required_votes {
+            required_votes = rl_settings_account_data.min_required_votes;
         }
-
-        let required_votes = (relay_round_account_data.relays.len() * 2 / 3 + 1) as u32;
 
         // Init Withdraw Account
         let withdrawal_account_data = WithdrawalToken {
