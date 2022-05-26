@@ -463,6 +463,10 @@ impl Processor {
             return Err(ProgramError::IllegalOwner);
         }
 
+        if proposal.event.data.round_num != round_number + 1 {
+            return Err(RoundLoaderError::InvalidProposalRoundNumber.into());
+        }
+
         proposal.is_initialized = true;
         proposal.round_number = round_number;
         proposal.required_votes = required_votes;

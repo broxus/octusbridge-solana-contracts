@@ -14,6 +14,8 @@ pub enum RoundLoaderError {
     RelayRoundExpired,
     #[error("Invalid vote")]
     InvalidVote,
+    #[error("Invalid proposal round number")]
+    InvalidProposalRoundNumber,
 }
 
 impl From<RoundLoaderError> for ProgramError {
