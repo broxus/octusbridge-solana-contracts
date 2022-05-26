@@ -133,9 +133,17 @@ impl Processor {
                 msg!("Instruction: Approve Withdraw SOL");
                 Self::process_approve_withdraw_sol(program_id, accounts)?;
             }
-            TokenProxyInstruction::CancelWithdrawSol { deposit_seed } => {
+            TokenProxyInstruction::CancelWithdrawSol {
+                deposit_seed,
+                recipient_address,
+            } => {
                 msg!("Instruction: Cancel Withdraw SOL");
-                Self::process_cancel_withdraw_sol(program_id, accounts, deposit_seed)?;
+                Self::process_cancel_withdraw_sol(
+                    program_id,
+                    accounts,
+                    deposit_seed,
+                    recipient_address,
+                )?;
             }
             TokenProxyInstruction::FillWithdrawSol {
                 deposit_seed,
@@ -1282,6 +1290,7 @@ impl Processor {
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         deposit_seed: u128,
+        recipient_address: Option<EverAddress>,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -1383,13 +1392,18 @@ impl Processor {
                 .map_err(|_| TokenProxyError::ConstructPubkey)?,
         );
 
+        let recipient_address = match recipient_address {
+            Some(recipient_address) => recipient_address,
+            None => withdrawal_account_data.event.data.sender_address,
+        };
+
         let deposit_account_data = DepositToken {
             is_initialized: true,
             account_kind: AccountKind::Deposit,
             event: DepositTokenEventWithLen::new(
                 sender_address,
                 withdrawal_account_data.event.data.amount,
-                withdrawal_account_data.event.data.sender_address,
+                recipient_address,
             ),
             meta: DepositTokenMetaWithLen::new(deposit_seed),
         };

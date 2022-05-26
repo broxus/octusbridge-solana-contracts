@@ -2559,6 +2559,7 @@ async fn test_cancel_withdrawal_sol() {
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
     let deposit_seed = uuid::Uuid::new_v4();
+    let recipient_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
 
     let mut transaction = Transaction::new_with_payer(
         &[cancel_withdrawal_sol_ix(
@@ -2567,6 +2568,7 @@ async fn test_cancel_withdrawal_sol() {
             &withdrawal_address,
             deposit_seed,
             &name,
+            Some(recipient_address),
         )],
         Some(&funder.pubkey()),
     );
@@ -2601,6 +2603,7 @@ async fn test_cancel_withdrawal_sol() {
     let deposit_data = DepositToken::unpack(new_deposit_info.data()).expect("deposit unpack");
     assert_eq!(deposit_data.is_initialized, true);
     assert_eq!(deposit_data.event.data.amount, amount);
+    assert_eq!(deposit_data.event.data.recipient_address, recipient_address);
     assert_eq!(deposit_data.meta.data.seed, deposit_seed.as_u128());
 }
 

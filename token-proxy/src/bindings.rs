@@ -433,14 +433,18 @@ pub fn cancel_withdrawal_sol_ix(
     withdrawal_pubkey: &Pubkey,
     deposit_seed: Uuid,
     token_name: &str,
+    recipient_address: Option<EverAddress>,
 ) -> Instruction {
     let deposit_seed = deposit_seed.as_u128();
     let settings_pubkey = get_settings_address(token_name);
     let deposit_pubkey = get_deposit_address(deposit_seed, &settings_pubkey);
 
-    let data = TokenProxyInstruction::CancelWithdrawSol { deposit_seed }
-        .try_to_vec()
-        .expect("pack");
+    let data = TokenProxyInstruction::CancelWithdrawSol {
+        deposit_seed,
+        recipient_address,
+    }
+    .try_to_vec()
+    .expect("pack");
 
     Instruction {
         program_id: id(),

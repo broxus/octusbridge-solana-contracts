@@ -126,6 +126,8 @@ pub enum TokenProxyInstruction {
     CancelWithdrawSol {
         // Deposit seed
         deposit_seed: u128,
+        // Recipient address
+        recipient_address: Option<EverAddress>,
     },
 
     /// Fill Withdraw SOL

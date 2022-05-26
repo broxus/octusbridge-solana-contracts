@@ -323,6 +323,7 @@ pub fn cancel_withdrawal_sol_ix(
     withdrawal_pubkey: String,
     deposit_seed: String,
     name: String,
+    recipient_address: Option<String>,
 ) -> Result<JsValue, JsValue> {
     let deposit_seed = uuid::Uuid::from_str(&deposit_seed)
         .handle_error()?
@@ -335,9 +336,17 @@ pub fn cancel_withdrawal_sol_ix(
     let author_pubkey = Pubkey::from_str(author_pubkey.as_str()).handle_error()?;
     let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).handle_error()?;
 
-    let data = TokenProxyInstruction::CancelWithdrawSol { deposit_seed }
-        .try_to_vec()
+    let recipient_address = recipient_address
+        .map(|value| EverAddress::from_str(&value))
+        .transpose()
         .handle_error()?;
+
+    let data = TokenProxyInstruction::CancelWithdrawSol {
+        deposit_seed,
+        recipient_address,
+    }
+    .try_to_vec()
+    .handle_error()?;
 
     let ix = Instruction {
         program_id: id(),
