@@ -32,6 +32,8 @@ pub enum RoundLoaderInstruction {
     /// # Account references
     /// ...
     UpdateSettings {
+        // Current round number
+        current_round_number: Option<u32>,
         // Relay Round submitter role
         round_submitter: Option<Pubkey>,
         // Round TTL
@@ -49,15 +51,6 @@ pub enum RoundLoaderInstruction {
         round_end: u32,
         // Relays keys in a new round
         relays: Vec<Pubkey>,
-    },
-
-    /// Set a new Current Relay Round
-    ///
-    /// # Account references
-    /// ...
-    UpdateCurrentRelayRound {
-        // Relay Round number
-        round_number: u32,
     },
 
     /// Create proposal account for a new Relay Round

@@ -40,11 +40,18 @@ impl Processor {
                 )?;
             }
             RoundLoaderInstruction::UpdateSettings {
+                current_round_number,
                 round_submitter,
                 round_ttl,
             } => {
                 msg!("Instruction: Update Settings");
-                Self::process_update_settings(program_id, accounts, round_submitter, round_ttl)?;
+                Self::process_update_settings(
+                    program_id,
+                    accounts,
+                    current_round_number,
+                    round_submitter,
+                    round_ttl,
+                )?;
             }
             RoundLoaderInstruction::CreateRelayRound {
                 round_number,
@@ -59,10 +66,6 @@ impl Processor {
                     round_end,
                     relays,
                 )?;
-            }
-            RoundLoaderInstruction::UpdateCurrentRelayRound { round_number } => {
-                msg!("Instruction: Update Current Relay Round");
-                Self::process_update_current_relay_round(program_id, accounts, round_number)?;
             }
             RoundLoaderInstruction::CreateProposal {
                 event_timestamp,
@@ -172,6 +175,7 @@ impl Processor {
     fn process_update_settings(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
+        current_round_number: Option<u32>,
         round_submitter: Option<Pubkey>,
         round_ttl: Option<u32>,
     ) -> ProgramResult {
@@ -202,6 +206,10 @@ impl Processor {
         }
 
         let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+
+        if let Some(current_round_number) = current_round_number {
+            settings_account_data.current_round_number = current_round_number;
+        }
 
         if let Some(round_submitter) = round_submitter {
             settings_account_data.round_submitter = round_submitter;
@@ -247,10 +255,17 @@ impl Processor {
             return Err(ProgramError::InvalidArgument);
         }
 
-        let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+        let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
         if settings_account_data.round_submitter != *creator_account_info.key {
             return Err(ProgramError::IllegalOwner);
         }
+
+        settings_account_data.current_round_number = round_number;
+
+        Settings::pack(
+            settings_account_data,
+            &mut settings_account_info.data.borrow_mut(),
+        )?;
 
         // Validate Relay Round Account
         let relay_round_nonce =
@@ -287,42 +302,6 @@ impl Processor {
         RelayRound::pack(
             relay_round_account_data,
             &mut relay_round_account_info.data.borrow_mut(),
-        )?;
-
-        Ok(())
-    }
-
-    fn process_update_current_relay_round(
-        program_id: &Pubkey,
-        accounts: &[AccountInfo],
-        round_number: u32,
-    ) -> ProgramResult {
-        let account_info_iter = &mut accounts.iter();
-
-        let author_account_info = next_account_info(account_info_iter)?;
-        let settings_account_info = next_account_info(account_info_iter)?;
-
-        if !author_account_info.is_signer {
-            return Err(ProgramError::MissingRequiredSignature);
-        }
-
-        // Validate Settings Account
-        validate_settings_account(program_id, settings_account_info)?;
-
-        if settings_account_info.owner != program_id {
-            return Err(ProgramError::InvalidArgument);
-        }
-
-        let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
-        if settings_account_data.round_submitter != *author_account_info.key {
-            return Err(ProgramError::IllegalOwner);
-        }
-
-        settings_account_data.current_round_number = round_number;
-
-        Settings::pack(
-            settings_account_data,
-            &mut settings_account_info.data.borrow_mut(),
         )?;
 
         Ok(())

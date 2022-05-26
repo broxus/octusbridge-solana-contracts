@@ -90,7 +90,6 @@ async fn test_init_relay_loader() {
                 round_end,
                 relays.clone(),
             ),
-            update_current_relay_round_ix(&creator.pubkey(), round_number),
         ],
         Some(&funder.pubkey()),
     );
@@ -131,12 +130,14 @@ async fn test_init_relay_loader() {
     assert_eq!(relay_round_data.round_end, round_end);
     assert_eq!(relay_round_data.relays, relays);
 
+    let new_current_round_number = 3;
     let new_round_submitter = Pubkey::new_unique();
     let new_round_ttl = 12;
 
     let mut transaction = Transaction::new_with_payer(
         &[update_settings_ix(
             &initializer.pubkey(),
+            Some(new_current_round_number),
             Some(new_round_submitter),
             Some(new_round_ttl),
         )],
@@ -157,6 +158,7 @@ async fn test_init_relay_loader() {
 
     let settings_data = Settings::unpack(settings_info.data()).expect("settings unpack");
 
+    assert_eq!(settings_data.current_round_number, new_current_round_number);
     assert_eq!(settings_data.round_submitter, new_round_submitter);
     assert_eq!(settings_data.round_ttl, new_round_ttl);
 }

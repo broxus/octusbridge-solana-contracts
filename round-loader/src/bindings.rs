@@ -79,6 +79,7 @@ pub fn initialize_ix(
 
 pub fn update_settings_ix(
     author_pubkey: &Pubkey,
+    current_round_number: Option<u32>,
     round_submitter: Option<Pubkey>,
     round_ttl: Option<u32>,
 ) -> Instruction {
@@ -86,6 +87,7 @@ pub fn update_settings_ix(
     let program_data_pubkey = get_programdata_address();
 
     let data = RoundLoaderInstruction::UpdateSettings {
+        current_round_number,
         round_submitter,
         round_ttl,
     }
@@ -130,23 +132,6 @@ pub fn create_relay_round_ix(
             AccountMeta::new(relay_round_pubkey, false),
             AccountMeta::new_readonly(system_program::id(), false),
             AccountMeta::new_readonly(sysvar::rent::id(), false),
-        ],
-        data,
-    }
-}
-
-pub fn update_current_relay_round_ix(author_pubkey: &Pubkey, round_number: u32) -> Instruction {
-    let setting_pubkey = get_settings_address();
-
-    let data = RoundLoaderInstruction::UpdateCurrentRelayRound { round_number }
-        .try_to_vec()
-        .expect("pack");
-
-    Instruction {
-        program_id: id(),
-        accounts: vec![
-            AccountMeta::new(*author_pubkey, true),
-            AccountMeta::new(setting_pubkey, false),
         ],
         data,
     }
