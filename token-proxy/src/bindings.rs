@@ -398,10 +398,16 @@ pub fn approve_withdrawal_ever_ix(
 
 pub fn approve_withdrawal_sol_ix(
     admin_pubkey: &Pubkey,
+    to_pubkey: &Pubkey,
+    mint_pubkey: &Pubkey,
     withdrawal_pubkey: &Pubkey,
     token_name: &str,
 ) -> Instruction {
     let settings_pubkey = get_settings_address(token_name);
+
+    let vault_pubkey = get_vault_address(token_name);
+    let recipient_token_pubkey =
+        spl_associated_token_account::get_associated_token_address(to_pubkey, mint_pubkey);
 
     let data = TokenProxyInstruction::ApproveWithdrawSol
         .try_to_vec()
@@ -411,8 +417,11 @@ pub fn approve_withdrawal_sol_ix(
         program_id: id(),
         accounts: vec![
             AccountMeta::new(*admin_pubkey, true),
+            AccountMeta::new(vault_pubkey, false),
             AccountMeta::new(*withdrawal_pubkey, false),
-            AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new(recipient_token_pubkey, false),
+            AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new_readonly(spl_token::id(), false),
         ],
         data,
     }

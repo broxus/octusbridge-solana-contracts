@@ -1582,7 +1582,7 @@ async fn test_withdrawal_sol_2() {
     // Setup environment
 
     // Add Mint Account
-    let mint = Keypair::new();
+    let mint = Pubkey::new_unique();
 
     let name = "USDT".to_string();
     let decimals = 9;
@@ -1593,7 +1593,7 @@ async fn test_withdrawal_sol_2() {
 
     let mint_account_data = spl_token::state::Mint {
         is_initialized: true,
-        mint_authority: program_option::COption::Some(mint.pubkey()),
+        mint_authority: program_option::COption::Some(mint),
         decimals,
         ..Default::default()
     };
@@ -1601,7 +1601,7 @@ async fn test_withdrawal_sol_2() {
     let mut mint_packed = vec![0; spl_token::state::Mint::LEN];
     spl_token::state::Mint::pack(mint_account_data, &mut mint_packed).unwrap();
     program_test.add_account(
-        mint.pubkey(),
+        mint,
         Account {
             lamports: Rent::default().minimum_balance(spl_token::state::Mint::LEN),
             data: mint_packed,
@@ -1615,7 +1615,7 @@ async fn test_withdrawal_sol_2() {
     let vault_address = get_vault_address(&name);
 
     let vault_account_data = spl_token::state::Account {
-        mint: mint.pubkey(),
+        mint,
         owner: vault_address,
         amount: 100,
         state: AccountState::Initialized,
@@ -1644,7 +1644,7 @@ async fn test_withdrawal_sol_2() {
         name: name.clone(),
         emergency: false,
         kind: TokenKind::Solana {
-            mint: mint.pubkey(),
+            mint: mint,
             vault: vault_address,
         },
         withdrawal_daily_amount: 0,
@@ -1671,13 +1671,10 @@ async fn test_withdrawal_sol_2() {
     // Add Recipient Token Account
     let recipient_address = Pubkey::new_unique();
     let recipient_associated_token_address =
-        spl_associated_token_account::get_associated_token_address(
-            &recipient_address,
-            &mint.pubkey(),
-        );
+        spl_associated_token_account::get_associated_token_address(&recipient_address, &mint);
 
     let recipient_account_data = spl_token::state::Account {
-        mint: mint.pubkey(),
+        mint,
         owner: recipient_address,
         state: AccountState::Initialized,
         ..Default::default()
@@ -1750,7 +1747,7 @@ async fn test_withdrawal_sol_2() {
     let mut transaction = Transaction::new_with_payer(
         &[withdrawal_sol_ix(
             &recipient_address,
-            &mint.pubkey(),
+            &mint,
             &withdrawal_address,
             &name,
         )],
@@ -1988,6 +1985,7 @@ async fn test_approve_withdrawal_sol() {
     let mint = Pubkey::new_unique();
 
     let name = "USDT".to_string();
+    let decimals = 9;
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
     let withdrawal_daily_limit = 1000;
@@ -2026,13 +2024,82 @@ async fn test_approve_withdrawal_sol() {
         },
     );
 
+    // Add Mint Account
+    let mint_account_data = spl_token::state::Mint {
+        is_initialized: true,
+        mint_authority: program_option::COption::Some(mint),
+        decimals,
+        ..Default::default()
+    };
+
+    let mut mint_packed = vec![0; spl_token::state::Mint::LEN];
+    spl_token::state::Mint::pack(mint_account_data, &mut mint_packed).unwrap();
+    program_test.add_account(
+        mint,
+        Account {
+            lamports: Rent::default().minimum_balance(spl_token::state::Mint::LEN),
+            data: mint_packed,
+            owner: spl_token::id(),
+            executable: false,
+            rent_epoch: 1,
+        },
+    );
+
+    // Add Vault Account
+    let vault_address = get_vault_address(&name);
+
+    let vault_account_data = spl_token::state::Account {
+        mint,
+        owner: vault_address,
+        amount: 100,
+        state: AccountState::Initialized,
+        ..Default::default()
+    };
+
+    let mut vault_packed = vec![0; spl_token::state::Account::LEN];
+    spl_token::state::Account::pack(vault_account_data, &mut vault_packed).unwrap();
+    program_test.add_account(
+        vault_address,
+        Account {
+            lamports: Rent::default().minimum_balance(spl_token::state::Account::LEN),
+            data: vault_packed,
+            owner: spl_token::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Recipient Token Account
+    let recipient_address = Pubkey::new_unique();
+    let recipient_associated_token_address =
+        spl_associated_token_account::get_associated_token_address(&recipient_address, &mint);
+
+    let recipient_account_data = spl_token::state::Account {
+        mint,
+        owner: recipient_address,
+        state: AccountState::Initialized,
+        ..Default::default()
+    };
+
+    let mut recipient_packed = vec![0; spl_token::state::Account::LEN];
+    spl_token::state::Account::pack(recipient_account_data, &mut recipient_packed).unwrap();
+    program_test.add_account(
+        recipient_associated_token_address,
+        Account {
+            lamports: Rent::default().minimum_balance(spl_token::state::Account::LEN),
+            data: recipient_packed,
+            owner: spl_token::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
     // Add Withdrawal Account
     let author = Pubkey::new_unique();
     let event_timestamp = 1650988297;
     let event_transaction_lt = 1650988334;
     let event_configuration = Pubkey::new_unique();
     let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
-    let recipient_address = Pubkey::new_unique();
     let amount = 10;
 
     let withdrawal_address = get_withdrawal_address(
@@ -2081,6 +2148,230 @@ async fn test_approve_withdrawal_sol() {
     let mut transaction = Transaction::new_with_payer(
         &[approve_withdrawal_sol_ix(
             &admin.pubkey(),
+            &recipient_address,
+            &mint,
+            &withdrawal_address,
+            &name,
+        )],
+        Some(&funder.pubkey()),
+    );
+    transaction.sign(&[&funder, &admin], recent_blockhash);
+
+    banks_client
+        .process_transaction(transaction)
+        .await
+        .expect("process_transaction");
+
+    let withdrawal_info = banks_client
+        .get_account(withdrawal_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let withdrawal_data = WithdrawalToken::unpack(withdrawal_info.data()).expect("settings unpack");
+    assert_eq!(
+        withdrawal_data.meta.data.status,
+        WithdrawalTokenStatus::Processed
+    );
+
+    let vault_info = banks_client
+        .get_account(vault_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let vault_data = spl_token::state::Account::unpack(vault_info.data()).expect("mint unpack");
+    assert_eq!(vault_data.amount, 100 - amount);
+
+    let recipient_info = banks_client
+        .get_account(recipient_associated_token_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let recipient_data =
+        spl_token::state::Account::unpack(recipient_info.data()).expect("token unpack");
+    assert_eq!(recipient_data.amount, amount);
+}
+
+#[tokio::test]
+async fn test_approve_withdrawal_sol_2() {
+    let mut program_test = ProgramTest::new(
+        "token_proxy",
+        token_proxy::id(),
+        processor!(Processor::process),
+    );
+
+    // Setup environment
+    let admin = Keypair::new();
+    let mint = Pubkey::new_unique();
+
+    let name = "USDT".to_string();
+    let decimals = 9;
+    let deposit_limit = 10000000;
+    let withdrawal_limit = 10000;
+    let withdrawal_daily_limit = 1000;
+    let vault_address = get_vault_address(&name);
+
+    // Add Settings Account
+    let settings_address = get_settings_address(&name);
+
+    let settings_account_data = Settings {
+        is_initialized: true,
+        account_kind: AccountKind::Settings,
+        name: name.clone(),
+        emergency: false,
+        kind: TokenKind::Solana {
+            mint,
+            vault: vault_address,
+        },
+        withdrawal_daily_amount: 0,
+        withdrawal_ttl: 0,
+        deposit_limit,
+        withdrawal_limit,
+        withdrawal_daily_limit,
+        admin: admin.pubkey(),
+    };
+
+    let mut settings_packed = vec![0; Settings::LEN];
+    Settings::pack(settings_account_data, &mut settings_packed).unwrap();
+    program_test.add_account(
+        settings_address,
+        Account {
+            lamports: Rent::default().minimum_balance(Settings::LEN),
+            data: settings_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Mint Account
+    let mint_account_data = spl_token::state::Mint {
+        is_initialized: true,
+        mint_authority: program_option::COption::Some(mint),
+        decimals,
+        ..Default::default()
+    };
+
+    let mut mint_packed = vec![0; spl_token::state::Mint::LEN];
+    spl_token::state::Mint::pack(mint_account_data, &mut mint_packed).unwrap();
+    program_test.add_account(
+        mint,
+        Account {
+            lamports: Rent::default().minimum_balance(spl_token::state::Mint::LEN),
+            data: mint_packed,
+            owner: spl_token::id(),
+            executable: false,
+            rent_epoch: 1,
+        },
+    );
+
+    // Add Vault Account
+    let vault_address = get_vault_address(&name);
+
+    let vault_account_data = spl_token::state::Account {
+        mint,
+        owner: vault_address,
+        amount: 100,
+        state: AccountState::Initialized,
+        ..Default::default()
+    };
+
+    let mut vault_packed = vec![0; spl_token::state::Account::LEN];
+    spl_token::state::Account::pack(vault_account_data, &mut vault_packed).unwrap();
+    program_test.add_account(
+        vault_address,
+        Account {
+            lamports: Rent::default().minimum_balance(spl_token::state::Account::LEN),
+            data: vault_packed,
+            owner: spl_token::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Recipient Token Account
+    let recipient_address = Pubkey::new_unique();
+    let recipient_associated_token_address =
+        spl_associated_token_account::get_associated_token_address(&recipient_address, &mint);
+
+    let recipient_account_data = spl_token::state::Account {
+        mint,
+        owner: recipient_address,
+        state: AccountState::Initialized,
+        ..Default::default()
+    };
+
+    let mut recipient_packed = vec![0; spl_token::state::Account::LEN];
+    spl_token::state::Account::pack(recipient_account_data, &mut recipient_packed).unwrap();
+    program_test.add_account(
+        recipient_associated_token_address,
+        Account {
+            lamports: Rent::default().minimum_balance(spl_token::state::Account::LEN),
+            data: recipient_packed,
+            owner: spl_token::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Withdrawal Account
+    let author = Pubkey::new_unique();
+    let event_timestamp = 1650988297;
+    let event_transaction_lt = 1650988334;
+    let event_configuration = Pubkey::new_unique();
+    let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
+    let amount = 1000;
+
+    let withdrawal_address = get_withdrawal_address(
+        &settings_address,
+        event_timestamp,
+        event_transaction_lt,
+        &event_configuration,
+        sender_address,
+        recipient_address,
+        amount,
+    );
+
+    let withdrawal_account_data = WithdrawalToken {
+        is_initialized: true,
+        author,
+        account_kind: AccountKind::Proposal,
+        round_number: 5,
+        event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
+        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::WaitingForApprove, 0),
+        required_votes: 0,
+        signers: vec![],
+        pda: PDA {
+            event_timestamp,
+            event_transaction_lt,
+            event_configuration,
+            settings: settings_address,
+        },
+    };
+
+    let mut withdrawal_packed = vec![0; WithdrawalToken::LEN];
+    WithdrawalToken::pack(withdrawal_account_data, &mut withdrawal_packed).unwrap();
+    program_test.add_account(
+        withdrawal_address,
+        Account {
+            lamports: Rent::default().minimum_balance(WithdrawalToken::LEN),
+            data: withdrawal_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Start Program Test
+    let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
+
+    let mut transaction = Transaction::new_with_payer(
+        &[approve_withdrawal_sol_ix(
+            &admin.pubkey(),
+            &recipient_address,
+            &mint,
             &withdrawal_address,
             &name,
         )],
