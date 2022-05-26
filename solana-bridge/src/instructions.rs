@@ -12,6 +12,12 @@ struct VoteForProposal {
     vote: Vote,
 }
 
+#[derive(BorshSerialize, BorshDeserialize, Debug)]
+struct ExecuteProposal {
+    // Instruction number
+    instruction: u8,
+}
+
 pub fn vote_for_proposal_ix(
     program_id: Pubkey,
     instruction: u8,
@@ -34,6 +40,31 @@ pub fn vote_for_proposal_ix(
             AccountMeta::new(*proposal_pubkey, false),
             AccountMeta::new_readonly(relay_round_pubkey, false),
         ],
+        data,
+    }
+}
+
+pub fn execute_proposal_ix(
+    program_id: Pubkey,
+    instruction: u8,
+    accounts: Vec<(Pubkey, bool, bool)>,
+) -> Instruction {
+    let data = ExecuteProposal { instruction }.try_to_vec().expect("pack");
+
+    let accounts = accounts
+        .into_iter()
+        .map(|(account, is_writable, is_signer)| {
+            if is_writable {
+                AccountMeta::new(account, is_signer)
+            } else {
+                AccountMeta::new_readonly(account, is_signer)
+            }
+        })
+        .collect();
+
+    Instruction {
+        program_id,
+        accounts,
         data,
     }
 }
