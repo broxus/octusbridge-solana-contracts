@@ -1109,7 +1109,7 @@ impl Processor {
             .filter(|vote| **vote == Vote::Confirm)
             .count() as u32;
 
-        let mut make_transfer = |is_pending: bool| -> ProgramResult {
+        let mut make_transfer = || -> ProgramResult {
             // Validate Recipient Account
             let recipient_token_account_data =
                 spl_token::state::Account::unpack(&recipient_token_account_info.data.borrow())?;
@@ -1146,12 +1146,8 @@ impl Processor {
 
             // If vault balance is not enough
             if withdrawal_account_data.event.data.amount > vault_account_data.amount {
-                return if !is_pending {
-                    withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Pending;
-                    Ok(())
-                } else {
-                    Err(TokenProxyError::InsufficientVaultBalance.into())
-                };
+                withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Pending;
+                return Ok(());
             }
 
             // Transfer tokens from Vault Account to Recipient Account
@@ -1177,40 +1173,43 @@ impl Processor {
             Ok(())
         };
 
-        if sig_count >= withdrawal_account_data.required_votes
-            && withdrawal_status == WithdrawalTokenStatus::New
-        {
-            let current_timestamp = clock.unix_timestamp;
+        if sig_count >= withdrawal_account_data.required_votes {
+            match withdrawal_status {
+                WithdrawalTokenStatus::New => {
+                    let current_timestamp = clock.unix_timestamp;
 
-            // If current timestamp has expired
-            if settings_account_data.withdrawal_ttl < current_timestamp {
-                settings_account_data.withdrawal_ttl = current_timestamp + WITHDRAWAL_TOKEN_PERIOD;
-                settings_account_data.withdrawal_daily_amount = Default::default();
+                    // If current timestamp has expired
+                    if settings_account_data.withdrawal_ttl < current_timestamp {
+                        settings_account_data.withdrawal_ttl =
+                            current_timestamp + WITHDRAWAL_TOKEN_PERIOD;
+                        settings_account_data.withdrawal_daily_amount = Default::default();
+                    }
+
+                    // Increase withdrawal daily amount
+                    settings_account_data.withdrawal_daily_amount = settings_account_data
+                        .withdrawal_daily_amount
+                        .checked_add(withdrawal_account_data.event.data.amount)
+                        .ok_or(TokenProxyError::ArithmeticsError)?;
+
+                    if withdrawal_account_data.event.data.amount
+                        > settings_account_data.withdrawal_limit
+                        || settings_account_data.withdrawal_daily_amount
+                            > settings_account_data.withdrawal_daily_limit
+                    {
+                        withdrawal_account_data.meta.data.status =
+                            WithdrawalTokenStatus::WaitingForApprove;
+                    } else {
+                        make_transfer()?;
+                    }
+
+                    Settings::pack(
+                        settings_account_data,
+                        &mut settings_account_info.data.borrow_mut(),
+                    )?
+                }
+                WithdrawalTokenStatus::Pending => make_transfer()?,
+                _ => (),
             }
-
-            // Increase withdrawal daily amount
-            settings_account_data.withdrawal_daily_amount = settings_account_data
-                .withdrawal_daily_amount
-                .checked_add(withdrawal_account_data.event.data.amount)
-                .ok_or(TokenProxyError::ArithmeticsError)?;
-
-            if withdrawal_account_data.event.data.amount > settings_account_data.withdrawal_limit
-                || settings_account_data.withdrawal_daily_amount
-                    > settings_account_data.withdrawal_daily_limit
-            {
-                withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::WaitingForApprove;
-            } else {
-                make_transfer(false)?;
-            }
-
-            Settings::pack(
-                settings_account_data,
-                &mut settings_account_info.data.borrow_mut(),
-            )?;
-        } else if withdrawal_status == WithdrawalTokenStatus::Pending {
-            make_transfer(true)?;
-        } else {
-            return Err(TokenProxyError::InvalidWithdrawalStatus.into());
         }
 
         WithdrawalToken::pack(
