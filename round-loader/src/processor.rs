@@ -504,6 +504,11 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
+        // Validate vote
+        if vote == Vote::None {
+            return Err(RoundLoaderError::InvalidVote.into());
+        }
+
         // Validate Proposal Account
         if proposal_account_info.owner != program_id {
             return Err(ProgramError::InvalidArgument);
@@ -546,6 +551,11 @@ impl Processor {
             .iter()
             .position(|pubkey| pubkey == voter_account_info.key)
             .ok_or(RoundLoaderError::InvalidRelay)?;
+
+        if proposal_account_data.signers[index] != Vote::None {
+            return Err(RoundLoaderError::RelayAlreadyVoted.into());
+        }
+
         proposal_account_data.signers[index] = vote;
 
         proposal_account_data.pack_into_slice(&mut proposal_account_info.data.borrow_mut());

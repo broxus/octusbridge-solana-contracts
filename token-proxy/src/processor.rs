@@ -838,6 +838,11 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
+        // Validate vote
+        if vote == Vote::None {
+            return Err(TokenProxyError::InvalidVote.into());
+        }
+
         // Validate Withdrawal Account
         if withdrawal_account_info.owner != program_id {
             return Err(ProgramError::InvalidArgument);
@@ -883,6 +888,11 @@ impl Processor {
             .iter()
             .position(|pubkey| pubkey == relay_account_info.key)
             .ok_or(TokenProxyError::InvalidRelay)?;
+
+        if withdrawal_account_data.signers[index] != Vote::None {
+            return Err(TokenProxyError::RelayAlreadyVoted.into());
+        }
+
         withdrawal_account_data.signers[index] = vote;
 
         withdrawal_account_data.pack_into_slice(&mut withdrawal_account_info.data.borrow_mut());

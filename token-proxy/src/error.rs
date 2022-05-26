@@ -28,6 +28,8 @@ pub enum TokenProxyError {
     TokenNameLenLimit,
     #[error("Failed to construct public key")]
     ConstructPubkey,
+    #[error("Invalid vote")]
+    InvalidVote,
 }
 
 impl From<TokenProxyError> for ProgramError {
