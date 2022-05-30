@@ -550,17 +550,15 @@ impl Processor {
             .position(|pubkey| pubkey == voter_account_info.key)
             .ok_or(RoundLoaderError::InvalidRelay)?;
 
-        if proposal_account_data.signers[index] != Vote::None {
-            return Err(RoundLoaderError::RelayAlreadyVoted.into());
+        if proposal_account_data.signers[index] == Vote::None {
+            // Vote for proposal
+            proposal_account_data.signers[index] = vote;
+            proposal_account_data.pack_into_slice(&mut proposal_account_info.data.borrow_mut());
+
+            // Get back voting reparation to Relay
+            **proposal_account_info.try_borrow_mut_lamports()? -= RELAY_REPARATION;
+            **voter_account_info.try_borrow_mut_lamports()? += RELAY_REPARATION;
         }
-
-        proposal_account_data.signers[index] = vote;
-
-        proposal_account_data.pack_into_slice(&mut proposal_account_info.data.borrow_mut());
-
-        // Get back voting reparation to Relay
-        **proposal_account_info.try_borrow_mut_lamports()? -= RELAY_REPARATION;
-        **voter_account_info.try_borrow_mut_lamports()? += RELAY_REPARATION;
 
         Ok(())
     }
@@ -594,7 +592,7 @@ impl Processor {
             .filter(|vote| **vote == Vote::Confirm)
             .count() as u32;
 
-        if !proposal.meta.data.is_executed && sig_count >= proposal.required_votes {
+        if !proposal.is_executed && sig_count >= proposal.required_votes {
             // Validate a new Relay Round Account
             let round_number = proposal.event.data.round_num;
             let nonce =
@@ -648,7 +646,7 @@ impl Processor {
                 &mut settings_account_info.data.borrow_mut(),
             )?;
 
-            proposal.meta.data.is_executed = true;
+            proposal.is_executed = true;
         }
 
         // Update Proposal Account

@@ -763,10 +763,11 @@ impl Processor {
         // Init Withdraw Account
         let withdrawal_account_data = WithdrawalToken {
             is_initialized: true,
+            account_kind: AccountKind::Proposal,
+            is_executed: false,
             author: *author_account_info.key,
             round_number,
             required_votes,
-            account_kind: AccountKind::Proposal,
             event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
             meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::New, 0),
             signers: vec![Vote::None; relay_round_account_data.relays.len()],
@@ -905,17 +906,15 @@ impl Processor {
             .position(|pubkey| pubkey == relay_account_info.key)
             .ok_or(TokenProxyError::InvalidRelay)?;
 
-        if withdrawal_account_data.signers[index] != Vote::None {
-            return Err(TokenProxyError::RelayAlreadyVoted.into());
+        if withdrawal_account_data.signers[index] == Vote::None {
+            // Vote for proposal
+            withdrawal_account_data.signers[index] = vote;
+            withdrawal_account_data.pack_into_slice(&mut withdrawal_account_info.data.borrow_mut());
+
+            // Get back voting reparation to Relay
+            **withdrawal_account_info.try_borrow_mut_lamports()? -= RELAY_REPARATION;
+            **relay_account_info.try_borrow_mut_lamports()? += RELAY_REPARATION;
         }
-
-        withdrawal_account_data.signers[index] = vote;
-
-        withdrawal_account_data.pack_into_slice(&mut withdrawal_account_info.data.borrow_mut());
-
-        // Get back voting reparation to Relay
-        **withdrawal_account_info.try_borrow_mut_lamports()? -= RELAY_REPARATION;
-        **relay_account_info.try_borrow_mut_lamports()? += RELAY_REPARATION;
 
         Ok(())
     }
@@ -954,6 +953,18 @@ impl Processor {
             withdrawal_account_info,
         )?;
 
+        // Validate Setting Account
+        if *settings_account_info.key != settings {
+            return Err(ProgramError::InvalidArgument);
+        }
+
+        let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+
+        if settings_account_data.emergency {
+            // Do nothing
+            return Ok(());
+        }
+
         // Do we have enough signers.
         let sig_count = withdrawal_account_data
             .signers
@@ -965,17 +976,6 @@ impl Processor {
             && withdrawal_account_data.meta.data.status == WithdrawalTokenStatus::New
         {
             let current_timestamp = clock.unix_timestamp;
-
-            // Validate Setting Account
-            if *settings_account_info.key != settings {
-                return Err(ProgramError::InvalidArgument);
-            }
-
-            let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
-
-            if settings_account_data.emergency {
-                return Err(TokenProxyError::EmergencyEnabled.into());
-            }
 
             // If current timestamp has expired
             if settings_account_data.withdrawal_ttl < current_timestamp {
@@ -1009,6 +1009,8 @@ impl Processor {
                 settings_account_data,
                 &mut settings_account_info.data.borrow_mut(),
             )?;
+
+            withdrawal_account_data.is_executed = true;
         }
 
         WithdrawalToken::pack(
@@ -1112,7 +1114,9 @@ impl Processor {
                     Settings::pack(
                         settings_account_data,
                         &mut settings_account_info.data.borrow_mut(),
-                    )?
+                    )?;
+
+                    withdrawal_account_data.is_executed = true
                 }
                 WithdrawalTokenStatus::Pending => make_sol_transfer(
                     program_id,
@@ -1805,13 +1809,9 @@ fn make_sol_transfer<'a>(
     settings_account_data: &Settings,
     withdrawal_account_data: &mut WithdrawalToken,
 ) -> ProgramResult {
-    msg!("TEST 1");
-
     // Validate Recipient Account
     let recipient_token_account_data =
         spl_token::state::Account::unpack(&recipient_token_account_info.data.borrow())?;
-
-    msg!("TEST 1.1");
 
     if recipient_token_account_info.owner != &spl_token::id() {
         return Err(ProgramError::InvalidArgument);
@@ -1830,8 +1830,6 @@ fn make_sol_transfer<'a>(
         return Err(ProgramError::InvalidArgument);
     }
 
-    msg!("TEST 2");
-
     // Validate Vault Account
     let name = &settings_account_data.name;
 
@@ -1842,11 +1840,7 @@ fn make_sol_transfer<'a>(
         return Err(ProgramError::InvalidArgument);
     }
 
-    msg!("TEST 3");
-
     let vault_account_data = spl_token::state::Account::unpack(&vault_account_info.data.borrow())?;
-
-    msg!("TEST 4");
 
     // If vault balance is not enough
     if withdrawal_account_data.event.data.amount > vault_account_data.amount {

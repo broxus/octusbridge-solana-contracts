@@ -919,8 +919,9 @@ async fn test_vote_for_withdrawal_request() {
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
-        author,
         account_kind: AccountKind::Proposal,
+        is_executed: false,
+        author,
         round_number,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
         meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::New, 0),
@@ -1115,8 +1116,9 @@ async fn test_withdrawal_ever() {
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
-        author,
         account_kind: AccountKind::Proposal,
+        is_executed: false,
+        author,
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
         meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::New, 0),
@@ -1179,6 +1181,15 @@ async fn test_withdrawal_ever() {
     let recipient_data =
         spl_token::state::Account::unpack(recipient_info.data()).expect("token unpack");
     assert_eq!(recipient_data.amount, amount);
+
+    let withdrawal_info = banks_client
+        .get_account(withdrawal_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let withdrawal_data = WithdrawalToken::unpack(withdrawal_info.data()).expect("token unpack");
+    assert_eq!(withdrawal_data.is_executed, true);
 }
 
 #[tokio::test]
@@ -1299,8 +1310,9 @@ async fn test_withdrawal_ever_2() {
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
-        author,
         account_kind: AccountKind::Proposal,
+        is_executed: false,
+        author,
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
         meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::New, 0),
@@ -1353,6 +1365,7 @@ async fn test_withdrawal_ever_2() {
 
     let withdrawal_data =
         WithdrawalToken::unpack(withdrawal_info.data()).expect("withdrawal token unpack");
+    assert_eq!(withdrawal_data.is_executed, true);
     assert_eq!(
         withdrawal_data.meta.data.status,
         WithdrawalTokenStatus::WaitingForApprove
@@ -1504,8 +1517,9 @@ async fn test_withdrawal_sol() {
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
-        author,
         account_kind: AccountKind::Proposal,
+        is_executed: false,
+        author,
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
         meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::New, 0),
@@ -1569,6 +1583,16 @@ async fn test_withdrawal_sol() {
     let recipient_data =
         spl_token::state::Account::unpack(recipient_info.data()).expect("token unpack");
     assert_eq!(recipient_data.amount, amount);
+
+    let withdrawal_info = banks_client
+        .get_account(withdrawal_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let withdrawal_data =
+        WithdrawalToken::unpack(withdrawal_info.data()).expect("withdrawal token unpack");
+    assert_eq!(withdrawal_data.is_executed, true);
 }
 
 #[tokio::test]
@@ -1713,8 +1737,9 @@ async fn test_withdrawal_sol_2() {
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
-        author,
         account_kind: AccountKind::Proposal,
+        is_executed: false,
+        author,
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
         meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::New, 0),
@@ -1768,6 +1793,8 @@ async fn test_withdrawal_sol_2() {
 
     let withdrawal_data =
         WithdrawalToken::unpack(withdrawal_info.data()).expect("withdrawal token unpack");
+
+    assert_eq!(withdrawal_data.is_executed, true);
     assert_eq!(
         withdrawal_data.meta.data.status,
         WithdrawalTokenStatus::Pending
@@ -1892,8 +1919,9 @@ async fn test_approve_withdrawal_ever() {
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
-        author,
         account_kind: AccountKind::Proposal,
+        is_executed: true,
+        author,
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
         meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::WaitingForApprove, 0),
@@ -2114,8 +2142,9 @@ async fn test_approve_withdrawal_sol() {
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
-        author,
         account_kind: AccountKind::Proposal,
+        is_executed: true,
+        author,
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
         meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::WaitingForApprove, 0),
@@ -2336,8 +2365,9 @@ async fn test_approve_withdrawal_sol_2() {
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
-        author,
         account_kind: AccountKind::Proposal,
+        is_executed: true,
+        author,
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
         meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::WaitingForApprove, 0),
@@ -2527,8 +2557,9 @@ async fn test_cancel_withdrawal_sol() {
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
-        author: author.pubkey(),
         account_kind: AccountKind::Proposal,
+        is_executed: true,
+        author: author.pubkey(),
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
         meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::Pending, 0),
@@ -2769,8 +2800,9 @@ async fn test_fill_withdrawal_sol() {
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
-        author: withdrawal_author,
         account_kind: AccountKind::Proposal,
+        is_executed: true,
+        author: withdrawal_author,
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
         meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::Pending, bounty),
@@ -3059,8 +3091,9 @@ async fn test_change_bounty_for_withdrawal_sol() {
 
     let withdrawal_account_data = WithdrawalToken {
         is_initialized: true,
-        author: author.pubkey(),
         account_kind: AccountKind::Proposal,
+        is_executed: true,
+        author: author.pubkey(),
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
         meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::Pending, 0),

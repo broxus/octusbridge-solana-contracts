@@ -15,8 +15,9 @@ pub const MIN_RELAYS: usize = 3;
 pub const MAX_RELAYS: usize = 100;
 
 pub const LOAD_DATA_BEGIN_OFFSET: usize = 1 // is_executed
-    + PUBKEY_BYTES                          // author
     + 1                                     // account_kind
+    + 1                                     // is_withdrawal_executed
+    + PUBKEY_BYTES                          // author
     + 4                                     // round_number
     + 4                                     // required_votes
     + PUBKEY_BYTES                          // settings
@@ -32,7 +33,7 @@ pub const LOAD_DATA_END_OFFSET: usize = LOAD_DATA_BEGIN_OFFSET
     + 4                                         // round_end
 ;
 
-const RELAY_ROUND_PROPOSAL_META_LEN: usize = 1  // is_executed
+const RELAY_ROUND_PROPOSAL_META_LEN: usize = 0  // empty
 ;
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
@@ -71,11 +72,12 @@ impl IsInitialized for RelayRound {
 }
 
 #[derive(Debug, Default, BorshSerialize, BorshDeserialize, BridgePack)]
-#[bridge_pack(length = 3843)]
+#[bridge_pack(length = 3844)]
 pub struct RelayRoundProposal {
     pub is_initialized: bool,
-    pub author: Pubkey,
     pub account_kind: AccountKind,
+    pub is_executed: bool,
+    pub author: Pubkey,
     pub round_number: u32,
     pub required_votes: u32,
     pub pda: PDA,
@@ -124,9 +126,7 @@ impl RelayRoundProposalEventWithLen {
 }
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
-pub struct RelayRoundProposalMeta {
-    pub is_executed: bool,
-}
+pub struct RelayRoundProposalMeta {}
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 pub struct RelayRoundProposalMetaWithLen {
@@ -138,7 +138,7 @@ impl RelayRoundProposalMetaWithLen {
     pub fn new() -> Self {
         Self {
             len: RELAY_ROUND_PROPOSAL_META_LEN as u32,
-            data: RelayRoundProposalMeta { is_executed: false },
+            data: RelayRoundProposalMeta {},
         }
     }
 }

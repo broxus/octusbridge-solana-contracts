@@ -337,6 +337,7 @@ async fn test_create_proposal() {
 
     assert_eq!(proposal_data.is_initialized, true);
     assert_eq!(proposal_data.account_kind, AccountKind::Proposal);
+    assert_eq!(proposal_data.is_executed, false);
     assert_eq!(proposal_data.round_number, round_number);
     assert_eq!(
         proposal_data.required_votes,
@@ -357,8 +358,6 @@ async fn test_create_proposal() {
             .collect::<Vec<Vec<u8>>>()
     );
     assert_eq!(proposal_data.event.data.round_end, new_round_end);
-
-    assert_eq!(proposal_data.meta.data.is_executed, false);
 
     // Vote for Proposal
     for relay in &relays {
@@ -413,7 +412,7 @@ async fn test_create_proposal() {
         .expect("account");
 
     let proposal_data = RelayRoundProposal::unpack(proposal_info.data()).expect("proposal unpack");
-    assert_eq!(proposal_data.meta.data.is_executed, true);
+    assert_eq!(proposal_data.is_executed, true);
 
     // Check created Relay Round
     let relay_round_address = get_relay_round_address(new_round_number);
