@@ -22,12 +22,12 @@ pub fn initialize_mint_ix(
     funder_pubkey: String,
     initializer_pubkey: String,
     name: String,
+    ever_decimals: u8,
     solana_decimals: u8,
     deposit_limit: u64,
     withdrawal_limit: u64,
     withdrawal_daily_limit: u64,
     admin: String,
-    ever_decimals: u8,
 ) -> Result<JsValue, JsValue> {
     let mint_pubkey = get_mint_address(&name);
     let settings_pubkey = get_settings_address(&name);
@@ -39,12 +39,12 @@ pub fn initialize_mint_ix(
 
     let data = TokenProxyInstruction::InitializeMint {
         name,
+        ever_decimals,
         solana_decimals,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
         admin,
-        ever_decimals,
     }
     .try_to_vec()
     .handle_error()?;
@@ -73,11 +73,11 @@ pub fn initialize_vault_ix(
     initializer_pubkey: String,
     mint_pubkey: String,
     name: String,
+    ever_decimals: u8,
     deposit_limit: u64,
     withdrawal_limit: u64,
     withdrawal_daily_limit: u64,
     admin: String,
-    ever_decimals: u8,
 ) -> Result<JsValue, JsValue> {
     let vault_pubkey = get_vault_address(&name);
     let settings_pubkey = get_settings_address(&name);
@@ -90,11 +90,11 @@ pub fn initialize_vault_ix(
 
     let data = TokenProxyInstruction::InitializeVault {
         name,
+        ever_decimals,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
         admin,
-        ever_decimals
     }
     .try_to_vec()
     .handle_error()?;
@@ -672,6 +672,8 @@ pub fn unpack_settings(data: Vec<u8>) -> Result<JsValue, JsValue> {
         is_initialized: settings.is_initialized,
         account_kind: settings.account_kind,
         name: settings.name,
+        ever_decimals: settings.ever_decimals,
+        solana_decimals: settings.solana_decimals,
         kind: settings.kind,
         admin: settings.admin,
         emergency: settings.emergency,
@@ -680,8 +682,6 @@ pub fn unpack_settings(data: Vec<u8>) -> Result<JsValue, JsValue> {
         withdrawal_daily_limit: settings.withdrawal_daily_limit,
         withdrawal_daily_amount: settings.withdrawal_daily_amount,
         withdrawal_ttl: settings.withdrawal_ttl,
-        solana_decimals: settings.solana_decimals,
-        ever_decimals: settings.ever_decimals,
     };
 
     return JsValue::from_serde(&s).handle_error();
@@ -727,6 +727,8 @@ pub struct WasmSettings {
     pub is_initialized: bool,
     pub account_kind: AccountKind,
     pub name: String,
+    pub ever_decimals: u8,
+    pub solana_decimals: u8,
     pub kind: TokenKind,
     pub admin: Pubkey,
     pub emergency: bool,
@@ -735,8 +737,6 @@ pub struct WasmSettings {
     pub withdrawal_daily_limit: u64,
     pub withdrawal_daily_amount: u64,
     pub withdrawal_ttl: i64,
-    pub solana_decimals: u8,
-    pub ever_decimals: u8,
 }
 
 #[derive(Serialize, Deserialize)]
