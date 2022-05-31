@@ -209,6 +209,8 @@ pub fn unpack_relay_round_proposal(data: Vec<u8>) -> Result<JsValue, JsValue> {
 
     let rrp = WasmRelayRoundProposal {
         is_initialized: relay_round_proposal.is_initialized,
+        account_kind: relay_round_proposal.account_kind,
+        is_executed: relay_round_proposal.is_executed,
         round_number: relay_round_proposal.round_number,
         required_votes: relay_round_proposal.required_votes,
         pda: relay_round_proposal.pda,
@@ -238,6 +240,8 @@ pub struct WasmRelayRound {
 #[derive(Serialize, Deserialize)]
 pub struct WasmRelayRoundProposal {
     pub is_initialized: bool,
+    pub account_kind: AccountKind,
+    pub is_executed: bool,
     pub round_number: u32,
     pub required_votes: u32,
     pub pda: PDA,
