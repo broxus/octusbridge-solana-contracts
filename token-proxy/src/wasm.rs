@@ -22,11 +22,12 @@ pub fn initialize_mint_ix(
     funder_pubkey: String,
     initializer_pubkey: String,
     name: String,
-    decimals: u8,
+    solana_decimals: u8,
     deposit_limit: u64,
     withdrawal_limit: u64,
     withdrawal_daily_limit: u64,
     admin: String,
+    ever_decimals: u8,
 ) -> Result<JsValue, JsValue> {
     let mint_pubkey = get_mint_address(&name);
     let settings_pubkey = get_settings_address(&name);
@@ -38,11 +39,12 @@ pub fn initialize_mint_ix(
 
     let data = TokenProxyInstruction::InitializeMint {
         name,
-        decimals,
+        solana_decimals,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
         admin,
+        ever_decimals,
     }
     .try_to_vec()
     .handle_error()?;
@@ -75,6 +77,7 @@ pub fn initialize_vault_ix(
     withdrawal_limit: u64,
     withdrawal_daily_limit: u64,
     admin: String,
+    ever_decimals: u8,
 ) -> Result<JsValue, JsValue> {
     let vault_pubkey = get_vault_address(&name);
     let settings_pubkey = get_settings_address(&name);
@@ -91,6 +94,7 @@ pub fn initialize_vault_ix(
         withdrawal_limit,
         withdrawal_daily_limit,
         admin,
+        ever_decimals
     }
     .try_to_vec()
     .handle_error()?;
@@ -124,7 +128,7 @@ pub fn process_withdrawal_request(
     event_configuration: String,
     sender_address: String,
     recipient_address: String,
-    amount: u64,
+    amount: String,
     round_number: u32,
 ) -> Result<JsValue, JsValue> {
     let settings_pubkey = get_settings_address(&name);
@@ -133,6 +137,7 @@ pub fn process_withdrawal_request(
     let author_pubkey = Pubkey::from_str(author_pubkey.as_str()).handle_error()?;
     let recipient_address = Pubkey::from_str(recipient_address.as_str()).handle_error()?;
     let event_configuration = Pubkey::from_str(event_configuration.as_str()).handle_error()?;
+    let amount = u128::from_str(&amount).handle_error()?;
 
     let sender_address = EverAddress::from_str(&sender_address).handle_error()?;
 
@@ -675,6 +680,8 @@ pub fn unpack_settings(data: Vec<u8>) -> Result<JsValue, JsValue> {
         withdrawal_daily_limit: settings.withdrawal_daily_limit,
         withdrawal_daily_amount: settings.withdrawal_daily_amount,
         withdrawal_ttl: settings.withdrawal_ttl,
+        solana_decimals: settings.solana_decimals,
+        ever_decimals: settings.ever_decimals,
     };
 
     return JsValue::from_serde(&s).handle_error();
@@ -728,6 +735,8 @@ pub struct WasmSettings {
     pub withdrawal_daily_limit: u64,
     pub withdrawal_daily_amount: u64,
     pub withdrawal_ttl: i64,
+    pub solana_decimals: u8,
+    pub ever_decimals: u8,
 }
 
 #[derive(Serialize, Deserialize)]

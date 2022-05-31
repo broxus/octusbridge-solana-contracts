@@ -52,7 +52,8 @@ async fn test_init_mint() {
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
     let name = "WEVER".to_string();
-    let decimals = 9;
+    let solana_decimals = 9;
+    let ever_decimals = 9;
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
     let withdrawal_daily_limit = 1000;
@@ -62,11 +63,12 @@ async fn test_init_mint() {
             &funder.pubkey(),
             &initializer.pubkey(),
             name.clone(),
-            decimals,
+            solana_decimals,
             deposit_limit,
             withdrawal_limit,
             withdrawal_daily_limit,
             admin,
+            ever_decimals,
         )],
         Some(&funder.pubkey()),
     );
@@ -89,7 +91,7 @@ async fn test_init_mint() {
     let mint_data = spl_token::state::Mint::unpack(mint_info.data()).expect("mint unpack");
 
     assert_eq!(mint_data.is_initialized, true);
-    assert_eq!(mint_data.decimals, decimals);
+    assert_eq!(mint_data.decimals, solana_decimals);
     assert_eq!(mint_data.supply, 0);
     assert_eq!(
         mint_data.mint_authority,
@@ -112,6 +114,8 @@ async fn test_init_mint() {
     assert_eq!(settings_data.deposit_limit, deposit_limit);
     assert_eq!(settings_data.withdrawal_limit, withdrawal_limit);
     assert_eq!(settings_data.admin, admin);
+    assert_eq!(settings_data.ever_decimals, ever_decimals);
+    assert_eq!(settings_data.solana_decimals, solana_decimals);
 }
 
 #[tokio::test]
@@ -152,7 +156,8 @@ async fn test_init_vault() {
     let mint = Keypair::new();
 
     let name = "USDT".to_string();
-    let decimals = 9;
+    let solana_decimals = 9;
+    let ever_decimals = 9;
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
     let withdrawal_daily_limit = 1000;
@@ -160,7 +165,7 @@ async fn test_init_vault() {
     let mint_account_data = spl_token::state::Mint {
         is_initialized: true,
         mint_authority: program_option::COption::Some(mint.pubkey()),
-        decimals,
+        decimals: solana_decimals,
         ..Default::default()
     };
 
@@ -190,6 +195,7 @@ async fn test_init_vault() {
             withdrawal_limit,
             withdrawal_daily_limit,
             admin,
+            ever_decimals,
         )],
         Some(&funder.pubkey()),
     );
@@ -252,7 +258,8 @@ async fn test_deposit_ever() {
 
     // Add Mint Account
     let name = "WEVER".to_string();
-    let decimals = 9;
+    let solana_decimals = 9;
+    let ever_decimals = 9;
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
     let withdrawal_daily_limit = 1000;
@@ -264,7 +271,7 @@ async fn test_deposit_ever() {
         is_initialized: true,
         mint_authority: program_option::COption::Some(mint_address),
         supply: 100,
-        decimals,
+        decimals: solana_decimals,
         ..Default::default()
     };
 
@@ -334,6 +341,8 @@ async fn test_deposit_ever() {
         withdrawal_limit,
         withdrawal_daily_limit,
         admin,
+        solana_decimals,
+        ever_decimals,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -404,7 +413,7 @@ async fn test_deposit_ever() {
         deposit_data.event.data.sender_address,
         sender.pubkey().to_bytes().to_vec()
     );
-    assert_eq!(deposit_data.event.data.amount, amount);
+    assert_eq!(deposit_data.event.data.amount as u64, amount);
     assert_eq!(deposit_data.event.data.recipient_address, recipient_address);
     assert_eq!(deposit_data.meta.data.seed, deposit_seed.as_u128());
 }
@@ -423,7 +432,8 @@ async fn test_deposit_sol() {
     let mint = Keypair::new();
 
     let name = "USDT".to_string();
-    let decimals = 9;
+    let solana_decimals = 9;
+    let ever_decimals = 9;
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
     let withdrawal_daily_limit = 1000;
@@ -432,7 +442,7 @@ async fn test_deposit_sol() {
     let mint_account_data = spl_token::state::Mint {
         is_initialized: true,
         mint_authority: program_option::COption::Some(mint.pubkey()),
-        decimals,
+        decimals: solana_decimals,
         ..Default::default()
     };
 
@@ -532,6 +542,8 @@ async fn test_deposit_sol() {
         withdrawal_limit,
         withdrawal_daily_limit,
         admin,
+        solana_decimals,
+        ever_decimals,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -595,7 +607,7 @@ async fn test_deposit_sol() {
         deposit_data.event.data.sender_address,
         sender.pubkey().to_bytes().to_vec()
     );
-    assert_eq!(deposit_data.event.data.amount, amount);
+    assert_eq!(deposit_data.event.data.amount as u64, amount);
     assert_eq!(deposit_data.event.data.recipient_address, recipient_address);
     assert_eq!(deposit_data.meta.data.seed, deposit_seed.as_u128());
 }
@@ -615,6 +627,9 @@ async fn test_withdrawal_request() {
     let withdrawal_daily_limit = 1000;
     let admin = Pubkey::new_unique();
 
+    let solana_decimals = 9;
+    let ever_decimals = 9;
+
     let mint_address = get_mint_address(&name);
 
     // Add Settings Account
@@ -632,6 +647,8 @@ async fn test_withdrawal_request() {
         withdrawal_limit,
         withdrawal_daily_limit,
         admin,
+        solana_decimals,
+        ever_decimals,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -826,6 +843,9 @@ async fn test_vote_for_withdrawal_request() {
     let withdrawal_daily_limit = 1000;
     let admin = Pubkey::new_unique();
 
+    let solana_decimals = 9;
+    let ever_decimals = 9;
+
     let mint_address = get_mint_address(&name);
 
     // Add Settings Account
@@ -843,6 +863,8 @@ async fn test_vote_for_withdrawal_request() {
         withdrawal_limit,
         withdrawal_daily_limit,
         admin,
+        solana_decimals,
+        ever_decimals,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -1010,7 +1032,8 @@ async fn test_withdrawal_ever() {
 
     // Add Mint Account
     let name = "WEVER".to_string();
-    let decimals = 9;
+    let solana_decimals = 9;
+    let ever_decimals = 9;
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
     let withdrawal_daily_limit = 1000;
@@ -1021,7 +1044,7 @@ async fn test_withdrawal_ever() {
     let mint_account_data = spl_token::state::Mint {
         is_initialized: true,
         mint_authority: program_option::COption::Some(mint_address),
-        decimals,
+        decimals: solana_decimals,
         ..Default::default()
     };
 
@@ -1053,6 +1076,8 @@ async fn test_withdrawal_ever() {
         withdrawal_limit,
         withdrawal_daily_limit,
         admin,
+        solana_decimals,
+        ever_decimals,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -1170,7 +1195,7 @@ async fn test_withdrawal_ever() {
         .expect("account");
 
     let mint_data = spl_token::state::Mint::unpack(mint_info.data()).expect("mint unpack");
-    assert_eq!(mint_data.supply, amount);
+    assert_eq!(mint_data.supply, amount as u64);
 
     let recipient_info = banks_client
         .get_account(recipient_associated_token_address)
@@ -1180,7 +1205,7 @@ async fn test_withdrawal_ever() {
 
     let recipient_data =
         spl_token::state::Account::unpack(recipient_info.data()).expect("token unpack");
-    assert_eq!(recipient_data.amount, amount);
+    assert_eq!(recipient_data.amount, amount as u64);
 
     let withdrawal_info = banks_client
         .get_account(withdrawal_address)
@@ -1204,7 +1229,8 @@ async fn test_withdrawal_ever_2() {
 
     // Add Mint Account
     let name = "WEVER".to_string();
-    let decimals = 9;
+    let solana_decimals = 9;
+    let ever_decimals = 9;
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
     let withdrawal_daily_limit = 1000;
@@ -1215,7 +1241,7 @@ async fn test_withdrawal_ever_2() {
     let mint_account_data = spl_token::state::Mint {
         is_initialized: true,
         mint_authority: program_option::COption::Some(mint_address),
-        decimals,
+        decimals: solana_decimals,
         ..Default::default()
     };
 
@@ -1247,6 +1273,8 @@ async fn test_withdrawal_ever_2() {
         withdrawal_limit,
         withdrawal_daily_limit,
         admin,
+        solana_decimals,
+        ever_decimals,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -1386,7 +1414,8 @@ async fn test_withdrawal_sol() {
     let mint = Keypair::new();
 
     let name = "USDT".to_string();
-    let decimals = 9;
+    let solana_decimals = 9;
+    let ever_decimals = 9;
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
     let withdrawal_daily_limit = 1000;
@@ -1395,7 +1424,7 @@ async fn test_withdrawal_sol() {
     let mint_account_data = spl_token::state::Mint {
         is_initialized: true,
         mint_authority: program_option::COption::Some(mint.pubkey()),
-        decimals,
+        decimals: solana_decimals,
         ..Default::default()
     };
 
@@ -1454,6 +1483,8 @@ async fn test_withdrawal_sol() {
         withdrawal_limit,
         withdrawal_daily_limit,
         admin,
+        solana_decimals,
+        ever_decimals,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -1572,7 +1603,7 @@ async fn test_withdrawal_sol() {
         .expect("account");
 
     let vault_data = spl_token::state::Account::unpack(vault_info.data()).expect("mint unpack");
-    assert_eq!(vault_data.amount, 100 - amount);
+    assert_eq!(vault_data.amount, 100 - amount as u64);
 
     let recipient_info = banks_client
         .get_account(recipient_associated_token_address)
@@ -1582,7 +1613,7 @@ async fn test_withdrawal_sol() {
 
     let recipient_data =
         spl_token::state::Account::unpack(recipient_info.data()).expect("token unpack");
-    assert_eq!(recipient_data.amount, amount);
+    assert_eq!(recipient_data.amount, amount as u64);
 
     let withdrawal_info = banks_client
         .get_account(withdrawal_address)
@@ -1609,7 +1640,8 @@ async fn test_withdrawal_sol_2() {
     let mint = Pubkey::new_unique();
 
     let name = "USDT".to_string();
-    let decimals = 9;
+    let solana_decimals = 9;
+    let ever_decimals = 9;
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
     let withdrawal_daily_limit = 1000;
@@ -1618,7 +1650,7 @@ async fn test_withdrawal_sol_2() {
     let mint_account_data = spl_token::state::Mint {
         is_initialized: true,
         mint_authority: program_option::COption::Some(mint),
-        decimals,
+        decimals: solana_decimals,
         ..Default::default()
     };
 
@@ -1677,6 +1709,8 @@ async fn test_withdrawal_sol_2() {
         withdrawal_limit,
         withdrawal_daily_limit,
         admin,
+        solana_decimals,
+        ever_decimals,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -1813,7 +1847,8 @@ async fn test_approve_withdrawal_ever() {
 
     // Add Mint Account
     let name = "WEVER".to_string();
-    let decimals = 9;
+    let solana_decimals = 9;
+    let ever_decimals = 9;
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
     let withdrawal_daily_limit = 1000;
@@ -1824,7 +1859,7 @@ async fn test_approve_withdrawal_ever() {
     let mint_account_data = spl_token::state::Mint {
         is_initialized: true,
         mint_authority: program_option::COption::Some(mint_address),
-        decimals,
+        decimals: solana_decimals,
         ..Default::default()
     };
 
@@ -1855,6 +1890,8 @@ async fn test_approve_withdrawal_ever() {
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
+        solana_decimals,
+        ever_decimals,
         admin: admin.pubkey(),
     };
 
@@ -1987,7 +2024,7 @@ async fn test_approve_withdrawal_ever() {
         .expect("account");
 
     let mint_data = spl_token::state::Mint::unpack(mint_info.data()).expect("mint unpack");
-    assert_eq!(mint_data.supply, amount);
+    assert_eq!(mint_data.supply, amount as u64);
 
     let recipient_info = banks_client
         .get_account(recipient_associated_token_address)
@@ -1997,7 +2034,7 @@ async fn test_approve_withdrawal_ever() {
 
     let recipient_data =
         spl_token::state::Account::unpack(recipient_info.data()).expect("token unpack");
-    assert_eq!(recipient_data.amount, amount);
+    assert_eq!(recipient_data.amount, amount as u64);
 }
 
 #[tokio::test]
@@ -2013,7 +2050,8 @@ async fn test_approve_withdrawal_sol() {
     let mint = Pubkey::new_unique();
 
     let name = "USDT".to_string();
-    let decimals = 9;
+    let solana_decimals = 9;
+    let ever_decimals = 9;
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
     let withdrawal_daily_limit = 1000;
@@ -2036,6 +2074,8 @@ async fn test_approve_withdrawal_sol() {
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
+        solana_decimals,
+        ever_decimals,
         admin: admin.pubkey(),
     };
 
@@ -2056,7 +2096,7 @@ async fn test_approve_withdrawal_sol() {
     let mint_account_data = spl_token::state::Mint {
         is_initialized: true,
         mint_authority: program_option::COption::Some(mint),
-        decimals,
+        decimals: solana_decimals,
         ..Default::default()
     };
 
@@ -2210,7 +2250,7 @@ async fn test_approve_withdrawal_sol() {
         .expect("account");
 
     let vault_data = spl_token::state::Account::unpack(vault_info.data()).expect("mint unpack");
-    assert_eq!(vault_data.amount, 100 - amount);
+    assert_eq!(vault_data.amount, 100 - amount as u64);
 
     let recipient_info = banks_client
         .get_account(recipient_associated_token_address)
@@ -2220,7 +2260,7 @@ async fn test_approve_withdrawal_sol() {
 
     let recipient_data =
         spl_token::state::Account::unpack(recipient_info.data()).expect("token unpack");
-    assert_eq!(recipient_data.amount, amount);
+    assert_eq!(recipient_data.amount, amount as u64);
 }
 
 #[tokio::test]
@@ -2236,7 +2276,8 @@ async fn test_approve_withdrawal_sol_2() {
     let mint = Pubkey::new_unique();
 
     let name = "USDT".to_string();
-    let decimals = 9;
+    let solana_decimals = 9;
+    let ever_decimals = 9;
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
     let withdrawal_daily_limit = 1000;
@@ -2259,6 +2300,8 @@ async fn test_approve_withdrawal_sol_2() {
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
+        solana_decimals,
+        ever_decimals,
         admin: admin.pubkey(),
     };
 
@@ -2279,7 +2322,7 @@ async fn test_approve_withdrawal_sol_2() {
     let mint_account_data = spl_token::state::Mint {
         is_initialized: true,
         mint_authority: program_option::COption::Some(mint),
-        decimals,
+        decimals: solana_decimals,
         ..Default::default()
     };
 
@@ -2441,7 +2484,8 @@ async fn test_cancel_withdrawal_sol() {
     let mint = Keypair::new();
 
     let name = "USDT".to_string();
-    let decimals = 9;
+    let solana_decimals = 9;
+    let ever_decimals = 9;
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
     let withdrawal_daily_limit = 1000;
@@ -2450,7 +2494,7 @@ async fn test_cancel_withdrawal_sol() {
     let mint_account_data = spl_token::state::Mint {
         is_initialized: true,
         mint_authority: program_option::COption::Some(mint.pubkey()),
-        decimals,
+        decimals: solana_decimals,
         ..Default::default()
     };
 
@@ -2509,6 +2553,8 @@ async fn test_cancel_withdrawal_sol() {
         withdrawal_limit,
         withdrawal_daily_limit,
         admin,
+        solana_decimals,
+        ever_decimals,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -2746,6 +2792,9 @@ async fn test_fill_withdrawal_sol() {
     let withdrawal_daily_limit = 1000;
     let admin = Pubkey::new_unique();
 
+    let solana_decimals = 9;
+    let ever_decimals = 9;
+
     // Add Settings Account
     let settings_address = get_settings_address(&name);
 
@@ -2764,6 +2813,8 @@ async fn test_fill_withdrawal_sol() {
         withdrawal_limit,
         withdrawal_daily_limit,
         admin,
+        solana_decimals,
+        ever_decimals,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -2863,7 +2914,7 @@ async fn test_fill_withdrawal_sol() {
 
     let author_token_data =
         spl_token::state::Account::unpack(author_token_info.data()).expect("sender unpack");
-    assert_eq!(author_token_data.amount, 100 - amount + bounty);
+    assert_eq!(author_token_data.amount, 100 - amount as u64 + bounty);
 
     let recipient_token_info = banks_client
         .get_account(recipient_token_address)
@@ -2873,7 +2924,7 @@ async fn test_fill_withdrawal_sol() {
 
     let recipient_token_data =
         spl_token::state::Account::unpack(recipient_token_info.data()).expect("recipient unpack");
-    assert_eq!(recipient_token_data.amount, amount - bounty);
+    assert_eq!(recipient_token_data.amount, amount as u64 - bounty);
 
     let deposit_address = get_deposit_address(deposit_seed.as_u128(), &settings_address);
     let deposit_info = banks_client
@@ -2903,7 +2954,8 @@ async fn test_transfer_from_vault() {
     let mint = Keypair::new();
 
     let name = "USDT".to_string();
-    let decimals = 9;
+    let solana_decimals = 9;
+    let ever_decimals = 9;
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
     let withdrawal_daily_limit = 1000;
@@ -2912,7 +2964,7 @@ async fn test_transfer_from_vault() {
     let mint_account_data = spl_token::state::Mint {
         is_initialized: true,
         mint_authority: program_option::COption::Some(mint.pubkey()),
-        decimals,
+        decimals: solana_decimals,
         ..Default::default()
     };
 
@@ -2970,6 +3022,8 @@ async fn test_transfer_from_vault() {
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
+        solana_decimals,
+        ever_decimals,
         admin: admin.pubkey(),
     };
 
@@ -3162,7 +3216,8 @@ async fn test_change_settings() {
 
     // Add Mint Account
     let name = "WEVER".to_string();
-    let decimals = 9;
+    let solana_decimals = 9;
+    let ever_decimals = 9;
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
     let withdrawal_daily_limit = 1000;
@@ -3173,7 +3228,7 @@ async fn test_change_settings() {
     let mint_account_data = spl_token::state::Mint {
         is_initialized: true,
         mint_authority: program_option::COption::Some(mint_address),
-        decimals,
+        decimals: solana_decimals,
         ..Default::default()
     };
 
@@ -3204,6 +3259,8 @@ async fn test_change_settings() {
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
+        solana_decimals,
+        ever_decimals,
         admin: admin.pubkey(),
     };
 
@@ -3299,7 +3356,8 @@ async fn test_change_admin() {
 
     // Add Mint Account
     let name = "WEVER".to_string();
-    let decimals = 9;
+    let solana_decimals = 9;
+    let ever_decimals = 9;
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
     let withdrawal_daily_limit = 1000;
@@ -3310,7 +3368,7 @@ async fn test_change_admin() {
     let mint_account_data = spl_token::state::Mint {
         is_initialized: true,
         mint_authority: program_option::COption::Some(mint_address),
-        decimals,
+        decimals: solana_decimals,
         ..Default::default()
     };
 
@@ -3338,10 +3396,12 @@ async fn test_change_admin() {
         kind: TokenKind::Ever { mint: mint_address },
         withdrawal_daily_amount: 0,
         withdrawal_ttl: 0,
+        solana_decimals,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
         admin: admin.pubkey(),
+        ever_decimals,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];

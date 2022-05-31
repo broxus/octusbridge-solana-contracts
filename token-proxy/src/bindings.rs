@@ -26,7 +26,7 @@ pub fn get_withdrawal_address(
     event_configuration: &Pubkey,
     sender_address: EverAddress,
     recipient_address: Pubkey,
-    amount: u64,
+    amount: u128,
 ) -> Pubkey {
     let program_id = &id();
 
@@ -68,11 +68,12 @@ pub fn initialize_mint_ix(
     funder_pubkey: &Pubkey,
     initializer_pubkey: &Pubkey,
     name: String,
-    decimals: u8,
+    solana_decimals: u8,
     deposit_limit: u64,
     withdrawal_limit: u64,
     withdrawal_daily_limit: u64,
     admin: Pubkey,
+    ever_decimals: u8,
 ) -> Instruction {
     let mint_pubkey = get_mint_address(&name);
     let settings_pubkey = get_settings_address(&name);
@@ -80,11 +81,12 @@ pub fn initialize_mint_ix(
 
     let data = TokenProxyInstruction::InitializeMint {
         name,
-        decimals,
+        solana_decimals,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
         admin,
+        ever_decimals,
     }
     .try_to_vec()
     .expect("pack");
@@ -115,6 +117,7 @@ pub fn initialize_vault_ix(
     withdrawal_limit: u64,
     withdrawal_daily_limit: u64,
     admin: Pubkey,
+    ever_decimals: u8,
 ) -> Instruction {
     let vault_pubkey = get_vault_address(&name);
     let settings_pubkey = get_settings_address(&name);
@@ -126,6 +129,7 @@ pub fn initialize_vault_ix(
         withdrawal_limit,
         withdrawal_daily_limit,
         admin,
+        ever_decimals,
     }
     .try_to_vec()
     .expect("pack");
@@ -242,7 +246,7 @@ pub fn withdrawal_request_ix(
     round_number: u32,
     sender_address: EverAddress,
     recipient_address: Pubkey,
-    amount: u64,
+    amount: u128,
 ) -> Instruction {
     let withdrawal_pubkey = get_withdrawal_address(
         settings_pubkey,

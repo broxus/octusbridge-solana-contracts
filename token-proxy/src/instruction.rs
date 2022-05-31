@@ -22,7 +22,7 @@ pub enum TokenProxyInstruction {
         // Mint asset name
         name: String,
         /// Number of base 10 digits to the right of the decimal place.
-        decimals: u8,
+        solana_decimals: u8,
         // Deposit limit
         deposit_limit: u64,
         // Withdrawal limit
@@ -31,6 +31,8 @@ pub enum TokenProxyInstruction {
         withdrawal_daily_limit: u64,
         // Admin pubkey
         admin: Pubkey,
+        /// Number of base 10 digits to the right of the decimal place.
+        ever_decimals: u8,
     },
 
     /// Initialize Vault Account
@@ -48,6 +50,8 @@ pub enum TokenProxyInstruction {
         withdrawal_daily_limit: u64,
         // Admin pubkey
         admin: Pubkey,
+        /// Number of base 10 digits to the right of the decimal place.
+        ever_decimals: u8,
     },
 
     /// Deposit EVER
@@ -92,7 +96,7 @@ pub enum TokenProxyInstruction {
         // Sender address
         recipient_address: Pubkey,
         // Withdrawal amount
-        amount: u64,
+        amount: u128,
     },
 
     /// Withdraw EVER

@@ -14,6 +14,7 @@ use solana_program::pubkey::Pubkey;
 use solana_program::rent::Rent;
 use solana_program::sysvar::Sysvar;
 use solana_program::{msg, system_instruction};
+use spl_token::state::Mint;
 
 use crate::*;
 
@@ -29,22 +30,24 @@ impl Processor {
         match instruction {
             TokenProxyInstruction::InitializeMint {
                 name,
-                decimals,
+                solana_decimals,
                 deposit_limit,
                 withdrawal_limit,
                 withdrawal_daily_limit,
                 admin,
+                ever_decimals,
             } => {
                 msg!("Instruction: Initialize Mint");
                 Self::process_mint_initialize(
                     program_id,
                     accounts,
                     name,
-                    decimals,
+                    solana_decimals,
                     deposit_limit,
                     withdrawal_limit,
                     withdrawal_daily_limit,
                     admin,
+                    ever_decimals,
                 )?;
             }
             TokenProxyInstruction::InitializeVault {
@@ -53,6 +56,7 @@ impl Processor {
                 withdrawal_limit,
                 withdrawal_daily_limit,
                 admin,
+                ever_decimals,
             } => {
                 msg!("Instruction: Initialize Vault");
                 Self::process_vault_initialize(
@@ -63,6 +67,7 @@ impl Processor {
                     withdrawal_limit,
                     withdrawal_daily_limit,
                     admin,
+                    ever_decimals,
                 )?;
             }
             TokenProxyInstruction::DepositEver {
@@ -195,11 +200,12 @@ impl Processor {
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         name: String,
-        decimals: u8,
+        solana_decimals: u8,
         deposit_limit: u64,
         withdrawal_limit: u64,
         withdrawal_daily_limit: u64,
         admin: Pubkey,
+        ever_decimals: u8,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -260,7 +266,7 @@ impl Processor {
                 mint_account_info.key,
                 mint_account_info.key,
                 None,
-                decimals,
+                solana_decimals,
             )?,
             &[
                 mint_account_info.clone(),
@@ -302,11 +308,13 @@ impl Processor {
             },
             withdrawal_daily_amount: 0,
             withdrawal_ttl: 0,
+            solana_decimals,
             name,
             deposit_limit,
             withdrawal_limit,
             withdrawal_daily_limit,
             admin,
+            ever_decimals,
         };
 
         Settings::pack(
@@ -326,6 +334,7 @@ impl Processor {
         withdrawal_limit: u64,
         withdrawal_daily_limit: u64,
         admin: Pubkey,
+        ever_decimals: u8,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -419,6 +428,8 @@ impl Processor {
             &[settings_account_signer_seeds],
         )?;
 
+        let mint = Mint::unpack(&mint_account_info.data.borrow())?;
+
         // Init Settings Account
         let settings_account_data = Settings {
             is_initialized: true,
@@ -430,11 +441,13 @@ impl Processor {
             },
             withdrawal_daily_amount: 0,
             withdrawal_ttl: 0,
+            solana_decimals: mint.decimals,
             name,
             deposit_limit,
             withdrawal_limit,
             withdrawal_daily_limit,
             admin,
+            ever_decimals,
         };
 
         Settings::pack(
@@ -537,6 +550,12 @@ impl Processor {
             ],
             &[deposit_account_signer_seeds],
         )?;
+
+        let amount = get_deposit_amount(
+            amount,
+            settings_account_data.ever_decimals,
+            settings_account_data.solana_decimals,
+        );
 
         // Init Deposit Account
         let deposit_account_data = DepositToken {
@@ -672,6 +691,12 @@ impl Processor {
             &[deposit_account_signer_seeds],
         )?;
 
+        let amount = get_deposit_amount(
+            amount,
+            settings_account_data.ever_decimals,
+            settings_account_data.solana_decimals,
+        );
+
         // Init Deposit Account
         let deposit_account_data = DepositToken {
             is_initialized: true,
@@ -701,7 +726,7 @@ impl Processor {
         event_configuration: Pubkey,
         sender_address: EverAddress,
         recipient_address: Pubkey,
-        amount: u64,
+        amount: u128,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -965,6 +990,12 @@ impl Processor {
             return Ok(());
         }
 
+        let withdrawal_amount = get_withdrawal_amount(
+            withdrawal_account_data.event.data.amount,
+            settings_account_data.ever_decimals,
+            settings_account_data.solana_decimals,
+        );
+
         // Do we have enough signers.
         let sig_count = withdrawal_account_data
             .signers
@@ -986,10 +1017,10 @@ impl Processor {
             // Increase withdrawal daily amount
             settings_account_data.withdrawal_daily_amount = settings_account_data
                 .withdrawal_daily_amount
-                .checked_add(withdrawal_account_data.event.data.amount)
+                .checked_add(withdrawal_amount)
                 .ok_or(TokenProxyError::ArithmeticsError)?;
 
-            if withdrawal_account_data.event.data.amount > settings_account_data.withdrawal_limit
+            if withdrawal_amount > settings_account_data.withdrawal_limit
                 || settings_account_data.withdrawal_daily_amount
                     > settings_account_data.withdrawal_daily_limit
             {
@@ -1002,6 +1033,7 @@ impl Processor {
                     recipient_token_account_info,
                     &settings_account_data,
                     &mut withdrawal_account_data,
+                    withdrawal_amount,
                 )?;
             }
 
@@ -1068,6 +1100,12 @@ impl Processor {
             return Err(TokenProxyError::EmergencyEnabled.into());
         }
 
+        let withdrawal_amount = get_withdrawal_amount(
+            withdrawal_account_data.event.data.amount,
+            settings_account_data.ever_decimals,
+            settings_account_data.solana_decimals,
+        );
+
         // Do we have enough signers.
         let sig_count = withdrawal_account_data
             .signers
@@ -1090,11 +1128,10 @@ impl Processor {
                     // Increase withdrawal daily amount
                     settings_account_data.withdrawal_daily_amount = settings_account_data
                         .withdrawal_daily_amount
-                        .checked_add(withdrawal_account_data.event.data.amount)
+                        .checked_add(withdrawal_amount)
                         .ok_or(TokenProxyError::ArithmeticsError)?;
 
-                    if withdrawal_account_data.event.data.amount
-                        > settings_account_data.withdrawal_limit
+                    if withdrawal_amount > settings_account_data.withdrawal_limit
                         || settings_account_data.withdrawal_daily_amount
                             > settings_account_data.withdrawal_daily_limit
                     {
@@ -1108,6 +1145,7 @@ impl Processor {
                             recipient_token_account_info,
                             &settings_account_data,
                             &mut withdrawal_account_data,
+                            withdrawal_amount,
                         )?;
                     }
 
@@ -1125,6 +1163,7 @@ impl Processor {
                     recipient_token_account_info,
                     &settings_account_data,
                     &mut withdrawal_account_data,
+                    withdrawal_amount,
                 )?,
                 _ => (),
             }
@@ -1197,6 +1236,12 @@ impl Processor {
             return Err(ProgramError::IllegalOwner);
         }
 
+        let withdrawal_amount = get_withdrawal_amount(
+            withdrawal_account_data.event.data.amount,
+            settings_account_data.ever_decimals,
+            settings_account_data.solana_decimals,
+        );
+
         make_ever_transfer(
             program_id,
             mint_account_info,
@@ -1204,6 +1249,7 @@ impl Processor {
             recipient_token_account_info,
             &settings_account_data,
             &mut withdrawal_account_data,
+            withdrawal_amount,
         )?;
 
         WithdrawalToken::pack(
@@ -1273,6 +1319,12 @@ impl Processor {
             return Err(ProgramError::IllegalOwner);
         }
 
+        let withdrawal_amount = get_withdrawal_amount(
+            withdrawal_account_data.event.data.amount,
+            settings_account_data.ever_decimals,
+            settings_account_data.solana_decimals,
+        );
+
         make_sol_transfer(
             program_id,
             vault_account_info,
@@ -1280,6 +1332,7 @@ impl Processor {
             recipient_token_account_info,
             &settings_account_data,
             &mut withdrawal_account_data,
+            withdrawal_amount,
         )?;
 
         WithdrawalToken::pack(
@@ -1509,6 +1562,12 @@ impl Processor {
             return Err(ProgramError::InvalidAccountData);
         }
 
+        let withdrawal_amount = get_withdrawal_amount(
+            withdrawal_account_data.event.data.amount,
+            settings_account_data.ever_decimals,
+            settings_account_data.solana_decimals,
+        );
+
         // Transfer SOL tokens
         invoke(
             &spl_token::instruction::transfer(
@@ -1517,10 +1576,7 @@ impl Processor {
                 recipient_token_account_info.key,
                 author_account_info.key,
                 &[author_account_info.key],
-                withdrawal_account_data
-                    .event
-                    .data
-                    .amount
+                withdrawal_amount
                     .checked_sub(withdrawal_account_data.meta.data.bounty)
                     .ok_or(TokenProxyError::ArithmeticsError)?,
             )?,
@@ -1808,6 +1864,7 @@ fn make_sol_transfer<'a>(
     recipient_token_account_info: &AccountInfo<'a>,
     settings_account_data: &Settings,
     withdrawal_account_data: &mut WithdrawalToken,
+    withdrawal_amount: u64,
 ) -> ProgramResult {
     // Validate Recipient Account
     let recipient_token_account_data =
@@ -1843,7 +1900,7 @@ fn make_sol_transfer<'a>(
     let vault_account_data = spl_token::state::Account::unpack(&vault_account_info.data.borrow())?;
 
     // If vault balance is not enough
-    if withdrawal_account_data.event.data.amount > vault_account_data.amount {
+    if withdrawal_amount > vault_account_data.amount {
         withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Pending;
         return Ok(());
     }
@@ -1856,7 +1913,7 @@ fn make_sol_transfer<'a>(
             recipient_token_account_info.key,
             vault_account_info.key,
             &[vault_account_info.key],
-            withdrawal_account_data.event.data.amount,
+            withdrawal_amount,
         )?,
         &[
             token_program_info.clone(),
@@ -1878,6 +1935,7 @@ fn make_ever_transfer<'a>(
     recipient_token_account_info: &AccountInfo<'a>,
     settings_account_data: &Settings,
     withdrawal_account_data: &mut WithdrawalToken,
+    withdrawal_amount: u64,
 ) -> ProgramResult {
     // Validate Recipient Account
     if recipient_token_account_info.owner != &spl_token::id() {
@@ -1918,7 +1976,7 @@ fn make_ever_transfer<'a>(
             recipient_token_account_info.key,
             mint_account_info.key,
             &[mint_account_info.key],
-            withdrawal_account_data.event.data.amount,
+            withdrawal_amount,
         )?,
         &[
             token_program_info.clone(),
@@ -1931,4 +1989,26 @@ fn make_ever_transfer<'a>(
     withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Processed;
 
     Ok(())
+}
+
+fn get_withdrawal_amount(amount: u128, ever_decimals: u8, solana_decimals: u8) -> u64 {
+    if ever_decimals > solana_decimals {
+        let trunc_divisor = 10u128.pow((ever_decimals - solana_decimals) as u32);
+        (amount / trunc_divisor) as u64
+    } else {
+        let trunc_divisor = 10u128.pow((solana_decimals - ever_decimals) as u32);
+        (amount * trunc_divisor) as u64
+    }
+}
+
+fn get_deposit_amount(amount: u64, ever_decimals: u8, solana_decimals: u8) -> u128 {
+    let mut amount = amount as u128;
+    if ever_decimals > solana_decimals {
+        let trunc_divisor = 10u128.pow((ever_decimals - solana_decimals) as u32);
+        amount *= trunc_divisor;
+    } else {
+        let trunc_divisor = 10u128.pow((solana_decimals - ever_decimals) as u32);
+        amount /= trunc_divisor;
+    }
+    return amount;
 }

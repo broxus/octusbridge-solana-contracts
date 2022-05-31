@@ -43,6 +43,8 @@ pub struct Settings {
     pub withdrawal_daily_limit: u64,
     pub withdrawal_daily_amount: u64,
     pub withdrawal_ttl: i64,
+    pub solana_decimals: u8,
+    pub ever_decimals: u8,
 }
 
 impl Sealed for Settings {}
@@ -101,7 +103,7 @@ impl IsInitialized for DepositToken {
 #[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 pub struct DepositTokenEvent {
     pub sender_address: Vec<u8>,
-    pub amount: u64,
+    pub amount: u128,
     pub recipient_address: EverAddress,
 }
 
@@ -112,7 +114,7 @@ pub struct DepositTokenEventWithLen {
 }
 
 impl DepositTokenEventWithLen {
-    pub fn new(sender_address: Pubkey, amount: u64, recipient_address: EverAddress) -> Self {
+    pub fn new(sender_address: Pubkey, amount: u128, recipient_address: EverAddress) -> Self {
         Self {
             len: DEPOSIT_TOKEN_EVENT_LEN as u32,
             data: DepositTokenEvent {
@@ -170,7 +172,7 @@ impl IsInitialized for WithdrawalToken {
 #[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 pub struct WithdrawalTokenEvent {
     pub sender_address: EverAddress,
-    pub amount: u64,
+    pub amount: u128,
     pub recipient_address: Vec<u8>,
 }
 
@@ -181,7 +183,7 @@ pub struct WithdrawalTokenEventWithLen {
 }
 
 impl WithdrawalTokenEventWithLen {
-    pub fn new(sender_address: EverAddress, amount: u64, recipient_address: Pubkey) -> Self {
+    pub fn new(sender_address: EverAddress, amount: u128, recipient_address: Pubkey) -> Self {
         Self {
             len: WITHDRAWAL_TOKEN_EVENT_LEN as u32,
             data: WithdrawalTokenEvent {
