@@ -687,6 +687,7 @@ pub fn unpack_withdrawal(data: Vec<u8>) -> Result<JsValue, JsValue> {
     let w = WasmWithdrawalToken {
         is_initialized: withdrawal.is_initialized,
         account_kind: withdrawal.account_kind,
+        is_executed: withdrawal.is_executed,
         round_number: withdrawal.round_number,
         required_votes: withdrawal.required_votes,
         pda: withdrawal.pda,
@@ -733,6 +734,7 @@ pub struct WasmSettings {
 pub struct WasmWithdrawalToken {
     pub is_initialized: bool,
     pub account_kind: AccountKind,
+    pub is_executed: bool,
     pub round_number: u32,
     pub required_votes: u32,
     pub pda: PDA,
