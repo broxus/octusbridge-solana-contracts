@@ -53,8 +53,8 @@ pub fn execute_proposal_ix(
 
     let accounts = accounts
         .into_iter()
-        .map(|(account, is_writable, is_signer)| {
-            if is_writable {
+        .map(|(account, read_only, is_signer)| {
+            if !read_only {
                 AccountMeta::new(account, is_signer)
             } else {
                 AccountMeta::new_readonly(account, is_signer)
