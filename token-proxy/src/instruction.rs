@@ -14,6 +14,18 @@ pub enum TokenProxyInstruction {
         vote: Vote,
     },
 
+    /// Withdraw EVER
+    ///
+    /// # Account references
+    /// ...
+    WithdrawEver,
+
+    /// Withdraw SOL
+    ///
+    /// # Account references
+    /// ...
+    WithdrawSol,
+
     /// Initialize Mint Account
     ///
     /// # Account references
@@ -98,18 +110,6 @@ pub enum TokenProxyInstruction {
         // Withdrawal amount
         amount: u128,
     },
-
-    /// Withdraw EVER
-    ///
-    /// # Account references
-    /// ...
-    WithdrawEver,
-
-    /// Withdraw SOL
-    ///
-    /// # Account references
-    /// ...
-    WithdrawSol,
 
     /// Approve Withdraw Ever
     ///
