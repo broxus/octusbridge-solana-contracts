@@ -457,7 +457,7 @@ impl Processor {
             return Err(ProgramError::IllegalOwner);
         }
 
-        if proposal.event.data.round_num != round_number + 1 {
+        if round_number >= proposal.event.data.round_num {
             return Err(RoundLoaderError::InvalidProposalRoundNumber.into());
         }
 
