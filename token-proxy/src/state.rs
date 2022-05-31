@@ -12,16 +12,16 @@ use solana_program::pubkey::{Pubkey, PUBKEY_BYTES};
 pub const MAX_NAME_LEN: usize = 32;
 pub const WITHDRAWAL_TOKEN_PERIOD: i64 = 86400;
 
-const WITHDRAWAL_TOKEN_EVENT_LEN: usize = 8 // amount
-    + 1 + 1 + PUBKEY_BYTES                  // ever sender address
-    + 4 + PUBKEY_BYTES                      // solana recipient address
+const WITHDRAWAL_TOKEN_EVENT_LEN: usize = 16    // amount
+    + 1 + 1 + PUBKEY_BYTES                      // ever sender address
+    + 4 + PUBKEY_BYTES                          // solana recipient address
 ;
 
 const WITHDRAWAL_TOKEN_META_LEN: usize = 1  // status
     + 8                                     // bounty
 ;
 
-const DEPOSIT_TOKEN_EVENT_LEN: usize = 8    // amount
+const DEPOSIT_TOKEN_EVENT_LEN: usize = 16   // amount
     + 1 + 1 + PUBKEY_BYTES                  // ever recipient address
     + 4 + PUBKEY_BYTES                      // solana sender address
 ;
@@ -35,6 +35,8 @@ pub struct Settings {
     pub is_initialized: bool,
     pub account_kind: AccountKind,
     pub name: String,
+    pub ever_decimals: u8,
+    pub solana_decimals: u8,
     pub kind: TokenKind,
     pub admin: Pubkey,
     pub emergency: bool,
@@ -43,8 +45,6 @@ pub struct Settings {
     pub withdrawal_daily_limit: u64,
     pub withdrawal_daily_amount: u64,
     pub withdrawal_ttl: i64,
-    pub solana_decimals: u8,
-    pub ever_decimals: u8,
 }
 
 impl Sealed for Settings {}
@@ -84,7 +84,7 @@ impl IsInitialized for Deposit {
 }
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
-#[bridge_pack(length = 104)]
+#[bridge_pack(length = 112)]
 pub struct DepositToken {
     pub is_initialized: bool,
     pub account_kind: AccountKind,
@@ -147,7 +147,7 @@ impl DepositTokenMetaWithLen {
 }
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
-#[bridge_pack(length = 318)]
+#[bridge_pack(length = 326)]
 pub struct WithdrawalToken {
     pub is_initialized: bool,
     pub account_kind: AccountKind,

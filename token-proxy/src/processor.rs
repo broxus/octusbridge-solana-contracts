@@ -30,44 +30,44 @@ impl Processor {
         match instruction {
             TokenProxyInstruction::InitializeMint {
                 name,
+                ever_decimals,
                 solana_decimals,
                 deposit_limit,
                 withdrawal_limit,
                 withdrawal_daily_limit,
                 admin,
-                ever_decimals,
             } => {
                 msg!("Instruction: Initialize Mint");
                 Self::process_mint_initialize(
                     program_id,
                     accounts,
                     name,
+                    ever_decimals,
                     solana_decimals,
                     deposit_limit,
                     withdrawal_limit,
                     withdrawal_daily_limit,
                     admin,
-                    ever_decimals,
                 )?;
             }
             TokenProxyInstruction::InitializeVault {
                 name,
+                ever_decimals,
                 deposit_limit,
                 withdrawal_limit,
                 withdrawal_daily_limit,
                 admin,
-                ever_decimals,
             } => {
                 msg!("Instruction: Initialize Vault");
                 Self::process_vault_initialize(
                     program_id,
                     accounts,
                     name,
+                    ever_decimals,
                     deposit_limit,
                     withdrawal_limit,
                     withdrawal_daily_limit,
                     admin,
-                    ever_decimals,
                 )?;
             }
             TokenProxyInstruction::DepositEver {
@@ -200,12 +200,12 @@ impl Processor {
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         name: String,
+        ever_decimals: u8,
         solana_decimals: u8,
         deposit_limit: u64,
         withdrawal_limit: u64,
         withdrawal_daily_limit: u64,
         admin: Pubkey,
-        ever_decimals: u8,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -308,13 +308,13 @@ impl Processor {
             },
             withdrawal_daily_amount: 0,
             withdrawal_ttl: 0,
-            solana_decimals,
             name,
+            ever_decimals,
+            solana_decimals,
             deposit_limit,
             withdrawal_limit,
             withdrawal_daily_limit,
             admin,
-            ever_decimals,
         };
 
         Settings::pack(
@@ -330,11 +330,11 @@ impl Processor {
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         name: String,
+        ever_decimals: u8,
         deposit_limit: u64,
         withdrawal_limit: u64,
         withdrawal_daily_limit: u64,
         admin: Pubkey,
-        ever_decimals: u8,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -428,7 +428,8 @@ impl Processor {
             &[settings_account_signer_seeds],
         )?;
 
-        let mint = Mint::unpack(&mint_account_info.data.borrow())?;
+        let mint_account_data = Mint::unpack(&mint_account_info.data.borrow())?;
+        let solana_decimals = mint_account_data.decimals;
 
         // Init Settings Account
         let settings_account_data = Settings {
@@ -441,13 +442,13 @@ impl Processor {
             },
             withdrawal_daily_amount: 0,
             withdrawal_ttl: 0,
-            solana_decimals: mint.decimals,
             name,
+            ever_decimals,
+            solana_decimals,
             deposit_limit,
             withdrawal_limit,
             withdrawal_daily_limit,
             admin,
-            ever_decimals,
         };
 
         Settings::pack(

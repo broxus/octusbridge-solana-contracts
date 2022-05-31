@@ -63,12 +63,12 @@ async fn test_init_mint() {
             &funder.pubkey(),
             &initializer.pubkey(),
             name.clone(),
+            ever_decimals,
             solana_decimals,
             deposit_limit,
             withdrawal_limit,
             withdrawal_daily_limit,
             admin,
-            ever_decimals,
         )],
         Some(&funder.pubkey()),
     );
@@ -191,11 +191,11 @@ async fn test_init_vault() {
             &initializer.pubkey(),
             &mint.pubkey(),
             name.clone(),
+            ever_decimals,
             deposit_limit,
             withdrawal_limit,
             withdrawal_daily_limit,
             admin,
-            ever_decimals,
         )],
         Some(&funder.pubkey()),
     );
@@ -843,8 +843,8 @@ async fn test_vote_for_withdrawal_request() {
     let withdrawal_daily_limit = 1000;
     let admin = Pubkey::new_unique();
 
-    let solana_decimals = 9;
     let ever_decimals = 9;
+    let solana_decimals = 9;
 
     let mint_address = get_mint_address(&name);
 
@@ -859,12 +859,12 @@ async fn test_vote_for_withdrawal_request() {
         kind: TokenKind::Ever { mint: mint_address },
         withdrawal_daily_amount: 0,
         withdrawal_ttl: 0,
+        ever_decimals,
+        solana_decimals,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
         admin,
-        solana_decimals,
-        ever_decimals,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];

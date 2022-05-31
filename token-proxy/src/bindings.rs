@@ -68,12 +68,12 @@ pub fn initialize_mint_ix(
     funder_pubkey: &Pubkey,
     initializer_pubkey: &Pubkey,
     name: String,
+    ever_decimals: u8,
     solana_decimals: u8,
     deposit_limit: u64,
     withdrawal_limit: u64,
     withdrawal_daily_limit: u64,
     admin: Pubkey,
-    ever_decimals: u8,
 ) -> Instruction {
     let mint_pubkey = get_mint_address(&name);
     let settings_pubkey = get_settings_address(&name);
@@ -81,12 +81,12 @@ pub fn initialize_mint_ix(
 
     let data = TokenProxyInstruction::InitializeMint {
         name,
+        ever_decimals,
         solana_decimals,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
         admin,
-        ever_decimals,
     }
     .try_to_vec()
     .expect("pack");
@@ -113,11 +113,11 @@ pub fn initialize_vault_ix(
     initializer_pubkey: &Pubkey,
     mint_pubkey: &Pubkey,
     name: String,
+    ever_decimals: u8,
     deposit_limit: u64,
     withdrawal_limit: u64,
     withdrawal_daily_limit: u64,
     admin: Pubkey,
-    ever_decimals: u8,
 ) -> Instruction {
     let vault_pubkey = get_vault_address(&name);
     let settings_pubkey = get_settings_address(&name);
@@ -125,11 +125,11 @@ pub fn initialize_vault_ix(
 
     let data = TokenProxyInstruction::InitializeVault {
         name,
+        ever_decimals,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
         admin,
-        ever_decimals,
     }
     .try_to_vec()
     .expect("pack");
