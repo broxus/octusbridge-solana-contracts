@@ -27,13 +27,15 @@ pub fn initialize_mint_ix(
     deposit_limit: u64,
     withdrawal_limit: u64,
     withdrawal_daily_limit: u64,
-    admin: String,
+    guardian: String,
+    withdrawal_manager: String,
 ) -> Result<JsValue, JsValue> {
     let mint_pubkey = get_mint_address(&name);
     let settings_pubkey = get_settings_address(&name);
     let program_data_pubkey = get_programdata_address();
 
-    let admin = Pubkey::from_str(admin.as_str()).handle_error()?;
+    let guardian = Pubkey::from_str(guardian.as_str()).handle_error()?;
+    let withdrawal_manager = Pubkey::from_str(withdrawal_manager.as_str()).handle_error()?;
     let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
     let initializer_pubkey = Pubkey::from_str(initializer_pubkey.as_str()).handle_error()?;
 
@@ -44,7 +46,8 @@ pub fn initialize_mint_ix(
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
-        admin,
+        guardian,
+        withdrawal_manager,
     }
     .try_to_vec()
     .handle_error()?;
@@ -77,13 +80,15 @@ pub fn initialize_vault_ix(
     deposit_limit: u64,
     withdrawal_limit: u64,
     withdrawal_daily_limit: u64,
-    admin: String,
+    guardian: String,
+    withdrawal_manager: String,
 ) -> Result<JsValue, JsValue> {
     let vault_pubkey = get_vault_address(&name);
     let settings_pubkey = get_settings_address(&name);
     let program_data_pubkey = get_programdata_address();
 
-    let admin = Pubkey::from_str(admin.as_str()).handle_error()?;
+    let guardian = Pubkey::from_str(guardian.as_str()).handle_error()?;
+    let withdrawal_manager = Pubkey::from_str(withdrawal_manager.as_str()).handle_error()?;
     let mint_pubkey = Pubkey::from_str(mint_pubkey.as_str()).handle_error()?;
     let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
     let initializer_pubkey = Pubkey::from_str(initializer_pubkey.as_str()).handle_error()?;
@@ -94,7 +99,8 @@ pub fn initialize_vault_ix(
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
-        admin,
+        guardian,
+        withdrawal_manager,
     }
     .try_to_vec()
     .handle_error()?;
@@ -221,6 +227,45 @@ pub fn approve_withdrawal_ever_ix(
     return JsValue::from_serde(&ix).handle_error();
 }
 
+#[wasm_bindgen(js_name = "approveWithdrawalEverByOwner")]
+pub fn approve_withdrawal_ever_by_owner_ix(
+    authority_pubkey: String,
+    to_pubkey: String,
+    name: String,
+    withdrawal_pubkey: String,
+) -> Result<JsValue, JsValue> {
+    let mint_pubkey = get_mint_address(&name);
+    let settings_pubkey = get_settings_address(&name);
+    let program_data_pubkey = get_programdata_address();
+
+    let to_pubkey = Pubkey::from_str(to_pubkey.as_str()).handle_error()?;
+    let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
+    let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).handle_error()?;
+
+    let recipient_pubkey =
+        spl_associated_token_account::get_associated_token_address(&to_pubkey, &mint_pubkey);
+
+    let data = TokenProxyInstruction::ApproveWithdrawEver
+        .try_to_vec()
+        .handle_error()?;
+
+    let ix = Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(authority_pubkey, true),
+            AccountMeta::new(mint_pubkey, false),
+            AccountMeta::new(withdrawal_pubkey, false),
+            AccountMeta::new(recipient_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new_readonly(spl_token::id(), false),
+            AccountMeta::new_readonly(program_data_pubkey, false),
+        ],
+        data,
+    };
+
+    return JsValue::from_serde(&ix).handle_error();
+}
+
 #[wasm_bindgen(js_name = "approveWithdrawalSol")]
 pub fn approve_withdrawal_sol_ix(
     authority_pubkey: String,
@@ -260,6 +305,47 @@ pub fn approve_withdrawal_sol_ix(
     return JsValue::from_serde(&ix).handle_error();
 }
 
+#[wasm_bindgen(js_name = "approveWithdrawalSolByOwner")]
+pub fn approve_withdrawal_sol_by_owner_ix(
+    authority_pubkey: String,
+    name: String,
+    withdrawal_pubkey: String,
+    to_pubkey: String,
+) -> Result<JsValue, JsValue> {
+    let settings_pubkey = get_settings_address(&name);
+    let mint_pubkey = get_mint_address(&name);
+    let vault_pubkey = get_vault_address(&name);
+    let program_data_pubkey = get_programdata_address();
+
+    let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
+    let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).handle_error()?;
+
+    let to_pubkey = Pubkey::from_str(to_pubkey.as_str()).handle_error()?;
+
+    let recipient_pubkey =
+        spl_associated_token_account::get_associated_token_address(&to_pubkey, &mint_pubkey);
+
+    let data = TokenProxyInstruction::ApproveWithdrawSol
+        .try_to_vec()
+        .handle_error()?;
+
+    let ix = Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(authority_pubkey, true),
+            AccountMeta::new(vault_pubkey, false),
+            AccountMeta::new(withdrawal_pubkey, false),
+            AccountMeta::new(recipient_pubkey, false),
+            AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new_readonly(spl_token::id(), false),
+            AccountMeta::new_readonly(program_data_pubkey, false),
+        ],
+        data,
+    };
+
+    return JsValue::from_serde(&ix).handle_error();
+}
+
 #[wasm_bindgen(js_name = "withdrawalEver")]
 pub fn withdrawal_ever_ix(
     to_pubkey: String,
@@ -282,8 +368,8 @@ pub fn withdrawal_ever_ix(
     let ix = Instruction {
         program_id: id(),
         accounts: vec![
-            AccountMeta::new(mint_pubkey, false),
             AccountMeta::new(withdrawal_pubkey, false),
+            AccountMeta::new(mint_pubkey, false),
             AccountMeta::new(recipient_pubkey, false),
             AccountMeta::new(settings_pubkey, false),
             AccountMeta::new_readonly(spl_token::id(), false),
@@ -319,8 +405,8 @@ pub fn withdrawal_sol_ix(
     let ix = Instruction {
         program_id: id(),
         accounts: vec![
-            AccountMeta::new(vault_pubkey, false),
             AccountMeta::new(withdrawal_pubkey, false),
+            AccountMeta::new(vault_pubkey, false),
             AccountMeta::new(recipient_pubkey, false),
             AccountMeta::new(settings_pubkey, false),
             AccountMeta::new_readonly(spl_token::id(), false),
@@ -576,33 +662,28 @@ pub fn vote_for_withdraw_request_ix(
     return JsValue::from_serde(&ix).handle_error();
 }
 
-#[wasm_bindgen(js_name = "changeSettings")]
-pub fn change_settings_ix(
+#[wasm_bindgen(js_name = "changeGuardian")]
+pub fn change_guardian_ix(
     authority_pubkey: String,
     name: String,
-    emergency: bool,
-    deposit_limit: u64,
-    withdrawal_limit: u64,
-    withdrawal_daily_limit: u64,
+    new_guardian: String,
 ) -> Result<JsValue, JsValue> {
     let settings_pubkey = get_settings_address(&name);
+    let program_data_pubkey = get_programdata_address();
 
     let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
+    let new_guardian = Pubkey::from_str(new_guardian.as_str()).handle_error()?;
 
-    let data = TokenProxyInstruction::ChangeSettings {
-        emergency,
-        deposit_limit,
-        withdrawal_limit,
-        withdrawal_daily_limit,
-    }
-    .try_to_vec()
-    .expect("pack");
+    let data = TokenProxyInstruction::ChangeGuardian { new_guardian }
+        .try_to_vec()
+        .expect("pack");
 
     let ix = Instruction {
         program_id: id(),
         accounts: vec![
             AccountMeta::new(authority_pubkey, true),
             AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new_readonly(program_data_pubkey, false),
         ],
         data,
     };
@@ -610,21 +691,24 @@ pub fn change_settings_ix(
     return JsValue::from_serde(&ix).handle_error();
 }
 
-#[wasm_bindgen(js_name = "changeAdmin")]
-pub fn change_admin_ix(
+#[wasm_bindgen(js_name = "changeWithdrawalManager")]
+pub fn change_withdrawal_manager_ix(
     authority_pubkey: String,
     name: String,
-    new_admin: String,
+    new_withdrawal_manager: String,
 ) -> Result<JsValue, JsValue> {
     let settings_pubkey = get_settings_address(&name);
     let program_data_pubkey = get_programdata_address();
 
-    let new_admin = Pubkey::from_str(new_admin.as_str()).handle_error()?;
     let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
+    let new_withdrawal_manager =
+        Pubkey::from_str(new_withdrawal_manager.as_str()).handle_error()?;
 
-    let data = TokenProxyInstruction::ChangeAdmin { new_admin }
-        .try_to_vec()
-        .expect("pack");
+    let data = TokenProxyInstruction::ChangeWithdrawalManager {
+        new_withdrawal_manager,
+    }
+    .try_to_vec()
+    .expect("pack");
 
     let ix = Instruction {
         program_id: id(),
@@ -664,6 +748,139 @@ pub fn change_bounty_ix(
     return JsValue::from_serde(&ix).handle_error();
 }
 
+#[wasm_bindgen(js_name = "changeDepositLimit")]
+pub fn change_deposit_limit_ix(
+    authority_pubkey: String,
+    name: String,
+    new_deposit_limit: u64,
+) -> Result<JsValue, JsValue> {
+    let settings_pubkey = get_settings_address(&name);
+    let program_data_pubkey = get_programdata_address();
+
+    let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
+
+    let data = TokenProxyInstruction::ChangeDepositLimit { new_deposit_limit }
+        .try_to_vec()
+        .expect("pack");
+
+    let ix = Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(authority_pubkey, true),
+            AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new_readonly(program_data_pubkey, false),
+        ],
+        data,
+    };
+
+    return JsValue::from_serde(&ix).handle_error();
+}
+
+#[wasm_bindgen(js_name = "changeWithdrawalLimits")]
+pub fn change_withdrawal_limits_ix(
+    authority_pubkey: String,
+    name: String,
+    new_withdrawal_limit: Option<u64>,
+    new_withdrawal_daily_limit: Option<u64>,
+) -> Result<JsValue, JsValue> {
+    let settings_pubkey = get_settings_address(&name);
+    let program_data_pubkey = get_programdata_address();
+
+    let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
+
+    let data = TokenProxyInstruction::ChangeWithdrawalLimits {
+        new_withdrawal_limit,
+        new_withdrawal_daily_limit,
+    }
+    .try_to_vec()
+    .expect("pack");
+
+    let ix = Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(authority_pubkey, true),
+            AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new_readonly(program_data_pubkey, false),
+        ],
+        data,
+    };
+
+    return JsValue::from_serde(&ix).handle_error();
+}
+
+#[wasm_bindgen(js_name = "enableEmergency")]
+pub fn enable_emergency_ix(authority_pubkey: String, name: String) -> Result<JsValue, JsValue> {
+    let settings_pubkey = get_settings_address(&name);
+
+    let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
+
+    let data = TokenProxyInstruction::EnableEmergencyMode
+        .try_to_vec()
+        .expect("pack");
+
+    let ix = Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(authority_pubkey, true),
+            AccountMeta::new(settings_pubkey, false),
+        ],
+        data,
+    };
+
+    return JsValue::from_serde(&ix).handle_error();
+}
+
+#[wasm_bindgen(js_name = "enableEmergencyByOwner")]
+pub fn enable_emergency_by_owner_ix(
+    authority_pubkey: String,
+    name: String,
+) -> Result<JsValue, JsValue> {
+    let settings_pubkey = get_settings_address(&name);
+    let program_data_pubkey = get_programdata_address();
+
+    let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
+
+    let data = TokenProxyInstruction::EnableEmergencyMode
+        .try_to_vec()
+        .expect("pack");
+
+    let ix = Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(authority_pubkey, true),
+            AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new_readonly(program_data_pubkey, false),
+        ],
+        data,
+    };
+
+    return JsValue::from_serde(&ix).handle_error();
+}
+
+#[wasm_bindgen(js_name = "disableEmergency")]
+pub fn disable_emergency_ix(authority_pubkey: String, name: String) -> Result<JsValue, JsValue> {
+    let settings_pubkey = get_settings_address(&name);
+    let program_data_pubkey = get_programdata_address();
+
+    let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
+
+    let data = TokenProxyInstruction::DisableEmergencyMode
+        .try_to_vec()
+        .expect("pack");
+
+    let ix = Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(authority_pubkey, true),
+            AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new_readonly(program_data_pubkey, false),
+        ],
+        data,
+    };
+
+    return JsValue::from_serde(&ix).handle_error();
+}
+
 #[wasm_bindgen(js_name = "unpackSettings")]
 pub fn unpack_settings(data: Vec<u8>) -> Result<JsValue, JsValue> {
     let settings = Settings::unpack(&data).handle_error()?;
@@ -675,7 +892,8 @@ pub fn unpack_settings(data: Vec<u8>) -> Result<JsValue, JsValue> {
         ever_decimals: settings.ever_decimals,
         solana_decimals: settings.solana_decimals,
         kind: settings.kind,
-        admin: settings.admin,
+        guardian: settings.guardian,
+        withdrawal_manager: settings.withdrawal_manager,
         emergency: settings.emergency,
         deposit_limit: settings.deposit_limit,
         withdrawal_limit: settings.withdrawal_limit,
@@ -730,7 +948,8 @@ pub struct WasmSettings {
     pub ever_decimals: u8,
     pub solana_decimals: u8,
     pub kind: TokenKind,
-    pub admin: Pubkey,
+    pub guardian: Pubkey,
+    pub withdrawal_manager: Pubkey,
     pub emergency: bool,
     pub deposit_limit: u64,
     pub withdrawal_limit: u64,

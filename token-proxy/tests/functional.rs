@@ -57,7 +57,9 @@ async fn test_init_mint() {
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
     let withdrawal_daily_limit = 1000;
-    let admin = Pubkey::new_unique();
+    let guardian = Pubkey::new_unique();
+    let withdrawal_manager = Pubkey::new_unique();
+
     let mut transaction = Transaction::new_with_payer(
         &[initialize_mint_ix(
             &funder.pubkey(),
@@ -68,7 +70,8 @@ async fn test_init_mint() {
             deposit_limit,
             withdrawal_limit,
             withdrawal_daily_limit,
-            admin,
+            guardian,
+            withdrawal_manager,
         )],
         Some(&funder.pubkey()),
     );
@@ -113,7 +116,8 @@ async fn test_init_mint() {
     assert_eq!(settings_data.kind, TokenKind::Ever { mint: mint_address });
     assert_eq!(settings_data.deposit_limit, deposit_limit);
     assert_eq!(settings_data.withdrawal_limit, withdrawal_limit);
-    assert_eq!(settings_data.admin, admin);
+    assert_eq!(settings_data.guardian, guardian);
+    assert_eq!(settings_data.withdrawal_manager, withdrawal_manager);
     assert_eq!(settings_data.ever_decimals, ever_decimals);
     assert_eq!(settings_data.solana_decimals, solana_decimals);
 }
@@ -161,7 +165,9 @@ async fn test_init_vault() {
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
     let withdrawal_daily_limit = 1000;
-    let admin = Pubkey::new_unique();
+    let guardian = Pubkey::new_unique();
+    let withdrawal_manager = Pubkey::new_unique();
+
     let mint_account_data = spl_token::state::Mint {
         is_initialized: true,
         mint_authority: program_option::COption::Some(mint.pubkey()),
@@ -195,7 +201,8 @@ async fn test_init_vault() {
             deposit_limit,
             withdrawal_limit,
             withdrawal_daily_limit,
-            admin,
+            guardian,
+            withdrawal_manager,
         )],
         Some(&funder.pubkey()),
     );
@@ -243,7 +250,8 @@ async fn test_init_vault() {
     );
     assert_eq!(settings_data.deposit_limit, deposit_limit);
     assert_eq!(settings_data.withdrawal_limit, withdrawal_limit);
-    assert_eq!(settings_data.admin, admin);
+    assert_eq!(settings_data.guardian, guardian);
+    assert_eq!(settings_data.withdrawal_manager, withdrawal_manager);
 }
 
 #[tokio::test]
@@ -263,7 +271,8 @@ async fn test_deposit_ever() {
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
     let withdrawal_daily_limit = 1000;
-    let admin = Pubkey::new_unique();
+    let guardian = Pubkey::new_unique();
+    let withdrawal_manager = Pubkey::new_unique();
 
     let mint_address = get_mint_address(&name);
 
@@ -340,9 +349,10 @@ async fn test_deposit_ever() {
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
-        admin,
         solana_decimals,
         ever_decimals,
+        guardian,
+        withdrawal_manager,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -437,7 +447,8 @@ async fn test_deposit_sol() {
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
     let withdrawal_daily_limit = 1000;
-    let admin = Pubkey::new_unique();
+    let guardian = Pubkey::new_unique();
+    let withdrawal_manager = Pubkey::new_unique();
 
     let mint_account_data = spl_token::state::Mint {
         is_initialized: true,
@@ -541,9 +552,10 @@ async fn test_deposit_sol() {
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
-        admin,
         solana_decimals,
         ever_decimals,
+        guardian,
+        withdrawal_manager,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -625,10 +637,10 @@ async fn test_withdrawal_request() {
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
     let withdrawal_daily_limit = 1000;
-    let admin = Pubkey::new_unique();
-
     let solana_decimals = 9;
     let ever_decimals = 9;
+    let guardian = Pubkey::new_unique();
+    let withdrawal_manager = Pubkey::new_unique();
 
     let mint_address = get_mint_address(&name);
 
@@ -646,9 +658,10 @@ async fn test_withdrawal_request() {
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
-        admin,
         solana_decimals,
         ever_decimals,
+        guardian,
+        withdrawal_manager,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -841,10 +854,10 @@ async fn test_vote_for_withdrawal_request() {
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
     let withdrawal_daily_limit = 1000;
-    let admin = Pubkey::new_unique();
-
     let ever_decimals = 9;
     let solana_decimals = 9;
+    let guardian = Pubkey::new_unique();
+    let withdrawal_manager = Pubkey::new_unique();
 
     let mint_address = get_mint_address(&name);
 
@@ -864,7 +877,8 @@ async fn test_vote_for_withdrawal_request() {
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
-        admin,
+        guardian,
+        withdrawal_manager,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -1037,7 +1051,8 @@ async fn test_withdrawal_ever() {
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
     let withdrawal_daily_limit = 1000;
-    let admin = Pubkey::new_unique();
+    let guardian = Pubkey::new_unique();
+    let withdrawal_manager = Pubkey::new_unique();
 
     let mint_address = get_mint_address(&name);
 
@@ -1075,9 +1090,10 @@ async fn test_withdrawal_ever() {
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
-        admin,
         solana_decimals,
         ever_decimals,
+        guardian,
+        withdrawal_manager,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -1234,7 +1250,8 @@ async fn test_withdrawal_ever_2() {
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
     let withdrawal_daily_limit = 1000;
-    let admin = Pubkey::new_unique();
+    let guardian = Pubkey::new_unique();
+    let withdrawal_manager = Pubkey::new_unique();
 
     let mint_address = get_mint_address(&name);
 
@@ -1272,9 +1289,10 @@ async fn test_withdrawal_ever_2() {
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
-        admin,
         solana_decimals,
         ever_decimals,
+        guardian,
+        withdrawal_manager,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -1419,7 +1437,8 @@ async fn test_withdrawal_sol() {
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
     let withdrawal_daily_limit = 1000;
-    let admin = Pubkey::new_unique();
+    let guardian = Pubkey::new_unique();
+    let withdrawal_manager = Pubkey::new_unique();
 
     let mint_account_data = spl_token::state::Mint {
         is_initialized: true,
@@ -1482,9 +1501,10 @@ async fn test_withdrawal_sol() {
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
-        admin,
         solana_decimals,
         ever_decimals,
+        guardian,
+        withdrawal_manager,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -1645,7 +1665,8 @@ async fn test_withdrawal_sol_2() {
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
     let withdrawal_daily_limit = 1000;
-    let admin = Pubkey::new_unique();
+    let guardian = Pubkey::new_unique();
+    let withdrawal_manager = Pubkey::new_unique();
 
     let mint_account_data = spl_token::state::Mint {
         is_initialized: true,
@@ -1708,9 +1729,10 @@ async fn test_withdrawal_sol_2() {
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
-        admin,
         solana_decimals,
         ever_decimals,
+        guardian,
+        withdrawal_manager,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -1852,7 +1874,8 @@ async fn test_withdrawal_different_decimals() {
     let deposit_limit = 100000000;
     let withdrawal_limit = 100000000;
     let withdrawal_daily_limit = 100000000;
-    let admin = Pubkey::new_unique();
+    let guardian = Pubkey::new_unique();
+    let withdrawal_manager = Pubkey::new_unique();
 
     let mint_address = get_mint_address(&name);
 
@@ -1890,9 +1913,10 @@ async fn test_withdrawal_different_decimals() {
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
-        admin,
         solana_decimals,
         ever_decimals,
+        guardian,
+        withdrawal_manager,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -2050,7 +2074,7 @@ async fn test_approve_withdrawal_ever() {
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
     let withdrawal_daily_limit = 1000;
-    let admin = Keypair::new();
+    let withdrawal_manager = Keypair::new();
 
     let mint_address = get_mint_address(&name);
 
@@ -2090,7 +2114,8 @@ async fn test_approve_withdrawal_ever() {
         withdrawal_daily_limit,
         solana_decimals,
         ever_decimals,
-        admin: admin.pubkey(),
+        guardian: Pubkey::new_unique(),
+        withdrawal_manager: withdrawal_manager.pubkey(),
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -2188,14 +2213,242 @@ async fn test_approve_withdrawal_ever() {
 
     let mut transaction = Transaction::new_with_payer(
         &[approve_withdrawal_ever_ix(
-            &admin.pubkey(),
+            &withdrawal_manager.pubkey(),
             &recipient_address,
             &withdrawal_address,
             &name,
         )],
         Some(&funder.pubkey()),
     );
-    transaction.sign(&[&funder, &admin], recent_blockhash);
+    transaction.sign(&[&funder, &withdrawal_manager], recent_blockhash);
+
+    banks_client
+        .process_transaction(transaction)
+        .await
+        .expect("process_transaction");
+
+    let withdrawal_info = banks_client
+        .get_account(withdrawal_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let withdrawal_data =
+        WithdrawalToken::unpack(withdrawal_info.data()).expect("withdrawal unpack");
+    assert_eq!(
+        withdrawal_data.meta.data.status,
+        WithdrawalTokenStatus::Processed
+    );
+
+    let mint_info = banks_client
+        .get_account(mint_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let mint_data = spl_token::state::Mint::unpack(mint_info.data()).expect("mint unpack");
+    assert_eq!(mint_data.supply, amount as u64);
+
+    let recipient_info = banks_client
+        .get_account(recipient_associated_token_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let recipient_data =
+        spl_token::state::Account::unpack(recipient_info.data()).expect("token unpack");
+    assert_eq!(recipient_data.amount, amount as u64);
+}
+
+#[tokio::test]
+async fn test_approve_withdrawal_ever_by_owner() {
+    let mut program_test = ProgramTest::new(
+        "token_proxy",
+        token_proxy::id(),
+        processor!(Processor::process),
+    );
+
+    // Setup environment
+    let owner = Keypair::new();
+
+    let programdata_address =
+        Pubkey::find_program_address(&[token_proxy::id().as_ref()], &bpf_loader_upgradeable::id())
+            .0;
+
+    let programdata_data = UpgradeableLoaderState::ProgramData {
+        slot: 0,
+        upgrade_authority_address: Some(owner.pubkey()),
+    };
+
+    let programdata_data_serialized =
+        bincode::serialize::<UpgradeableLoaderState>(&programdata_data).unwrap();
+
+    program_test.add_account(
+        programdata_address,
+        Account {
+            lamports: Rent::default().minimum_balance(programdata_data_serialized.len()),
+            data: programdata_data_serialized,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Mint Account
+    let name = "WEVER".to_string();
+    let solana_decimals = 9;
+    let ever_decimals = 9;
+    let deposit_limit = 10000000;
+    let withdrawal_limit = 10000;
+    let withdrawal_daily_limit = 1000;
+    let guardian = Pubkey::new_unique();
+    let withdrawal_manager = Pubkey::new_unique();
+
+    let mint_address = get_mint_address(&name);
+
+    let mint_account_data = spl_token::state::Mint {
+        is_initialized: true,
+        mint_authority: program_option::COption::Some(mint_address),
+        decimals: solana_decimals,
+        ..Default::default()
+    };
+
+    let mut mint_packed = vec![0; spl_token::state::Mint::LEN];
+    spl_token::state::Mint::pack(mint_account_data, &mut mint_packed).unwrap();
+    program_test.add_account(
+        mint_address,
+        Account {
+            lamports: Rent::default().minimum_balance(spl_token::state::Mint::LEN),
+            data: mint_packed,
+            owner: spl_token::id(),
+            executable: false,
+            rent_epoch: 1,
+        },
+    );
+
+    // Add Settings Account
+    let settings_address = get_settings_address(&name);
+
+    let settings_account_data = Settings {
+        is_initialized: true,
+        account_kind: AccountKind::Settings,
+        name: name.clone(),
+        emergency: false,
+        kind: TokenKind::Ever { mint: mint_address },
+        withdrawal_daily_amount: 0,
+        withdrawal_ttl: 0,
+        deposit_limit,
+        withdrawal_limit,
+        withdrawal_daily_limit,
+        solana_decimals,
+        ever_decimals,
+        guardian,
+        withdrawal_manager,
+    };
+
+    let mut settings_packed = vec![0; Settings::LEN];
+    Settings::pack(settings_account_data, &mut settings_packed).unwrap();
+    program_test.add_account(
+        settings_address,
+        Account {
+            lamports: Rent::default().minimum_balance(Settings::LEN),
+            data: settings_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Recipient Token Account
+    let recipient_address = Pubkey::new_unique();
+    let recipient_associated_token_address =
+        spl_associated_token_account::get_associated_token_address(
+            &recipient_address,
+            &mint_address,
+        );
+
+    let recipient_account_data = spl_token::state::Account {
+        mint: mint_address,
+        owner: recipient_address,
+        state: AccountState::Initialized,
+        ..Default::default()
+    };
+
+    let mut recipient_packed = vec![0; spl_token::state::Account::LEN];
+    spl_token::state::Account::pack(recipient_account_data, &mut recipient_packed).unwrap();
+    program_test.add_account(
+        recipient_associated_token_address,
+        Account {
+            lamports: Rent::default().minimum_balance(spl_token::state::Account::LEN),
+            data: recipient_packed,
+            owner: spl_token::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Withdrawal Account
+    let author = Pubkey::new_unique();
+    let event_timestamp = 1650988297;
+    let event_transaction_lt = 1650988334;
+    let event_configuration = Pubkey::new_unique();
+    let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
+    let amount = 10;
+
+    let withdrawal_address = get_withdrawal_address(
+        &settings_address,
+        event_timestamp,
+        event_transaction_lt,
+        &event_configuration,
+        sender_address,
+        recipient_address,
+        amount,
+    );
+
+    let withdrawal_account_data = WithdrawalToken {
+        is_initialized: true,
+        account_kind: AccountKind::Proposal,
+        is_executed: true,
+        author,
+        round_number: 5,
+        event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
+        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::WaitingForApprove, 0),
+        required_votes: 0,
+        signers: vec![],
+        pda: PDA {
+            event_timestamp,
+            event_transaction_lt,
+            event_configuration,
+            settings: settings_address,
+        },
+    };
+
+    let mut withdrawal_packed = vec![0; WithdrawalToken::LEN];
+    WithdrawalToken::pack(withdrawal_account_data, &mut withdrawal_packed).unwrap();
+    program_test.add_account(
+        withdrawal_address,
+        Account {
+            lamports: Rent::default().minimum_balance(WithdrawalToken::LEN),
+            data: withdrawal_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Start Program Test
+    let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
+
+    let mut transaction = Transaction::new_with_payer(
+        &[approve_withdrawal_ever_by_owner_ix(
+            &owner.pubkey(),
+            &recipient_address,
+            &withdrawal_address,
+            &name,
+        )],
+        Some(&funder.pubkey()),
+    );
+    transaction.sign(&[&funder, &owner], recent_blockhash);
 
     banks_client
         .process_transaction(transaction)
@@ -2244,7 +2497,7 @@ async fn test_approve_withdrawal_sol() {
     );
 
     // Setup environment
-    let admin = Keypair::new();
+    let withdrawal_manager = Keypair::new();
     let mint = Pubkey::new_unique();
 
     let name = "USDT".to_string();
@@ -2254,6 +2507,7 @@ async fn test_approve_withdrawal_sol() {
     let withdrawal_limit = 10000;
     let withdrawal_daily_limit = 1000;
     let vault_address = get_vault_address(&name);
+    let guardian = Pubkey::new_unique();
 
     // Add Settings Account
     let settings_address = get_settings_address(&name);
@@ -2274,7 +2528,8 @@ async fn test_approve_withdrawal_sol() {
         withdrawal_daily_limit,
         solana_decimals,
         ever_decimals,
-        admin: admin.pubkey(),
+        guardian,
+        withdrawal_manager: withdrawal_manager.pubkey(),
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -2414,7 +2669,7 @@ async fn test_approve_withdrawal_sol() {
 
     let mut transaction = Transaction::new_with_payer(
         &[approve_withdrawal_sol_ix(
-            &admin.pubkey(),
+            &withdrawal_manager.pubkey(),
             &recipient_address,
             &mint,
             &withdrawal_address,
@@ -2422,7 +2677,7 @@ async fn test_approve_withdrawal_sol() {
         )],
         Some(&funder.pubkey()),
     );
-    transaction.sign(&[&funder, &admin], recent_blockhash);
+    transaction.sign(&[&funder, &withdrawal_manager], recent_blockhash);
 
     banks_client
         .process_transaction(transaction)
@@ -2470,7 +2725,7 @@ async fn test_approve_withdrawal_sol_2() {
     );
 
     // Setup environment
-    let admin = Keypair::new();
+    let withdrawal_manager = Keypair::new();
     let mint = Pubkey::new_unique();
 
     let name = "USDT".to_string();
@@ -2479,6 +2734,7 @@ async fn test_approve_withdrawal_sol_2() {
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
     let withdrawal_daily_limit = 1000;
+    let guardian = Pubkey::new_unique();
     let vault_address = get_vault_address(&name);
 
     // Add Settings Account
@@ -2500,7 +2756,8 @@ async fn test_approve_withdrawal_sol_2() {
         withdrawal_daily_limit,
         solana_decimals,
         ever_decimals,
-        admin: admin.pubkey(),
+        guardian,
+        withdrawal_manager: withdrawal_manager.pubkey(),
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -2640,7 +2897,7 @@ async fn test_approve_withdrawal_sol_2() {
 
     let mut transaction = Transaction::new_with_payer(
         &[approve_withdrawal_sol_ix(
-            &admin.pubkey(),
+            &withdrawal_manager.pubkey(),
             &recipient_address,
             &mint,
             &withdrawal_address,
@@ -2648,7 +2905,7 @@ async fn test_approve_withdrawal_sol_2() {
         )],
         Some(&funder.pubkey()),
     );
-    transaction.sign(&[&funder, &admin], recent_blockhash);
+    transaction.sign(&[&funder, &withdrawal_manager], recent_blockhash);
 
     banks_client
         .process_transaction(transaction)
@@ -2666,6 +2923,260 @@ async fn test_approve_withdrawal_sol_2() {
         withdrawal_data.meta.data.status,
         WithdrawalTokenStatus::Pending
     );
+}
+
+#[tokio::test]
+async fn test_approve_withdrawal_sol_by_owner() {
+    let mut program_test = ProgramTest::new(
+        "token_proxy",
+        token_proxy::id(),
+        processor!(Processor::process),
+    );
+
+    // Setup environment
+    let owner = Keypair::new();
+
+    let programdata_address =
+        Pubkey::find_program_address(&[token_proxy::id().as_ref()], &bpf_loader_upgradeable::id())
+            .0;
+
+    let programdata_data = UpgradeableLoaderState::ProgramData {
+        slot: 0,
+        upgrade_authority_address: Some(owner.pubkey()),
+    };
+
+    let programdata_data_serialized =
+        bincode::serialize::<UpgradeableLoaderState>(&programdata_data).unwrap();
+
+    program_test.add_account(
+        programdata_address,
+        Account {
+            lamports: Rent::default().minimum_balance(programdata_data_serialized.len()),
+            data: programdata_data_serialized,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    let mint = Pubkey::new_unique();
+
+    let name = "USDT".to_string();
+    let solana_decimals = 9;
+    let ever_decimals = 9;
+    let deposit_limit = 10000000;
+    let withdrawal_limit = 10000;
+    let withdrawal_daily_limit = 1000;
+    let guardian = Pubkey::new_unique();
+    let withdrawal_manager = Pubkey::new_unique();
+
+    let vault_address = get_vault_address(&name);
+
+    // Add Settings Account
+    let settings_address = get_settings_address(&name);
+
+    let settings_account_data = Settings {
+        is_initialized: true,
+        account_kind: AccountKind::Settings,
+        name: name.clone(),
+        emergency: false,
+        kind: TokenKind::Solana {
+            mint,
+            vault: vault_address,
+        },
+        withdrawal_daily_amount: 0,
+        withdrawal_ttl: 0,
+        deposit_limit,
+        withdrawal_limit,
+        withdrawal_daily_limit,
+        solana_decimals,
+        ever_decimals,
+        guardian,
+        withdrawal_manager,
+    };
+
+    let mut settings_packed = vec![0; Settings::LEN];
+    Settings::pack(settings_account_data, &mut settings_packed).unwrap();
+    program_test.add_account(
+        settings_address,
+        Account {
+            lamports: Rent::default().minimum_balance(Settings::LEN),
+            data: settings_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Mint Account
+    let mint_account_data = spl_token::state::Mint {
+        is_initialized: true,
+        mint_authority: program_option::COption::Some(mint),
+        decimals: solana_decimals,
+        ..Default::default()
+    };
+
+    let mut mint_packed = vec![0; spl_token::state::Mint::LEN];
+    spl_token::state::Mint::pack(mint_account_data, &mut mint_packed).unwrap();
+    program_test.add_account(
+        mint,
+        Account {
+            lamports: Rent::default().minimum_balance(spl_token::state::Mint::LEN),
+            data: mint_packed,
+            owner: spl_token::id(),
+            executable: false,
+            rent_epoch: 1,
+        },
+    );
+
+    // Add Vault Account
+    let vault_address = get_vault_address(&name);
+
+    let vault_account_data = spl_token::state::Account {
+        mint,
+        owner: vault_address,
+        amount: 100,
+        state: AccountState::Initialized,
+        ..Default::default()
+    };
+
+    let mut vault_packed = vec![0; spl_token::state::Account::LEN];
+    spl_token::state::Account::pack(vault_account_data, &mut vault_packed).unwrap();
+    program_test.add_account(
+        vault_address,
+        Account {
+            lamports: Rent::default().minimum_balance(spl_token::state::Account::LEN),
+            data: vault_packed,
+            owner: spl_token::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Recipient Token Account
+    let recipient_address = Pubkey::new_unique();
+    let recipient_associated_token_address =
+        spl_associated_token_account::get_associated_token_address(&recipient_address, &mint);
+
+    let recipient_account_data = spl_token::state::Account {
+        mint,
+        owner: recipient_address,
+        state: AccountState::Initialized,
+        ..Default::default()
+    };
+
+    let mut recipient_packed = vec![0; spl_token::state::Account::LEN];
+    spl_token::state::Account::pack(recipient_account_data, &mut recipient_packed).unwrap();
+    program_test.add_account(
+        recipient_associated_token_address,
+        Account {
+            lamports: Rent::default().minimum_balance(spl_token::state::Account::LEN),
+            data: recipient_packed,
+            owner: spl_token::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Withdrawal Account
+    let author = Pubkey::new_unique();
+    let event_timestamp = 1650988297;
+    let event_transaction_lt = 1650988334;
+    let event_configuration = Pubkey::new_unique();
+    let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
+    let amount = 10;
+
+    let withdrawal_address = get_withdrawal_address(
+        &settings_address,
+        event_timestamp,
+        event_transaction_lt,
+        &event_configuration,
+        sender_address,
+        recipient_address,
+        amount,
+    );
+
+    let withdrawal_account_data = WithdrawalToken {
+        is_initialized: true,
+        account_kind: AccountKind::Proposal,
+        is_executed: true,
+        author,
+        round_number: 5,
+        event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
+        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::WaitingForApprove, 0),
+        required_votes: 0,
+        signers: vec![],
+        pda: PDA {
+            event_timestamp,
+            event_transaction_lt,
+            event_configuration,
+            settings: settings_address,
+        },
+    };
+
+    let mut withdrawal_packed = vec![0; WithdrawalToken::LEN];
+    WithdrawalToken::pack(withdrawal_account_data, &mut withdrawal_packed).unwrap();
+    program_test.add_account(
+        withdrawal_address,
+        Account {
+            lamports: Rent::default().minimum_balance(WithdrawalToken::LEN),
+            data: withdrawal_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Start Program Test
+    let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
+
+    let mut transaction = Transaction::new_with_payer(
+        &[approve_withdrawal_sol_by_owner_ix(
+            &owner.pubkey(),
+            &recipient_address,
+            &mint,
+            &withdrawal_address,
+            &name,
+        )],
+        Some(&funder.pubkey()),
+    );
+    transaction.sign(&[&funder, &owner], recent_blockhash);
+
+    banks_client
+        .process_transaction(transaction)
+        .await
+        .expect("process_transaction");
+
+    let withdrawal_info = banks_client
+        .get_account(withdrawal_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let withdrawal_data = WithdrawalToken::unpack(withdrawal_info.data()).expect("settings unpack");
+    assert_eq!(
+        withdrawal_data.meta.data.status,
+        WithdrawalTokenStatus::Processed
+    );
+
+    let vault_info = banks_client
+        .get_account(vault_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let vault_data = spl_token::state::Account::unpack(vault_info.data()).expect("mint unpack");
+    assert_eq!(vault_data.amount, 100 - amount as u64);
+
+    let recipient_info = banks_client
+        .get_account(recipient_associated_token_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let recipient_data =
+        spl_token::state::Account::unpack(recipient_info.data()).expect("token unpack");
+    assert_eq!(recipient_data.amount, amount as u64);
 }
 
 #[tokio::test]
@@ -2687,7 +3198,8 @@ async fn test_cancel_withdrawal_sol() {
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
     let withdrawal_daily_limit = 1000;
-    let admin = Pubkey::new_unique();
+    let guardian = Pubkey::new_unique();
+    let withdrawal_manager = Pubkey::new_unique();
 
     let mint_account_data = spl_token::state::Mint {
         is_initialized: true,
@@ -2750,9 +3262,10 @@ async fn test_cancel_withdrawal_sol() {
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
-        admin,
         solana_decimals,
         ever_decimals,
+        guardian,
+        withdrawal_manager,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -2988,7 +3501,8 @@ async fn test_fill_withdrawal_sol() {
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
     let withdrawal_daily_limit = 1000;
-    let admin = Pubkey::new_unique();
+    let guardian = Pubkey::new_unique();
+    let withdrawal_manager = Pubkey::new_unique();
 
     let solana_decimals = 9;
     let ever_decimals = 9;
@@ -3010,9 +3524,10 @@ async fn test_fill_withdrawal_sol() {
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
-        admin,
         solana_decimals,
         ever_decimals,
+        guardian,
+        withdrawal_manager,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -3139,176 +3654,6 @@ async fn test_fill_withdrawal_sol() {
 }
 
 #[tokio::test]
-async fn test_transfer_from_vault() {
-    let mut program_test = ProgramTest::new(
-        "token_proxy",
-        token_proxy::id(),
-        processor!(Processor::process),
-    );
-
-    // Setup environment
-
-    // Add Mint Account
-    let mint = Keypair::new();
-
-    let name = "USDT".to_string();
-    let solana_decimals = 9;
-    let ever_decimals = 9;
-    let deposit_limit = 10000000;
-    let withdrawal_limit = 10000;
-    let withdrawal_daily_limit = 1000;
-    let admin = Keypair::new();
-
-    let mint_account_data = spl_token::state::Mint {
-        is_initialized: true,
-        mint_authority: program_option::COption::Some(mint.pubkey()),
-        decimals: solana_decimals,
-        ..Default::default()
-    };
-
-    let mut mint_packed = vec![0; spl_token::state::Mint::LEN];
-    spl_token::state::Mint::pack(mint_account_data, &mut mint_packed).unwrap();
-    program_test.add_account(
-        mint.pubkey(),
-        Account {
-            lamports: Rent::default().minimum_balance(spl_token::state::Mint::LEN),
-            data: mint_packed,
-            owner: spl_token::id(),
-            executable: false,
-            rent_epoch: 1,
-        },
-    );
-
-    // Add Vault Account
-    let vault_address = get_vault_address(&name);
-
-    let vault_account_data = spl_token::state::Account {
-        mint: mint.pubkey(),
-        owner: vault_address,
-        amount: 100,
-        state: AccountState::Initialized,
-        ..Default::default()
-    };
-
-    let mut vault_packed = vec![0; spl_token::state::Account::LEN];
-    spl_token::state::Account::pack(vault_account_data, &mut vault_packed).unwrap();
-    program_test.add_account(
-        vault_address,
-        Account {
-            lamports: Rent::default().minimum_balance(spl_token::state::Account::LEN),
-            data: vault_packed,
-            owner: spl_token::id(),
-            executable: false,
-            rent_epoch: 0,
-        },
-    );
-
-    // Add Settings Account
-    let settings_address = get_settings_address(&name);
-
-    let settings_account_data = Settings {
-        is_initialized: true,
-        account_kind: AccountKind::Settings,
-        name: name.clone(),
-        emergency: false,
-        kind: TokenKind::Solana {
-            mint: mint.pubkey(),
-            vault: vault_address,
-        },
-        withdrawal_daily_amount: 0,
-        withdrawal_ttl: 0,
-        deposit_limit,
-        withdrawal_limit,
-        withdrawal_daily_limit,
-        solana_decimals,
-        ever_decimals,
-        admin: admin.pubkey(),
-    };
-
-    let mut settings_packed = vec![0; Settings::LEN];
-    Settings::pack(settings_account_data, &mut settings_packed).unwrap();
-    program_test.add_account(
-        settings_address,
-        Account {
-            lamports: Rent::default().minimum_balance(Settings::LEN),
-            data: settings_packed,
-            owner: token_proxy::id(),
-            executable: false,
-            rent_epoch: 0,
-        },
-    );
-
-    // Add Recipient Token Account
-    let recipient_address = Pubkey::new_unique();
-    let recipient_associated_token_address =
-        spl_associated_token_account::get_associated_token_address(
-            &recipient_address,
-            &mint.pubkey(),
-        );
-
-    let recipient_account_data = spl_token::state::Account {
-        mint: mint.pubkey(),
-        owner: recipient_address,
-        state: AccountState::Initialized,
-        ..Default::default()
-    };
-
-    let mut recipient_packed = vec![0; spl_token::state::Account::LEN];
-    spl_token::state::Account::pack(recipient_account_data, &mut recipient_packed).unwrap();
-    program_test.add_account(
-        recipient_associated_token_address,
-        Account {
-            lamports: Rent::default().minimum_balance(spl_token::state::Account::LEN),
-            data: recipient_packed,
-            owner: spl_token::id(),
-            executable: false,
-            rent_epoch: 0,
-        },
-    );
-
-    // Start Program Test
-    let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
-
-    let amount = 10;
-
-    let mut transaction = Transaction::new_with_payer(
-        &[transfer_from_vault_ix(
-            &admin.pubkey(),
-            &mint.pubkey(),
-            &recipient_address,
-            name,
-            amount,
-        )],
-        Some(&funder.pubkey()),
-    );
-    transaction.sign(&[&funder, &admin], recent_blockhash);
-
-    banks_client
-        .process_transaction(transaction)
-        .await
-        .expect("process_transaction");
-
-    let vault_info = banks_client
-        .get_account(vault_address)
-        .await
-        .expect("get_account")
-        .expect("account");
-
-    let vault_data = spl_token::state::Account::unpack(vault_info.data()).expect("mint unpack");
-    assert_eq!(vault_data.amount, 100 - amount);
-
-    let recipient_info = banks_client
-        .get_account(recipient_associated_token_address)
-        .await
-        .expect("get_account")
-        .expect("account");
-
-    let recipient_data =
-        spl_token::state::Account::unpack(recipient_info.data()).expect("token unpack");
-    assert_eq!(recipient_data.amount, amount);
-}
-
-#[tokio::test]
 async fn test_change_bounty_for_withdrawal_sol() {
     let mut program_test = ProgramTest::new(
         "token_proxy",
@@ -3403,7 +3748,7 @@ async fn test_change_bounty_for_withdrawal_sol() {
 }
 
 #[tokio::test]
-async fn test_change_settings() {
+async fn test_change_guardian() {
     let mut program_test = ProgramTest::new(
         "token_proxy",
         token_proxy::id(),
@@ -3411,131 +3756,16 @@ async fn test_change_settings() {
     );
 
     // Setup environment
+    let owner = Keypair::new();
 
-    // Add Mint Account
-    let name = "WEVER".to_string();
-    let solana_decimals = 9;
-    let ever_decimals = 9;
-    let deposit_limit = 10000000;
-    let withdrawal_limit = 10000;
-    let withdrawal_daily_limit = 1000;
-    let admin = Keypair::new();
-
-    let mint_address = get_mint_address(&name);
-
-    let mint_account_data = spl_token::state::Mint {
-        is_initialized: true,
-        mint_authority: program_option::COption::Some(mint_address),
-        decimals: solana_decimals,
-        ..Default::default()
-    };
-
-    let mut mint_packed = vec![0; spl_token::state::Mint::LEN];
-    spl_token::state::Mint::pack(mint_account_data, &mut mint_packed).unwrap();
-    program_test.add_account(
-        mint_address,
-        Account {
-            lamports: Rent::default().minimum_balance(spl_token::state::Mint::LEN),
-            data: mint_packed,
-            owner: spl_token::id(),
-            executable: false,
-            rent_epoch: 1,
-        },
-    );
-
-    // Add Settings Account
-    let settings_address = get_settings_address(&name);
-
-    let settings_account_data = Settings {
-        is_initialized: true,
-        account_kind: AccountKind::Settings,
-        name: name.clone(),
-        emergency: false,
-        kind: TokenKind::Ever { mint: mint_address },
-        withdrawal_daily_amount: 0,
-        withdrawal_ttl: 0,
-        deposit_limit,
-        withdrawal_limit,
-        withdrawal_daily_limit,
-        solana_decimals,
-        ever_decimals,
-        admin: admin.pubkey(),
-    };
-
-    let mut settings_packed = vec![0; Settings::LEN];
-    Settings::pack(settings_account_data, &mut settings_packed).unwrap();
-    program_test.add_account(
-        settings_address,
-        Account {
-            lamports: Rent::default().minimum_balance(Settings::LEN),
-            data: settings_packed,
-            owner: token_proxy::id(),
-            executable: false,
-            rent_epoch: 0,
-        },
-    );
-
-    // Start Program Test
-    let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
-
-    let new_emergency = true;
-    let new_deposit_limit = 10000000;
-    let new_withdrawal_limit = 10000;
-    let new_withdrawal_daily_limit = 1000;
-
-    let mut transaction = Transaction::new_with_payer(
-        &[change_settings_ix(
-            &admin.pubkey(),
-            name,
-            new_emergency,
-            new_deposit_limit,
-            new_withdrawal_limit,
-            new_withdrawal_daily_limit,
-        )],
-        Some(&funder.pubkey()),
-    );
-    transaction.sign(&[&funder, &admin], recent_blockhash);
-
-    banks_client
-        .process_transaction(transaction)
-        .await
-        .expect("process_transaction");
-
-    let settings_info = banks_client
-        .get_account(settings_address)
-        .await
-        .expect("get_account")
-        .expect("account");
-
-    let settings_data = Settings::unpack(settings_info.data()).expect("settings unpack");
-
-    assert_eq!(settings_data.emergency, new_emergency);
-    assert_eq!(settings_data.deposit_limit, new_deposit_limit);
-    assert_eq!(settings_data.withdrawal_limit, new_withdrawal_limit);
-    assert_eq!(
-        settings_data.withdrawal_daily_limit,
-        new_withdrawal_daily_limit
-    );
-}
-
-#[tokio::test]
-async fn test_change_admin() {
-    let mut program_test = ProgramTest::new(
-        "token_proxy",
-        token_proxy::id(),
-        processor!(Processor::process),
-    );
-
-    // Setup environment
-    let authority = Keypair::new();
-
+    // Add Program Data Account
     let programdata_address =
         Pubkey::find_program_address(&[token_proxy::id().as_ref()], &bpf_loader_upgradeable::id())
             .0;
 
     let programdata_data = UpgradeableLoaderState::ProgramData {
         slot: 0,
-        upgrade_authority_address: Some(authority.pubkey()),
+        upgrade_authority_address: Some(owner.pubkey()),
     };
 
     let programdata_data_serialized =
@@ -3552,38 +3782,17 @@ async fn test_change_admin() {
         },
     );
 
-    // Add Mint Account
+    // Add Settings Account
     let name = "WEVER".to_string();
     let solana_decimals = 9;
     let ever_decimals = 9;
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
     let withdrawal_daily_limit = 1000;
-    let admin = Keypair::new();
+    let guardian = Pubkey::new_unique();
+    let withdrawal_manager = Pubkey::new_unique();
 
     let mint_address = get_mint_address(&name);
-
-    let mint_account_data = spl_token::state::Mint {
-        is_initialized: true,
-        mint_authority: program_option::COption::Some(mint_address),
-        decimals: solana_decimals,
-        ..Default::default()
-    };
-
-    let mut mint_packed = vec![0; spl_token::state::Mint::LEN];
-    spl_token::state::Mint::pack(mint_account_data, &mut mint_packed).unwrap();
-    program_test.add_account(
-        mint_address,
-        Account {
-            lamports: Rent::default().minimum_balance(spl_token::state::Mint::LEN),
-            data: mint_packed,
-            owner: spl_token::id(),
-            executable: false,
-            rent_epoch: 1,
-        },
-    );
-
-    // Add Settings Account
     let settings_address = get_settings_address(&name);
 
     let settings_account_data = Settings {
@@ -3594,12 +3803,13 @@ async fn test_change_admin() {
         kind: TokenKind::Ever { mint: mint_address },
         withdrawal_daily_amount: 0,
         withdrawal_ttl: 0,
+        ever_decimals,
         solana_decimals,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
-        admin: admin.pubkey(),
-        ever_decimals,
+        guardian,
+        withdrawal_manager,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -3618,13 +3828,13 @@ async fn test_change_admin() {
     // Start Program Test
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
-    let new_admin = Pubkey::new_unique();
+    let new_guardian = Pubkey::new_unique();
 
     let mut transaction = Transaction::new_with_payer(
-        &[change_admin_ix(&authority.pubkey(), &name, new_admin)],
+        &[change_guardian_ix(&owner.pubkey(), &name, new_guardian)],
         Some(&funder.pubkey()),
     );
-    transaction.sign(&[&funder, &authority], recent_blockhash);
+    transaction.sign(&[&funder, &owner], recent_blockhash);
 
     banks_client
         .process_transaction(transaction)
@@ -3640,5 +3850,625 @@ async fn test_change_admin() {
 
     let settings_data = Settings::unpack(settings_info.data()).expect("settings unpack");
 
-    assert_eq!(settings_data.admin, new_admin);
+    assert_eq!(settings_data.guardian, new_guardian);
+}
+
+#[tokio::test]
+async fn test_change_withdrawal_manager() {
+    let mut program_test = ProgramTest::new(
+        "token_proxy",
+        token_proxy::id(),
+        processor!(Processor::process),
+    );
+
+    // Setup environment
+    let owner = Keypair::new();
+
+    // Add Program Data Account
+    let programdata_address =
+        Pubkey::find_program_address(&[token_proxy::id().as_ref()], &bpf_loader_upgradeable::id())
+            .0;
+
+    let programdata_data = UpgradeableLoaderState::ProgramData {
+        slot: 0,
+        upgrade_authority_address: Some(owner.pubkey()),
+    };
+
+    let programdata_data_serialized =
+        bincode::serialize::<UpgradeableLoaderState>(&programdata_data).unwrap();
+
+    program_test.add_account(
+        programdata_address,
+        Account {
+            lamports: Rent::default().minimum_balance(programdata_data_serialized.len()),
+            data: programdata_data_serialized,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Settings Account
+    let name = "WEVER".to_string();
+    let solana_decimals = 9;
+    let ever_decimals = 9;
+    let deposit_limit = 10000000;
+    let withdrawal_limit = 10000;
+    let withdrawal_daily_limit = 1000;
+    let guardian = Pubkey::new_unique();
+    let withdrawal_manager = Pubkey::new_unique();
+
+    let mint_address = get_mint_address(&name);
+
+    let settings_address = get_settings_address(&name);
+
+    let settings_account_data = Settings {
+        is_initialized: true,
+        account_kind: AccountKind::Settings,
+        name: name.clone(),
+        emergency: false,
+        kind: TokenKind::Ever { mint: mint_address },
+        withdrawal_daily_amount: 0,
+        withdrawal_ttl: 0,
+        ever_decimals,
+        solana_decimals,
+        deposit_limit,
+        withdrawal_limit,
+        withdrawal_daily_limit,
+        guardian,
+        withdrawal_manager,
+    };
+
+    let mut settings_packed = vec![0; Settings::LEN];
+    Settings::pack(settings_account_data, &mut settings_packed).unwrap();
+    program_test.add_account(
+        settings_address,
+        Account {
+            lamports: Rent::default().minimum_balance(Settings::LEN),
+            data: settings_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Start Program Test
+    let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
+
+    let new_withdrawal_manager = Pubkey::new_unique();
+
+    let mut transaction = Transaction::new_with_payer(
+        &[change_withdrawal_manager_ix(
+            &owner.pubkey(),
+            &name,
+            new_withdrawal_manager,
+        )],
+        Some(&funder.pubkey()),
+    );
+    transaction.sign(&[&funder, &owner], recent_blockhash);
+
+    banks_client
+        .process_transaction(transaction)
+        .await
+        .expect("process_transaction");
+
+    let settings_address = get_settings_address(&name);
+    let settings_info = banks_client
+        .get_account(settings_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let settings_data = Settings::unpack(settings_info.data()).expect("settings unpack");
+
+    assert_eq!(settings_data.withdrawal_manager, new_withdrawal_manager);
+}
+
+#[tokio::test]
+async fn test_change_deposit_limit() {
+    let mut program_test = ProgramTest::new(
+        "token_proxy",
+        token_proxy::id(),
+        processor!(Processor::process),
+    );
+
+    // Setup environment
+    let owner = Keypair::new();
+
+    // Add Program Data Account
+    let programdata_address =
+        Pubkey::find_program_address(&[token_proxy::id().as_ref()], &bpf_loader_upgradeable::id())
+            .0;
+
+    let programdata_data = UpgradeableLoaderState::ProgramData {
+        slot: 0,
+        upgrade_authority_address: Some(owner.pubkey()),
+    };
+
+    let programdata_data_serialized =
+        bincode::serialize::<UpgradeableLoaderState>(&programdata_data).unwrap();
+
+    program_test.add_account(
+        programdata_address,
+        Account {
+            lamports: Rent::default().minimum_balance(programdata_data_serialized.len()),
+            data: programdata_data_serialized,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Settings Account
+    let name = "WEVER".to_string();
+    let solana_decimals = 9;
+    let ever_decimals = 9;
+    let deposit_limit = 10000000;
+    let withdrawal_limit = 10000;
+    let withdrawal_daily_limit = 1000;
+    let guardian = Pubkey::new_unique();
+    let withdrawal_manager = Pubkey::new_unique();
+
+    let mint_address = get_mint_address(&name);
+    let settings_address = get_settings_address(&name);
+
+    let settings_account_data = Settings {
+        is_initialized: true,
+        account_kind: AccountKind::Settings,
+        name: name.clone(),
+        emergency: false,
+        kind: TokenKind::Ever { mint: mint_address },
+        withdrawal_daily_amount: 0,
+        withdrawal_ttl: 0,
+        deposit_limit,
+        withdrawal_limit,
+        withdrawal_daily_limit,
+        solana_decimals,
+        ever_decimals,
+        guardian,
+        withdrawal_manager,
+    };
+
+    let mut settings_packed = vec![0; Settings::LEN];
+    Settings::pack(settings_account_data, &mut settings_packed).unwrap();
+    program_test.add_account(
+        settings_address,
+        Account {
+            lamports: Rent::default().minimum_balance(Settings::LEN),
+            data: settings_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Start Program Test
+    let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
+
+    let new_deposit_limit = 10000000;
+
+    let mut transaction = Transaction::new_with_payer(
+        &[change_deposit_limit_ix(
+            &owner.pubkey(),
+            name,
+            new_deposit_limit,
+        )],
+        Some(&funder.pubkey()),
+    );
+    transaction.sign(&[&funder, &owner], recent_blockhash);
+
+    banks_client
+        .process_transaction(transaction)
+        .await
+        .expect("process_transaction");
+
+    let settings_info = banks_client
+        .get_account(settings_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let settings_data = Settings::unpack(settings_info.data()).expect("settings unpack");
+
+    assert_eq!(settings_data.deposit_limit, new_deposit_limit);
+}
+
+#[tokio::test]
+async fn test_change_withdrawal_limits() {
+    let mut program_test = ProgramTest::new(
+        "token_proxy",
+        token_proxy::id(),
+        processor!(Processor::process),
+    );
+
+    // Setup environment
+    let owner = Keypair::new();
+
+    // Add Program Data Account
+    let programdata_address =
+        Pubkey::find_program_address(&[token_proxy::id().as_ref()], &bpf_loader_upgradeable::id())
+            .0;
+
+    let programdata_data = UpgradeableLoaderState::ProgramData {
+        slot: 0,
+        upgrade_authority_address: Some(owner.pubkey()),
+    };
+
+    let programdata_data_serialized =
+        bincode::serialize::<UpgradeableLoaderState>(&programdata_data).unwrap();
+
+    program_test.add_account(
+        programdata_address,
+        Account {
+            lamports: Rent::default().minimum_balance(programdata_data_serialized.len()),
+            data: programdata_data_serialized,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Settings Account
+    let name = "WEVER".to_string();
+    let solana_decimals = 9;
+    let ever_decimals = 9;
+    let deposit_limit = 10000000;
+    let withdrawal_limit = 10000;
+    let withdrawal_daily_limit = 1000;
+    let guardian = Pubkey::new_unique();
+    let withdrawal_manager = Pubkey::new_unique();
+
+    let mint_address = get_mint_address(&name);
+    let settings_address = get_settings_address(&name);
+
+    let settings_account_data = Settings {
+        is_initialized: true,
+        account_kind: AccountKind::Settings,
+        name: name.clone(),
+        emergency: false,
+        kind: TokenKind::Ever { mint: mint_address },
+        withdrawal_daily_amount: 0,
+        withdrawal_ttl: 0,
+        deposit_limit,
+        withdrawal_limit,
+        withdrawal_daily_limit,
+        solana_decimals,
+        ever_decimals,
+        guardian,
+        withdrawal_manager,
+    };
+
+    let mut settings_packed = vec![0; Settings::LEN];
+    Settings::pack(settings_account_data, &mut settings_packed).unwrap();
+    program_test.add_account(
+        settings_address,
+        Account {
+            lamports: Rent::default().minimum_balance(Settings::LEN),
+            data: settings_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Start Program Test
+    let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
+
+    let new_withdrawal_limit = 10000000;
+    let new_withdrawal_daily_limit = 12345;
+
+    let mut transaction = Transaction::new_with_payer(
+        &[change_withdrawal_limits_ix(
+            &owner.pubkey(),
+            name,
+            Some(new_withdrawal_limit),
+            Some(new_withdrawal_daily_limit),
+        )],
+        Some(&funder.pubkey()),
+    );
+    transaction.sign(&[&funder, &owner], recent_blockhash);
+
+    banks_client
+        .process_transaction(transaction)
+        .await
+        .expect("process_transaction");
+
+    let settings_info = banks_client
+        .get_account(settings_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let settings_data = Settings::unpack(settings_info.data()).expect("settings unpack");
+
+    assert_eq!(settings_data.withdrawal_limit, new_withdrawal_limit);
+    assert_eq!(
+        settings_data.withdrawal_daily_limit,
+        new_withdrawal_daily_limit
+    );
+}
+
+#[tokio::test]
+async fn test_enable_emergency() {
+    let mut program_test = ProgramTest::new(
+        "token_proxy",
+        token_proxy::id(),
+        processor!(Processor::process),
+    );
+
+    // Setup environment
+
+    let guardian = Keypair::new();
+
+    // Add Settings Account
+    let name = "WEVER".to_string();
+    let solana_decimals = 9;
+    let ever_decimals = 9;
+    let deposit_limit = 10000000;
+    let withdrawal_limit = 10000;
+    let withdrawal_daily_limit = 1000;
+    let withdrawal_manager = Pubkey::new_unique();
+
+    let mint_address = get_mint_address(&name);
+    let settings_address = get_settings_address(&name);
+
+    let settings_account_data = Settings {
+        is_initialized: true,
+        account_kind: AccountKind::Settings,
+        name: name.clone(),
+        emergency: false,
+        kind: TokenKind::Ever { mint: mint_address },
+        withdrawal_daily_amount: 0,
+        withdrawal_ttl: 0,
+        deposit_limit,
+        withdrawal_limit,
+        withdrawal_daily_limit,
+        solana_decimals,
+        ever_decimals,
+        guardian: guardian.pubkey(),
+        withdrawal_manager,
+    };
+
+    let mut settings_packed = vec![0; Settings::LEN];
+    Settings::pack(settings_account_data, &mut settings_packed).unwrap();
+    program_test.add_account(
+        settings_address,
+        Account {
+            lamports: Rent::default().minimum_balance(Settings::LEN),
+            data: settings_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Start Program Test
+    let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
+
+    let mut transaction = Transaction::new_with_payer(
+        &[enable_emergency_ix(&guardian.pubkey(), name)],
+        Some(&funder.pubkey()),
+    );
+    transaction.sign(&[&funder, &guardian], recent_blockhash);
+
+    banks_client
+        .process_transaction(transaction)
+        .await
+        .expect("process_transaction");
+
+    let settings_info = banks_client
+        .get_account(settings_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let settings_data = Settings::unpack(settings_info.data()).expect("settings unpack");
+
+    assert_eq!(settings_data.emergency, true);
+}
+
+#[tokio::test]
+async fn test_enable_emergency_by_owner() {
+    let mut program_test = ProgramTest::new(
+        "token_proxy",
+        token_proxy::id(),
+        processor!(Processor::process),
+    );
+
+    // Setup environment
+    let owner = Keypair::new();
+
+    // Add Program Data Account
+    let programdata_address =
+        Pubkey::find_program_address(&[token_proxy::id().as_ref()], &bpf_loader_upgradeable::id())
+            .0;
+
+    let programdata_data = UpgradeableLoaderState::ProgramData {
+        slot: 0,
+        upgrade_authority_address: Some(owner.pubkey()),
+    };
+
+    let programdata_data_serialized =
+        bincode::serialize::<UpgradeableLoaderState>(&programdata_data).unwrap();
+
+    program_test.add_account(
+        programdata_address,
+        Account {
+            lamports: Rent::default().minimum_balance(programdata_data_serialized.len()),
+            data: programdata_data_serialized,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Settings Account
+    let name = "WEVER".to_string();
+    let solana_decimals = 9;
+    let ever_decimals = 9;
+    let deposit_limit = 10000000;
+    let withdrawal_limit = 10000;
+    let withdrawal_daily_limit = 1000;
+    let guardian = Pubkey::new_unique();
+    let withdrawal_manager = Pubkey::new_unique();
+
+    let mint_address = get_mint_address(&name);
+    let settings_address = get_settings_address(&name);
+
+    let settings_account_data = Settings {
+        is_initialized: true,
+        account_kind: AccountKind::Settings,
+        name: name.clone(),
+        emergency: false,
+        kind: TokenKind::Ever { mint: mint_address },
+        withdrawal_daily_amount: 0,
+        withdrawal_ttl: 0,
+        deposit_limit,
+        withdrawal_limit,
+        withdrawal_daily_limit,
+        solana_decimals,
+        ever_decimals,
+        guardian,
+        withdrawal_manager,
+    };
+
+    let mut settings_packed = vec![0; Settings::LEN];
+    Settings::pack(settings_account_data, &mut settings_packed).unwrap();
+    program_test.add_account(
+        settings_address,
+        Account {
+            lamports: Rent::default().minimum_balance(Settings::LEN),
+            data: settings_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Start Program Test
+    let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
+
+    let mut transaction = Transaction::new_with_payer(
+        &[enable_emergency_by_owner_ix(&owner.pubkey(), name)],
+        Some(&funder.pubkey()),
+    );
+    transaction.sign(&[&funder, &owner], recent_blockhash);
+
+    banks_client
+        .process_transaction(transaction)
+        .await
+        .expect("process_transaction");
+
+    let settings_info = banks_client
+        .get_account(settings_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let settings_data = Settings::unpack(settings_info.data()).expect("settings unpack");
+
+    assert_eq!(settings_data.emergency, true);
+}
+
+#[tokio::test]
+async fn test_disable_emergency() {
+    let mut program_test = ProgramTest::new(
+        "token_proxy",
+        token_proxy::id(),
+        processor!(Processor::process),
+    );
+
+    // Setup environment
+    let owner = Keypair::new();
+
+    // Add Program Data Account
+    let programdata_address =
+        Pubkey::find_program_address(&[token_proxy::id().as_ref()], &bpf_loader_upgradeable::id())
+            .0;
+
+    let programdata_data = UpgradeableLoaderState::ProgramData {
+        slot: 0,
+        upgrade_authority_address: Some(owner.pubkey()),
+    };
+
+    let programdata_data_serialized =
+        bincode::serialize::<UpgradeableLoaderState>(&programdata_data).unwrap();
+
+    program_test.add_account(
+        programdata_address,
+        Account {
+            lamports: Rent::default().minimum_balance(programdata_data_serialized.len()),
+            data: programdata_data_serialized,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Settings Account
+    let name = "WEVER".to_string();
+    let solana_decimals = 9;
+    let ever_decimals = 9;
+    let deposit_limit = 10000000;
+    let withdrawal_limit = 10000;
+    let withdrawal_daily_limit = 1000;
+    let guardian = Pubkey::new_unique();
+    let withdrawal_manager = Pubkey::new_unique();
+
+    let mint_address = get_mint_address(&name);
+    let settings_address = get_settings_address(&name);
+
+    let settings_account_data = Settings {
+        is_initialized: true,
+        account_kind: AccountKind::Settings,
+        name: name.clone(),
+        emergency: true,
+        kind: TokenKind::Ever { mint: mint_address },
+        withdrawal_daily_amount: 0,
+        withdrawal_ttl: 0,
+        deposit_limit,
+        withdrawal_limit,
+        withdrawal_daily_limit,
+        solana_decimals,
+        ever_decimals,
+        guardian,
+        withdrawal_manager,
+    };
+
+    let mut settings_packed = vec![0; Settings::LEN];
+    Settings::pack(settings_account_data, &mut settings_packed).unwrap();
+    program_test.add_account(
+        settings_address,
+        Account {
+            lamports: Rent::default().minimum_balance(Settings::LEN),
+            data: settings_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Start Program Test
+    let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
+
+    let mut transaction = Transaction::new_with_payer(
+        &[disable_emergency_ix(&owner.pubkey(), name)],
+        Some(&funder.pubkey()),
+    );
+    transaction.sign(&[&funder, &owner], recent_blockhash);
+
+    banks_client
+        .process_transaction(transaction)
+        .await
+        .expect("process_transaction");
+
+    let settings_info = banks_client
+        .get_account(settings_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let settings_data = Settings::unpack(settings_info.data()).expect("settings unpack");
+
+    assert_eq!(settings_data.emergency, false);
 }

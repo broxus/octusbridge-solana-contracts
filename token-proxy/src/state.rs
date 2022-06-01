@@ -30,7 +30,7 @@ const DEPOSIT_TOKEN_META_LEN: usize = 16    // seed
 ;
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
-#[bridge_pack(length = 300)]
+#[bridge_pack(length = 500)]
 pub struct Settings {
     pub is_initialized: bool,
     pub account_kind: AccountKind,
@@ -38,7 +38,8 @@ pub struct Settings {
     pub ever_decimals: u8,
     pub solana_decimals: u8,
     pub kind: TokenKind,
-    pub admin: Pubkey,
+    pub guardian: Pubkey,
+    pub withdrawal_manager: Pubkey,
     pub emergency: bool,
     pub deposit_limit: u64,
     pub withdrawal_limit: u64,

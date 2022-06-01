@@ -35,7 +35,8 @@ impl Processor {
                 deposit_limit,
                 withdrawal_limit,
                 withdrawal_daily_limit,
-                admin,
+                guardian,
+                withdrawal_manager,
             } => {
                 msg!("Instruction: Initialize Mint");
                 Self::process_mint_initialize(
@@ -47,7 +48,8 @@ impl Processor {
                     deposit_limit,
                     withdrawal_limit,
                     withdrawal_daily_limit,
-                    admin,
+                    guardian,
+                    withdrawal_manager,
                 )?;
             }
             TokenProxyInstruction::InitializeVault {
@@ -56,7 +58,8 @@ impl Processor {
                 deposit_limit,
                 withdrawal_limit,
                 withdrawal_daily_limit,
-                admin,
+                guardian,
+                withdrawal_manager,
             } => {
                 msg!("Instruction: Initialize Vault");
                 Self::process_vault_initialize(
@@ -67,7 +70,8 @@ impl Processor {
                     deposit_limit,
                     withdrawal_limit,
                     withdrawal_daily_limit,
-                    admin,
+                    guardian,
+                    withdrawal_manager,
                 )?;
             }
             TokenProxyInstruction::DepositEver {
@@ -162,33 +166,47 @@ impl Processor {
                     recipient_address,
                 )?;
             }
-            TokenProxyInstruction::TransferFromVault { amount } => {
-                msg!("Instruction: Transfer from Vault");
-                Self::process_transfer_from_vault(program_id, accounts, amount)?;
-            }
             TokenProxyInstruction::ChangeBountyForWithdrawSol { bounty } => {
                 msg!("Instruction: Change Bounty for Withdraw SOL");
                 Self::process_change_bounty_for_withdraw_sol(program_id, accounts, bounty)?;
             }
-            TokenProxyInstruction::ChangeSettings {
-                emergency,
-                deposit_limit,
-                withdrawal_limit,
-                withdrawal_daily_limit,
+            TokenProxyInstruction::ChangeGuardian { new_guardian } => {
+                msg!("Instruction: Update guardian");
+                Self::process_change_guardian(program_id, accounts, new_guardian)?;
+            }
+            TokenProxyInstruction::ChangeWithdrawalManager {
+                new_withdrawal_manager,
             } => {
-                msg!("Instruction: Change Settings");
-                Self::process_change_settings(
+                msg!("Instruction: Update withdrawal manager");
+                Self::process_change_withdrawal_manager(
                     program_id,
                     accounts,
-                    emergency,
-                    deposit_limit,
-                    withdrawal_limit,
-                    withdrawal_daily_limit,
+                    new_withdrawal_manager,
                 )?;
             }
-            TokenProxyInstruction::ChangeAdmin { new_admin } => {
-                msg!("Instruction: Update admin");
-                Self::process_change_admin(program_id, accounts, new_admin)?;
+            TokenProxyInstruction::ChangeDepositLimit { new_deposit_limit } => {
+                msg!("Instruction: Update deposit limit");
+                Self::process_change_deposit_limit(program_id, accounts, new_deposit_limit)?;
+            }
+            TokenProxyInstruction::ChangeWithdrawalLimits {
+                new_withdrawal_limit,
+                new_withdrawal_daily_limit,
+            } => {
+                msg!("Instruction: Update withdrawal limits");
+                Self::process_change_withdrawal_limits(
+                    program_id,
+                    accounts,
+                    new_withdrawal_limit,
+                    new_withdrawal_daily_limit,
+                )?;
+            }
+            TokenProxyInstruction::EnableEmergencyMode => {
+                msg!("Instruction: Enable emergency mode");
+                Self::process_enable_emergency_mode(program_id, accounts)?;
+            }
+            TokenProxyInstruction::DisableEmergencyMode => {
+                msg!("Instruction: Disable emergency mode");
+                Self::process_disable_emergency_mode(program_id, accounts)?;
             }
         };
 
@@ -205,7 +223,8 @@ impl Processor {
         deposit_limit: u64,
         withdrawal_limit: u64,
         withdrawal_daily_limit: u64,
-        admin: Pubkey,
+        guardian: Pubkey,
+        withdrawal_manager: Pubkey,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -314,7 +333,8 @@ impl Processor {
             deposit_limit,
             withdrawal_limit,
             withdrawal_daily_limit,
-            admin,
+            guardian,
+            withdrawal_manager,
         };
 
         Settings::pack(
@@ -334,7 +354,8 @@ impl Processor {
         deposit_limit: u64,
         withdrawal_limit: u64,
         withdrawal_daily_limit: u64,
-        admin: Pubkey,
+        guardian: Pubkey,
+        withdrawal_manager: Pubkey,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -448,7 +469,8 @@ impl Processor {
             deposit_limit,
             withdrawal_limit,
             withdrawal_daily_limit,
-            admin,
+            guardian,
+            withdrawal_manager,
         };
 
         Settings::pack(
@@ -1184,14 +1206,14 @@ impl Processor {
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
-        let admin_account_info = next_account_info(account_info_iter)?;
+        let authority_account_info = next_account_info(account_info_iter)?;
         let mint_account_info = next_account_info(account_info_iter)?;
         let withdrawal_account_info = next_account_info(account_info_iter)?;
         let recipient_token_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
         let token_program_info = next_account_info(account_info_iter)?;
 
-        if !admin_account_info.is_signer {
+        if !authority_account_info.is_signer {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
@@ -1233,8 +1255,18 @@ impl Processor {
             return Err(TokenProxyError::EmergencyEnabled.into());
         }
 
-        if settings_account_data.admin != *admin_account_info.key {
-            return Err(ProgramError::IllegalOwner);
+        if *authority_account_info.key != settings_account_data.withdrawal_manager {
+            let programdata_account_info = next_account_info(account_info_iter)?;
+
+            // Validate Initializer Account
+            bridge_utils::helper::validate_programdata_account(
+                program_id,
+                programdata_account_info.key,
+            )?;
+            bridge_utils::helper::validate_initializer_account(
+                authority_account_info.key,
+                programdata_account_info,
+            )?;
         }
 
         let withdrawal_amount = get_withdrawal_amount(
@@ -1267,14 +1299,14 @@ impl Processor {
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
-        let admin_account_info = next_account_info(account_info_iter)?;
+        let authority_account_info = next_account_info(account_info_iter)?;
         let vault_account_info = next_account_info(account_info_iter)?;
         let withdrawal_account_info = next_account_info(account_info_iter)?;
         let recipient_token_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
         let token_program_info = next_account_info(account_info_iter)?;
 
-        if !admin_account_info.is_signer {
+        if !authority_account_info.is_signer {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
@@ -1316,8 +1348,18 @@ impl Processor {
             return Err(TokenProxyError::EmergencyEnabled.into());
         }
 
-        if settings_account_data.admin != *admin_account_info.key {
-            return Err(ProgramError::IllegalOwner);
+        if *authority_account_info.key != settings_account_data.withdrawal_manager {
+            let programdata_account_info = next_account_info(account_info_iter)?;
+
+            // Validate Initializer Account
+            bridge_utils::helper::validate_programdata_account(
+                program_id,
+                programdata_account_info.key,
+            )?;
+            bridge_utils::helper::validate_initializer_account(
+                authority_account_info.key,
+                programdata_account_info,
+            )?;
         }
 
         let withdrawal_amount = get_withdrawal_amount(
@@ -1647,72 +1689,6 @@ impl Processor {
         Ok(())
     }
 
-    fn process_transfer_from_vault(
-        program_id: &Pubkey,
-        accounts: &[AccountInfo],
-        amount: u64,
-    ) -> ProgramResult {
-        let account_info_iter = &mut accounts.iter();
-
-        let admin_account_info = next_account_info(account_info_iter)?;
-        let vault_account_info = next_account_info(account_info_iter)?;
-        let recipient_token_account_info = next_account_info(account_info_iter)?;
-        let settings_account_info = next_account_info(account_info_iter)?;
-        let token_program_info = next_account_info(account_info_iter)?;
-
-        if !admin_account_info.is_signer {
-            return Err(ProgramError::MissingRequiredSignature);
-        }
-
-        let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
-
-        if settings_account_data.admin != *admin_account_info.key {
-            return Err(ProgramError::IllegalOwner);
-        }
-
-        // Validate Setting Account
-        let name = &settings_account_data.name;
-        validate_settings_account(program_id, name, settings_account_info)?;
-
-        if settings_account_info.owner != program_id {
-            return Err(ProgramError::InvalidArgument);
-        }
-
-        // Validate Vault Account
-        let vault_nonce = validate_vault_account(program_id, name, vault_account_info)?;
-        let vault_account_signer_seeds: &[&[_]] = &[br"vault", name.as_bytes(), &[vault_nonce]];
-
-        if vault_account_info.owner != &spl_token::id() {
-            return Err(ProgramError::InvalidArgument);
-        }
-
-        let vault_account_data =
-            spl_token::state::Account::unpack(&vault_account_info.data.borrow())?;
-
-        if vault_account_data.amount < amount {
-            return Err(TokenProxyError::InsufficientVaultBalance.into());
-        }
-
-        invoke_signed(
-            &spl_token::instruction::transfer(
-                &spl_token::id(),
-                vault_account_info.key,
-                recipient_token_account_info.key,
-                vault_account_info.key,
-                &[vault_account_info.key],
-                amount,
-            )?,
-            &[
-                token_program_info.clone(),
-                vault_account_info.clone(),
-                recipient_token_account_info.clone(),
-            ],
-            &[vault_account_signer_seeds],
-        )?;
-
-        Ok(())
-    }
-
     fn process_change_bounty_for_withdraw_sol(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
@@ -1768,54 +1744,10 @@ impl Processor {
         Ok(())
     }
 
-    fn process_change_settings(
+    fn process_change_guardian(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
-        emergency: bool,
-        deposit_limit: u64,
-        withdrawal_limit: u64,
-        withdrawal_daily_limit: u64,
-    ) -> ProgramResult {
-        let account_info_iter = &mut accounts.iter();
-
-        let authority_account_info = next_account_info(account_info_iter)?;
-        let settings_account_info = next_account_info(account_info_iter)?;
-
-        if !authority_account_info.is_signer {
-            return Err(ProgramError::MissingRequiredSignature);
-        }
-
-        let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
-
-        if settings_account_data.admin != *authority_account_info.key {
-            return Err(ProgramError::IllegalOwner);
-        }
-
-        // Validate Setting Account
-        let name = &settings_account_data.name;
-        validate_settings_account(program_id, name, settings_account_info)?;
-
-        if settings_account_info.owner != program_id {
-            return Err(ProgramError::InvalidArgument);
-        }
-
-        settings_account_data.emergency = emergency;
-        settings_account_data.deposit_limit = deposit_limit;
-        settings_account_data.withdrawal_limit = withdrawal_limit;
-        settings_account_data.withdrawal_daily_limit = withdrawal_daily_limit;
-
-        Settings::pack(
-            settings_account_data,
-            &mut settings_account_info.data.borrow_mut(),
-        )?;
-
-        Ok(())
-    }
-
-    fn process_change_admin(
-        program_id: &Pubkey,
-        accounts: &[AccountInfo],
-        new_admin: Pubkey,
+        new_guardian: Pubkey,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -1847,7 +1779,242 @@ impl Processor {
             return Err(ProgramError::InvalidArgument);
         }
 
-        settings_account_data.admin = new_admin;
+        settings_account_data.guardian = new_guardian;
+
+        Settings::pack(
+            settings_account_data,
+            &mut settings_account_info.data.borrow_mut(),
+        )?;
+
+        Ok(())
+    }
+
+    fn process_change_withdrawal_manager(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        new_withdrawal_manager: Pubkey,
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+
+        let authority_account_info = next_account_info(account_info_iter)?;
+        let settings_account_info = next_account_info(account_info_iter)?;
+        let programdata_account_info = next_account_info(account_info_iter)?;
+
+        if !authority_account_info.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        // Validate Initializer Account
+        bridge_utils::helper::validate_programdata_account(
+            program_id,
+            programdata_account_info.key,
+        )?;
+        bridge_utils::helper::validate_initializer_account(
+            authority_account_info.key,
+            programdata_account_info,
+        )?;
+
+        let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+
+        // Validate Setting Account
+        let name = &settings_account_data.name;
+        validate_settings_account(program_id, name, settings_account_info)?;
+
+        if settings_account_info.owner != program_id {
+            return Err(ProgramError::InvalidArgument);
+        }
+
+        settings_account_data.withdrawal_manager = new_withdrawal_manager;
+
+        Settings::pack(
+            settings_account_data,
+            &mut settings_account_info.data.borrow_mut(),
+        )?;
+
+        Ok(())
+    }
+
+    fn process_change_deposit_limit(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        new_deposit_limit: u64,
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+
+        let authority_account_info = next_account_info(account_info_iter)?;
+        let settings_account_info = next_account_info(account_info_iter)?;
+        let programdata_account_info = next_account_info(account_info_iter)?;
+
+        // Validate Initializer Account
+        bridge_utils::helper::validate_programdata_account(
+            program_id,
+            programdata_account_info.key,
+        )?;
+        bridge_utils::helper::validate_initializer_account(
+            authority_account_info.key,
+            programdata_account_info,
+        )?;
+
+        if !authority_account_info.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+
+        // Validate Setting Account
+        let name = &settings_account_data.name;
+        validate_settings_account(program_id, name, settings_account_info)?;
+
+        if settings_account_info.owner != program_id {
+            return Err(ProgramError::InvalidArgument);
+        }
+
+        settings_account_data.deposit_limit = new_deposit_limit;
+
+        Settings::pack(
+            settings_account_data,
+            &mut settings_account_info.data.borrow_mut(),
+        )?;
+
+        Ok(())
+    }
+
+    fn process_change_withdrawal_limits(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        new_withdrawal_limit: Option<u64>,
+        new_withdrawal_daily_limit: Option<u64>,
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+
+        let authority_account_info = next_account_info(account_info_iter)?;
+        let settings_account_info = next_account_info(account_info_iter)?;
+        let programdata_account_info = next_account_info(account_info_iter)?;
+
+        // Validate Initializer Account
+        bridge_utils::helper::validate_programdata_account(
+            program_id,
+            programdata_account_info.key,
+        )?;
+        bridge_utils::helper::validate_initializer_account(
+            authority_account_info.key,
+            programdata_account_info,
+        )?;
+
+        if !authority_account_info.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+
+        // Validate Setting Account
+        let name = &settings_account_data.name;
+        validate_settings_account(program_id, name, settings_account_info)?;
+
+        if settings_account_info.owner != program_id {
+            return Err(ProgramError::InvalidArgument);
+        }
+
+        if let Some(new_withdrawal_limit) = new_withdrawal_limit {
+            settings_account_data.withdrawal_limit = new_withdrawal_limit;
+        }
+
+        if let Some(new_withdrawal_daily_limit) = new_withdrawal_daily_limit {
+            settings_account_data.withdrawal_daily_limit = new_withdrawal_daily_limit;
+        }
+
+        Settings::pack(
+            settings_account_data,
+            &mut settings_account_info.data.borrow_mut(),
+        )?;
+
+        Ok(())
+    }
+
+    fn process_enable_emergency_mode(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+
+        let authority_account_info = next_account_info(account_info_iter)?;
+        let settings_account_info = next_account_info(account_info_iter)?;
+
+        if !authority_account_info.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+        let guardian = settings_account_data.guardian;
+
+        // Validate Setting Account
+        let name = &settings_account_data.name;
+        validate_settings_account(program_id, name, settings_account_info)?;
+
+        if settings_account_info.owner != program_id {
+            return Err(ProgramError::InvalidArgument);
+        }
+
+        // Validate Guardian Account
+        if *authority_account_info.key != guardian {
+            let programdata_account_info = next_account_info(account_info_iter)?;
+
+            // Validate Initializer Account
+            bridge_utils::helper::validate_programdata_account(
+                program_id,
+                programdata_account_info.key,
+            )?;
+            bridge_utils::helper::validate_initializer_account(
+                authority_account_info.key,
+                programdata_account_info,
+            )?;
+        }
+
+        settings_account_data.emergency = true;
+
+        Settings::pack(
+            settings_account_data,
+            &mut settings_account_info.data.borrow_mut(),
+        )?;
+
+        Ok(())
+    }
+
+    fn process_disable_emergency_mode(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+
+        let authority_account_info = next_account_info(account_info_iter)?;
+        let settings_account_info = next_account_info(account_info_iter)?;
+        let programdata_account_info = next_account_info(account_info_iter)?;
+
+        if !authority_account_info.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        // Validate Owner Account
+        bridge_utils::helper::validate_programdata_account(
+            program_id,
+            programdata_account_info.key,
+        )?;
+        bridge_utils::helper::validate_initializer_account(
+            authority_account_info.key,
+            programdata_account_info,
+        )?;
+
+        let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+
+        // Validate Setting Account
+        let name = &settings_account_data.name;
+        validate_settings_account(program_id, name, settings_account_info)?;
+
+        if settings_account_info.owner != program_id {
+            return Err(ProgramError::InvalidArgument);
+        }
+
+        settings_account_data.emergency = false;
 
         Settings::pack(
             settings_account_data,

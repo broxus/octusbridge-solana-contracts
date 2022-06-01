@@ -43,8 +43,10 @@ pub enum TokenProxyInstruction {
         withdrawal_limit: u64,
         // Withdrawal daily limit
         withdrawal_daily_limit: u64,
-        // Admin pubkey
-        admin: Pubkey,
+        // Guardian pubkey
+        guardian: Pubkey,
+        // Withdrawal manager pubkey
+        withdrawal_manager: Pubkey,
     },
 
     /// Initialize Vault Account
@@ -62,8 +64,10 @@ pub enum TokenProxyInstruction {
         withdrawal_limit: u64,
         // Withdrawal daily limit
         withdrawal_daily_limit: u64,
-        // Admin pubkey
-        admin: Pubkey,
+        // Guardian pubkey
+        guardian: Pubkey,
+        // Withdrawal manager pubkey
+        withdrawal_manager: Pubkey,
     },
 
     /// Deposit EVER
@@ -145,15 +149,6 @@ pub enum TokenProxyInstruction {
         recipient_address: EverAddress,
     },
 
-    /// Transfer from Vault
-    ///
-    /// # Account references
-    /// ...
-    TransferFromVault {
-        // Amount to transfer
-        amount: u64,
-    },
-
     /// Change Bounty for Withdraw SOL
     ///
     /// # Account references
@@ -163,27 +158,53 @@ pub enum TokenProxyInstruction {
         bounty: u64,
     },
 
-    /// Change Settings
+    /// Change Guardian
     ///
     /// # Account references
     /// ...
-    ChangeSettings {
-        // Emergency flag
-        emergency: bool,
-        // Deposit limit
-        deposit_limit: u64,
-        // Withdrawal limit
-        withdrawal_limit: u64,
-        // Withdrawal daily limit
-        withdrawal_daily_limit: u64,
+    ChangeGuardian {
+        // New guardian pubkey
+        new_guardian: Pubkey,
     },
 
-    /// Change Admin
+    /// Change Withdrawal Manager
     ///
     /// # Account references
     /// ...
-    ChangeAdmin {
-        // New admin pubkey
-        new_admin: Pubkey,
+    ChangeWithdrawalManager {
+        // New withdrawal manager pubkey
+        new_withdrawal_manager: Pubkey,
     },
+
+    /// Change deposit limit
+    ///
+    /// # Account references
+    /// ...
+    ChangeDepositLimit {
+        // Deposit limit
+        new_deposit_limit: u64,
+    },
+
+    /// Change withdrawal limits
+    ///
+    /// # Account references
+    /// ...
+    ChangeWithdrawalLimits {
+        // Withdrawal limit
+        new_withdrawal_limit: Option<u64>,
+        // Withdrawal daily limit
+        new_withdrawal_daily_limit: Option<u64>,
+    },
+
+    /// Enable emergency mode
+    ///
+    /// # Account references
+    /// ...
+    EnableEmergencyMode,
+
+    /// Disable emergency mode
+    ///
+    /// # Account references
+    /// ...
+    DisableEmergencyMode,
 }

@@ -73,7 +73,8 @@ pub fn initialize_mint_ix(
     deposit_limit: u64,
     withdrawal_limit: u64,
     withdrawal_daily_limit: u64,
-    admin: Pubkey,
+    guardian: Pubkey,
+    withdrawal_manager: Pubkey,
 ) -> Instruction {
     let mint_pubkey = get_mint_address(&name);
     let settings_pubkey = get_settings_address(&name);
@@ -86,7 +87,8 @@ pub fn initialize_mint_ix(
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
-        admin,
+        guardian,
+        withdrawal_manager,
     }
     .try_to_vec()
     .expect("pack");
@@ -117,7 +119,8 @@ pub fn initialize_vault_ix(
     deposit_limit: u64,
     withdrawal_limit: u64,
     withdrawal_daily_limit: u64,
-    admin: Pubkey,
+    guardian: Pubkey,
+    withdrawal_manager: Pubkey,
 ) -> Instruction {
     let vault_pubkey = get_vault_address(&name);
     let settings_pubkey = get_settings_address(&name);
@@ -129,7 +132,8 @@ pub fn initialize_vault_ix(
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
-        admin,
+        guardian,
+        withdrawal_manager,
     }
     .try_to_vec()
     .expect("pack");
@@ -371,7 +375,7 @@ pub fn withdrawal_sol_ix(
 }
 
 pub fn approve_withdrawal_ever_ix(
-    admin_pubkey: &Pubkey,
+    authority_pubkey: &Pubkey,
     to_pubkey: &Pubkey,
     withdrawal_pubkey: &Pubkey,
     token_name: &str,
@@ -389,7 +393,7 @@ pub fn approve_withdrawal_ever_ix(
     Instruction {
         program_id: id(),
         accounts: vec![
-            AccountMeta::new(*admin_pubkey, true),
+            AccountMeta::new(*authority_pubkey, true),
             AccountMeta::new(mint_pubkey, false),
             AccountMeta::new(*withdrawal_pubkey, false),
             AccountMeta::new(recipient_token_pubkey, false),
@@ -400,8 +404,40 @@ pub fn approve_withdrawal_ever_ix(
     }
 }
 
+pub fn approve_withdrawal_ever_by_owner_ix(
+    owner_pubkey: &Pubkey,
+    to_pubkey: &Pubkey,
+    withdrawal_pubkey: &Pubkey,
+    token_name: &str,
+) -> Instruction {
+    let settings_pubkey = get_settings_address(token_name);
+    let program_data_pubkey = get_programdata_address();
+
+    let mint_pubkey = get_mint_address(token_name);
+    let recipient_token_pubkey =
+        spl_associated_token_account::get_associated_token_address(to_pubkey, &mint_pubkey);
+
+    let data = TokenProxyInstruction::ApproveWithdrawEver
+        .try_to_vec()
+        .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(*owner_pubkey, true),
+            AccountMeta::new(mint_pubkey, false),
+            AccountMeta::new(*withdrawal_pubkey, false),
+            AccountMeta::new(recipient_token_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new_readonly(spl_token::id(), false),
+            AccountMeta::new_readonly(program_data_pubkey, false),
+        ],
+        data,
+    }
+}
+
 pub fn approve_withdrawal_sol_ix(
-    admin_pubkey: &Pubkey,
+    authority_pubkey: &Pubkey,
     to_pubkey: &Pubkey,
     mint_pubkey: &Pubkey,
     withdrawal_pubkey: &Pubkey,
@@ -420,12 +456,45 @@ pub fn approve_withdrawal_sol_ix(
     Instruction {
         program_id: id(),
         accounts: vec![
-            AccountMeta::new(*admin_pubkey, true),
+            AccountMeta::new(*authority_pubkey, true),
             AccountMeta::new(vault_pubkey, false),
             AccountMeta::new(*withdrawal_pubkey, false),
             AccountMeta::new(recipient_token_pubkey, false),
             AccountMeta::new(settings_pubkey, false),
             AccountMeta::new_readonly(spl_token::id(), false),
+        ],
+        data,
+    }
+}
+
+pub fn approve_withdrawal_sol_by_owner_ix(
+    owner_pubkey: &Pubkey,
+    to_pubkey: &Pubkey,
+    mint_pubkey: &Pubkey,
+    withdrawal_pubkey: &Pubkey,
+    token_name: &str,
+) -> Instruction {
+    let settings_pubkey = get_settings_address(token_name);
+    let program_data_pubkey = get_programdata_address();
+
+    let vault_pubkey = get_vault_address(token_name);
+    let recipient_token_pubkey =
+        spl_associated_token_account::get_associated_token_address(to_pubkey, mint_pubkey);
+
+    let data = TokenProxyInstruction::ApproveWithdrawSol
+        .try_to_vec()
+        .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(*owner_pubkey, true),
+            AccountMeta::new(vault_pubkey, false),
+            AccountMeta::new(*withdrawal_pubkey, false),
+            AccountMeta::new(recipient_token_pubkey, false),
+            AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new_readonly(spl_token::id(), false),
+            AccountMeta::new_readonly(program_data_pubkey, false),
         ],
         data,
     }
@@ -510,36 +579,6 @@ pub fn fill_withdrawal_sol_ix(
     }
 }
 
-pub fn transfer_from_vault_ix(
-    admin_pubkey: &Pubkey,
-    mint_pubkey: &Pubkey,
-    to_pubkey: &Pubkey,
-    name: String,
-    amount: u64,
-) -> Instruction {
-    let settings_pubkey = get_settings_address(&name);
-
-    let vault_pubkey = get_vault_address(&name);
-    let recipient_token_pubkey =
-        spl_associated_token_account::get_associated_token_address(to_pubkey, mint_pubkey);
-
-    let data = TokenProxyInstruction::TransferFromVault { amount }
-        .try_to_vec()
-        .expect("pack");
-
-    Instruction {
-        program_id: id(),
-        accounts: vec![
-            AccountMeta::new(*admin_pubkey, true),
-            AccountMeta::new(vault_pubkey, false),
-            AccountMeta::new(recipient_token_pubkey, false),
-            AccountMeta::new_readonly(settings_pubkey, false),
-            AccountMeta::new_readonly(spl_token::id(), false),
-        ],
-        data,
-    }
-}
-
 pub fn change_bounty_for_withdrawal_sol_ix(
     author_pubkey: &Pubkey,
     withdrawal_pubkey: &Pubkey,
@@ -559,21 +598,35 @@ pub fn change_bounty_for_withdrawal_sol_ix(
     }
 }
 
-pub fn change_settings_ix(
-    authority_pubkey: &Pubkey,
-    name: String,
-    emergency: bool,
-    deposit_limit: u64,
-    withdrawal_limit: u64,
-    withdrawal_daily_limit: u64,
-) -> Instruction {
-    let settings_pubkey = get_settings_address(&name);
+pub fn change_guardian_ix(owner: &Pubkey, name: &str, new_guardian: Pubkey) -> Instruction {
+    let settings_pubkey = get_settings_address(name);
+    let program_data_pubkey = get_programdata_address();
 
-    let data = TokenProxyInstruction::ChangeSettings {
-        emergency,
-        deposit_limit,
-        withdrawal_limit,
-        withdrawal_daily_limit,
+    let data = TokenProxyInstruction::ChangeGuardian { new_guardian }
+        .try_to_vec()
+        .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(*owner, true),
+            AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new_readonly(program_data_pubkey, false),
+        ],
+        data,
+    }
+}
+
+pub fn change_withdrawal_manager_ix(
+    owner: &Pubkey,
+    name: &str,
+    new_withdrawal_manager: Pubkey,
+) -> Instruction {
+    let settings_pubkey = get_settings_address(name);
+    let program_data_pubkey = get_programdata_address();
+
+    let data = TokenProxyInstruction::ChangeWithdrawalManager {
+        new_withdrawal_manager,
     }
     .try_to_vec()
     .expect("pack");
@@ -581,25 +634,112 @@ pub fn change_settings_ix(
     Instruction {
         program_id: id(),
         accounts: vec![
-            AccountMeta::new(*authority_pubkey, true),
+            AccountMeta::new(*owner, true),
             AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new_readonly(program_data_pubkey, false),
         ],
         data,
     }
 }
 
-pub fn change_admin_ix(authority_pubkey: &Pubkey, name: &str, new_admin: Pubkey) -> Instruction {
-    let settings_pubkey = get_settings_address(name);
+pub fn change_deposit_limit_ix(
+    owner_pubkey: &Pubkey,
+    name: String,
+    new_deposit_limit: u64,
+) -> Instruction {
+    let settings_pubkey = get_settings_address(&name);
     let program_data_pubkey = get_programdata_address();
 
-    let data = TokenProxyInstruction::ChangeAdmin { new_admin }
+    let data = TokenProxyInstruction::ChangeDepositLimit { new_deposit_limit }
         .try_to_vec()
         .expect("pack");
 
     Instruction {
         program_id: id(),
         accounts: vec![
-            AccountMeta::new(*authority_pubkey, true),
+            AccountMeta::new(*owner_pubkey, true),
+            AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new_readonly(program_data_pubkey, false),
+        ],
+        data,
+    }
+}
+
+pub fn change_withdrawal_limits_ix(
+    owner_pubkey: &Pubkey,
+    name: String,
+    new_withdrawal_limit: Option<u64>,
+    new_withdrawal_daily_limit: Option<u64>,
+) -> Instruction {
+    let settings_pubkey = get_settings_address(&name);
+    let program_data_pubkey = get_programdata_address();
+
+    let data = TokenProxyInstruction::ChangeWithdrawalLimits {
+        new_withdrawal_limit,
+        new_withdrawal_daily_limit,
+    }
+    .try_to_vec()
+    .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(*owner_pubkey, true),
+            AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new_readonly(program_data_pubkey, false),
+        ],
+        data,
+    }
+}
+
+pub fn enable_emergency_ix(guardian_pubkey: &Pubkey, name: String) -> Instruction {
+    let settings_pubkey = get_settings_address(&name);
+
+    let data = TokenProxyInstruction::EnableEmergencyMode
+        .try_to_vec()
+        .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(*guardian_pubkey, true),
+            AccountMeta::new(settings_pubkey, false),
+        ],
+        data,
+    }
+}
+
+pub fn enable_emergency_by_owner_ix(owner_pubkey: &Pubkey, name: String) -> Instruction {
+    let settings_pubkey = get_settings_address(&name);
+    let program_data_pubkey = get_programdata_address();
+
+    let data = TokenProxyInstruction::EnableEmergencyMode
+        .try_to_vec()
+        .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(*owner_pubkey, true),
+            AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new_readonly(program_data_pubkey, false),
+        ],
+        data,
+    }
+}
+
+pub fn disable_emergency_ix(owner_pubkey: &Pubkey, name: String) -> Instruction {
+    let settings_pubkey = get_settings_address(&name);
+    let program_data_pubkey = get_programdata_address();
+
+    let data = TokenProxyInstruction::DisableEmergencyMode
+        .try_to_vec()
+        .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(*owner_pubkey, true),
             AccountMeta::new(settings_pubkey, false),
             AccountMeta::new_readonly(program_data_pubkey, false),
         ],
