@@ -47,11 +47,16 @@ pub fn vote_for_proposal_ix(
 pub fn execute_proposal_ix(
     program_id: Pubkey,
     instruction: u8,
+    proposal_pubkey: Pubkey,
     accounts: Vec<(Pubkey, bool, bool)>,
 ) -> Instruction {
     let data = ExecuteProposal { instruction }.try_to_vec().expect("pack");
 
-    let accounts = accounts
+    let mut accounts_with_meta = Vec::with_capacity(accounts.len() + 1);
+    accounts_with_meta.push((proposal_pubkey, false, false));
+    accounts_with_meta.extend(accounts);
+
+    let accounts = accounts_with_meta
         .into_iter()
         .map(|(account, read_only, is_signer)| {
             if !read_only {

@@ -948,8 +948,8 @@ impl Processor {
     fn process_withdraw_ever(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
-        let mint_account_info = next_account_info(account_info_iter)?;
         let withdrawal_account_info = next_account_info(account_info_iter)?;
+        let mint_account_info = next_account_info(account_info_iter)?;
         let recipient_token_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
         let token_program_info = next_account_info(account_info_iter)?;
@@ -1057,8 +1057,8 @@ impl Processor {
     fn process_withdraw_sol(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
-        let vault_account_info = next_account_info(account_info_iter)?;
         let withdrawal_account_info = next_account_info(account_info_iter)?;
+        let vault_account_info = next_account_info(account_info_iter)?;
         let recipient_token_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
         let token_program_info = next_account_info(account_info_iter)?;
@@ -2011,5 +2011,5 @@ fn get_deposit_amount(amount: u64, ever_decimals: u8, solana_decimals: u8) -> u1
         let trunc_divisor = 10u128.pow((solana_decimals - ever_decimals) as u32);
         amount /= trunc_divisor;
     }
-    return amount;
+    amount
 }

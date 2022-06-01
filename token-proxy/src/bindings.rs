@@ -329,8 +329,8 @@ pub fn withdrawal_ever_ix(
     Instruction {
         program_id: id(),
         accounts: vec![
-            AccountMeta::new(mint_pubkey, false),
             AccountMeta::new(*withdrawal_pubkey, false),
+            AccountMeta::new(mint_pubkey, false),
             AccountMeta::new(recipient_token_pubkey, false),
             AccountMeta::new(settings_pubkey, false),
             AccountMeta::new_readonly(spl_token::id(), false),
@@ -359,8 +359,8 @@ pub fn withdrawal_sol_ix(
     Instruction {
         program_id: id(),
         accounts: vec![
-            AccountMeta::new(vault_pubkey, false),
             AccountMeta::new(*withdrawal_pubkey, false),
+            AccountMeta::new(vault_pubkey, false),
             AccountMeta::new(recipient_token_pubkey, false),
             AccountMeta::new(settings_pubkey, false),
             AccountMeta::new_readonly(spl_token::id(), false),
