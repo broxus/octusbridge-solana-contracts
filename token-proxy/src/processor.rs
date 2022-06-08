@@ -2159,7 +2159,7 @@ fn make_ever_transfer<'a>(
     Ok(())
 }
 
-fn get_withdrawal_amount(amount: u128, ever_decimals: u8, solana_decimals: u8) -> u64 {
+pub fn get_withdrawal_amount(amount: u128, ever_decimals: u8, solana_decimals: u8) -> u64 {
     if ever_decimals > solana_decimals {
         let trunc_divisor = 10u128.pow((ever_decimals - solana_decimals) as u32);
         (amount / trunc_divisor) as u64
@@ -2169,7 +2169,7 @@ fn get_withdrawal_amount(amount: u128, ever_decimals: u8, solana_decimals: u8) -
     }
 }
 
-fn get_deposit_amount(amount: u64, ever_decimals: u8, solana_decimals: u8) -> u128 {
+pub fn get_deposit_amount(amount: u64, ever_decimals: u8, solana_decimals: u8) -> u128 {
     let mut amount = amount as u128;
     if ever_decimals > solana_decimals {
         let trunc_divisor = 10u128.pow((ever_decimals - solana_decimals) as u32);

@@ -46,6 +46,20 @@ impl FromStr for EverAddress {
     }
 }
 
+impl EverAddress {
+    pub fn get_workchain_id(&self) -> i32 {
+        match self {
+            EverAddress::AddrStd(addr_std) => addr_std.workchain_id as i32,
+        }
+    }
+
+    pub fn get_address(&self) -> [u8; 32] {
+        match self {
+            EverAddress::AddrStd(addr_std) => addr_std.address,
+        }
+    }
+}
+
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, BorshSerialize, BorshDeserialize, Serialize, Deserialize,
 )]
