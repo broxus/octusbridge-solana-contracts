@@ -1,3 +1,4 @@
+use std::fmt;
 use std::str::FromStr;
 
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -46,16 +47,12 @@ impl FromStr for EverAddress {
     }
 }
 
-impl EverAddress {
-    pub fn get_workchain_id(&self) -> i32 {
+impl fmt::Display for EverAddress {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            EverAddress::AddrStd(addr_std) => addr_std.workchain_id as i32,
-        }
-    }
-
-    pub fn get_address(&self) -> [u8; 32] {
-        match self {
-            EverAddress::AddrStd(addr_std) => addr_std.address,
+            EverAddress::AddrStd(addr) => {
+                write!(f, "{}:{}", addr.workchain_id, hex::encode(&addr.address))
+            }
         }
     }
 }
