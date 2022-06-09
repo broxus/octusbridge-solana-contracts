@@ -71,6 +71,8 @@ async fn test_init_relay_loader() {
     let min_required_votes = 1;
 
     let round_number = 1;
+    let round_ttl = 1209600;
+    let round_end = chrono::Utc::now().timestamp();
     let relays = vec![Pubkey::from_str("2Xzby8BnopnMbCS12YgASrxJoemVFJFgSbSB8pbU1am3").unwrap()];
 
     let mut transaction = Transaction::new_with_payer(
@@ -81,11 +83,13 @@ async fn test_init_relay_loader() {
                 genesis_round_number,
                 round_submitter,
                 min_required_votes,
+                round_ttl,
             ),
             create_relay_round_ix(
                 &funder.pubkey(),
                 &creator.pubkey(),
                 round_number,
+                round_end as u32,
                 relays.clone(),
             ),
         ],
@@ -112,6 +116,7 @@ async fn test_init_relay_loader() {
     assert_eq!(settings_data.current_round_number, round_number);
     assert_eq!(settings_data.round_submitter, round_submitter);
     assert_eq!(settings_data.min_required_votes, min_required_votes);
+    assert_eq!(settings_data.round_ttl, round_ttl);
 
     let relay_round_address = get_relay_round_address(round_number);
 
@@ -125,6 +130,7 @@ async fn test_init_relay_loader() {
 
     assert_eq!(relay_round_data.is_initialized, true);
     assert_eq!(relay_round_data.round_number, round_number);
+    assert_eq!(relay_round_data.round_end, round_end as u32 + round_ttl);
     assert_eq!(relay_round_data.relays, relays);
 
     let new_current_round_number = 3;
@@ -137,6 +143,7 @@ async fn test_init_relay_loader() {
             Some(new_current_round_number),
             Some(new_round_submitter),
             Some(new_min_required_votes),
+            None,
         )],
         Some(&initializer.pubkey()),
     );
@@ -206,6 +213,7 @@ async fn test_create_proposal() {
         current_round_number: round_number,
         round_submitter: Pubkey::new_unique(),
         min_required_votes: 1,
+        round_ttl: 1209600,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -227,6 +235,7 @@ async fn test_create_proposal() {
         is_initialized: true,
         account_kind: AccountKind::RelayRound,
         round_number,
+        round_end: chrono::Utc::now().timestamp() as u32,
         relays: relays.iter().map(|pair| pair.pubkey()).collect(),
     };
 

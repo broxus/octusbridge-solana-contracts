@@ -25,6 +25,7 @@ bridge-derive = { path = "../bridge-derive" }
 bridge-utils = { path = "../bridge-utils" }
 
 [dev-dependencies]
+chrono = "0.4.19"
 solana-program-test = "1.10"
 solana-sdk = "1.10"
 

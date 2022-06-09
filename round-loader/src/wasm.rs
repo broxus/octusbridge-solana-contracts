@@ -24,6 +24,7 @@ pub fn initialize_ix(
     genesis_round_number: u32,
     round_submitter: String,
     min_required_votes: u32,
+    round_ttl: u32,
 ) -> Result<JsValue, JsValue> {
     let program_id = &id();
 
@@ -38,6 +39,7 @@ pub fn initialize_ix(
         genesis_round_number,
         round_submitter,
         min_required_votes,
+        round_ttl,
     }
     .try_to_vec()
     .handle_error()?;
@@ -64,6 +66,7 @@ pub fn update_settings_ix(
     current_round_number: Option<u32>,
     round_submitter: Option<String>,
     min_required_votes: Option<u32>,
+    round_ttl: Option<u32>,
 ) -> Result<JsValue, JsValue> {
     let program_id = &id();
 
@@ -81,6 +84,7 @@ pub fn update_settings_ix(
         current_round_number,
         round_submitter,
         min_required_votes,
+        round_ttl,
     }
     .try_to_vec()
     .handle_error()?;
@@ -103,6 +107,7 @@ pub fn create_relay_round_ix(
     funder_pubkey: String,
     creator_pubkey: String,
     round_number: u32,
+    round_end: u32,
     relays: JsValue,
 ) -> Result<JsValue, JsValue> {
     let program_id = &id();
@@ -121,6 +126,7 @@ pub fn create_relay_round_ix(
 
     let data = RoundLoaderInstruction::CreateRelayRound {
         round_number,
+        round_end,
         relays,
     }
     .try_to_vec()

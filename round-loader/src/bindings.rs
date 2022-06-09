@@ -51,6 +51,7 @@ pub fn initialize_ix(
     genesis_round_number: u32,
     round_submitter: Pubkey,
     min_required_votes: u32,
+    round_ttl: u32,
 ) -> Instruction {
     let setting_pubkey = get_settings_address();
     let program_data_pubkey = get_programdata_address();
@@ -59,6 +60,7 @@ pub fn initialize_ix(
         genesis_round_number,
         round_submitter,
         min_required_votes,
+        round_ttl,
     }
     .try_to_vec()
     .expect("pack");
@@ -82,6 +84,7 @@ pub fn update_settings_ix(
     current_round_number: Option<u32>,
     round_submitter: Option<Pubkey>,
     min_required_votes: Option<u32>,
+    round_ttl: Option<u32>,
 ) -> Instruction {
     let setting_pubkey = get_settings_address();
     let program_data_pubkey = get_programdata_address();
@@ -90,6 +93,7 @@ pub fn update_settings_ix(
         current_round_number,
         round_submitter,
         min_required_votes,
+        round_ttl,
     }
     .try_to_vec()
     .expect("pack");
@@ -109,6 +113,7 @@ pub fn create_relay_round_ix(
     funder_pubkey: &Pubkey,
     creator_pubkey: &Pubkey,
     round_number: u32,
+    round_end: u32,
     relays: Vec<Pubkey>,
 ) -> Instruction {
     let setting_pubkey = get_settings_address();
@@ -116,6 +121,7 @@ pub fn create_relay_round_ix(
 
     let data = RoundLoaderInstruction::CreateRelayRound {
         round_number,
+        round_end,
         relays,
     }
     .try_to_vec()

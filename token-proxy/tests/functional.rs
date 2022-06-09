@@ -681,12 +681,14 @@ async fn test_withdrawal_request() {
     let round_number = 12;
     let rl_settings_address = round_loader::get_associated_settings_address(&round_loader::id());
 
+    let round_ttl = 1209600;
     let rl_settings_account_data = round_loader::Settings {
         is_initialized: true,
         account_kind: AccountKind::Settings,
         current_round_number: round_number,
         round_submitter: Pubkey::new_unique(),
         min_required_votes: 1,
+        round_ttl: 0,
     };
 
     let mut rl_settings_packed = vec![0; round_loader::Settings::LEN];
@@ -711,11 +713,14 @@ async fn test_withdrawal_request() {
     let relay_round_address =
         round_loader::get_associated_relay_round_address(&round_loader::id(), round_number);
 
+    let round_end = round_ttl + chrono::Utc::now().timestamp() as u32;
+
     let relay_round_data = round_loader::RelayRound {
         is_initialized: true,
         account_kind: AccountKind::RelayRound,
         relays: relays.clone(),
         round_number,
+        round_end,
     };
 
     let mut relay_round_packed = vec![0; round_loader::RelayRound::LEN];
@@ -914,11 +919,15 @@ async fn test_vote_for_withdrawal_request() {
     let relay_round_address =
         round_loader::get_associated_relay_round_address(&round_loader::id(), round_number);
 
+    let round_ttl = 1209600;
+    let round_end = chrono::Utc::now().timestamp() as u32 + round_ttl;
+
     let relay_round_account_data = round_loader::RelayRound {
         is_initialized: true,
         account_kind: AccountKind::RelayRound,
         relays: relays.iter().map(|pair| pair.pubkey()).collect(),
         round_number,
+        round_end,
     };
 
     let mut relay_round_packed = vec![0; round_loader::RelayRound::LEN];

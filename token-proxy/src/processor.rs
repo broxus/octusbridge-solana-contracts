@@ -764,6 +764,9 @@ impl Processor {
         let rent_sysvar_info = next_account_info(account_info_iter)?;
         let rent = &Rent::from_account_info(rent_sysvar_info)?;
 
+        let clock_info = next_account_info(account_info_iter)?;
+        let clock = Clock::from_account_info(clock_info)?;
+
         if !author_account_info.is_signer {
             return Err(ProgramError::MissingRequiredSignature);
         }
@@ -795,13 +798,17 @@ impl Processor {
             return Err(ProgramError::InvalidArgument);
         }
 
-        let relay_round_account_data = RelayRound::unpack(&relay_round_account_info.data.borrow())?;
-
         round_loader::validate_relay_round_account(
             &round_loader::id(),
             round_number,
             relay_round_account_info,
         )?;
+
+        let relay_round_account_data = RelayRound::unpack(&relay_round_account_info.data.borrow())?;
+
+        if relay_round_account_data.round_end <= clock.unix_timestamp as u32 {
+            return Err(TokenProxyError::RelayRoundExpired.into());
+        }
 
         let mut required_votes = (relay_round_account_data.relays.len() * 2 / 3 + 1) as u32;
         if rl_settings_account_data.min_required_votes > required_votes {
