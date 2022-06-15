@@ -14,14 +14,14 @@ wasm = ["no-entrypoint", "bindings", "wasm-bindgen", "js-sys"]
 bincode = "1.3"
 borsh = "0.9"
 enum-as-inner = "0.3"
-solana-program = "=1.9"
+solana-program = "1.9"
 serde = { version = "1.0", features = ["derive"] }
-spl-token = {version = "3.2", features = ["no-entrypoint"]}
+spl-token = {version = "=3.2", features = ["no-entrypoint"]}
 thiserror = "1.0"
 
 getrandom = { version = "0.2", features = ["js"], optional = true }
 js-sys = { version = "0.3", optional = true }
-spl-associated-token-account = {version = "1.0", features = ["no-entrypoint"], optional = true }
+spl-associated-token-account = {version = "1", features = ["no-entrypoint"], optional = true }
 wasm-bindgen = { version = "0.2.79", features = ["serde-serialize"], optional = true }
 uuid = { version = "0.8", features = ["v4", "serde"], optional = true }
 
@@ -31,8 +31,8 @@ round-loader = { path = "../round-loader", features = ["no-entrypoint"] }
 
 [dev-dependencies]
 chrono = "0.4.19"
-solana-program-test = "=1.9"
-solana-sdk = "=1.9"
+solana-program-test = "1.9"
+solana-sdk = "1.9"
 
 [lib]
 crate-type = ["cdylib", "lib"]

@@ -7,3 +7,8 @@ members = [
     "token-proxy",
     "solana-bridge",
 ]
+
+[patch.crates-io]
+solana-program = { git = 'https://github.com/pashinov/solana', branch = 'broxus' }
+solana-sdk = { git = 'https://github.com/pashinov/solana', branch = 'broxus' }
+solana-program-test = { git = 'https://github.com/pashinov/solana', branch = 'broxus' }
