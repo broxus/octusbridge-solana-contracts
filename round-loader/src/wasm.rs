@@ -32,7 +32,7 @@ pub fn initialize_ix(
     let initializer_pubkey = Pubkey::from_str(initializer_pubkey.as_str()).handle_error()?;
     let round_submitter = Pubkey::from_str(round_submitter.as_str()).handle_error()?;
 
-    let setting_pubkey = get_associated_settings_address(program_id);
+    let setting_pubkey = bridge_utils::helper::get_associated_settings_address(program_id);
     let program_data_pubkey = get_programdata_address(program_id);
 
     let data = RoundLoaderInstruction::Initialize {
@@ -72,7 +72,7 @@ pub fn update_settings_ix(
 
     let author_pubkey = Pubkey::from_str(author_pubkey.as_str()).handle_error()?;
 
-    let setting_pubkey = get_associated_settings_address(program_id);
+    let setting_pubkey = bridge_utils::helper::get_associated_settings_address(program_id);
     let program_data_pubkey = get_programdata_address(program_id);
 
     let round_submitter = round_submitter
@@ -115,7 +115,7 @@ pub fn create_relay_round_ix(
     let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
     let creator_pubkey = Pubkey::from_str(creator_pubkey.as_str()).handle_error()?;
 
-    let setting_pubkey = get_associated_settings_address(program_id);
+    let setting_pubkey = bridge_utils::helper::get_associated_settings_address(program_id);
     let relay_round_pubkey = get_associated_relay_round_address(program_id, round_number);
 
     let relays: Vec<String> = relays.into_serde().handle_error()?;
@@ -159,7 +159,7 @@ pub fn execute_ix(
     let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
     let proposal_pubkey = Pubkey::from_str(proposal_pubkey.as_str()).handle_error()?;
 
-    let settings_pubkey = get_associated_settings_address(program_id);
+    let settings_pubkey = bridge_utils::helper::get_associated_settings_address(program_id);
     let relay_round_pubkey = get_associated_relay_round_address(program_id, round_number);
 
     let data = RoundLoaderInstruction::ExecuteProposal

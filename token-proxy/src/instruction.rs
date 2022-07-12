@@ -26,6 +26,17 @@ pub enum TokenProxyInstruction {
     /// ...
     WithdrawSol,
 
+    /// Initialize Token Proxy
+    ///
+    /// # Account references
+    /// ...
+    Initialize {
+        // Guardian pubkey
+        guardian: Pubkey,
+        // Withdrawal manager pubkey
+        withdrawal_manager: Pubkey,
+    },
+
     /// Initialize Mint Account
     ///
     /// # Account references
@@ -43,10 +54,6 @@ pub enum TokenProxyInstruction {
         withdrawal_limit: u64,
         // Withdrawal daily limit
         withdrawal_daily_limit: u64,
-        // Guardian pubkey
-        guardian: Pubkey,
-        // Withdrawal manager pubkey
-        withdrawal_manager: Pubkey,
     },
 
     /// Initialize Vault Account
@@ -64,10 +71,6 @@ pub enum TokenProxyInstruction {
         withdrawal_limit: u64,
         // Withdrawal daily limit
         withdrawal_daily_limit: u64,
-        // Guardian pubkey
-        guardian: Pubkey,
-        // Withdrawal manager pubkey
-        withdrawal_manager: Pubkey,
     },
 
     /// Deposit EVER

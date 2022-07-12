@@ -28,6 +28,18 @@ impl Processor {
         let instruction = TokenProxyInstruction::try_from_slice(instruction_data)?;
 
         match instruction {
+            TokenProxyInstruction::Initialize {
+                guardian,
+                withdrawal_manager,
+            } => {
+                msg!("Instruction: Initialize Token Proxy");
+                Self::process_initialize(
+                    program_id,
+                    accounts,
+                    guardian,
+                    withdrawal_manager,
+                )?;
+            }
             TokenProxyInstruction::InitializeMint {
                 name,
                 ever_decimals,
@@ -35,8 +47,6 @@ impl Processor {
                 deposit_limit,
                 withdrawal_limit,
                 withdrawal_daily_limit,
-                guardian,
-                withdrawal_manager,
             } => {
                 msg!("Instruction: Initialize Mint");
                 Self::process_mint_initialize(
@@ -48,8 +58,6 @@ impl Processor {
                     deposit_limit,
                     withdrawal_limit,
                     withdrawal_daily_limit,
-                    guardian,
-                    withdrawal_manager,
                 )?;
             }
             TokenProxyInstruction::InitializeVault {
@@ -58,8 +66,6 @@ impl Processor {
                 deposit_limit,
                 withdrawal_limit,
                 withdrawal_daily_limit,
-                guardian,
-                withdrawal_manager,
             } => {
                 msg!("Instruction: Initialize Vault");
                 Self::process_vault_initialize(
@@ -70,8 +76,6 @@ impl Processor {
                     deposit_limit,
                     withdrawal_limit,
                     withdrawal_daily_limit,
-                    guardian,
-                    withdrawal_manager,
                 )?;
             }
             TokenProxyInstruction::DepositEver {
@@ -213,6 +217,76 @@ impl Processor {
         Ok(())
     }
 
+    fn process_initialize(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        guardian: Pubkey,
+        withdrawal_manager: Pubkey,
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+
+        let funder_account_info = next_account_info(account_info_iter)?;
+        let initializer_account_info = next_account_info(account_info_iter)?;
+        let settings_account_info = next_account_info(account_info_iter)?;
+        let programdata_account_info = next_account_info(account_info_iter)?;
+        let system_program_info = next_account_info(account_info_iter)?;
+        let rent_sysvar_info = next_account_info(account_info_iter)?;
+        let rent = &Rent::from_account_info(rent_sysvar_info)?;
+
+        if !initializer_account_info.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        // Validate Initializer Account
+        bridge_utils::helper::validate_programdata_account(
+            program_id,
+            programdata_account_info.key,
+        )?;
+        bridge_utils::helper::validate_initializer_account(
+            initializer_account_info.key,
+            programdata_account_info,
+        )?;
+
+        // Validate Settings Account
+        let settings_nonce = bridge_utils::helper::validate_settings_account(program_id, settings_account_info)?;
+        let settings_account_signer_seeds: &[&[_]] =
+            &[br"settings", &[settings_nonce]];
+
+        // Create Settings Account
+        invoke_signed(
+            &system_instruction::create_account(
+                funder_account_info.key,
+                settings_account_info.key,
+                1.max(rent.minimum_balance(TokenSettings::LEN)),
+                TokenSettings::LEN as u64,
+                program_id,
+            ),
+            &[
+                funder_account_info.clone(),
+                settings_account_info.clone(),
+                system_program_info.clone(),
+            ],
+            &[settings_account_signer_seeds],
+        )?;
+
+        // Init Settings Account
+        let settings_account_data = Settings {
+            is_initialized: true,
+            account_kind: AccountKind::Settings,
+            emergency: false,
+            guardian,
+            withdrawal_manager,
+
+        };
+
+        Settings::pack(
+            settings_account_data,
+            &mut settings_account_info.data.borrow_mut(),
+        )?;
+
+        Ok(())
+    }
+
     #[allow(clippy::too_many_arguments)]
     fn process_mint_initialize(
         program_id: &Pubkey,
@@ -223,15 +297,13 @@ impl Processor {
         deposit_limit: u64,
         withdrawal_limit: u64,
         withdrawal_daily_limit: u64,
-        guardian: Pubkey,
-        withdrawal_manager: Pubkey,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
         let funder_account_info = next_account_info(account_info_iter)?;
         let initializer_account_info = next_account_info(account_info_iter)?;
         let mint_account_info = next_account_info(account_info_iter)?;
-        let settings_account_info = next_account_info(account_info_iter)?;
+        let token_settings_account_info = next_account_info(account_info_iter)?;
         let programdata_account_info = next_account_info(account_info_iter)?;
         let system_program_info = next_account_info(account_info_iter)?;
         let spl_token_program_info = next_account_info(account_info_iter)?;
@@ -296,32 +368,31 @@ impl Processor {
         )?;
 
         // Validate Settings Account
-        let settings_nonce = validate_settings_account(program_id, &name, settings_account_info)?;
-        let settings_account_signer_seeds: &[&[_]] =
-            &[br"settings", name.as_bytes(), &[settings_nonce]];
+        let token_settings_nonce = validate_token_settings_account(program_id, &name, token_settings_account_info)?;
+        let token_settings_account_signer_seeds: &[&[_]] =
+            &[br"settings", name.as_bytes(), &[token_settings_nonce]];
 
         // Create Settings Account
         invoke_signed(
             &system_instruction::create_account(
                 funder_account_info.key,
-                settings_account_info.key,
-                1.max(rent.minimum_balance(Settings::LEN)),
-                Settings::LEN as u64,
+                token_settings_account_info.key,
+                1.max(rent.minimum_balance(TokenSettings::LEN)),
+                TokenSettings::LEN as u64,
                 program_id,
             ),
             &[
                 funder_account_info.clone(),
-                settings_account_info.clone(),
+                token_settings_account_info.clone(),
                 system_program_info.clone(),
             ],
-            &[settings_account_signer_seeds],
+            &[token_settings_account_signer_seeds],
         )?;
 
         // Init Settings Account
-        let settings_account_data = Settings {
+        let token_settings_account_data = TokenSettings {
             is_initialized: true,
             account_kind: AccountKind::Settings,
-            emergency: false,
             kind: TokenKind::Ever {
                 mint: *mint_account_info.key,
             },
@@ -333,19 +404,16 @@ impl Processor {
             deposit_limit,
             withdrawal_limit,
             withdrawal_daily_limit,
-            guardian,
-            withdrawal_manager,
         };
 
-        Settings::pack(
-            settings_account_data,
-            &mut settings_account_info.data.borrow_mut(),
+        TokenSettings::pack(
+            token_settings_account_data,
+            &mut token_settings_account_info.data.borrow_mut(),
         )?;
 
         Ok(())
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn process_vault_initialize(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
@@ -354,8 +422,6 @@ impl Processor {
         deposit_limit: u64,
         withdrawal_limit: u64,
         withdrawal_daily_limit: u64,
-        guardian: Pubkey,
-        withdrawal_manager: Pubkey,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -363,7 +429,7 @@ impl Processor {
         let initializer_account_info = next_account_info(account_info_iter)?;
         let mint_account_info = next_account_info(account_info_iter)?;
         let vault_account_info = next_account_info(account_info_iter)?;
-        let settings_account_info = next_account_info(account_info_iter)?;
+        let token_settings_account_info = next_account_info(account_info_iter)?;
         let programdata_account_info = next_account_info(account_info_iter)?;
         let token_program_info = next_account_info(account_info_iter)?;
         let system_program_info = next_account_info(account_info_iter)?;
@@ -428,35 +494,34 @@ impl Processor {
         )?;
 
         // Validate Settings Account
-        let settings_nonce = validate_settings_account(program_id, &name, settings_account_info)?;
-        let settings_account_signer_seeds: &[&[_]] =
-            &[br"settings", name.as_bytes(), &[settings_nonce]];
+        let token_settings_nonce = validate_token_settings_account(program_id, &name, token_settings_account_info)?;
+        let token_settings_account_signer_seeds: &[&[_]] =
+            &[br"settings", name.as_bytes(), &[token_settings_nonce]];
 
         // Create Settings Account
         invoke_signed(
             &system_instruction::create_account(
                 funder_account_info.key,
-                settings_account_info.key,
-                1.max(rent.minimum_balance(Settings::LEN)),
-                Settings::LEN as u64,
+                token_settings_account_info.key,
+                1.max(rent.minimum_balance(TokenSettings::LEN)),
+                TokenSettings::LEN as u64,
                 program_id,
             ),
             &[
                 funder_account_info.clone(),
-                settings_account_info.clone(),
+                token_settings_account_info.clone(),
                 system_program_info.clone(),
             ],
-            &[settings_account_signer_seeds],
+            &[token_settings_account_signer_seeds],
         )?;
 
         let mint_account_data = Mint::unpack(&mint_account_info.data.borrow())?;
         let solana_decimals = mint_account_data.decimals;
 
         // Init Settings Account
-        let settings_account_data = Settings {
+        let token_settings_account_data = TokenSettings {
             is_initialized: true,
             account_kind: AccountKind::Settings,
-            emergency: false,
             kind: TokenKind::Solana {
                 mint: *mint_account_info.key,
                 vault: *vault_account_info.key,
@@ -469,13 +534,11 @@ impl Processor {
             deposit_limit,
             withdrawal_limit,
             withdrawal_daily_limit,
-            guardian,
-            withdrawal_manager,
         };
 
-        Settings::pack(
-            settings_account_data,
-            &mut settings_account_info.data.borrow_mut(),
+        TokenSettings::pack(
+            token_settings_account_data,
+            &mut token_settings_account_info.data.borrow_mut(),
         )?;
 
         Ok(())
@@ -495,6 +558,7 @@ impl Processor {
         let creator_token_account_info = next_account_info(account_info_iter)?;
         let deposit_account_info = next_account_info(account_info_iter)?;
         let mint_account_info = next_account_info(account_info_iter)?;
+        let token_settings_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
         let system_program_info = next_account_info(account_info_iter)?;
         let token_program_info = next_account_info(account_info_iter)?;
@@ -505,18 +569,19 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
+        // Validate Settings Account
+        bridge_utils::helper::validate_settings_account(program_id, settings_account_info)?;
+
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
         if settings_account_data.emergency {
             return Err(TokenProxyError::EmergencyEnabled.into());
         }
 
-        // Validate Setting Account
-        let name = &settings_account_data.name;
-        validate_settings_account(program_id, name, settings_account_info)?;
+        // Validate Token Settings Account
+        let token_settings_account_data = TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
 
-        if settings_account_info.owner != program_id {
-            return Err(ProgramError::InvalidArgument);
-        }
+        let name = &token_settings_account_data.name;
+        validate_token_settings_account(program_id, name, token_settings_account_info)?;
 
         // Validate Mint Account
         validate_mint_account(program_id, name, mint_account_info)?;
@@ -547,13 +612,13 @@ impl Processor {
         let deposit_nonce = validate_deposit_account(
             program_id,
             deposit_seed,
-            settings_account_info.key,
+            token_settings_account_info.key,
             deposit_account_info,
         )?;
         let deposit_account_signer_seeds: &[&[_]] = &[
             br"deposit",
             &deposit_seed.to_le_bytes(),
-            &settings_account_info.key.to_bytes(),
+            &token_settings_account_info.key.to_bytes(),
             &[deposit_nonce],
         ];
 
@@ -576,8 +641,8 @@ impl Processor {
 
         let amount = get_deposit_amount(
             amount,
-            settings_account_data.ever_decimals,
-            settings_account_data.solana_decimals,
+            token_settings_account_data.ever_decimals,
+            token_settings_account_data.solana_decimals,
         );
 
         // Init Deposit Account
@@ -616,6 +681,7 @@ impl Processor {
         let deposit_account_info = next_account_info(account_info_iter)?;
         let mint_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
+        let token_settings_account_info = next_account_info(account_info_iter)?;
         let system_program_info = next_account_info(account_info_iter)?;
         let token_program_info = next_account_info(account_info_iter)?;
         let rent_sysvar_info = next_account_info(account_info_iter)?;
@@ -625,20 +691,21 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
+        // Validate Settings Account
+        bridge_utils::helper::validate_settings_account(program_id, settings_account_info)?;
+
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
         if settings_account_data.emergency {
             return Err(TokenProxyError::EmergencyEnabled.into());
         }
 
-        // Validate Setting Account
-        let name = &settings_account_data.name;
-        validate_settings_account(program_id, name, settings_account_info)?;
+        // Validate Token Setting Account
+        let token_settings_account_data = TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
 
-        if settings_account_info.owner != program_id {
-            return Err(ProgramError::InvalidArgument);
-        }
+        let name = &token_settings_account_data.name;
+        validate_token_settings_account(program_id, name, token_settings_account_info)?;
 
-        let (mint_account, vault_account) = settings_account_data
+        let (mint_account, vault_account) = token_settings_account_data
             .kind
             .as_solana()
             .ok_or(TokenProxyError::InvalidTokenKind)?;
@@ -660,7 +727,7 @@ impl Processor {
             .amount
             .checked_add(amount)
             .ok_or(TokenProxyError::ArithmeticsError)?
-            > settings_account_data.deposit_limit
+            > token_settings_account_data.deposit_limit
         {
             return Err(TokenProxyError::DepositLimit.into());
         }
@@ -687,13 +754,13 @@ impl Processor {
         let deposit_nonce = validate_deposit_account(
             program_id,
             deposit_seed,
-            settings_account_info.key,
+            token_settings_account_info.key,
             deposit_account_info,
         )?;
         let deposit_account_signer_seeds: &[&[_]] = &[
             br"deposit",
             &deposit_seed.to_le_bytes(),
-            &settings_account_info.key.to_bytes(),
+            &token_settings_account_info.key.to_bytes(),
             &[deposit_nonce],
         ];
 
@@ -716,8 +783,8 @@ impl Processor {
 
         let amount = get_deposit_amount(
             amount,
-            settings_account_data.ever_decimals,
-            settings_account_data.solana_decimals,
+            token_settings_account_data.ever_decimals,
+            token_settings_account_data.solana_decimals,
         );
 
         // Init Deposit Account
@@ -756,7 +823,7 @@ impl Processor {
         let funder_account_info = next_account_info(account_info_iter)?;
         let author_account_info = next_account_info(account_info_iter)?;
         let withdrawal_account_info = next_account_info(account_info_iter)?;
-        let settings_account_info = next_account_info(account_info_iter)?;
+        let token_settings_account_info = next_account_info(account_info_iter)?;
         let rl_settings_account_info = next_account_info(account_info_iter)?;
         let relay_round_account_info = next_account_info(account_info_iter)?;
         let system_program_info = next_account_info(account_info_iter)?;
@@ -772,21 +839,13 @@ impl Processor {
         }
 
         // Validate Setting Account
-        if settings_account_info.owner != program_id {
-            return Err(ProgramError::InvalidArgument);
-        }
+        let token_settings_account_data = TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
 
-        let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
-
-        let name = &settings_account_data.name;
-        validate_settings_account(program_id, name, settings_account_info)?;
+        let name = &token_settings_account_data.name;
+        validate_token_settings_account(program_id, name, token_settings_account_info)?;
 
         // Validate Round Loader Settings Account
-        if rl_settings_account_info.owner != &round_loader::id() {
-            return Err(ProgramError::InvalidArgument);
-        }
-
-        round_loader::validate_settings_account(&round_loader::id(), rl_settings_account_info)?;
+        bridge_utils::helper::validate_settings_account(&round_loader::id(), rl_settings_account_info)?;
 
         let rl_settings_account_data =
             round_loader::Settings::unpack(&rl_settings_account_info.data.borrow())?;
@@ -794,10 +853,6 @@ impl Processor {
         let round_number = rl_settings_account_data.current_round_number;
 
         // Validate Relay Round Account
-        if relay_round_account_info.owner != &round_loader::id() {
-            return Err(ProgramError::InvalidArgument);
-        }
-
         round_loader::validate_relay_round_account(
             &round_loader::id(),
             round_number,
@@ -827,7 +882,7 @@ impl Processor {
             meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::New, 0),
             signers: vec![Vote::None; relay_round_account_data.relays.len()],
             pda: PDA {
-                settings: *settings_account_info.key,
+                settings: *token_settings_account_info.key,
                 event_timestamp,
                 event_transaction_lt,
                 event_configuration,
@@ -839,7 +894,7 @@ impl Processor {
         // Validate Withdrawal Account
         let withdrawal_nonce = bridge_utils::helper::validate_proposal_account(
             program_id,
-            settings_account_info.key,
+            token_settings_account_info.key,
             event_timestamp,
             event_transaction_lt,
             &event_configuration,
@@ -848,7 +903,7 @@ impl Processor {
         )?;
         let withdrawal_account_signer_seeds: &[&[_]] = &[
             br"proposal",
-            &settings_account_info.key.to_bytes(),
+            &token_settings_account_info.key.to_bytes(),
             &event_timestamp.to_le_bytes(),
             &event_transaction_lt.to_le_bytes(),
             &event_configuration.to_bytes(),
@@ -916,10 +971,6 @@ impl Processor {
         }
 
         // Validate Withdrawal Account
-        if withdrawal_account_info.owner != program_id {
-            return Err(ProgramError::InvalidArgument);
-        }
-
         let mut withdrawal_account_data =
             Proposal::unpack_from_slice(&withdrawal_account_info.data.borrow())?;
 
@@ -947,10 +998,6 @@ impl Processor {
             round_number,
             relay_round_account_info,
         )?;
-
-        if relay_round_account_info.owner != &round_loader::id() {
-            return Err(ProgramError::InvalidArgument);
-        }
 
         let relay_round_account_data = RelayRound::unpack(&relay_round_account_info.data.borrow())?;
 
@@ -980,16 +1027,21 @@ impl Processor {
         let withdrawal_account_info = next_account_info(account_info_iter)?;
         let mint_account_info = next_account_info(account_info_iter)?;
         let recipient_token_account_info = next_account_info(account_info_iter)?;
+        let token_settings_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
         let token_program_info = next_account_info(account_info_iter)?;
         let clock_info = next_account_info(account_info_iter)?;
         let clock = Clock::from_account_info(clock_info)?;
 
-        // Validate Withdrawal Account
-        if withdrawal_account_info.owner != program_id {
-            return Err(ProgramError::InvalidArgument);
+        // Validate Settings Account
+        bridge_utils::helper::validate_settings_account(program_id, settings_account_info)?;
+
+        let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+        if settings_account_data.emergency {
+            return Err(TokenProxyError::EmergencyEnabled.into());
         }
 
+        // Validate Withdrawal Account
         let mut withdrawal_account_data =
             WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
         let settings = withdrawal_account_data.pda.settings;
@@ -1008,22 +1060,17 @@ impl Processor {
             withdrawal_account_info,
         )?;
 
-        // Validate Setting Account
-        if *settings_account_info.key != settings {
+        // Validate Token Setting Account
+        if *token_settings_account_info.key != settings {
             return Err(ProgramError::InvalidArgument);
         }
 
-        let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
-
-        if settings_account_data.emergency {
-            // Do nothing
-            return Ok(());
-        }
+        let mut token_settings_account_data = TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
 
         let withdrawal_amount = get_withdrawal_amount(
             withdrawal_account_data.event.data.amount,
-            settings_account_data.ever_decimals,
-            settings_account_data.solana_decimals,
+            token_settings_account_data.ever_decimals,
+            token_settings_account_data.solana_decimals,
         );
 
         // Do we have enough signers.
@@ -1039,20 +1086,20 @@ impl Processor {
             let current_timestamp = clock.unix_timestamp;
 
             // If current timestamp has expired
-            if settings_account_data.withdrawal_ttl < current_timestamp {
-                settings_account_data.withdrawal_ttl = current_timestamp + WITHDRAWAL_TOKEN_PERIOD;
-                settings_account_data.withdrawal_daily_amount = Default::default();
+            if token_settings_account_data.withdrawal_ttl < current_timestamp {
+                token_settings_account_data.withdrawal_ttl = current_timestamp + WITHDRAWAL_TOKEN_PERIOD;
+                token_settings_account_data.withdrawal_daily_amount = Default::default();
             }
 
             // Increase withdrawal daily amount
-            settings_account_data.withdrawal_daily_amount = settings_account_data
+            token_settings_account_data.withdrawal_daily_amount = token_settings_account_data
                 .withdrawal_daily_amount
                 .checked_add(withdrawal_amount)
                 .ok_or(TokenProxyError::ArithmeticsError)?;
 
-            if withdrawal_amount > settings_account_data.withdrawal_limit
-                || settings_account_data.withdrawal_daily_amount
-                    > settings_account_data.withdrawal_daily_limit
+            if withdrawal_amount > token_settings_account_data.withdrawal_limit
+                || token_settings_account_data.withdrawal_daily_amount
+                    > token_settings_account_data.withdrawal_daily_limit
             {
                 withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::WaitingForApprove;
             } else {
@@ -1061,15 +1108,15 @@ impl Processor {
                     mint_account_info,
                     token_program_info,
                     recipient_token_account_info,
-                    &settings_account_data,
+                    &token_settings_account_data,
                     &mut withdrawal_account_data,
                     withdrawal_amount,
                 )?;
             }
 
-            Settings::pack(
-                settings_account_data,
-                &mut settings_account_info.data.borrow_mut(),
+            TokenSettings::pack(
+                token_settings_account_data,
+                &mut token_settings_account_info.data.borrow_mut(),
             )?;
 
             withdrawal_account_data.is_executed = true;
@@ -1089,16 +1136,21 @@ impl Processor {
         let withdrawal_account_info = next_account_info(account_info_iter)?;
         let vault_account_info = next_account_info(account_info_iter)?;
         let recipient_token_account_info = next_account_info(account_info_iter)?;
+        let token_settings_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
         let token_program_info = next_account_info(account_info_iter)?;
         let clock_info = next_account_info(account_info_iter)?;
         let clock = Clock::from_account_info(clock_info)?;
 
-        // Validate Withdrawal Account
-        if withdrawal_account_info.owner != program_id {
-            return Err(ProgramError::InvalidArgument);
+        // Validate Settings Account
+        bridge_utils::helper::validate_settings_account(program_id, settings_account_info)?;
+
+        let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+        if settings_account_data.emergency {
+            return Err(TokenProxyError::EmergencyEnabled.into());
         }
 
+        // Validate Withdrawal Account
         let mut withdrawal_account_data =
             WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
         let settings = withdrawal_account_data.pda.settings;
@@ -1119,21 +1171,17 @@ impl Processor {
 
         let withdrawal_status = withdrawal_account_data.meta.data.status;
 
-        // Validate Setting Account
-        if *settings_account_info.key != settings {
+        // Validate Token Setting Account
+        if *token_settings_account_info.key != settings {
             return Err(ProgramError::InvalidArgument);
         }
 
-        let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
-
-        if settings_account_data.emergency {
-            return Err(TokenProxyError::EmergencyEnabled.into());
-        }
+        let mut token_settings_account_data = TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
 
         let withdrawal_amount = get_withdrawal_amount(
             withdrawal_account_data.event.data.amount,
-            settings_account_data.ever_decimals,
-            settings_account_data.solana_decimals,
+            token_settings_account_data.ever_decimals,
+            token_settings_account_data.solana_decimals,
         );
 
         // Do we have enough signers.
@@ -1149,21 +1197,21 @@ impl Processor {
                     let current_timestamp = clock.unix_timestamp;
 
                     // If current timestamp has expired
-                    if settings_account_data.withdrawal_ttl < current_timestamp {
-                        settings_account_data.withdrawal_ttl =
+                    if token_settings_account_data.withdrawal_ttl < current_timestamp {
+                        token_settings_account_data.withdrawal_ttl =
                             current_timestamp + WITHDRAWAL_TOKEN_PERIOD;
-                        settings_account_data.withdrawal_daily_amount = Default::default();
+                        token_settings_account_data.withdrawal_daily_amount = Default::default();
                     }
 
                     // Increase withdrawal daily amount
-                    settings_account_data.withdrawal_daily_amount = settings_account_data
+                    token_settings_account_data.withdrawal_daily_amount = token_settings_account_data
                         .withdrawal_daily_amount
                         .checked_add(withdrawal_amount)
                         .ok_or(TokenProxyError::ArithmeticsError)?;
 
-                    if withdrawal_amount > settings_account_data.withdrawal_limit
-                        || settings_account_data.withdrawal_daily_amount
-                            > settings_account_data.withdrawal_daily_limit
+                    if withdrawal_amount > token_settings_account_data.withdrawal_limit
+                        || token_settings_account_data.withdrawal_daily_amount
+                            > token_settings_account_data.withdrawal_daily_limit
                     {
                         withdrawal_account_data.meta.data.status =
                             WithdrawalTokenStatus::WaitingForApprove;
@@ -1173,15 +1221,15 @@ impl Processor {
                             vault_account_info,
                             token_program_info,
                             recipient_token_account_info,
-                            &settings_account_data,
+                            &token_settings_account_data,
                             &mut withdrawal_account_data,
                             withdrawal_amount,
                         )?;
                     }
 
-                    Settings::pack(
-                        settings_account_data,
-                        &mut settings_account_info.data.borrow_mut(),
+                    TokenSettings::pack(
+                        token_settings_account_data,
+                        &mut token_settings_account_info.data.borrow_mut(),
                     )?;
 
                     withdrawal_account_data.is_executed = true
@@ -1191,7 +1239,7 @@ impl Processor {
                     vault_account_info,
                     token_program_info,
                     recipient_token_account_info,
-                    &settings_account_data,
+                    &token_settings_account_data,
                     &mut withdrawal_account_data,
                     withdrawal_amount,
                 )?,
@@ -1218,17 +1266,22 @@ impl Processor {
         let withdrawal_account_info = next_account_info(account_info_iter)?;
         let recipient_token_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
+        let token_settings_account_info = next_account_info(account_info_iter)?;
         let token_program_info = next_account_info(account_info_iter)?;
 
         if !authority_account_info.is_signer {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        // Validate Withdrawal Account
-        if withdrawal_account_info.owner != program_id {
-            return Err(ProgramError::InvalidArgument);
+        // Validate Settings Account
+        bridge_utils::helper::validate_settings_account(program_id, settings_account_info)?;
+
+        let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+        if settings_account_data.emergency {
+            return Err(TokenProxyError::EmergencyEnabled.into());
         }
 
+        // Validate Withdrawal Account
         let mut withdrawal_account_data =
             WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
         let settings = withdrawal_account_data.pda.settings;
@@ -1251,16 +1304,12 @@ impl Processor {
             return Err(TokenProxyError::InvalidWithdrawalStatus.into());
         }
 
-        // Validate Setting Account
-        if *settings_account_info.key != settings {
+        // Validate Token Setting Account
+        if *token_settings_account_info.key != settings {
             return Err(ProgramError::InvalidArgument);
         }
 
-        let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
-
-        if settings_account_data.emergency {
-            return Err(TokenProxyError::EmergencyEnabled.into());
-        }
+        let token_settings_account_data = TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
 
         if *authority_account_info.key != settings_account_data.withdrawal_manager {
             let programdata_account_info = next_account_info(account_info_iter)?;
@@ -1278,8 +1327,8 @@ impl Processor {
 
         let withdrawal_amount = get_withdrawal_amount(
             withdrawal_account_data.event.data.amount,
-            settings_account_data.ever_decimals,
-            settings_account_data.solana_decimals,
+            token_settings_account_data.ever_decimals,
+            token_settings_account_data.solana_decimals,
         );
 
         make_ever_transfer(
@@ -1287,7 +1336,7 @@ impl Processor {
             mint_account_info,
             token_program_info,
             recipient_token_account_info,
-            &settings_account_data,
+            &token_settings_account_data,
             &mut withdrawal_account_data,
             withdrawal_amount,
         )?;
@@ -1310,6 +1359,7 @@ impl Processor {
         let vault_account_info = next_account_info(account_info_iter)?;
         let withdrawal_account_info = next_account_info(account_info_iter)?;
         let recipient_token_account_info = next_account_info(account_info_iter)?;
+        let token_settings_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
         let token_program_info = next_account_info(account_info_iter)?;
 
@@ -1317,11 +1367,15 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        // Validate Withdrawal Account
-        if withdrawal_account_info.owner != program_id {
-            return Err(ProgramError::InvalidArgument);
+        // Validate Settings Account
+        bridge_utils::helper::validate_settings_account(program_id, settings_account_info)?;
+
+        let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+        if settings_account_data.emergency {
+            return Err(TokenProxyError::EmergencyEnabled.into());
         }
 
+        // Validate Withdrawal Account
         let mut withdrawal_account_data =
             WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
         let settings = withdrawal_account_data.pda.settings;
@@ -1344,17 +1398,6 @@ impl Processor {
             return Err(TokenProxyError::InvalidWithdrawalStatus.into());
         }
 
-        // Validate Setting Account
-        if *settings_account_info.key != settings {
-            return Err(ProgramError::InvalidArgument);
-        }
-
-        let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
-
-        if settings_account_data.emergency {
-            return Err(TokenProxyError::EmergencyEnabled.into());
-        }
-
         if *authority_account_info.key != settings_account_data.withdrawal_manager {
             let programdata_account_info = next_account_info(account_info_iter)?;
 
@@ -1369,10 +1412,17 @@ impl Processor {
             )?;
         }
 
+        // Validate Token Setting Account
+        if *token_settings_account_info.key != settings {
+            return Err(ProgramError::InvalidArgument);
+        }
+
+        let token_settings_account_data = TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
+
         let withdrawal_amount = get_withdrawal_amount(
             withdrawal_account_data.event.data.amount,
-            settings_account_data.ever_decimals,
-            settings_account_data.solana_decimals,
+            token_settings_account_data.ever_decimals,
+            token_settings_account_data.solana_decimals,
         );
 
         make_sol_transfer(
@@ -1380,7 +1430,7 @@ impl Processor {
             vault_account_info,
             token_program_info,
             recipient_token_account_info,
-            &settings_account_data,
+            &token_settings_account_data,
             &mut withdrawal_account_data,
             withdrawal_amount,
         )?;
@@ -1406,6 +1456,7 @@ impl Processor {
         let withdrawal_account_info = next_account_info(account_info_iter)?;
         let new_deposit_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
+        let token_settings_account_info = next_account_info(account_info_iter)?;
         let system_program_info = next_account_info(account_info_iter)?;
         let rent_sysvar_info = next_account_info(account_info_iter)?;
         let rent = &Rent::from_account_info(rent_sysvar_info)?;
@@ -1414,11 +1465,15 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        // Validate Withdrawal Account
-        if withdrawal_account_info.owner != program_id {
-            return Err(ProgramError::InvalidArgument);
+        // Validate Settings Account
+        bridge_utils::helper::validate_settings_account(program_id, settings_account_info)?;
+
+        let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+        if settings_account_data.emergency {
+            return Err(TokenProxyError::EmergencyEnabled.into());
         }
 
+        // Validate Withdrawal Account
         let mut withdrawal_account_data =
             WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
         let settings = withdrawal_account_data.pda.settings;
@@ -1437,14 +1492,14 @@ impl Processor {
             withdrawal_account_info,
         )?;
 
-        // Validate Setting Account
-        if *settings_account_info.key != settings {
-            return Err(ProgramError::InvalidArgument);
-        }
+        // Validate Token Setting Account
+        let token_settings_account_data = TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
 
-        let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
-        if settings_account_data.emergency {
-            return Err(TokenProxyError::EmergencyEnabled.into());
+        let name = &token_settings_account_data.name;
+        validate_token_settings_account(program_id, name, token_settings_account_info)?;
+
+        if *token_settings_account_info.key != settings {
+            return Err(ProgramError::InvalidArgument);
         }
 
         if withdrawal_account_data.author != *author_account_info.key {
@@ -1461,13 +1516,13 @@ impl Processor {
         let deposit_nonce = validate_deposit_account(
             program_id,
             deposit_seed,
-            settings_account_info.key,
+            token_settings_account_info.key,
             new_deposit_account_info,
         )?;
         let deposit_account_signer_seeds: &[&[_]] = &[
             br"deposit",
             &deposit_seed.to_le_bytes(),
-            &settings_account_info.key.to_bytes(),
+            &token_settings_account_info.key.to_bytes(),
             &[deposit_nonce],
         ];
 
@@ -1543,6 +1598,7 @@ impl Processor {
         let withdrawal_account_info = next_account_info(account_info_iter)?;
         let new_deposit_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
+        let token_settings_account_info = next_account_info(account_info_iter)?;
         let system_program_info = next_account_info(account_info_iter)?;
         let token_program_info = next_account_info(account_info_iter)?;
         let rent_sysvar_info = next_account_info(account_info_iter)?;
@@ -1552,11 +1608,15 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        // Validate Withdrawal Account
-        if withdrawal_account_info.owner != program_id {
-            return Err(ProgramError::InvalidArgument);
+        // Validate Settings Account
+        bridge_utils::helper::validate_settings_account(program_id, settings_account_info)?;
+
+        let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+        if settings_account_data.emergency {
+            return Err(TokenProxyError::EmergencyEnabled.into());
         }
 
+        // Validate Withdrawal Account
         let mut withdrawal_account_data =
             WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
         let settings = withdrawal_account_data.pda.settings;
@@ -1579,15 +1639,14 @@ impl Processor {
             return Err(TokenProxyError::InvalidWithdrawalStatus.into());
         }
 
-        // Validate Setting Account
-        if *settings_account_info.key != settings {
+        // Validate Token Setting Account
+        let token_settings_account_data = TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
+
+        let name = &token_settings_account_data.name;
+        validate_token_settings_account(program_id, name, token_settings_account_info)?;
+
+        if *token_settings_account_info.key != settings {
             return Err(ProgramError::InvalidArgument);
-        }
-
-        let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
-
-        if settings_account_data.emergency {
-            return Err(TokenProxyError::EmergencyEnabled.into());
         }
 
         // Validate Recipient account
@@ -1614,8 +1673,8 @@ impl Processor {
 
         let withdrawal_amount = get_withdrawal_amount(
             withdrawal_account_data.event.data.amount,
-            settings_account_data.ever_decimals,
-            settings_account_data.solana_decimals,
+            token_settings_account_data.ever_decimals,
+            token_settings_account_data.solana_decimals,
         );
 
         // Transfer SOL tokens
@@ -1644,13 +1703,13 @@ impl Processor {
         let deposit_nonce = validate_deposit_account(
             program_id,
             deposit_seed,
-            settings_account_info.key,
+            token_settings_account_info.key,
             new_deposit_account_info,
         )?;
         let deposit_account_signer_seeds: &[&[_]] = &[
             br"deposit",
             &deposit_seed.to_le_bytes(),
-            &settings_account_info.key.to_bytes(),
+            &token_settings_account_info.key.to_bytes(),
             &[deposit_nonce],
         ];
 
@@ -1711,10 +1770,6 @@ impl Processor {
         }
 
         // Validate Withdrawal Account
-        if withdrawal_account_info.owner != program_id {
-            return Err(ProgramError::InvalidArgument);
-        }
-
         let mut withdrawal_account_data =
             WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
         let settings = withdrawal_account_data.pda.settings;
@@ -1776,16 +1831,10 @@ impl Processor {
             programdata_account_info,
         )?;
 
-        let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
-
         // Validate Setting Account
-        let name = &settings_account_data.name;
-        validate_settings_account(program_id, name, settings_account_info)?;
+        bridge_utils::helper::validate_settings_account(program_id, settings_account_info)?;
 
-        if settings_account_info.owner != program_id {
-            return Err(ProgramError::InvalidArgument);
-        }
-
+        let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
         settings_account_data.guardian = new_guardian;
 
         Settings::pack(
@@ -1821,16 +1870,10 @@ impl Processor {
             programdata_account_info,
         )?;
 
-        let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
-
         // Validate Setting Account
-        let name = &settings_account_data.name;
-        validate_settings_account(program_id, name, settings_account_info)?;
+        bridge_utils::helper::validate_settings_account(program_id, settings_account_info)?;
 
-        if settings_account_info.owner != program_id {
-            return Err(ProgramError::InvalidArgument);
-        }
-
+        let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
         settings_account_data.withdrawal_manager = new_withdrawal_manager;
 
         Settings::pack(
@@ -1849,7 +1892,7 @@ impl Processor {
         let account_info_iter = &mut accounts.iter();
 
         let authority_account_info = next_account_info(account_info_iter)?;
-        let settings_account_info = next_account_info(account_info_iter)?;
+        let token_settings_account_info = next_account_info(account_info_iter)?;
         let programdata_account_info = next_account_info(account_info_iter)?;
 
         // Validate Initializer Account
@@ -1866,21 +1909,17 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+        let mut settings_account_data = TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
 
         // Validate Setting Account
         let name = &settings_account_data.name;
-        validate_settings_account(program_id, name, settings_account_info)?;
-
-        if settings_account_info.owner != program_id {
-            return Err(ProgramError::InvalidArgument);
-        }
+        validate_token_settings_account(program_id, name, token_settings_account_info)?;
 
         settings_account_data.deposit_limit = new_deposit_limit;
 
-        Settings::pack(
+        TokenSettings::pack(
             settings_account_data,
-            &mut settings_account_info.data.borrow_mut(),
+            &mut token_settings_account_info.data.borrow_mut(),
         )?;
 
         Ok(())
@@ -1895,7 +1934,7 @@ impl Processor {
         let account_info_iter = &mut accounts.iter();
 
         let authority_account_info = next_account_info(account_info_iter)?;
-        let settings_account_info = next_account_info(account_info_iter)?;
+        let token_settings_account_info = next_account_info(account_info_iter)?;
         let programdata_account_info = next_account_info(account_info_iter)?;
 
         // Validate Initializer Account
@@ -1912,15 +1951,11 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+        let mut settings_account_data = TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
 
         // Validate Setting Account
         let name = &settings_account_data.name;
-        validate_settings_account(program_id, name, settings_account_info)?;
-
-        if settings_account_info.owner != program_id {
-            return Err(ProgramError::InvalidArgument);
-        }
+        validate_token_settings_account(program_id, name, token_settings_account_info)?;
 
         if let Some(new_withdrawal_limit) = new_withdrawal_limit {
             settings_account_data.withdrawal_limit = new_withdrawal_limit;
@@ -1930,9 +1965,9 @@ impl Processor {
             settings_account_data.withdrawal_daily_limit = new_withdrawal_daily_limit;
         }
 
-        Settings::pack(
+        TokenSettings::pack(
             settings_account_data,
-            &mut settings_account_info.data.borrow_mut(),
+            &mut token_settings_account_info.data.borrow_mut(),
         )?;
 
         Ok(())
@@ -1951,16 +1986,11 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
+        // Validate Setting Account
+        bridge_utils::helper::validate_settings_account(program_id, settings_account_info)?;
+
         let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
         let guardian = settings_account_data.guardian;
-
-        // Validate Setting Account
-        let name = &settings_account_data.name;
-        validate_settings_account(program_id, name, settings_account_info)?;
-
-        if settings_account_info.owner != program_id {
-            return Err(ProgramError::InvalidArgument);
-        }
 
         // Validate Guardian Account
         if *authority_account_info.key != guardian {
@@ -2011,16 +2041,10 @@ impl Processor {
             programdata_account_info,
         )?;
 
-        let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
-
         // Validate Setting Account
-        let name = &settings_account_data.name;
-        validate_settings_account(program_id, name, settings_account_info)?;
+        bridge_utils::helper::validate_settings_account(program_id, settings_account_info)?;
 
-        if settings_account_info.owner != program_id {
-            return Err(ProgramError::InvalidArgument);
-        }
-
+        let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
         settings_account_data.emergency = false;
 
         Settings::pack(
@@ -2037,7 +2061,7 @@ fn make_sol_transfer<'a>(
     vault_account_info: &AccountInfo<'a>,
     token_program_info: &AccountInfo<'a>,
     recipient_token_account_info: &AccountInfo<'a>,
-    settings_account_data: &Settings,
+    settings_account_data: &TokenSettings,
     withdrawal_account_data: &mut WithdrawalToken,
     withdrawal_amount: u64,
 ) -> ProgramResult {
@@ -2108,7 +2132,7 @@ fn make_ever_transfer<'a>(
     mint_account_info: &AccountInfo<'a>,
     token_program_info: &AccountInfo<'a>,
     recipient_token_account_info: &AccountInfo<'a>,
-    settings_account_data: &Settings,
+    settings_account_data: &TokenSettings,
     withdrawal_account_data: &mut WithdrawalToken,
     withdrawal_amount: u64,
 ) -> ProgramResult {

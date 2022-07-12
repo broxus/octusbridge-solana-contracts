@@ -99,3 +99,20 @@ pub fn validate_proposal_account(
 
     Ok(nonce)
 }
+
+pub fn get_associated_settings_address(program_id: &Pubkey) -> Pubkey {
+    Pubkey::find_program_address(&[b"settings"], program_id).0
+}
+
+pub fn validate_settings_account(
+    program_id: &Pubkey,
+    account_info: &AccountInfo,
+) -> Result<u8, ProgramError> {
+    let (account, nonce) = Pubkey::find_program_address(&[br"settings"], program_id);
+
+    if account != *account_info.key {
+        return Err(ProgramError::UnsupportedSysvar);
+    }
+
+    Ok(nonce)
+}

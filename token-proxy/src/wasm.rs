@@ -159,7 +159,7 @@ pub fn process_withdrawal_request(
         amount,
     );
 
-    let rl_settings_pubkey = round_loader::get_associated_settings_address(&round_loader::id());
+    let rl_settings_pubkey = bridge_utils::helper::get_associated_settings_address(&round_loader::id());
 
     let data = TokenProxyInstruction::WithdrawRequest {
         event_timestamp,

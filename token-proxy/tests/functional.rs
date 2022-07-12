@@ -57,8 +57,6 @@ async fn test_init_mint() {
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
     let withdrawal_daily_limit = 1000;
-    let guardian = Pubkey::new_unique();
-    let withdrawal_manager = Pubkey::new_unique();
 
     let mut transaction = Transaction::new_with_payer(
         &[initialize_mint_ix(
@@ -70,8 +68,6 @@ async fn test_init_mint() {
             deposit_limit,
             withdrawal_limit,
             withdrawal_daily_limit,
-            guardian,
-            withdrawal_manager,
         )],
         Some(&funder.pubkey()),
     );
@@ -101,25 +97,22 @@ async fn test_init_mint() {
         program_option::COption::Some(mint_address)
     );
 
-    let settings_address = get_settings_address(&name);
-    let settings_info = banks_client
-        .get_account(settings_address)
+    let token_settings_address = get_token_settings_address(&name);
+    let token_settings_info = banks_client
+        .get_account(token_settings_address)
         .await
         .expect("get_account")
         .expect("account");
 
-    let settings_data = Settings::unpack(settings_info.data()).expect("settings unpack");
+    let token_settings_data = TokenSettings::unpack(token_settings_info.data()).expect("settings unpack");
 
-    assert_eq!(settings_data.is_initialized, true);
-    assert_eq!(settings_data.emergency, false);
-    assert_eq!(settings_data.name, name);
-    assert_eq!(settings_data.kind, TokenKind::Ever { mint: mint_address });
-    assert_eq!(settings_data.deposit_limit, deposit_limit);
-    assert_eq!(settings_data.withdrawal_limit, withdrawal_limit);
-    assert_eq!(settings_data.guardian, guardian);
-    assert_eq!(settings_data.withdrawal_manager, withdrawal_manager);
-    assert_eq!(settings_data.ever_decimals, ever_decimals);
-    assert_eq!(settings_data.solana_decimals, solana_decimals);
+    assert_eq!(token_settings_data.is_initialized, true);
+    assert_eq!(token_settings_data.name, name);
+    assert_eq!(token_settings_data.kind, TokenKind::Ever { mint: mint_address });
+    assert_eq!(token_settings_data.deposit_limit, deposit_limit);
+    assert_eq!(token_settings_data.withdrawal_limit, withdrawal_limit);
+    assert_eq!(token_settings_data.ever_decimals, ever_decimals);
+    assert_eq!(token_settings_data.solana_decimals, solana_decimals);
 }
 
 #[tokio::test]
@@ -165,8 +158,6 @@ async fn test_init_vault() {
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
     let withdrawal_daily_limit = 1000;
-    let guardian = Pubkey::new_unique();
-    let withdrawal_manager = Pubkey::new_unique();
 
     let mint_account_data = spl_token::state::Mint {
         is_initialized: true,
@@ -201,8 +192,6 @@ async fn test_init_vault() {
             deposit_limit,
             withdrawal_limit,
             withdrawal_daily_limit,
-            guardian,
-            withdrawal_manager,
         )],
         Some(&funder.pubkey()),
     );
@@ -229,29 +218,26 @@ async fn test_init_vault() {
     assert_eq!(vault_data.state, AccountState::Initialized);
     assert_eq!(vault_data.amount, 0);
 
-    let settings_address = get_settings_address(&name);
-    let settings_info = banks_client
-        .get_account(settings_address)
+    let token_settings_address = get_token_settings_address(&name);
+    let token_settings_info = banks_client
+        .get_account(token_settings_address)
         .await
         .expect("get_account")
         .expect("account");
 
-    let settings_data = Settings::unpack(settings_info.data()).expect("settings unpack");
+    let token_settings_data = TokenSettings::unpack(token_settings_info.data()).expect("settings unpack");
 
-    assert_eq!(settings_data.is_initialized, true);
-    assert_eq!(settings_data.name, name);
-    assert_eq!(settings_data.emergency, false);
+    assert_eq!(token_settings_data.is_initialized, true);
+    assert_eq!(token_settings_data.name, name);
     assert_eq!(
-        settings_data.kind,
+        token_settings_data.kind,
         TokenKind::Solana {
             mint: mint.pubkey(),
             vault: vault_address,
         }
     );
-    assert_eq!(settings_data.deposit_limit, deposit_limit);
-    assert_eq!(settings_data.withdrawal_limit, withdrawal_limit);
-    assert_eq!(settings_data.guardian, guardian);
-    assert_eq!(settings_data.withdrawal_manager, withdrawal_manager);
+    assert_eq!(token_settings_data.deposit_limit, deposit_limit);
+    assert_eq!(token_settings_data.withdrawal_limit, withdrawal_limit);
 }
 
 #[tokio::test]
@@ -336,23 +322,14 @@ async fn test_deposit_ever() {
     );
 
     // Add Settings Account
-    let settings_address = get_settings_address(&name);
+    let settings_address = get_settings_address();
 
     let settings_account_data = Settings {
         is_initialized: true,
         account_kind: AccountKind::Settings,
         emergency: false,
-        name: name.clone(),
-        kind: TokenKind::Ever { mint: mint_address },
-        withdrawal_daily_amount: 0,
-        withdrawal_ttl: 0,
-        deposit_limit,
-        withdrawal_limit,
-        withdrawal_daily_limit,
-        solana_decimals,
-        ever_decimals,
         guardian,
-        withdrawal_manager,
+        withdrawal_manager
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -362,6 +339,36 @@ async fn test_deposit_ever() {
         Account {
             lamports: Rent::default().minimum_balance(Settings::LEN),
             data: settings_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Token Settings Account
+    let token_settings_address = get_token_settings_address(&name);
+
+    let token_settings_account_data = TokenSettings {
+        is_initialized: true,
+        account_kind: AccountKind::Settings,
+        name: name.clone(),
+        kind: TokenKind::Ever { mint: mint_address },
+        withdrawal_daily_amount: 0,
+        withdrawal_ttl: 0,
+        deposit_limit,
+        withdrawal_limit,
+        withdrawal_daily_limit,
+        solana_decimals,
+        ever_decimals,
+    };
+
+    let mut token_settings_packed = vec![0; TokenSettings::LEN];
+    TokenSettings::pack(token_settings_account_data, &mut token_settings_packed).unwrap();
+    program_test.add_account(
+        token_settings_address,
+        Account {
+            lamports: Rent::default().minimum_balance(TokenSettings::LEN),
+            data: token_settings_packed,
             owner: token_proxy::id(),
             executable: false,
             rent_epoch: 0,
@@ -411,7 +418,7 @@ async fn test_deposit_ever() {
     let sender_data = spl_token::state::Account::unpack(sender_info.data()).expect("token unpack");
     assert_eq!(sender_data.amount, 100 - amount);
 
-    let deposit_address = get_deposit_address(deposit_seed.as_u128(), &settings_address);
+    let deposit_address = get_deposit_address(deposit_seed.as_u128(), &token_settings_address);
     let deposit_info = banks_client
         .get_account(deposit_address)
         .await
@@ -536,12 +543,35 @@ async fn test_deposit_sol() {
     );
 
     // Add Settings Account
-    let settings_address = get_settings_address(&name);
+    let settings_address = get_settings_address();
 
     let settings_account_data = Settings {
         is_initialized: true,
         account_kind: AccountKind::Settings,
         emergency: false,
+        guardian,
+        withdrawal_manager
+    };
+
+    let mut settings_packed = vec![0; Settings::LEN];
+    Settings::pack(settings_account_data, &mut settings_packed).unwrap();
+    program_test.add_account(
+        settings_address,
+        Account {
+            lamports: Rent::default().minimum_balance(Settings::LEN),
+            data: settings_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Token Settings Account
+    let token_settings_address = get_token_settings_address(&name);
+
+    let token_settings_account_data = TokenSettings {
+        is_initialized: true,
+        account_kind: AccountKind::Settings,
         name: name.clone(),
         kind: TokenKind::Solana {
             mint: mint.pubkey(),
@@ -554,17 +584,15 @@ async fn test_deposit_sol() {
         withdrawal_daily_limit,
         solana_decimals,
         ever_decimals,
-        guardian,
-        withdrawal_manager,
     };
 
-    let mut settings_packed = vec![0; Settings::LEN];
-    Settings::pack(settings_account_data, &mut settings_packed).unwrap();
+    let mut token_settings_packed = vec![0; TokenSettings::LEN];
+    TokenSettings::pack(token_settings_account_data, &mut token_settings_packed).unwrap();
     program_test.add_account(
-        settings_address,
+        token_settings_address,
         Account {
-            lamports: Rent::default().minimum_balance(Settings::LEN),
-            data: settings_packed,
+            lamports: Rent::default().minimum_balance(TokenSettings::LEN),
+            data: token_settings_packed,
             owner: token_proxy::id(),
             executable: false,
             rent_epoch: 0,
@@ -607,7 +635,7 @@ async fn test_deposit_sol() {
     let vault_data = spl_token::state::Account::unpack(vault_info.data()).expect("mint unpack");
     assert_eq!(vault_data.amount, amount);
 
-    let deposit_address = get_deposit_address(deposit_seed.as_u128(), &settings_address);
+    let deposit_address = get_deposit_address(deposit_seed.as_u128(), &token_settings_address);
     let deposit_info = banks_client
         .get_account(deposit_address)
         .await
@@ -639,19 +667,16 @@ async fn test_withdrawal_request() {
     let withdrawal_daily_limit = 1000;
     let solana_decimals = 9;
     let ever_decimals = 9;
-    let guardian = Pubkey::new_unique();
-    let withdrawal_manager = Pubkey::new_unique();
 
     let mint_address = get_mint_address(&name);
 
-    // Add Settings Account
-    let settings_address = get_settings_address(&name);
+    // Add Token Settings Account
+    let token_settings_address = get_token_settings_address(&name);
 
-    let settings_account_data = Settings {
+    let token_settings_account_data = TokenSettings {
         is_initialized: true,
         account_kind: AccountKind::Settings,
         name: name.clone(),
-        emergency: false,
         kind: TokenKind::Ever { mint: mint_address },
         withdrawal_daily_amount: 0,
         withdrawal_ttl: 0,
@@ -660,17 +685,15 @@ async fn test_withdrawal_request() {
         withdrawal_daily_limit,
         solana_decimals,
         ever_decimals,
-        guardian,
-        withdrawal_manager,
     };
 
-    let mut settings_packed = vec![0; Settings::LEN];
-    Settings::pack(settings_account_data, &mut settings_packed).unwrap();
+    let mut token_settings_packed = vec![0; TokenSettings::LEN];
+    TokenSettings::pack(token_settings_account_data, &mut token_settings_packed).unwrap();
     program_test.add_account(
-        settings_address,
+        token_settings_address,
         Account {
-            lamports: Rent::default().minimum_balance(Settings::LEN),
-            data: settings_packed,
+            lamports: Rent::default().minimum_balance(TokenSettings::LEN),
+            data: token_settings_packed,
             owner: token_proxy::id(),
             executable: false,
             rent_epoch: 0,
@@ -679,7 +702,7 @@ async fn test_withdrawal_request() {
 
     // Add Round Loader Settings Account
     let round_number = 12;
-    let rl_settings_address = round_loader::get_associated_settings_address(&round_loader::id());
+    let rl_settings_address = bridge_utils::helper::get_associated_settings_address(&round_loader::id());
 
     let round_ttl = 1209600;
     let rl_settings_account_data = round_loader::Settings {
@@ -791,7 +814,7 @@ async fn test_withdrawal_request() {
         &[withdrawal_request_ix(
             &funder.pubkey(),
             &author.pubkey(),
-            &settings_address,
+            &token_settings_address,
             event_timestamp,
             event_transaction_lt,
             event_configuration,
@@ -810,7 +833,7 @@ async fn test_withdrawal_request() {
         .expect("process_transaction");
 
     let withdrawal_address = get_withdrawal_address(
-        &settings_address,
+        &token_settings_address,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
@@ -829,7 +852,7 @@ async fn test_withdrawal_request() {
 
     assert_eq!(withdrawal_data.is_initialized, true);
 
-    assert_eq!(withdrawal_data.pda.settings, settings_address);
+    assert_eq!(withdrawal_data.pda.settings, token_settings_address);
     assert_eq!(withdrawal_data.pda.event_timestamp, event_timestamp);
     assert_eq!(
         withdrawal_data.pda.event_transaction_lt,
@@ -861,38 +884,33 @@ async fn test_vote_for_withdrawal_request() {
     let withdrawal_daily_limit = 1000;
     let ever_decimals = 9;
     let solana_decimals = 9;
-    let guardian = Pubkey::new_unique();
-    let withdrawal_manager = Pubkey::new_unique();
 
     let mint_address = get_mint_address(&name);
 
-    // Add Settings Account
-    let settings_address = get_settings_address(&name);
+    // Add Token Settings Account
+    let token_settings_address = get_token_settings_address(&name);
 
-    let settings_account_data = Settings {
+    let token_settings_account_data = TokenSettings {
         is_initialized: true,
         account_kind: AccountKind::Settings,
         name: name.clone(),
-        emergency: false,
         kind: TokenKind::Ever { mint: mint_address },
         withdrawal_daily_amount: 0,
         withdrawal_ttl: 0,
-        ever_decimals,
-        solana_decimals,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
-        guardian,
-        withdrawal_manager,
+        solana_decimals,
+        ever_decimals,
     };
 
-    let mut settings_packed = vec![0; Settings::LEN];
-    Settings::pack(settings_account_data, &mut settings_packed).unwrap();
+    let mut token_settings_packed = vec![0; TokenSettings::LEN];
+    TokenSettings::pack(token_settings_account_data, &mut token_settings_packed).unwrap();
     program_test.add_account(
-        settings_address,
+        token_settings_address,
         Account {
-            lamports: Rent::default().minimum_balance(Settings::LEN),
-            data: settings_packed,
+            lamports: Rent::default().minimum_balance(TokenSettings::LEN),
+            data: token_settings_packed,
             owner: token_proxy::id(),
             executable: false,
             rent_epoch: 0,
@@ -953,7 +971,7 @@ async fn test_vote_for_withdrawal_request() {
     let amount = 10;
 
     let withdrawal_address = get_withdrawal_address(
-        &settings_address,
+        &token_settings_address,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
@@ -976,7 +994,7 @@ async fn test_vote_for_withdrawal_request() {
             event_timestamp,
             event_transaction_lt,
             event_configuration,
-            settings: settings_address,
+            settings: token_settings_address,
         },
     };
 
@@ -1086,23 +1104,14 @@ async fn test_withdrawal_ever() {
     );
 
     // Add Settings Account
-    let settings_address = get_settings_address(&name);
+    let settings_address = get_settings_address();
 
     let settings_account_data = Settings {
         is_initialized: true,
         account_kind: AccountKind::Settings,
-        name: name.clone(),
         emergency: false,
-        kind: TokenKind::Ever { mint: mint_address },
-        withdrawal_daily_amount: 0,
-        withdrawal_ttl: 0,
-        deposit_limit,
-        withdrawal_limit,
-        withdrawal_daily_limit,
-        solana_decimals,
-        ever_decimals,
         guardian,
-        withdrawal_manager,
+        withdrawal_manager
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -1112,6 +1121,36 @@ async fn test_withdrawal_ever() {
         Account {
             lamports: Rent::default().minimum_balance(Settings::LEN),
             data: settings_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Token Settings Account
+    let token_settings_address = get_token_settings_address(&name);
+
+    let token_settings_account_data = TokenSettings {
+        is_initialized: true,
+        account_kind: AccountKind::Settings,
+        name: name.clone(),
+        kind: TokenKind::Ever { mint: mint_address },
+        withdrawal_daily_amount: 0,
+        withdrawal_ttl: 0,
+        deposit_limit,
+        withdrawal_limit,
+        withdrawal_daily_limit,
+        solana_decimals,
+        ever_decimals,
+    };
+
+    let mut token_settings_packed = vec![0; TokenSettings::LEN];
+    TokenSettings::pack(token_settings_account_data, &mut token_settings_packed).unwrap();
+    program_test.add_account(
+        token_settings_address,
+        Account {
+            lamports: Rent::default().minimum_balance(TokenSettings::LEN),
+            data: token_settings_packed,
             owner: token_proxy::id(),
             executable: false,
             rent_epoch: 0,
@@ -1155,7 +1194,7 @@ async fn test_withdrawal_ever() {
     let amount = 10;
 
     let withdrawal_address = get_withdrawal_address(
-        &settings_address,
+        &token_settings_address,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
@@ -1178,7 +1217,7 @@ async fn test_withdrawal_ever() {
             event_timestamp,
             event_transaction_lt,
             event_configuration,
-            settings: settings_address,
+            settings: token_settings_address,
         },
     };
 
@@ -1285,23 +1324,14 @@ async fn test_withdrawal_ever_2() {
     );
 
     // Add Settings Account
-    let settings_address = get_settings_address(&name);
+    let settings_address = get_settings_address();
 
     let settings_account_data = Settings {
         is_initialized: true,
         account_kind: AccountKind::Settings,
-        name: name.clone(),
         emergency: false,
-        kind: TokenKind::Ever { mint: mint_address },
-        withdrawal_daily_amount: 0,
-        withdrawal_ttl: 0,
-        deposit_limit,
-        withdrawal_limit,
-        withdrawal_daily_limit,
-        solana_decimals,
-        ever_decimals,
         guardian,
-        withdrawal_manager,
+        withdrawal_manager
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -1311,6 +1341,36 @@ async fn test_withdrawal_ever_2() {
         Account {
             lamports: Rent::default().minimum_balance(Settings::LEN),
             data: settings_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Token Settings Account
+    let token_settings_address = get_token_settings_address(&name);
+
+    let token_settings_account_data = TokenSettings {
+        is_initialized: true,
+        account_kind: AccountKind::Settings,
+        name: name.clone(),
+        kind: TokenKind::Ever { mint: mint_address },
+        withdrawal_daily_amount: 0,
+        withdrawal_ttl: 0,
+        deposit_limit,
+        withdrawal_limit,
+        withdrawal_daily_limit,
+        solana_decimals,
+        ever_decimals,
+    };
+
+    let mut token_settings_packed = vec![0; TokenSettings::LEN];
+    TokenSettings::pack(token_settings_account_data, &mut token_settings_packed).unwrap();
+    program_test.add_account(
+        token_settings_address,
+        Account {
+            lamports: Rent::default().minimum_balance(TokenSettings::LEN),
+            data: token_settings_packed,
             owner: token_proxy::id(),
             executable: false,
             rent_epoch: 0,
@@ -1354,7 +1414,7 @@ async fn test_withdrawal_ever_2() {
     let amount = 1001;
 
     let withdrawal_address = get_withdrawal_address(
-        &settings_address,
+        &token_settings_address,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
@@ -1377,7 +1437,7 @@ async fn test_withdrawal_ever_2() {
             event_timestamp,
             event_transaction_lt,
             event_configuration,
-            settings: settings_address,
+            settings: token_settings_address,
         },
     };
 
@@ -1493,14 +1553,37 @@ async fn test_withdrawal_sol() {
         },
     );
 
-    // Add Settings Account
-    let settings_address = get_settings_address(&name);
+     // Add Settings Account
+    let settings_address = get_settings_address();
 
     let settings_account_data = Settings {
         is_initialized: true,
         account_kind: AccountKind::Settings,
-        name: name.clone(),
         emergency: false,
+        guardian,
+        withdrawal_manager
+    };
+
+    let mut settings_packed = vec![0; Settings::LEN];
+    Settings::pack(settings_account_data, &mut settings_packed).unwrap();
+    program_test.add_account(
+        settings_address,
+        Account {
+            lamports: Rent::default().minimum_balance(Settings::LEN),
+            data: settings_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Token Settings Account
+    let token_settings_address = get_token_settings_address(&name);
+
+    let token_settings_account_data = TokenSettings {
+        is_initialized: true,
+        account_kind: AccountKind::Settings,
+        name: name.clone(),
         kind: TokenKind::Solana {
             mint: mint.pubkey(),
             vault: vault_address,
@@ -1512,17 +1595,15 @@ async fn test_withdrawal_sol() {
         withdrawal_daily_limit,
         solana_decimals,
         ever_decimals,
-        guardian,
-        withdrawal_manager,
     };
 
-    let mut settings_packed = vec![0; Settings::LEN];
-    Settings::pack(settings_account_data, &mut settings_packed).unwrap();
+    let mut token_settings_packed = vec![0; TokenSettings::LEN];
+    TokenSettings::pack(token_settings_account_data, &mut token_settings_packed).unwrap();
     program_test.add_account(
-        settings_address,
+        token_settings_address,
         Account {
-            lamports: Rent::default().minimum_balance(Settings::LEN),
-            data: settings_packed,
+            lamports: Rent::default().minimum_balance(TokenSettings::LEN),
+            data: token_settings_packed,
             owner: token_proxy::id(),
             executable: false,
             rent_epoch: 0,
@@ -1566,7 +1647,7 @@ async fn test_withdrawal_sol() {
     let amount = 10;
 
     let withdrawal_address = get_withdrawal_address(
-        &settings_address,
+        &token_settings_address,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
@@ -1589,7 +1670,7 @@ async fn test_withdrawal_sol() {
             event_timestamp,
             event_transaction_lt,
             event_configuration,
-            settings: settings_address,
+            settings: token_settings_address,
         },
     };
 
@@ -1722,26 +1803,14 @@ async fn test_withdrawal_sol_2() {
     );
 
     // Add Settings Account
-    let settings_address = get_settings_address(&name);
+    let settings_address = get_settings_address();
 
     let settings_account_data = Settings {
         is_initialized: true,
         account_kind: AccountKind::Settings,
-        name: name.clone(),
         emergency: false,
-        kind: TokenKind::Solana {
-            mint: mint,
-            vault: vault_address,
-        },
-        withdrawal_daily_amount: 0,
-        withdrawal_ttl: 0,
-        deposit_limit,
-        withdrawal_limit,
-        withdrawal_daily_limit,
-        solana_decimals,
-        ever_decimals,
         guardian,
-        withdrawal_manager,
+        withdrawal_manager
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -1751,6 +1820,39 @@ async fn test_withdrawal_sol_2() {
         Account {
             lamports: Rent::default().minimum_balance(Settings::LEN),
             data: settings_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Token Settings Account
+    let token_settings_address = get_token_settings_address(&name);
+
+    let token_settings_account_data = TokenSettings {
+        is_initialized: true,
+        account_kind: AccountKind::Settings,
+        name: name.clone(),
+        kind: TokenKind::Solana {
+            mint,
+            vault: vault_address,
+        },
+        withdrawal_daily_amount: 0,
+        withdrawal_ttl: 0,
+        deposit_limit,
+        withdrawal_limit,
+        withdrawal_daily_limit,
+        solana_decimals,
+        ever_decimals,
+    };
+
+    let mut token_settings_packed = vec![0; TokenSettings::LEN];
+    TokenSettings::pack(token_settings_account_data, &mut token_settings_packed).unwrap();
+    program_test.add_account(
+        token_settings_address,
+        Account {
+            lamports: Rent::default().minimum_balance(TokenSettings::LEN),
+            data: token_settings_packed,
             owner: token_proxy::id(),
             executable: false,
             rent_epoch: 0,
@@ -1791,7 +1893,7 @@ async fn test_withdrawal_sol_2() {
     let amount = 101;
 
     let withdrawal_address = get_withdrawal_address(
-        &settings_address,
+        &token_settings_address,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
@@ -1814,7 +1916,7 @@ async fn test_withdrawal_sol_2() {
             event_timestamp,
             event_transaction_lt,
             event_configuration,
-            settings: settings_address,
+            settings: token_settings_address,
         },
     };
 
@@ -1909,23 +2011,14 @@ async fn test_withdrawal_different_decimals() {
     );
 
     // Add Settings Account
-    let settings_address = get_settings_address(&name);
+    let settings_address = get_settings_address();
 
     let settings_account_data = Settings {
         is_initialized: true,
         account_kind: AccountKind::Settings,
-        name: name.clone(),
         emergency: false,
-        kind: TokenKind::Ever { mint: mint_address },
-        withdrawal_daily_amount: 0,
-        withdrawal_ttl: 0,
-        deposit_limit,
-        withdrawal_limit,
-        withdrawal_daily_limit,
-        solana_decimals,
-        ever_decimals,
         guardian,
-        withdrawal_manager,
+        withdrawal_manager
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -1935,6 +2028,36 @@ async fn test_withdrawal_different_decimals() {
         Account {
             lamports: Rent::default().minimum_balance(Settings::LEN),
             data: settings_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Token Settings Account
+    let token_settings_address = get_token_settings_address(&name);
+
+    let token_settings_account_data = TokenSettings {
+        is_initialized: true,
+        account_kind: AccountKind::Settings,
+        name: name.clone(),
+        kind: TokenKind::Ever { mint: mint_address },
+        withdrawal_daily_amount: 0,
+        withdrawal_ttl: 0,
+        deposit_limit,
+        withdrawal_limit,
+        withdrawal_daily_limit,
+        solana_decimals,
+        ever_decimals,
+    };
+
+    let mut token_settings_packed = vec![0; TokenSettings::LEN];
+    TokenSettings::pack(token_settings_account_data, &mut token_settings_packed).unwrap();
+    program_test.add_account(
+        token_settings_address,
+        Account {
+            lamports: Rent::default().minimum_balance(TokenSettings::LEN),
+            data: token_settings_packed,
             owner: token_proxy::id(),
             executable: false,
             rent_epoch: 0,
@@ -1979,7 +2102,7 @@ async fn test_withdrawal_different_decimals() {
     let solana_amount = 1000000;
 
     let withdrawal_address = get_withdrawal_address(
-        &settings_address,
+        &token_settings_address,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
@@ -2002,7 +2125,7 @@ async fn test_withdrawal_different_decimals() {
             event_timestamp,
             event_transaction_lt,
             event_configuration,
-            settings: settings_address,
+            settings: token_settings_address,
         },
     };
 
@@ -2108,21 +2231,12 @@ async fn test_approve_withdrawal_ever() {
     );
 
     // Add Settings Account
-    let settings_address = get_settings_address(&name);
+    let settings_address = get_settings_address();
 
     let settings_account_data = Settings {
         is_initialized: true,
         account_kind: AccountKind::Settings,
-        name: name.clone(),
         emergency: false,
-        kind: TokenKind::Ever { mint: mint_address },
-        withdrawal_daily_amount: 0,
-        withdrawal_ttl: 0,
-        deposit_limit,
-        withdrawal_limit,
-        withdrawal_daily_limit,
-        solana_decimals,
-        ever_decimals,
         guardian: Pubkey::new_unique(),
         withdrawal_manager: withdrawal_manager.pubkey(),
     };
@@ -2134,6 +2248,36 @@ async fn test_approve_withdrawal_ever() {
         Account {
             lamports: Rent::default().minimum_balance(Settings::LEN),
             data: settings_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Token Settings Account
+    let token_settings_address = get_token_settings_address(&name);
+
+    let token_settings_account_data = TokenSettings {
+        is_initialized: true,
+        account_kind: AccountKind::Settings,
+        name: name.clone(),
+        kind: TokenKind::Ever { mint: mint_address },
+        withdrawal_daily_amount: 0,
+        withdrawal_ttl: 0,
+        deposit_limit,
+        withdrawal_limit,
+        withdrawal_daily_limit,
+        solana_decimals,
+        ever_decimals,
+    };
+
+    let mut token_settings_packed = vec![0; TokenSettings::LEN];
+    TokenSettings::pack(token_settings_account_data, &mut token_settings_packed).unwrap();
+    program_test.add_account(
+        token_settings_address,
+        Account {
+            lamports: Rent::default().minimum_balance(TokenSettings::LEN),
+            data: token_settings_packed,
             owner: token_proxy::id(),
             executable: false,
             rent_epoch: 0,
@@ -2177,7 +2321,7 @@ async fn test_approve_withdrawal_ever() {
     let amount = 10;
 
     let withdrawal_address = get_withdrawal_address(
-        &settings_address,
+        &token_settings_address,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
@@ -2200,7 +2344,7 @@ async fn test_approve_withdrawal_ever() {
             event_timestamp,
             event_transaction_lt,
             event_configuration,
-            settings: settings_address,
+            settings: token_settings_address,
         },
     };
 
@@ -2336,21 +2480,12 @@ async fn test_approve_withdrawal_ever_by_owner() {
     );
 
     // Add Settings Account
-    let settings_address = get_settings_address(&name);
+    let settings_address = get_settings_address();
 
     let settings_account_data = Settings {
         is_initialized: true,
         account_kind: AccountKind::Settings,
-        name: name.clone(),
         emergency: false,
-        kind: TokenKind::Ever { mint: mint_address },
-        withdrawal_daily_amount: 0,
-        withdrawal_ttl: 0,
-        deposit_limit,
-        withdrawal_limit,
-        withdrawal_daily_limit,
-        solana_decimals,
-        ever_decimals,
         guardian,
         withdrawal_manager,
     };
@@ -2362,6 +2497,36 @@ async fn test_approve_withdrawal_ever_by_owner() {
         Account {
             lamports: Rent::default().minimum_balance(Settings::LEN),
             data: settings_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Token Settings Account
+    let token_settings_address = get_token_settings_address(&name);
+
+    let token_settings_account_data = TokenSettings {
+        is_initialized: true,
+        account_kind: AccountKind::Settings,
+        name: name.clone(),
+        kind: TokenKind::Ever { mint: mint_address },
+        withdrawal_daily_amount: 0,
+        withdrawal_ttl: 0,
+        deposit_limit,
+        withdrawal_limit,
+        withdrawal_daily_limit,
+        solana_decimals,
+        ever_decimals,
+    };
+
+    let mut token_settings_packed = vec![0; TokenSettings::LEN];
+    TokenSettings::pack(token_settings_account_data, &mut token_settings_packed).unwrap();
+    program_test.add_account(
+        token_settings_address,
+        Account {
+            lamports: Rent::default().minimum_balance(TokenSettings::LEN),
+            data: token_settings_packed,
             owner: token_proxy::id(),
             executable: false,
             rent_epoch: 0,
@@ -2405,7 +2570,7 @@ async fn test_approve_withdrawal_ever_by_owner() {
     let amount = 10;
 
     let withdrawal_address = get_withdrawal_address(
-        &settings_address,
+        &token_settings_address,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
@@ -2428,7 +2593,7 @@ async fn test_approve_withdrawal_ever_by_owner() {
             event_timestamp,
             event_transaction_lt,
             event_configuration,
-            settings: settings_address,
+            settings: token_settings_address,
         },
     };
 
@@ -2519,24 +2684,12 @@ async fn test_approve_withdrawal_sol() {
     let guardian = Pubkey::new_unique();
 
     // Add Settings Account
-    let settings_address = get_settings_address(&name);
+    let settings_address = get_settings_address();
 
     let settings_account_data = Settings {
         is_initialized: true,
         account_kind: AccountKind::Settings,
-        name: name.clone(),
         emergency: false,
-        kind: TokenKind::Solana {
-            mint,
-            vault: vault_address,
-        },
-        withdrawal_daily_amount: 0,
-        withdrawal_ttl: 0,
-        deposit_limit,
-        withdrawal_limit,
-        withdrawal_daily_limit,
-        solana_decimals,
-        ever_decimals,
         guardian,
         withdrawal_manager: withdrawal_manager.pubkey(),
     };
@@ -2548,6 +2701,39 @@ async fn test_approve_withdrawal_sol() {
         Account {
             lamports: Rent::default().minimum_balance(Settings::LEN),
             data: settings_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Token Settings Account
+    let token_settings_address = get_token_settings_address(&name);
+
+    let token_settings_account_data = TokenSettings {
+        is_initialized: true,
+        account_kind: AccountKind::Settings,
+        name: name.clone(),
+        kind: TokenKind::Solana {
+            mint,
+            vault: vault_address,
+        },
+        withdrawal_daily_amount: 0,
+        withdrawal_ttl: 0,
+        deposit_limit,
+        withdrawal_limit,
+        withdrawal_daily_limit,
+        solana_decimals,
+        ever_decimals,
+    };
+
+    let mut token_settings_packed = vec![0; TokenSettings::LEN];
+    TokenSettings::pack(token_settings_account_data, &mut token_settings_packed).unwrap();
+    program_test.add_account(
+        token_settings_address,
+        Account {
+            lamports: Rent::default().minimum_balance(TokenSettings::LEN),
+            data: token_settings_packed,
             owner: token_proxy::id(),
             executable: false,
             rent_epoch: 0,
@@ -2633,7 +2819,7 @@ async fn test_approve_withdrawal_sol() {
     let amount = 10;
 
     let withdrawal_address = get_withdrawal_address(
-        &settings_address,
+        &token_settings_address,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
@@ -2656,7 +2842,7 @@ async fn test_approve_withdrawal_sol() {
             event_timestamp,
             event_transaction_lt,
             event_configuration,
-            settings: settings_address,
+            settings: token_settings_address,
         },
     };
 
@@ -2747,24 +2933,12 @@ async fn test_approve_withdrawal_sol_2() {
     let vault_address = get_vault_address(&name);
 
     // Add Settings Account
-    let settings_address = get_settings_address(&name);
+    let settings_address = get_settings_address();
 
     let settings_account_data = Settings {
         is_initialized: true,
         account_kind: AccountKind::Settings,
-        name: name.clone(),
         emergency: false,
-        kind: TokenKind::Solana {
-            mint,
-            vault: vault_address,
-        },
-        withdrawal_daily_amount: 0,
-        withdrawal_ttl: 0,
-        deposit_limit,
-        withdrawal_limit,
-        withdrawal_daily_limit,
-        solana_decimals,
-        ever_decimals,
         guardian,
         withdrawal_manager: withdrawal_manager.pubkey(),
     };
@@ -2776,6 +2950,39 @@ async fn test_approve_withdrawal_sol_2() {
         Account {
             lamports: Rent::default().minimum_balance(Settings::LEN),
             data: settings_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Token Settings Account
+    let token_settings_address = get_token_settings_address(&name);
+
+    let token_settings_account_data = TokenSettings {
+        is_initialized: true,
+        account_kind: AccountKind::Settings,
+        name: name.clone(),
+        kind: TokenKind::Solana {
+            mint,
+            vault: vault_address,
+        },
+        withdrawal_daily_amount: 0,
+        withdrawal_ttl: 0,
+        deposit_limit,
+        withdrawal_limit,
+        withdrawal_daily_limit,
+        solana_decimals,
+        ever_decimals,
+    };
+
+    let mut token_settings_packed = vec![0; TokenSettings::LEN];
+    TokenSettings::pack(token_settings_account_data, &mut token_settings_packed).unwrap();
+    program_test.add_account(
+        token_settings_address,
+        Account {
+            lamports: Rent::default().minimum_balance(TokenSettings::LEN),
+            data: token_settings_packed,
             owner: token_proxy::id(),
             executable: false,
             rent_epoch: 0,
@@ -2861,7 +3068,7 @@ async fn test_approve_withdrawal_sol_2() {
     let amount = 1000;
 
     let withdrawal_address = get_withdrawal_address(
-        &settings_address,
+        &token_settings_address,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
@@ -2884,7 +3091,7 @@ async fn test_approve_withdrawal_sol_2() {
             event_timestamp,
             event_transaction_lt,
             event_configuration,
-            settings: settings_address,
+            settings: token_settings_address,
         },
     };
 
@@ -2982,24 +3189,12 @@ async fn test_approve_withdrawal_sol_by_owner() {
     let vault_address = get_vault_address(&name);
 
     // Add Settings Account
-    let settings_address = get_settings_address(&name);
+    let settings_address = get_settings_address();
 
     let settings_account_data = Settings {
         is_initialized: true,
         account_kind: AccountKind::Settings,
-        name: name.clone(),
         emergency: false,
-        kind: TokenKind::Solana {
-            mint,
-            vault: vault_address,
-        },
-        withdrawal_daily_amount: 0,
-        withdrawal_ttl: 0,
-        deposit_limit,
-        withdrawal_limit,
-        withdrawal_daily_limit,
-        solana_decimals,
-        ever_decimals,
         guardian,
         withdrawal_manager,
     };
@@ -3011,6 +3206,39 @@ async fn test_approve_withdrawal_sol_by_owner() {
         Account {
             lamports: Rent::default().minimum_balance(Settings::LEN),
             data: settings_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Token Settings Account
+    let token_settings_address = get_token_settings_address(&name);
+
+    let token_settings_account_data = TokenSettings {
+        is_initialized: true,
+        account_kind: AccountKind::Settings,
+        name: name.clone(),
+        kind: TokenKind::Solana {
+            mint,
+            vault: vault_address,
+        },
+        withdrawal_daily_amount: 0,
+        withdrawal_ttl: 0,
+        deposit_limit,
+        withdrawal_limit,
+        withdrawal_daily_limit,
+        solana_decimals,
+        ever_decimals,
+    };
+
+    let mut token_settings_packed = vec![0; TokenSettings::LEN];
+    TokenSettings::pack(token_settings_account_data, &mut token_settings_packed).unwrap();
+    program_test.add_account(
+        token_settings_address,
+        Account {
+            lamports: Rent::default().minimum_balance(TokenSettings::LEN),
+            data: token_settings_packed,
             owner: token_proxy::id(),
             executable: false,
             rent_epoch: 0,
@@ -3096,7 +3324,7 @@ async fn test_approve_withdrawal_sol_by_owner() {
     let amount = 10;
 
     let withdrawal_address = get_withdrawal_address(
-        &settings_address,
+        &token_settings_address,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
@@ -3119,7 +3347,7 @@ async fn test_approve_withdrawal_sol_by_owner() {
             event_timestamp,
             event_transaction_lt,
             event_configuration,
-            settings: settings_address,
+            settings: token_settings_address,
         },
     };
 
@@ -3255,24 +3483,12 @@ async fn test_cancel_withdrawal_sol() {
     );
 
     // Add Settings Account
-    let settings_address = get_settings_address(&name);
+    let settings_address = get_settings_address();
 
     let settings_account_data = Settings {
         is_initialized: true,
         account_kind: AccountKind::Settings,
-        name: name.clone(),
         emergency: false,
-        kind: TokenKind::Solana {
-            mint: mint.pubkey(),
-            vault: vault_address,
-        },
-        withdrawal_daily_amount: 0,
-        withdrawal_ttl: 0,
-        deposit_limit,
-        withdrawal_limit,
-        withdrawal_daily_limit,
-        solana_decimals,
-        ever_decimals,
         guardian,
         withdrawal_manager,
     };
@@ -3284,6 +3500,39 @@ async fn test_cancel_withdrawal_sol() {
         Account {
             lamports: Rent::default().minimum_balance(Settings::LEN),
             data: settings_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Token Settings Account
+    let token_settings_address = get_token_settings_address(&name);
+
+    let token_settings_account_data = TokenSettings {
+        is_initialized: true,
+        account_kind: AccountKind::Settings,
+        name: name.clone(),
+        kind: TokenKind::Solana {
+            mint: mint.pubkey(),
+            vault: vault_address,
+        },
+        withdrawal_daily_amount: 0,
+        withdrawal_ttl: 0,
+        deposit_limit,
+        withdrawal_limit,
+        withdrawal_daily_limit,
+        solana_decimals,
+        ever_decimals,
+    };
+
+    let mut token_settings_packed = vec![0; TokenSettings::LEN];
+    TokenSettings::pack(token_settings_account_data, &mut token_settings_packed).unwrap();
+    program_test.add_account(
+        token_settings_address,
+        Account {
+            lamports: Rent::default().minimum_balance(TokenSettings::LEN),
+            data: token_settings_packed,
             owner: token_proxy::id(),
             executable: false,
             rent_epoch: 0,
@@ -3312,7 +3561,7 @@ async fn test_cancel_withdrawal_sol() {
     let amount = 10;
 
     let withdrawal_address = get_withdrawal_address(
-        &settings_address,
+        &token_settings_address,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
@@ -3335,7 +3584,7 @@ async fn test_cancel_withdrawal_sol() {
             event_timestamp,
             event_transaction_lt,
             event_configuration,
-            settings: settings_address,
+            settings: token_settings_address,
         },
     };
 
@@ -3390,7 +3639,7 @@ async fn test_cancel_withdrawal_sol() {
         WithdrawalTokenStatus::Cancelled
     );
 
-    let new_deposit_address = get_deposit_address(deposit_seed.as_u128(), &settings_address);
+    let new_deposit_address = get_deposit_address(deposit_seed.as_u128(), &token_settings_address);
     let new_deposit_info = banks_client
         .get_account(new_deposit_address)
         .await
@@ -3517,24 +3766,12 @@ async fn test_fill_withdrawal_sol() {
     let ever_decimals = 9;
 
     // Add Settings Account
-    let settings_address = get_settings_address(&name);
+    let settings_address = get_settings_address();
 
     let settings_account_data = Settings {
         is_initialized: true,
         account_kind: AccountKind::Settings,
-        name: name.clone(),
         emergency: false,
-        kind: TokenKind::Solana {
-            mint: mint.pubkey(),
-            vault: Pubkey::new_unique(),
-        },
-        withdrawal_daily_amount: 0,
-        withdrawal_ttl: 0,
-        deposit_limit,
-        withdrawal_limit,
-        withdrawal_daily_limit,
-        solana_decimals,
-        ever_decimals,
         guardian,
         withdrawal_manager,
     };
@@ -3552,6 +3789,39 @@ async fn test_fill_withdrawal_sol() {
         },
     );
 
+    // Add Token Settings Account
+    let token_settings_address = get_token_settings_address(&name);
+
+    let token_settings_account_data = TokenSettings {
+        is_initialized: true,
+        account_kind: AccountKind::Settings,
+        name: name.clone(),
+        kind: TokenKind::Solana {
+            mint: mint.pubkey(),
+            vault: Pubkey::new_unique(),
+        },
+        withdrawal_daily_amount: 0,
+        withdrawal_ttl: 0,
+        deposit_limit,
+        withdrawal_limit,
+        withdrawal_daily_limit,
+        solana_decimals,
+        ever_decimals,
+    };
+
+    let mut token_settings_packed = vec![0; TokenSettings::LEN];
+    TokenSettings::pack(token_settings_account_data, &mut token_settings_packed).unwrap();
+    program_test.add_account(
+        token_settings_address,
+        Account {
+            lamports: Rent::default().minimum_balance(TokenSettings::LEN),
+            data: token_settings_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
     // Add Withdrawal Account
     let withdrawal_author = Pubkey::new_unique();
     let event_timestamp = 1650988297;
@@ -3562,7 +3832,7 @@ async fn test_fill_withdrawal_sol() {
     let bounty = 1;
 
     let withdrawal_address = get_withdrawal_address(
-        &settings_address,
+        &token_settings_address,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
@@ -3585,7 +3855,7 @@ async fn test_fill_withdrawal_sol() {
             event_timestamp,
             event_transaction_lt,
             event_configuration,
-            settings: settings_address,
+            settings: token_settings_address,
         },
     };
 
@@ -3648,7 +3918,7 @@ async fn test_fill_withdrawal_sol() {
         spl_token::state::Account::unpack(recipient_token_info.data()).expect("recipient unpack");
     assert_eq!(recipient_token_data.amount, amount as u64 - bounty);
 
-    let deposit_address = get_deposit_address(deposit_seed.as_u128(), &settings_address);
+    let deposit_address = get_deposit_address(deposit_seed.as_u128(), &token_settings_address);
     let deposit_info = banks_client
         .get_account(deposit_address)
         .await
@@ -3673,7 +3943,7 @@ async fn test_change_bounty_for_withdrawal_sol() {
     // Setup environment
 
     let name = "USDT".to_string();
-    let settings_address = get_settings_address(&name);
+    let token_settings_address = get_token_settings_address(&name);
 
     // Add Withdrawal Account
     let author = Keypair::new();
@@ -3686,7 +3956,7 @@ async fn test_change_bounty_for_withdrawal_sol() {
     let amount = 10;
 
     let withdrawal_address = get_withdrawal_address(
-        &settings_address,
+        &token_settings_address,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
@@ -3709,7 +3979,7 @@ async fn test_change_bounty_for_withdrawal_sol() {
             event_timestamp,
             event_transaction_lt,
             event_configuration,
-            settings: settings_address,
+            settings: token_settings_address,
         },
     };
 
@@ -3792,31 +4062,16 @@ async fn test_change_guardian() {
     );
 
     // Add Settings Account
-    let name = "WEVER".to_string();
-    let solana_decimals = 9;
-    let ever_decimals = 9;
-    let deposit_limit = 10000000;
-    let withdrawal_limit = 10000;
-    let withdrawal_daily_limit = 1000;
     let guardian = Pubkey::new_unique();
     let withdrawal_manager = Pubkey::new_unique();
 
-    let mint_address = get_mint_address(&name);
-    let settings_address = get_settings_address(&name);
+    // Add Settings Account
+    let settings_address = get_settings_address();
 
     let settings_account_data = Settings {
         is_initialized: true,
         account_kind: AccountKind::Settings,
-        name: name.clone(),
         emergency: false,
-        kind: TokenKind::Ever { mint: mint_address },
-        withdrawal_daily_amount: 0,
-        withdrawal_ttl: 0,
-        ever_decimals,
-        solana_decimals,
-        deposit_limit,
-        withdrawal_limit,
-        withdrawal_daily_limit,
         guardian,
         withdrawal_manager,
     };
@@ -3840,7 +4095,7 @@ async fn test_change_guardian() {
     let new_guardian = Pubkey::new_unique();
 
     let mut transaction = Transaction::new_with_payer(
-        &[change_guardian_ix(&owner.pubkey(), &name, new_guardian)],
+        &[change_guardian_ix(&owner.pubkey(), new_guardian)],
         Some(&funder.pubkey()),
     );
     transaction.sign(&[&funder, &owner], recent_blockhash);
@@ -3850,7 +4105,6 @@ async fn test_change_guardian() {
         .await
         .expect("process_transaction");
 
-    let settings_address = get_settings_address(&name);
     let settings_info = banks_client
         .get_account(settings_address)
         .await
@@ -3898,32 +4152,16 @@ async fn test_change_withdrawal_manager() {
     );
 
     // Add Settings Account
-    let name = "WEVER".to_string();
-    let solana_decimals = 9;
-    let ever_decimals = 9;
-    let deposit_limit = 10000000;
-    let withdrawal_limit = 10000;
-    let withdrawal_daily_limit = 1000;
     let guardian = Pubkey::new_unique();
     let withdrawal_manager = Pubkey::new_unique();
 
-    let mint_address = get_mint_address(&name);
-
-    let settings_address = get_settings_address(&name);
+    // Add Settings Account
+    let settings_address = get_settings_address();
 
     let settings_account_data = Settings {
         is_initialized: true,
         account_kind: AccountKind::Settings,
-        name: name.clone(),
         emergency: false,
-        kind: TokenKind::Ever { mint: mint_address },
-        withdrawal_daily_amount: 0,
-        withdrawal_ttl: 0,
-        ever_decimals,
-        solana_decimals,
-        deposit_limit,
-        withdrawal_limit,
-        withdrawal_daily_limit,
         guardian,
         withdrawal_manager,
     };
@@ -3949,7 +4187,6 @@ async fn test_change_withdrawal_manager() {
     let mut transaction = Transaction::new_with_payer(
         &[change_withdrawal_manager_ix(
             &owner.pubkey(),
-            &name,
             new_withdrawal_manager,
         )],
         Some(&funder.pubkey()),
@@ -3961,7 +4198,6 @@ async fn test_change_withdrawal_manager() {
         .await
         .expect("process_transaction");
 
-    let settings_address = get_settings_address(&name);
     let settings_info = banks_client
         .get_account(settings_address)
         .await
@@ -4015,17 +4251,16 @@ async fn test_change_deposit_limit() {
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
     let withdrawal_daily_limit = 1000;
-    let guardian = Pubkey::new_unique();
-    let withdrawal_manager = Pubkey::new_unique();
 
     let mint_address = get_mint_address(&name);
-    let settings_address = get_settings_address(&name);
 
-    let settings_account_data = Settings {
+    // Add Token Settings Account
+    let token_settings_address = get_token_settings_address(&name);
+
+    let token_settings_account_data = TokenSettings {
         is_initialized: true,
         account_kind: AccountKind::Settings,
         name: name.clone(),
-        emergency: false,
         kind: TokenKind::Ever { mint: mint_address },
         withdrawal_daily_amount: 0,
         withdrawal_ttl: 0,
@@ -4034,17 +4269,15 @@ async fn test_change_deposit_limit() {
         withdrawal_daily_limit,
         solana_decimals,
         ever_decimals,
-        guardian,
-        withdrawal_manager,
     };
 
-    let mut settings_packed = vec![0; Settings::LEN];
-    Settings::pack(settings_account_data, &mut settings_packed).unwrap();
+    let mut token_settings_packed = vec![0; TokenSettings::LEN];
+    TokenSettings::pack(token_settings_account_data, &mut token_settings_packed).unwrap();
     program_test.add_account(
-        settings_address,
+        token_settings_address,
         Account {
-            lamports: Rent::default().minimum_balance(Settings::LEN),
-            data: settings_packed,
+            lamports: Rent::default().minimum_balance(TokenSettings::LEN),
+            data: token_settings_packed,
             owner: token_proxy::id(),
             executable: false,
             rent_epoch: 0,
@@ -4071,15 +4304,15 @@ async fn test_change_deposit_limit() {
         .await
         .expect("process_transaction");
 
-    let settings_info = banks_client
-        .get_account(settings_address)
+    let token_settings_info = banks_client
+        .get_account(token_settings_address)
         .await
         .expect("get_account")
         .expect("account");
 
-    let settings_data = Settings::unpack(settings_info.data()).expect("settings unpack");
+    let token_settings_data = TokenSettings::unpack(token_settings_info.data()).expect("token settings unpack");
 
-    assert_eq!(settings_data.deposit_limit, new_deposit_limit);
+    assert_eq!(token_settings_data.deposit_limit, new_deposit_limit);
 }
 
 #[tokio::test]
@@ -4124,17 +4357,16 @@ async fn test_change_withdrawal_limits() {
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
     let withdrawal_daily_limit = 1000;
-    let guardian = Pubkey::new_unique();
-    let withdrawal_manager = Pubkey::new_unique();
 
     let mint_address = get_mint_address(&name);
-    let settings_address = get_settings_address(&name);
 
-    let settings_account_data = Settings {
+    // Add Token Settings Account
+    let token_settings_address = get_token_settings_address(&name);
+
+    let token_settings_account_data = TokenSettings {
         is_initialized: true,
         account_kind: AccountKind::Settings,
         name: name.clone(),
-        emergency: false,
         kind: TokenKind::Ever { mint: mint_address },
         withdrawal_daily_amount: 0,
         withdrawal_ttl: 0,
@@ -4143,17 +4375,15 @@ async fn test_change_withdrawal_limits() {
         withdrawal_daily_limit,
         solana_decimals,
         ever_decimals,
-        guardian,
-        withdrawal_manager,
     };
 
-    let mut settings_packed = vec![0; Settings::LEN];
-    Settings::pack(settings_account_data, &mut settings_packed).unwrap();
+    let mut token_settings_packed = vec![0; TokenSettings::LEN];
+    TokenSettings::pack(token_settings_account_data, &mut token_settings_packed).unwrap();
     program_test.add_account(
-        settings_address,
+        token_settings_address,
         Account {
-            lamports: Rent::default().minimum_balance(Settings::LEN),
-            data: settings_packed,
+            lamports: Rent::default().minimum_balance(TokenSettings::LEN),
+            data: token_settings_packed,
             owner: token_proxy::id(),
             executable: false,
             rent_epoch: 0,
@@ -4182,17 +4412,17 @@ async fn test_change_withdrawal_limits() {
         .await
         .expect("process_transaction");
 
-    let settings_info = banks_client
-        .get_account(settings_address)
+    let token_settings_info = banks_client
+        .get_account(token_settings_address)
         .await
         .expect("get_account")
         .expect("account");
 
-    let settings_data = Settings::unpack(settings_info.data()).expect("settings unpack");
+    let token_settings_data = TokenSettings::unpack(token_settings_info.data()).expect("token settings unpack");
 
-    assert_eq!(settings_data.withdrawal_limit, new_withdrawal_limit);
+    assert_eq!(token_settings_data.withdrawal_limit, new_withdrawal_limit);
     assert_eq!(
-        settings_data.withdrawal_daily_limit,
+        token_settings_data.withdrawal_daily_limit,
         new_withdrawal_daily_limit
     );
 }
@@ -4206,34 +4436,16 @@ async fn test_enable_emergency() {
     );
 
     // Setup environment
-
     let guardian = Keypair::new();
-
-    // Add Settings Account
-    let name = "WEVER".to_string();
-    let solana_decimals = 9;
-    let ever_decimals = 9;
-    let deposit_limit = 10000000;
-    let withdrawal_limit = 10000;
-    let withdrawal_daily_limit = 1000;
     let withdrawal_manager = Pubkey::new_unique();
 
-    let mint_address = get_mint_address(&name);
-    let settings_address = get_settings_address(&name);
+    // Add Settings Account
+    let settings_address = get_settings_address();
 
     let settings_account_data = Settings {
         is_initialized: true,
         account_kind: AccountKind::Settings,
-        name: name.clone(),
         emergency: false,
-        kind: TokenKind::Ever { mint: mint_address },
-        withdrawal_daily_amount: 0,
-        withdrawal_ttl: 0,
-        deposit_limit,
-        withdrawal_limit,
-        withdrawal_daily_limit,
-        solana_decimals,
-        ever_decimals,
         guardian: guardian.pubkey(),
         withdrawal_manager,
     };
@@ -4255,7 +4467,7 @@ async fn test_enable_emergency() {
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
     let mut transaction = Transaction::new_with_payer(
-        &[enable_emergency_ix(&guardian.pubkey(), name)],
+        &[enable_emergency_ix(&guardian.pubkey())],
         Some(&funder.pubkey()),
     );
     transaction.sign(&[&funder, &guardian], recent_blockhash);
@@ -4312,31 +4524,16 @@ async fn test_enable_emergency_by_owner() {
     );
 
     // Add Settings Account
-    let name = "WEVER".to_string();
-    let solana_decimals = 9;
-    let ever_decimals = 9;
-    let deposit_limit = 10000000;
-    let withdrawal_limit = 10000;
-    let withdrawal_daily_limit = 1000;
     let guardian = Pubkey::new_unique();
     let withdrawal_manager = Pubkey::new_unique();
 
-    let mint_address = get_mint_address(&name);
-    let settings_address = get_settings_address(&name);
+    // Add Settings Account
+    let settings_address = get_settings_address();
 
     let settings_account_data = Settings {
         is_initialized: true,
         account_kind: AccountKind::Settings,
-        name: name.clone(),
         emergency: false,
-        kind: TokenKind::Ever { mint: mint_address },
-        withdrawal_daily_amount: 0,
-        withdrawal_ttl: 0,
-        deposit_limit,
-        withdrawal_limit,
-        withdrawal_daily_limit,
-        solana_decimals,
-        ever_decimals,
         guardian,
         withdrawal_manager,
     };
@@ -4358,7 +4555,7 @@ async fn test_enable_emergency_by_owner() {
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
     let mut transaction = Transaction::new_with_payer(
-        &[enable_emergency_by_owner_ix(&owner.pubkey(), name)],
+        &[enable_emergency_by_owner_ix(&owner.pubkey())],
         Some(&funder.pubkey()),
     );
     transaction.sign(&[&funder, &owner], recent_blockhash);
@@ -4415,31 +4612,16 @@ async fn test_disable_emergency() {
     );
 
     // Add Settings Account
-    let name = "WEVER".to_string();
-    let solana_decimals = 9;
-    let ever_decimals = 9;
-    let deposit_limit = 10000000;
-    let withdrawal_limit = 10000;
-    let withdrawal_daily_limit = 1000;
     let guardian = Pubkey::new_unique();
     let withdrawal_manager = Pubkey::new_unique();
 
-    let mint_address = get_mint_address(&name);
-    let settings_address = get_settings_address(&name);
+    // Add Settings Account
+    let settings_address = get_settings_address();
 
     let settings_account_data = Settings {
         is_initialized: true,
         account_kind: AccountKind::Settings,
-        name: name.clone(),
-        emergency: true,
-        kind: TokenKind::Ever { mint: mint_address },
-        withdrawal_daily_amount: 0,
-        withdrawal_ttl: 0,
-        deposit_limit,
-        withdrawal_limit,
-        withdrawal_daily_limit,
-        solana_decimals,
-        ever_decimals,
+        emergency: false,
         guardian,
         withdrawal_manager,
     };
@@ -4461,7 +4643,7 @@ async fn test_disable_emergency() {
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
     let mut transaction = Transaction::new_with_payer(
-        &[disable_emergency_ix(&owner.pubkey(), name)],
+        &[disable_emergency_ix(&owner.pubkey())],
         Some(&funder.pubkey()),
     );
     transaction.sign(&[&funder, &owner], recent_blockhash);

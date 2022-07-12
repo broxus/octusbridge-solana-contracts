@@ -140,7 +140,7 @@ impl Processor {
         )?;
 
         // Validate Settings Account
-        let settings_nonce = validate_settings_account(program_id, settings_account_info)?;
+        let settings_nonce = bridge_utils::helper::validate_settings_account(program_id, settings_account_info)?;
         let settings_account_signer_seeds: &[&[_]] = &[br"settings", &[settings_nonce]];
 
         // Create Settings Account
@@ -206,7 +206,7 @@ impl Processor {
         )?;
 
         // Validate Settings Account
-        validate_settings_account(program_id, settings_account_info)?;
+        bridge_utils::helper::validate_settings_account(program_id, settings_account_info)?;
 
         if settings_account_info.owner != program_id {
             return Err(ProgramError::InvalidArgument);
@@ -260,7 +260,7 @@ impl Processor {
         }
 
         // Validate Settings Account
-        validate_settings_account(program_id, settings_account_info)?;
+        bridge_utils::helper::validate_settings_account(program_id, settings_account_info)?;
 
         if settings_account_info.owner != program_id {
             return Err(ProgramError::InvalidArgument);
@@ -346,7 +346,7 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        let settings = get_associated_settings_address(program_id);
+        let settings = bridge_utils::helper::get_associated_settings_address(program_id);
 
         // Validate Proposal Account
         let proposal_nonce = bridge_utils::helper::validate_proposal_account(
@@ -449,7 +449,7 @@ impl Processor {
         }
 
         // Validate Settings Account
-        validate_settings_account(program_id, settings_account_info)?;
+        bridge_utils::helper::validate_settings_account(program_id, settings_account_info)?;
 
         if settings_account_info.owner != program_id {
             return Err(ProgramError::InvalidArgument);
@@ -601,7 +601,7 @@ impl Processor {
         let rent = &Rent::from_account_info(rent_sysvar_info)?;
 
         // Validate Settings Account
-        validate_settings_account(program_id, settings_account_info)?;
+        bridge_utils::helper::validate_settings_account(program_id, settings_account_info)?;
 
         if settings_account_info.owner != program_id {
             return Err(ProgramError::InvalidArgument);

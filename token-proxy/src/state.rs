@@ -30,17 +30,32 @@ const DEPOSIT_TOKEN_META_LEN: usize = 16    // seed
 ;
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
-#[bridge_pack(length = 500)]
+#[bridge_pack(length = 100)]
 pub struct Settings {
+    pub is_initialized: bool,
+    pub account_kind: AccountKind,
+    pub emergency: bool,
+    pub guardian: Pubkey,
+    pub withdrawal_manager: Pubkey,
+}
+
+impl Sealed for Settings {}
+
+impl IsInitialized for Settings {
+    fn is_initialized(&self) -> bool {
+        self.is_initialized
+    }
+}
+
+#[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
+#[bridge_pack(length = 500)]
+pub struct TokenSettings {
     pub is_initialized: bool,
     pub account_kind: AccountKind,
     pub name: String,
     pub ever_decimals: u8,
     pub solana_decimals: u8,
     pub kind: TokenKind,
-    pub guardian: Pubkey,
-    pub withdrawal_manager: Pubkey,
-    pub emergency: bool,
     pub deposit_limit: u64,
     pub withdrawal_limit: u64,
     pub withdrawal_daily_limit: u64,
@@ -48,9 +63,9 @@ pub struct Settings {
     pub withdrawal_ttl: i64,
 }
 
-impl Sealed for Settings {}
+impl Sealed for TokenSettings {}
 
-impl IsInitialized for Settings {
+impl IsInitialized for TokenSettings {
     fn is_initialized(&self) -> bool {
         self.is_initialized
     }

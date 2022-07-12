@@ -15,7 +15,7 @@ pub fn get_programdata_address() -> Pubkey {
 
 pub fn get_settings_address() -> Pubkey {
     let program_id = &id();
-    get_associated_settings_address(program_id)
+    bridge_utils::helper::get_associated_settings_address(program_id)
 }
 
 pub fn get_proposal_address(

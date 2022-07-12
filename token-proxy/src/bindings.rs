@@ -14,9 +14,14 @@ pub fn get_programdata_address() -> Pubkey {
     bridge_utils::helper::get_programdata_address(program_id)
 }
 
-pub fn get_settings_address(name: &str) -> Pubkey {
+pub fn get_settings_address() -> Pubkey {
     let program_id = &id();
-    get_associated_settings_address(program_id, name)
+    get_associated_settings_address(program_id)
+}
+
+pub fn get_token_settings_address(name: &str) -> Pubkey {
+    let program_id = &id();
+    get_associated_token_settings_address(program_id, name)
 }
 
 pub fn get_withdrawal_address(
@@ -73,11 +78,9 @@ pub fn initialize_mint_ix(
     deposit_limit: u64,
     withdrawal_limit: u64,
     withdrawal_daily_limit: u64,
-    guardian: Pubkey,
-    withdrawal_manager: Pubkey,
 ) -> Instruction {
     let mint_pubkey = get_mint_address(&name);
-    let settings_pubkey = get_settings_address(&name);
+    let token_settings_pubkey = get_token_settings_address(&name);
     let program_data_pubkey = get_programdata_address();
 
     let data = TokenProxyInstruction::InitializeMint {
@@ -87,8 +90,6 @@ pub fn initialize_mint_ix(
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
-        guardian,
-        withdrawal_manager,
     }
     .try_to_vec()
     .expect("pack");
@@ -99,7 +100,7 @@ pub fn initialize_mint_ix(
             AccountMeta::new(*funder_pubkey, true),
             AccountMeta::new(*initializer_pubkey, true),
             AccountMeta::new(mint_pubkey, false),
-            AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new(token_settings_pubkey, false),
             AccountMeta::new_readonly(program_data_pubkey, false),
             AccountMeta::new_readonly(system_program::id(), false),
             AccountMeta::new_readonly(spl_token::id(), false),
@@ -119,11 +120,9 @@ pub fn initialize_vault_ix(
     deposit_limit: u64,
     withdrawal_limit: u64,
     withdrawal_daily_limit: u64,
-    guardian: Pubkey,
-    withdrawal_manager: Pubkey,
 ) -> Instruction {
     let vault_pubkey = get_vault_address(&name);
-    let settings_pubkey = get_settings_address(&name);
+    let token_settings_pubkey = get_token_settings_address(&name);
     let program_data_pubkey = get_programdata_address();
 
     let data = TokenProxyInstruction::InitializeVault {
@@ -132,8 +131,6 @@ pub fn initialize_vault_ix(
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
-        guardian,
-        withdrawal_manager,
     }
     .try_to_vec()
     .expect("pack");
@@ -145,7 +142,7 @@ pub fn initialize_vault_ix(
             AccountMeta::new(*initializer_pubkey, true),
             AccountMeta::new(*mint_pubkey, false),
             AccountMeta::new(vault_pubkey, false),
-            AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new(token_settings_pubkey, false),
             AccountMeta::new_readonly(program_data_pubkey, false),
             AccountMeta::new_readonly(spl_token::id(), false),
             AccountMeta::new_readonly(system_program::id(), false),
@@ -164,12 +161,13 @@ pub fn deposit_ever_ix(
     amount: u64,
 ) -> Instruction {
     let mint_pubkey = get_mint_address(token_name);
-    let settings_pubkey = get_settings_address(token_name);
+    let token_settings_pubkey = get_token_settings_address(token_name);
+    let settings_pubkey = get_settings_address();
     let author_token_pubkey =
         spl_associated_token_account::get_associated_token_address(author_pubkey, &mint_pubkey);
 
     let deposit_seed = deposit_seed.as_u128();
-    let deposit_pubkey = get_deposit_address(deposit_seed, &settings_pubkey);
+    let deposit_pubkey = get_deposit_address(deposit_seed, &token_settings_pubkey);
 
     let data = TokenProxyInstruction::DepositEver {
         deposit_seed,
@@ -187,6 +185,7 @@ pub fn deposit_ever_ix(
             AccountMeta::new(author_token_pubkey, false),
             AccountMeta::new(deposit_pubkey, false),
             AccountMeta::new(mint_pubkey, false),
+            AccountMeta::new(token_settings_pubkey, false),
             AccountMeta::new_readonly(settings_pubkey, false),
             AccountMeta::new_readonly(system_program::id(), false),
             AccountMeta::new_readonly(spl_token::id(), false),
@@ -206,10 +205,11 @@ pub fn deposit_sol_ix(
     amount: u64,
 ) -> Instruction {
     let vault_pubkey = get_vault_address(token_name);
-    let settings_pubkey = get_settings_address(token_name);
+    let settings_pubkey = get_settings_address();
+    let token_settings_pubkey = get_token_settings_address(token_name);
 
     let deposit_seed = deposit_seed.as_u128();
-    let deposit_pubkey = get_deposit_address(deposit_seed, &settings_pubkey);
+    let deposit_pubkey = get_deposit_address(deposit_seed, &token_settings_pubkey);
     let author_token_pubkey =
         spl_associated_token_account::get_associated_token_address(author_pubkey, mint_pubkey);
 
@@ -231,6 +231,7 @@ pub fn deposit_sol_ix(
             AccountMeta::new(deposit_pubkey, false),
             AccountMeta::new_readonly(*mint_pubkey, false),
             AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new_readonly(token_settings_pubkey, false),
             AccountMeta::new_readonly(system_program::id(), false),
             AccountMeta::new_readonly(spl_token::id(), false),
             AccountMeta::new_readonly(sysvar::rent::id(), false),
@@ -243,7 +244,7 @@ pub fn deposit_sol_ix(
 pub fn withdrawal_request_ix(
     funder_pubkey: &Pubkey,
     author_pubkey: &Pubkey,
-    settings_pubkey: &Pubkey,
+    token_settings_pubkey: &Pubkey,
     event_timestamp: u32,
     event_transaction_lt: u64,
     event_configuration: Pubkey,
@@ -253,7 +254,7 @@ pub fn withdrawal_request_ix(
     amount: u128,
 ) -> Instruction {
     let withdrawal_pubkey = get_withdrawal_address(
-        settings_pubkey,
+        token_settings_pubkey,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
@@ -261,7 +262,7 @@ pub fn withdrawal_request_ix(
         recipient_address,
         amount,
     );
-    let rl_settings_pubkey = round_loader::get_associated_settings_address(&round_loader::id());
+    let rl_settings_pubkey = bridge_utils::helper::get_associated_settings_address(&round_loader::id());
     let relay_round_pubkey =
         round_loader::get_associated_relay_round_address(&round_loader::id(), round_number);
 
@@ -282,7 +283,7 @@ pub fn withdrawal_request_ix(
             AccountMeta::new(*funder_pubkey, true),
             AccountMeta::new(*author_pubkey, true),
             AccountMeta::new(withdrawal_pubkey, false),
-            AccountMeta::new_readonly(*settings_pubkey, false),
+            AccountMeta::new_readonly(*token_settings_pubkey, false),
             AccountMeta::new_readonly(rl_settings_pubkey, false),
             AccountMeta::new_readonly(relay_round_pubkey, false),
             AccountMeta::new_readonly(system_program::id(), false),
@@ -322,7 +323,8 @@ pub fn withdrawal_ever_ix(
     withdrawal_pubkey: &Pubkey,
     token_name: &str,
 ) -> Instruction {
-    let settings_pubkey = get_settings_address(token_name);
+    let settings_pubkey = get_settings_address();
+    let token_settings_pubkey = get_token_settings_address(token_name);
     let mint_pubkey = get_mint_address(token_name);
     let recipient_token_pubkey =
         spl_associated_token_account::get_associated_token_address(to_pubkey, &mint_pubkey);
@@ -337,7 +339,8 @@ pub fn withdrawal_ever_ix(
             AccountMeta::new(*withdrawal_pubkey, false),
             AccountMeta::new(mint_pubkey, false),
             AccountMeta::new(recipient_token_pubkey, false),
-            AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new(token_settings_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
             AccountMeta::new_readonly(spl_token::id(), false),
             AccountMeta::new_readonly(sysvar::clock::id(), false),
         ],
@@ -351,7 +354,8 @@ pub fn withdrawal_sol_ix(
     withdrawal_pubkey: &Pubkey,
     token_name: &str,
 ) -> Instruction {
-    let settings_pubkey = get_settings_address(token_name);
+    let settings_pubkey = get_settings_address();
+    let token_settings_pubkey = get_token_settings_address(token_name);
 
     let vault_pubkey = get_vault_address(token_name);
     let recipient_token_pubkey =
@@ -367,7 +371,8 @@ pub fn withdrawal_sol_ix(
             AccountMeta::new(*withdrawal_pubkey, false),
             AccountMeta::new(vault_pubkey, false),
             AccountMeta::new(recipient_token_pubkey, false),
-            AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new(token_settings_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
             AccountMeta::new_readonly(spl_token::id(), false),
             AccountMeta::new_readonly(sysvar::clock::id(), false),
         ],
@@ -381,7 +386,8 @@ pub fn approve_withdrawal_ever_ix(
     withdrawal_pubkey: &Pubkey,
     token_name: &str,
 ) -> Instruction {
-    let settings_pubkey = get_settings_address(token_name);
+    let settings_pubkey = get_settings_address();
+    let token_settings_pubkey = get_token_settings_address(token_name);
 
     let mint_pubkey = get_mint_address(token_name);
     let recipient_token_pubkey =
@@ -399,6 +405,7 @@ pub fn approve_withdrawal_ever_ix(
             AccountMeta::new(*withdrawal_pubkey, false),
             AccountMeta::new(recipient_token_pubkey, false),
             AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new_readonly(token_settings_pubkey, false),
             AccountMeta::new_readonly(spl_token::id(), false),
         ],
         data,
@@ -411,7 +418,8 @@ pub fn approve_withdrawal_ever_by_owner_ix(
     withdrawal_pubkey: &Pubkey,
     token_name: &str,
 ) -> Instruction {
-    let settings_pubkey = get_settings_address(token_name);
+    let settings_pubkey = get_settings_address();
+    let token_settings_pubkey = get_token_settings_address(token_name);
     let program_data_pubkey = get_programdata_address();
 
     let mint_pubkey = get_mint_address(token_name);
@@ -430,6 +438,7 @@ pub fn approve_withdrawal_ever_by_owner_ix(
             AccountMeta::new(*withdrawal_pubkey, false),
             AccountMeta::new(recipient_token_pubkey, false),
             AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new_readonly(token_settings_pubkey, false),
             AccountMeta::new_readonly(spl_token::id(), false),
             AccountMeta::new_readonly(program_data_pubkey, false),
         ],
@@ -444,7 +453,8 @@ pub fn approve_withdrawal_sol_ix(
     withdrawal_pubkey: &Pubkey,
     token_name: &str,
 ) -> Instruction {
-    let settings_pubkey = get_settings_address(token_name);
+    let settings_pubkey = get_settings_address();
+    let token_settings_pubkey = get_token_settings_address(token_name);
 
     let vault_pubkey = get_vault_address(token_name);
     let recipient_token_pubkey =
@@ -461,7 +471,8 @@ pub fn approve_withdrawal_sol_ix(
             AccountMeta::new(vault_pubkey, false),
             AccountMeta::new(*withdrawal_pubkey, false),
             AccountMeta::new(recipient_token_pubkey, false),
-            AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new(token_settings_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
             AccountMeta::new_readonly(spl_token::id(), false),
         ],
         data,
@@ -475,7 +486,8 @@ pub fn approve_withdrawal_sol_by_owner_ix(
     withdrawal_pubkey: &Pubkey,
     token_name: &str,
 ) -> Instruction {
-    let settings_pubkey = get_settings_address(token_name);
+    let settings_pubkey = get_settings_address();
+    let token_settings_pubkey = get_token_settings_address(token_name);
     let program_data_pubkey = get_programdata_address();
 
     let vault_pubkey = get_vault_address(token_name);
@@ -493,7 +505,8 @@ pub fn approve_withdrawal_sol_by_owner_ix(
             AccountMeta::new(vault_pubkey, false),
             AccountMeta::new(*withdrawal_pubkey, false),
             AccountMeta::new(recipient_token_pubkey, false),
-            AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new(token_settings_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
             AccountMeta::new_readonly(spl_token::id(), false),
             AccountMeta::new_readonly(program_data_pubkey, false),
         ],
@@ -510,8 +523,9 @@ pub fn cancel_withdrawal_sol_ix(
     recipient_address: Option<EverAddress>,
 ) -> Instruction {
     let deposit_seed = deposit_seed.as_u128();
-    let settings_pubkey = get_settings_address(token_name);
-    let deposit_pubkey = get_deposit_address(deposit_seed, &settings_pubkey);
+    let settings_pubkey = get_settings_address();
+    let token_settings_pubkey = get_token_settings_address(token_name);
+    let deposit_pubkey = get_deposit_address(deposit_seed, &token_settings_pubkey);
 
     let data = TokenProxyInstruction::CancelWithdrawSol {
         deposit_seed,
@@ -528,6 +542,7 @@ pub fn cancel_withdrawal_sol_ix(
             AccountMeta::new(*withdrawal_pubkey, false),
             AccountMeta::new(deposit_pubkey, false),
             AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new_readonly(token_settings_pubkey, false),
             AccountMeta::new_readonly(system_program::id(), false),
             AccountMeta::new_readonly(sysvar::rent::id(), false),
         ],
@@ -552,8 +567,9 @@ pub fn fill_withdrawal_sol_ix(
         spl_associated_token_account::get_associated_token_address(to_pubkey, mint_pubkey);
 
     let deposit_seed = deposit_seed.as_u128();
-    let settings_pubkey = get_settings_address(token_name);
-    let new_deposit_pubkey = get_deposit_address(deposit_seed, &settings_pubkey);
+    let settings_pubkey = get_settings_address();
+    let token_settings_pubkey = get_token_settings_address(token_name);
+    let new_deposit_pubkey = get_deposit_address(deposit_seed, &token_settings_pubkey);
 
     let data = TokenProxyInstruction::FillWithdrawSol {
         deposit_seed,
@@ -572,6 +588,7 @@ pub fn fill_withdrawal_sol_ix(
             AccountMeta::new(*withdrawal_pubkey, false),
             AccountMeta::new(new_deposit_pubkey, false),
             AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new_readonly(token_settings_pubkey, false),
             AccountMeta::new_readonly(system_program::id(), false),
             AccountMeta::new_readonly(spl_token::id(), false),
             AccountMeta::new_readonly(sysvar::rent::id(), false),
@@ -599,8 +616,8 @@ pub fn change_bounty_for_withdrawal_sol_ix(
     }
 }
 
-pub fn change_guardian_ix(owner: &Pubkey, name: &str, new_guardian: Pubkey) -> Instruction {
-    let settings_pubkey = get_settings_address(name);
+pub fn change_guardian_ix(owner: &Pubkey, new_guardian: Pubkey) -> Instruction {
+    let settings_pubkey = get_settings_address();
     let program_data_pubkey = get_programdata_address();
 
     let data = TokenProxyInstruction::ChangeGuardian { new_guardian }
@@ -620,10 +637,9 @@ pub fn change_guardian_ix(owner: &Pubkey, name: &str, new_guardian: Pubkey) -> I
 
 pub fn change_withdrawal_manager_ix(
     owner: &Pubkey,
-    name: &str,
     new_withdrawal_manager: Pubkey,
 ) -> Instruction {
-    let settings_pubkey = get_settings_address(name);
+    let settings_pubkey = get_settings_address();
     let program_data_pubkey = get_programdata_address();
 
     let data = TokenProxyInstruction::ChangeWithdrawalManager {
@@ -648,7 +664,7 @@ pub fn change_deposit_limit_ix(
     name: String,
     new_deposit_limit: u64,
 ) -> Instruction {
-    let settings_pubkey = get_settings_address(&name);
+    let token_settings_pubkey = get_token_settings_address(&name);
     let program_data_pubkey = get_programdata_address();
 
     let data = TokenProxyInstruction::ChangeDepositLimit { new_deposit_limit }
@@ -659,7 +675,7 @@ pub fn change_deposit_limit_ix(
         program_id: id(),
         accounts: vec![
             AccountMeta::new(*owner_pubkey, true),
-            AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new(token_settings_pubkey, false),
             AccountMeta::new_readonly(program_data_pubkey, false),
         ],
         data,
@@ -672,7 +688,7 @@ pub fn change_withdrawal_limits_ix(
     new_withdrawal_limit: Option<u64>,
     new_withdrawal_daily_limit: Option<u64>,
 ) -> Instruction {
-    let settings_pubkey = get_settings_address(&name);
+    let token_settings_pubkey = get_token_settings_address(&name);
     let program_data_pubkey = get_programdata_address();
 
     let data = TokenProxyInstruction::ChangeWithdrawalLimits {
@@ -686,15 +702,15 @@ pub fn change_withdrawal_limits_ix(
         program_id: id(),
         accounts: vec![
             AccountMeta::new(*owner_pubkey, true),
-            AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new(token_settings_pubkey, false),
             AccountMeta::new_readonly(program_data_pubkey, false),
         ],
         data,
     }
 }
 
-pub fn enable_emergency_ix(guardian_pubkey: &Pubkey, name: String) -> Instruction {
-    let settings_pubkey = get_settings_address(&name);
+pub fn enable_emergency_ix(guardian_pubkey: &Pubkey) -> Instruction {
+    let settings_pubkey = get_settings_address();
 
     let data = TokenProxyInstruction::EnableEmergencyMode
         .try_to_vec()
@@ -710,8 +726,8 @@ pub fn enable_emergency_ix(guardian_pubkey: &Pubkey, name: String) -> Instructio
     }
 }
 
-pub fn enable_emergency_by_owner_ix(owner_pubkey: &Pubkey, name: String) -> Instruction {
-    let settings_pubkey = get_settings_address(&name);
+pub fn enable_emergency_by_owner_ix(owner_pubkey: &Pubkey) -> Instruction {
+    let settings_pubkey = get_settings_address();
     let program_data_pubkey = get_programdata_address();
 
     let data = TokenProxyInstruction::EnableEmergencyMode
@@ -729,8 +745,8 @@ pub fn enable_emergency_by_owner_ix(owner_pubkey: &Pubkey, name: String) -> Inst
     }
 }
 
-pub fn disable_emergency_ix(owner_pubkey: &Pubkey, name: String) -> Instruction {
-    let settings_pubkey = get_settings_address(&name);
+pub fn disable_emergency_ix(owner_pubkey: &Pubkey) -> Instruction {
+    let settings_pubkey = get_settings_address();
     let program_data_pubkey = get_programdata_address();
 
     let data = TokenProxyInstruction::DisableEmergencyMode
