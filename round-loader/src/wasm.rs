@@ -191,6 +191,7 @@ pub fn unpack_settings(data: Vec<u8>) -> Result<JsValue, JsValue> {
         current_round_number: settings.current_round_number,
         round_submitter: settings.round_submitter,
         min_required_votes: settings.min_required_votes,
+        round_ttl: settings.round_ttl,
     };
 
     return JsValue::from_serde(&s).handle_error();
@@ -203,6 +204,7 @@ pub fn unpack_relay_round(data: Vec<u8>) -> Result<JsValue, JsValue> {
     let rr = WasmRelayRound {
         is_initialized: relay_round.is_initialized,
         round_number: relay_round.round_number,
+        round_end: relay_round.round_end,
         relays: relay_round.relays,
     };
 
@@ -234,12 +236,14 @@ pub struct WasmSettings {
     pub current_round_number: u32,
     pub round_submitter: Pubkey,
     pub min_required_votes: u32,
+    pub round_ttl: u32,
 }
 
 #[derive(Serialize, Deserialize)]
 pub struct WasmRelayRound {
     pub is_initialized: bool,
     pub round_number: u32,
+    pub round_end: u32,
     pub relays: Vec<Pubkey>,
 }
 
