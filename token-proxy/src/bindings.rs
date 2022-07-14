@@ -69,6 +69,37 @@ pub fn get_mint_address(name: &str) -> Pubkey {
 }
 
 #[allow(clippy::too_many_arguments)]
+pub fn initialize_settings_ix(
+    funder_pubkey: &Pubkey,
+    initializer_pubkey: &Pubkey,
+    guardian: Pubkey,
+    withdrawal_manager: Pubkey,
+) -> Instruction {
+    let settings_pubkey = get_settings_address();
+    let program_data_pubkey = get_programdata_address();
+
+    let data = TokenProxyInstruction::Initialize {
+        guardian,
+        withdrawal_manager,
+    }
+        .try_to_vec()
+        .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(*funder_pubkey, true),
+            AccountMeta::new(*initializer_pubkey, true),
+            AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new_readonly(program_data_pubkey, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+            AccountMeta::new_readonly(sysvar::rent::id(), false),
+        ],
+        data,
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
 pub fn initialize_mint_ix(
     funder_pubkey: &Pubkey,
     initializer_pubkey: &Pubkey,

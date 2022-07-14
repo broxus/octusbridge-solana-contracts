@@ -17,6 +17,44 @@ use bridge_utils::helper::get_associated_relay_round_address;
 
 use crate::*;
 
+#[wasm_bindgen(js_name = "initializeSettings")]
+pub fn initialize_settings_ix(
+    funder_pubkey: String,
+    initializer_pubkey: String,
+    guardian: String,
+    withdrawal_manager: String,
+) -> Result<JsValue, JsValue> {
+    let settings_pubkey = get_settings_address();
+    let program_data_pubkey = get_programdata_address();
+
+    let guardian = Pubkey::from_str(guardian.as_str()).handle_error()?;
+    let withdrawal_manager = Pubkey::from_str(withdrawal_manager.as_str()).handle_error()?;
+    let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
+    let initializer_pubkey = Pubkey::from_str(initializer_pubkey.as_str()).handle_error()?;
+
+    let data = TokenProxyInstruction::Initialize {
+        guardian,
+        withdrawal_manager,
+    }
+        .try_to_vec()
+        .handle_error()?;
+
+    let ix = Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(funder_pubkey, true),
+            AccountMeta::new(initializer_pubkey, true),
+            AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new_readonly(program_data_pubkey, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+            AccountMeta::new_readonly(sysvar::rent::id(), false),
+        ],
+        data,
+    };
+
+    return JsValue::from_serde(&ix).handle_error();
+}
+
 #[wasm_bindgen(js_name = "initializeMint")]
 pub fn initialize_mint_ix(
     funder_pubkey: String,
@@ -27,15 +65,11 @@ pub fn initialize_mint_ix(
     deposit_limit: u64,
     withdrawal_limit: u64,
     withdrawal_daily_limit: u64,
-    guardian: String,
-    withdrawal_manager: String,
 ) -> Result<JsValue, JsValue> {
     let mint_pubkey = get_mint_address(&name);
-    let settings_pubkey = get_settings_address(&name);
+    let token_settings_pubkey = get_token_settings_address(&name);
     let program_data_pubkey = get_programdata_address();
 
-    let guardian = Pubkey::from_str(guardian.as_str()).handle_error()?;
-    let withdrawal_manager = Pubkey::from_str(withdrawal_manager.as_str()).handle_error()?;
     let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
     let initializer_pubkey = Pubkey::from_str(initializer_pubkey.as_str()).handle_error()?;
 
@@ -46,8 +80,6 @@ pub fn initialize_mint_ix(
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
-        guardian,
-        withdrawal_manager,
     }
     .try_to_vec()
     .handle_error()?;
@@ -58,7 +90,7 @@ pub fn initialize_mint_ix(
             AccountMeta::new(funder_pubkey, true),
             AccountMeta::new(initializer_pubkey, true),
             AccountMeta::new(mint_pubkey, false),
-            AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new(token_settings_pubkey, false),
             AccountMeta::new_readonly(program_data_pubkey, false),
             AccountMeta::new_readonly(system_program::id(), false),
             AccountMeta::new_readonly(spl_token::id(), false),
@@ -80,15 +112,11 @@ pub fn initialize_vault_ix(
     deposit_limit: u64,
     withdrawal_limit: u64,
     withdrawal_daily_limit: u64,
-    guardian: String,
-    withdrawal_manager: String,
 ) -> Result<JsValue, JsValue> {
     let vault_pubkey = get_vault_address(&name);
-    let settings_pubkey = get_settings_address(&name);
+    let token_settings_pubkey = get_token_settings_address(&name);
     let program_data_pubkey = get_programdata_address();
 
-    let guardian = Pubkey::from_str(guardian.as_str()).handle_error()?;
-    let withdrawal_manager = Pubkey::from_str(withdrawal_manager.as_str()).handle_error()?;
     let mint_pubkey = Pubkey::from_str(mint_pubkey.as_str()).handle_error()?;
     let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
     let initializer_pubkey = Pubkey::from_str(initializer_pubkey.as_str()).handle_error()?;
@@ -99,8 +127,6 @@ pub fn initialize_vault_ix(
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
-        guardian,
-        withdrawal_manager,
     }
     .try_to_vec()
     .handle_error()?;
@@ -112,7 +138,7 @@ pub fn initialize_vault_ix(
             AccountMeta::new(initializer_pubkey, true),
             AccountMeta::new(mint_pubkey, false),
             AccountMeta::new(vault_pubkey, false),
-            AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new(token_settings_pubkey, false),
             AccountMeta::new_readonly(program_data_pubkey, false),
             AccountMeta::new_readonly(spl_token::id(), false),
             AccountMeta::new_readonly(system_program::id(), false),
@@ -124,8 +150,8 @@ pub fn initialize_vault_ix(
     return JsValue::from_serde(&ix).handle_error();
 }
 
-#[wasm_bindgen(js_name = "processWithdrawalRequest")]
-pub fn process_withdrawal_request(
+#[wasm_bindgen(js_name = "withdrawalRequest")]
+pub fn withdrawal_request_ix(
     funder_pubkey: String,
     author_pubkey: String,
     name: String,
@@ -137,7 +163,7 @@ pub fn process_withdrawal_request(
     amount: String,
     round_number: u32,
 ) -> Result<JsValue, JsValue> {
-    let settings_pubkey = get_settings_address(&name);
+    let token_settings_pubkey = get_token_settings_address(&name);
 
     let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
     let author_pubkey = Pubkey::from_str(author_pubkey.as_str()).handle_error()?;
@@ -150,7 +176,7 @@ pub fn process_withdrawal_request(
     let relay_round_pubkey = get_associated_relay_round_address(&round_loader::id(), round_number);
 
     let withdrawal_pubkey = get_withdrawal_address(
-        &settings_pubkey,
+        &token_settings_pubkey,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
@@ -178,7 +204,7 @@ pub fn process_withdrawal_request(
             AccountMeta::new(funder_pubkey, true),
             AccountMeta::new(author_pubkey, true),
             AccountMeta::new(withdrawal_pubkey, false),
-            AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new_readonly(token_settings_pubkey, false),
             AccountMeta::new_readonly(rl_settings_pubkey, false),
             AccountMeta::new_readonly(relay_round_pubkey, false),
             AccountMeta::new_readonly(system_program::id(), false),
@@ -199,13 +225,14 @@ pub fn approve_withdrawal_ever_ix(
     withdrawal_pubkey: String,
 ) -> Result<JsValue, JsValue> {
     let mint_pubkey = get_mint_address(&name);
-    let settings_pubkey = get_settings_address(&name);
+    let settings_pubkey = get_settings_address();
+    let token_settings_pubkey = get_token_settings_address(&name);
 
     let to_pubkey = Pubkey::from_str(to_pubkey.as_str()).handle_error()?;
     let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
     let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).handle_error()?;
 
-    let recipient_pubkey =
+    let recipient_token_pubkey =
         spl_associated_token_account::get_associated_token_address(&to_pubkey, &mint_pubkey);
 
     let data = TokenProxyInstruction::ApproveWithdrawEver
@@ -218,8 +245,9 @@ pub fn approve_withdrawal_ever_ix(
             AccountMeta::new(authority_pubkey, true),
             AccountMeta::new(mint_pubkey, false),
             AccountMeta::new(withdrawal_pubkey, false),
-            AccountMeta::new(recipient_pubkey, false),
+            AccountMeta::new(recipient_token_pubkey, false),
             AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new_readonly(token_settings_pubkey, false),
             AccountMeta::new_readonly(spl_token::id(), false),
         ],
         data,
@@ -236,14 +264,15 @@ pub fn approve_withdrawal_ever_by_owner_ix(
     withdrawal_pubkey: String,
 ) -> Result<JsValue, JsValue> {
     let mint_pubkey = get_mint_address(&name);
-    let settings_pubkey = get_settings_address(&name);
+    let settings_pubkey = get_settings_address();
+    let token_settings_pubkey = get_token_settings_address(&name);
     let program_data_pubkey = get_programdata_address();
 
     let to_pubkey = Pubkey::from_str(to_pubkey.as_str()).handle_error()?;
     let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
     let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).handle_error()?;
 
-    let recipient_pubkey =
+    let recipient_token_pubkey =
         spl_associated_token_account::get_associated_token_address(&to_pubkey, &mint_pubkey);
 
     let data = TokenProxyInstruction::ApproveWithdrawEver
@@ -256,8 +285,9 @@ pub fn approve_withdrawal_ever_by_owner_ix(
             AccountMeta::new(authority_pubkey, true),
             AccountMeta::new(mint_pubkey, false),
             AccountMeta::new(withdrawal_pubkey, false),
-            AccountMeta::new(recipient_pubkey, false),
+            AccountMeta::new(recipient_token_pubkey, false),
             AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new_readonly(token_settings_pubkey, false),
             AccountMeta::new_readonly(spl_token::id(), false),
             AccountMeta::new_readonly(program_data_pubkey, false),
         ],
@@ -274,7 +304,9 @@ pub fn approve_withdrawal_sol_ix(
     withdrawal_pubkey: String,
     to_pubkey: String,
 ) -> Result<JsValue, JsValue> {
-    let settings_pubkey = get_settings_address(&name);
+    let settings_pubkey = get_settings_address();
+    let token_settings_pubkey = get_token_settings_address(&name);
+
     let mint_pubkey = get_mint_address(&name);
     let vault_pubkey = get_vault_address(&name);
 
@@ -283,7 +315,7 @@ pub fn approve_withdrawal_sol_ix(
 
     let to_pubkey = Pubkey::from_str(to_pubkey.as_str()).handle_error()?;
 
-    let recipient_pubkey =
+    let recipient_token_pubkey =
         spl_associated_token_account::get_associated_token_address(&to_pubkey, &mint_pubkey);
 
     let data = TokenProxyInstruction::ApproveWithdrawSol
@@ -296,8 +328,9 @@ pub fn approve_withdrawal_sol_ix(
             AccountMeta::new(authority_pubkey, true),
             AccountMeta::new(vault_pubkey, false),
             AccountMeta::new(withdrawal_pubkey, false),
-            AccountMeta::new(recipient_pubkey, false),
-            AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new(recipient_token_pubkey, false),
+            AccountMeta::new(token_settings_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
             AccountMeta::new_readonly(spl_token::id(), false),
         ],
         data,
@@ -313,7 +346,9 @@ pub fn approve_withdrawal_sol_by_owner_ix(
     withdrawal_pubkey: String,
     to_pubkey: String,
 ) -> Result<JsValue, JsValue> {
-    let settings_pubkey = get_settings_address(&name);
+    let settings_pubkey = get_settings_address();
+    let token_settings_pubkey = get_token_settings_address(&name);
+
     let mint_pubkey = get_mint_address(&name);
     let vault_pubkey = get_vault_address(&name);
     let program_data_pubkey = get_programdata_address();
@@ -323,7 +358,7 @@ pub fn approve_withdrawal_sol_by_owner_ix(
 
     let to_pubkey = Pubkey::from_str(to_pubkey.as_str()).handle_error()?;
 
-    let recipient_pubkey =
+    let recipient_token_pubkey =
         spl_associated_token_account::get_associated_token_address(&to_pubkey, &mint_pubkey);
 
     let data = TokenProxyInstruction::ApproveWithdrawSol
@@ -336,8 +371,9 @@ pub fn approve_withdrawal_sol_by_owner_ix(
             AccountMeta::new(authority_pubkey, true),
             AccountMeta::new(vault_pubkey, false),
             AccountMeta::new(withdrawal_pubkey, false),
-            AccountMeta::new(recipient_pubkey, false),
-            AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new(recipient_token_pubkey, false),
+            AccountMeta::new(token_settings_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
             AccountMeta::new_readonly(spl_token::id(), false),
             AccountMeta::new_readonly(program_data_pubkey, false),
         ],
@@ -354,12 +390,14 @@ pub fn withdrawal_ever_ix(
     withdrawal_pubkey: String,
 ) -> Result<JsValue, JsValue> {
     let mint_pubkey = get_mint_address(&name);
-    let settings_pubkey = get_settings_address(&name);
+
+    let settings_pubkey = get_settings_address();
+    let token_settings_pubkey = get_token_settings_address(&name);
 
     let to_pubkey = Pubkey::from_str(to_pubkey.as_str()).handle_error()?;
     let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).handle_error()?;
 
-    let recipient_pubkey =
+    let recipient_token_pubkey =
         spl_associated_token_account::get_associated_token_address(&to_pubkey, &mint_pubkey);
 
     let data = TokenProxyInstruction::WithdrawEver
@@ -371,8 +409,9 @@ pub fn withdrawal_ever_ix(
         accounts: vec![
             AccountMeta::new(withdrawal_pubkey, false),
             AccountMeta::new(mint_pubkey, false),
-            AccountMeta::new(recipient_pubkey, false),
-            AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new(recipient_token_pubkey, false),
+            AccountMeta::new(token_settings_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
             AccountMeta::new_readonly(spl_token::id(), false),
             AccountMeta::new_readonly(sysvar::clock::id(), false),
         ],
@@ -390,13 +429,15 @@ pub fn withdrawal_sol_ix(
     name: String,
 ) -> Result<JsValue, JsValue> {
     let vault_pubkey = get_vault_address(&name);
-    let settings_pubkey = get_settings_address(&name);
+
+    let settings_pubkey = get_settings_address();
+    let token_settings_pubkey = get_token_settings_address(&name);
 
     let to_pubkey = Pubkey::from_str(to_pubkey.as_str()).handle_error()?;
     let mint_pubkey = Pubkey::from_str(mint_pubkey.as_str()).handle_error()?;
     let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).handle_error()?;
 
-    let recipient_pubkey =
+    let recipient_token_pubkey =
         spl_associated_token_account::get_associated_token_address(&to_pubkey, &mint_pubkey);
 
     let data = TokenProxyInstruction::WithdrawSol
@@ -408,8 +449,9 @@ pub fn withdrawal_sol_ix(
         accounts: vec![
             AccountMeta::new(withdrawal_pubkey, false),
             AccountMeta::new(vault_pubkey, false),
-            AccountMeta::new(recipient_pubkey, false),
-            AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new(recipient_token_pubkey, false),
+            AccountMeta::new(token_settings_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
             AccountMeta::new_readonly(spl_token::id(), false),
             AccountMeta::new_readonly(sysvar::clock::id(), false),
         ],
@@ -432,7 +474,9 @@ pub fn cancel_withdrawal_sol_ix(
         .handle_error()?
         .as_u128();
 
-    let settings_pubkey = get_settings_address(&name);
+    let settings_pubkey = get_settings_address();
+    let token_settings_pubkey = get_token_settings_address(&name);
+
     let deposit_pubkey = get_deposit_address(deposit_seed, &settings_pubkey);
 
     let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
@@ -459,6 +503,7 @@ pub fn cancel_withdrawal_sol_ix(
             AccountMeta::new(withdrawal_pubkey, false),
             AccountMeta::new(deposit_pubkey, false),
             AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new_readonly(token_settings_pubkey, false),
             AccountMeta::new_readonly(system_program::id(), false),
             AccountMeta::new_readonly(sysvar::rent::id(), false),
         ],
@@ -483,7 +528,9 @@ pub fn fill_withdrawal_sol_ix(
         .handle_error()?
         .as_u128();
 
-    let settings_pubkey = get_settings_address(&name);
+    let settings_pubkey = get_settings_address();
+    let token_settings_pubkey = get_token_settings_address(&name);
+
     let new_deposit_pubkey = get_deposit_address(deposit_seed, &settings_pubkey);
 
     let to_pubkey = Pubkey::from_str(to_pubkey.as_str()).handle_error()?;
@@ -516,6 +563,7 @@ pub fn fill_withdrawal_sol_ix(
             AccountMeta::new(withdrawal_pubkey, false),
             AccountMeta::new(new_deposit_pubkey, false),
             AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new_readonly(token_settings_pubkey, false),
             AccountMeta::new_readonly(system_program::id(), false),
             AccountMeta::new_readonly(spl_token::id(), false),
             AccountMeta::new_readonly(sysvar::rent::id(), false),
@@ -540,7 +588,10 @@ pub fn deposit_ever_ix(
         .as_u128();
 
     let mint_pubkey = get_mint_address(&name);
-    let settings_pubkey = get_settings_address(&name);
+
+    let settings_pubkey = get_settings_address();
+    let token_settings_pubkey = get_token_settings_address(&name);
+
     let deposit_pubkey = get_deposit_address(deposit_seed, &settings_pubkey);
 
     let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
@@ -548,7 +599,7 @@ pub fn deposit_ever_ix(
 
     let recipient_address = EverAddress::from_str(&recipient_address).handle_error()?;
 
-    let sender_pubkey =
+    let author_token_pubkey =
         spl_associated_token_account::get_associated_token_address(&authority_pubkey, &mint_pubkey);
 
     let data = TokenProxyInstruction::DepositEver {
@@ -564,9 +615,10 @@ pub fn deposit_ever_ix(
         accounts: vec![
             AccountMeta::new(funder_pubkey, true),
             AccountMeta::new(authority_pubkey, true),
-            AccountMeta::new(sender_pubkey, false),
+            AccountMeta::new(author_token_pubkey, false),
             AccountMeta::new(deposit_pubkey, false),
-            AccountMeta::new_readonly(mint_pubkey, false),
+            AccountMeta::new(mint_pubkey, false),
+            AccountMeta::new(token_settings_pubkey, false),
             AccountMeta::new_readonly(settings_pubkey, false),
             AccountMeta::new_readonly(system_program::id(), false),
             AccountMeta::new_readonly(spl_token::id(), false),
@@ -593,7 +645,10 @@ pub fn deposit_sol_ix(
         .as_u128();
 
     let vault_pubkey = get_vault_address(&name);
-    let settings_pubkey = get_settings_address(&name);
+
+    let settings_pubkey = get_settings_address();
+    let token_settings_pubkey = get_token_settings_address(&name);
+
     let deposit_pubkey = get_deposit_address(deposit_seed, &settings_pubkey);
 
     let mint_pubkey = Pubkey::from_str(mint_pubkey.as_str()).handle_error()?;
@@ -623,6 +678,7 @@ pub fn deposit_sol_ix(
             AccountMeta::new(deposit_pubkey, false),
             AccountMeta::new_readonly(mint_pubkey, false),
             AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new_readonly(token_settings_pubkey, false),
             AccountMeta::new_readonly(system_program::id(), false),
             AccountMeta::new_readonly(spl_token::id(), false),
             AccountMeta::new_readonly(sysvar::rent::id(), false),
@@ -666,10 +722,9 @@ pub fn vote_for_withdraw_request_ix(
 #[wasm_bindgen(js_name = "changeGuardian")]
 pub fn change_guardian_ix(
     authority_pubkey: String,
-    name: String,
     new_guardian: String,
 ) -> Result<JsValue, JsValue> {
-    let settings_pubkey = get_settings_address(&name);
+    let settings_pubkey = get_settings_address();
     let program_data_pubkey = get_programdata_address();
 
     let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
@@ -695,10 +750,9 @@ pub fn change_guardian_ix(
 #[wasm_bindgen(js_name = "changeWithdrawalManager")]
 pub fn change_withdrawal_manager_ix(
     authority_pubkey: String,
-    name: String,
     new_withdrawal_manager: String,
 ) -> Result<JsValue, JsValue> {
-    let settings_pubkey = get_settings_address(&name);
+    let settings_pubkey = get_settings_address();
     let program_data_pubkey = get_programdata_address();
 
     let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
@@ -755,7 +809,7 @@ pub fn change_deposit_limit_ix(
     name: String,
     new_deposit_limit: u64,
 ) -> Result<JsValue, JsValue> {
-    let settings_pubkey = get_settings_address(&name);
+    let token_settings_pubkey = get_token_settings_address(&name);
     let program_data_pubkey = get_programdata_address();
 
     let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
@@ -768,7 +822,7 @@ pub fn change_deposit_limit_ix(
         program_id: id(),
         accounts: vec![
             AccountMeta::new(authority_pubkey, true),
-            AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new(token_settings_pubkey, false),
             AccountMeta::new_readonly(program_data_pubkey, false),
         ],
         data,
@@ -784,7 +838,7 @@ pub fn change_withdrawal_limits_ix(
     new_withdrawal_limit: Option<u64>,
     new_withdrawal_daily_limit: Option<u64>,
 ) -> Result<JsValue, JsValue> {
-    let settings_pubkey = get_settings_address(&name);
+    let token_settings_pubkey = get_token_settings_address(&name);
     let program_data_pubkey = get_programdata_address();
 
     let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
@@ -800,7 +854,7 @@ pub fn change_withdrawal_limits_ix(
         program_id: id(),
         accounts: vec![
             AccountMeta::new(authority_pubkey, true),
-            AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new(token_settings_pubkey, false),
             AccountMeta::new_readonly(program_data_pubkey, false),
         ],
         data,
@@ -810,8 +864,8 @@ pub fn change_withdrawal_limits_ix(
 }
 
 #[wasm_bindgen(js_name = "enableEmergency")]
-pub fn enable_emergency_ix(authority_pubkey: String, name: String) -> Result<JsValue, JsValue> {
-    let settings_pubkey = get_settings_address(&name);
+pub fn enable_emergency_ix(authority_pubkey: String) -> Result<JsValue, JsValue> {
+    let settings_pubkey = get_settings_address();
 
     let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
 
@@ -834,9 +888,8 @@ pub fn enable_emergency_ix(authority_pubkey: String, name: String) -> Result<JsV
 #[wasm_bindgen(js_name = "enableEmergencyByOwner")]
 pub fn enable_emergency_by_owner_ix(
     authority_pubkey: String,
-    name: String,
 ) -> Result<JsValue, JsValue> {
-    let settings_pubkey = get_settings_address(&name);
+    let settings_pubkey = get_settings_address();
     let program_data_pubkey = get_programdata_address();
 
     let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
@@ -859,8 +912,8 @@ pub fn enable_emergency_by_owner_ix(
 }
 
 #[wasm_bindgen(js_name = "disableEmergency")]
-pub fn disable_emergency_ix(authority_pubkey: String, name: String) -> Result<JsValue, JsValue> {
-    let settings_pubkey = get_settings_address(&name);
+pub fn disable_emergency_ix(authority_pubkey: String) -> Result<JsValue, JsValue> {
+    let settings_pubkey = get_settings_address();
     let program_data_pubkey = get_programdata_address();
 
     let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
@@ -887,20 +940,30 @@ pub fn unpack_settings(data: Vec<u8>) -> Result<JsValue, JsValue> {
     let settings = Settings::unpack(&data).handle_error()?;
 
     let s = WasmSettings {
-        is_initialized: settings.is_initialized,
-        account_kind: settings.account_kind,
-        name: settings.name,
-        ever_decimals: settings.ever_decimals,
-        solana_decimals: settings.solana_decimals,
-        kind: settings.kind,
+        emergency: settings.emergency,
         guardian: settings.guardian,
         withdrawal_manager: settings.withdrawal_manager,
-        emergency: settings.emergency,
-        deposit_limit: settings.deposit_limit,
-        withdrawal_limit: settings.withdrawal_limit,
-        withdrawal_daily_limit: settings.withdrawal_daily_limit,
-        withdrawal_daily_amount: settings.withdrawal_daily_amount,
-        withdrawal_ttl: settings.withdrawal_ttl,
+    };
+
+    return JsValue::from_serde(&s).handle_error();
+}
+
+#[wasm_bindgen(js_name = "unpackTokenSettings")]
+pub fn unpack_token_settings(data: Vec<u8>) -> Result<JsValue, JsValue> {
+    let token_settings = TokenSettings::unpack(&data).handle_error()?;
+
+    let s = WasmTokenSettings {
+        is_initialized: token_settings.is_initialized,
+        account_kind: token_settings.account_kind,
+        name: token_settings.name,
+        ever_decimals: token_settings.ever_decimals,
+        solana_decimals: token_settings.solana_decimals,
+        kind: token_settings.kind,
+        deposit_limit: token_settings.deposit_limit,
+        withdrawal_limit: token_settings.withdrawal_limit,
+        withdrawal_daily_limit: token_settings.withdrawal_daily_limit,
+        withdrawal_daily_amount: token_settings.withdrawal_daily_amount,
+        withdrawal_ttl: token_settings.withdrawal_ttl,
     };
 
     return JsValue::from_serde(&s).handle_error();
@@ -943,15 +1006,19 @@ pub fn unpack_deposit(data: Vec<u8>) -> Result<JsValue, JsValue> {
 
 #[derive(Serialize, Deserialize)]
 pub struct WasmSettings {
+    pub emergency: bool,
+    pub guardian: Pubkey,
+    pub withdrawal_manager: Pubkey,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct WasmTokenSettings {
     pub is_initialized: bool,
     pub account_kind: AccountKind,
     pub name: String,
     pub ever_decimals: u8,
     pub solana_decimals: u8,
     pub kind: TokenKind,
-    pub guardian: Pubkey,
-    pub withdrawal_manager: Pubkey,
-    pub emergency: bool,
     pub deposit_limit: u64,
     pub withdrawal_limit: u64,
     pub withdrawal_daily_limit: u64,
