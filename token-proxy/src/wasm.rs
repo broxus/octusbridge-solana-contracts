@@ -477,7 +477,7 @@ pub fn cancel_withdrawal_sol_ix(
     let settings_pubkey = get_settings_address();
     let token_settings_pubkey = get_token_settings_address(&name);
 
-    let deposit_pubkey = get_deposit_address(deposit_seed, &settings_pubkey);
+    let deposit_pubkey = get_deposit_address(deposit_seed, &token_settings_pubkey);
 
     let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
     let author_pubkey = Pubkey::from_str(author_pubkey.as_str()).handle_error()?;
@@ -531,7 +531,7 @@ pub fn fill_withdrawal_sol_ix(
     let settings_pubkey = get_settings_address();
     let token_settings_pubkey = get_token_settings_address(&name);
 
-    let new_deposit_pubkey = get_deposit_address(deposit_seed, &settings_pubkey);
+    let new_deposit_pubkey = get_deposit_address(deposit_seed, &token_settings_pubkey);
 
     let to_pubkey = Pubkey::from_str(to_pubkey.as_str()).handle_error()?;
     let mint_pubkey = Pubkey::from_str(mint_pubkey.as_str()).handle_error()?;
@@ -592,7 +592,7 @@ pub fn deposit_ever_ix(
     let settings_pubkey = get_settings_address();
     let token_settings_pubkey = get_token_settings_address(&name);
 
-    let deposit_pubkey = get_deposit_address(deposit_seed, &settings_pubkey);
+    let deposit_pubkey = get_deposit_address(deposit_seed, &token_settings_pubkey);
 
     let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
     let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
@@ -649,7 +649,7 @@ pub fn deposit_sol_ix(
     let settings_pubkey = get_settings_address();
     let token_settings_pubkey = get_token_settings_address(&name);
 
-    let deposit_pubkey = get_deposit_address(deposit_seed, &settings_pubkey);
+    let deposit_pubkey = get_deposit_address(deposit_seed, &token_settings_pubkey);
 
     let mint_pubkey = Pubkey::from_str(mint_pubkey.as_str()).handle_error()?;
     let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
