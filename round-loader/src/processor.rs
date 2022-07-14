@@ -271,7 +271,7 @@ impl Processor {
             return Err(ProgramError::IllegalOwner);
         }
 
-        if settings_account_data.current_round_number >= round_number {
+        if settings_account_data.current_round_number != 0 && settings_account_data.current_round_number >= round_number {
             return Err(RoundLoaderError::InvalidRelayRound.into());
         }
 
