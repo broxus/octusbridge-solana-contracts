@@ -257,8 +257,8 @@ impl Processor {
             &system_instruction::create_account(
                 funder_account_info.key,
                 settings_account_info.key,
-                1.max(rent.minimum_balance(TokenSettings::LEN)),
-                TokenSettings::LEN as u64,
+                1.max(rent.minimum_balance(Settings::LEN)),
+                Settings::LEN as u64,
                 program_id,
             ),
             &[

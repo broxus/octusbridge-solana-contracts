@@ -15,6 +15,76 @@ use spl_token::state::AccountState;
 use token_proxy::*;
 
 #[tokio::test]
+async fn test_init_settings() {
+    let mut program_test = ProgramTest::new(
+        "token_proxy",
+        token_proxy::id(),
+        processor!(Processor::process),
+    );
+
+    // Setup environment
+    let initializer = Keypair::new();
+
+    let programdata_address =
+        Pubkey::find_program_address(&[token_proxy::id().as_ref()], &bpf_loader_upgradeable::id())
+            .0;
+
+    let programdata_data = UpgradeableLoaderState::ProgramData {
+        slot: 0,
+        upgrade_authority_address: Some(initializer.pubkey()),
+    };
+
+    let programdata_data_serialized =
+        bincode::serialize::<UpgradeableLoaderState>(&programdata_data).unwrap();
+
+    program_test.add_account(
+        programdata_address,
+        Account {
+            lamports: Rent::default().minimum_balance(programdata_data_serialized.len()),
+            data: programdata_data_serialized,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Start Program Test
+    let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
+
+    let guardian = Pubkey::new_unique();
+    let withdrawal_manager = Pubkey::new_unique();
+
+    let mut transaction = Transaction::new_with_payer(
+        &[initialize_settings_ix(
+            &funder.pubkey(),
+            &initializer.pubkey(),
+            guardian,
+            withdrawal_manager,
+        )],
+        Some(&funder.pubkey()),
+    );
+    transaction.sign(&[&funder, &initializer], recent_blockhash);
+
+    banks_client
+        .process_transaction(transaction)
+        .await
+        .expect("process_transaction");
+
+    let settings_address = get_settings_address();
+    let settings_info = banks_client
+        .get_account(settings_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let settings_data = Settings::unpack(settings_info.data()).expect("settings unpack");
+
+    assert_eq!(settings_data.is_initialized, true);
+    assert_eq!(settings_data.guardian, guardian);
+    assert_eq!(settings_data.withdrawal_manager, withdrawal_manager);
+}
+
+#[tokio::test]
 async fn test_init_mint() {
     let mut program_test = ProgramTest::new(
         "token_proxy",
