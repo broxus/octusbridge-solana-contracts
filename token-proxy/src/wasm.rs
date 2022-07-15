@@ -300,6 +300,7 @@ pub fn approve_withdrawal_ever_by_owner_ix(
 #[wasm_bindgen(js_name = "approveWithdrawalSol")]
 pub fn approve_withdrawal_sol_ix(
     authority_pubkey: String,
+    mint_pubkey: String,
     name: String,
     withdrawal_pubkey: String,
     to_pubkey: String,
@@ -307,9 +308,9 @@ pub fn approve_withdrawal_sol_ix(
     let settings_pubkey = get_settings_address();
     let token_settings_pubkey = get_token_settings_address(&name);
 
-    let mint_pubkey = get_mint_address(&name);
     let vault_pubkey = get_vault_address(&name);
 
+    let mint_pubkey = Pubkey::from_str(mint_pubkey.as_str()).handle_error()?;
     let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
     let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).handle_error()?;
 
@@ -342,6 +343,7 @@ pub fn approve_withdrawal_sol_ix(
 #[wasm_bindgen(js_name = "approveWithdrawalSolByOwner")]
 pub fn approve_withdrawal_sol_by_owner_ix(
     authority_pubkey: String,
+    mint_pubkey: String,
     name: String,
     withdrawal_pubkey: String,
     to_pubkey: String,
@@ -349,10 +351,10 @@ pub fn approve_withdrawal_sol_by_owner_ix(
     let settings_pubkey = get_settings_address();
     let token_settings_pubkey = get_token_settings_address(&name);
 
-    let mint_pubkey = get_mint_address(&name);
     let vault_pubkey = get_vault_address(&name);
     let program_data_pubkey = get_programdata_address();
 
+    let mint_pubkey = Pubkey::from_str(mint_pubkey.as_str()).handle_error()?;
     let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
     let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).handle_error()?;
 
