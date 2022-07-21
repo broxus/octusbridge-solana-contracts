@@ -210,4 +210,16 @@ pub enum TokenProxyInstruction {
     /// # Account references
     /// ...
     DisableEmergencyMode,
+
+    /// Enable token emergency mode
+    ///
+    /// # Account references
+    /// ...
+    EnableTokenEmergencyMode,
+
+    /// Disable token emergency mode
+    ///
+    /// # Account references
+    /// ...
+    DisableTokenEmergencyMode,
 }

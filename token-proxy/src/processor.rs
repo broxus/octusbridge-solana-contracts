@@ -33,12 +33,7 @@ impl Processor {
                 withdrawal_manager,
             } => {
                 msg!("Instruction: Initialize Token Proxy");
-                Self::process_initialize(
-                    program_id,
-                    accounts,
-                    guardian,
-                    withdrawal_manager,
-                )?;
+                Self::process_initialize(program_id, accounts, guardian, withdrawal_manager)?;
             }
             TokenProxyInstruction::InitializeMint {
                 name,
@@ -212,6 +207,14 @@ impl Processor {
                 msg!("Instruction: Disable emergency mode");
                 Self::process_disable_emergency_mode(program_id, accounts)?;
             }
+            TokenProxyInstruction::EnableTokenEmergencyMode => {
+                msg!("Instruction: Enable token emergency mode");
+                Self::process_enable_token_emergency_mode(program_id, accounts)?;
+            }
+            TokenProxyInstruction::DisableTokenEmergencyMode => {
+                msg!("Instruction: Disable token emergency mode");
+                Self::process_disable_token_emergency_mode(program_id, accounts)?;
+            }
         };
 
         Ok(())
@@ -248,9 +251,9 @@ impl Processor {
         )?;
 
         // Validate Settings Account
-        let settings_nonce = bridge_utils::helper::validate_settings_account(program_id, settings_account_info)?;
-        let settings_account_signer_seeds: &[&[_]] =
-            &[br"settings", &[settings_nonce]];
+        let settings_nonce =
+            bridge_utils::helper::validate_settings_account(program_id, settings_account_info)?;
+        let settings_account_signer_seeds: &[&[_]] = &[br"settings", &[settings_nonce]];
 
         // Create Settings Account
         invoke_signed(
@@ -276,7 +279,6 @@ impl Processor {
             emergency: false,
             guardian,
             withdrawal_manager,
-
         };
 
         Settings::pack(
@@ -368,7 +370,8 @@ impl Processor {
         )?;
 
         // Validate Settings Account
-        let token_settings_nonce = validate_token_settings_account(program_id, &name, token_settings_account_info)?;
+        let token_settings_nonce =
+            validate_token_settings_account(program_id, &name, token_settings_account_info)?;
         let token_settings_account_signer_seeds: &[&[_]] =
             &[br"settings", name.as_bytes(), &[token_settings_nonce]];
 
@@ -404,6 +407,7 @@ impl Processor {
             deposit_limit,
             withdrawal_limit,
             withdrawal_daily_limit,
+            emergency: false,
         };
 
         TokenSettings::pack(
@@ -494,7 +498,8 @@ impl Processor {
         )?;
 
         // Validate Settings Account
-        let token_settings_nonce = validate_token_settings_account(program_id, &name, token_settings_account_info)?;
+        let token_settings_nonce =
+            validate_token_settings_account(program_id, &name, token_settings_account_info)?;
         let token_settings_account_signer_seeds: &[&[_]] =
             &[br"settings", name.as_bytes(), &[token_settings_nonce]];
 
@@ -534,6 +539,7 @@ impl Processor {
             deposit_limit,
             withdrawal_limit,
             withdrawal_daily_limit,
+            emergency: false,
         };
 
         TokenSettings::pack(
@@ -578,10 +584,15 @@ impl Processor {
         }
 
         // Validate Token Settings Account
-        let token_settings_account_data = TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
+        let token_settings_account_data =
+            TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
 
         let name = &token_settings_account_data.name;
         validate_token_settings_account(program_id, name, token_settings_account_info)?;
+
+        if token_settings_account_data.emergency {
+            return Err(TokenProxyError::EmergencyEnabled.into());
+        }
 
         // Validate Mint Account
         validate_mint_account(program_id, name, mint_account_info)?;
@@ -700,10 +711,15 @@ impl Processor {
         }
 
         // Validate Token Setting Account
-        let token_settings_account_data = TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
+        let token_settings_account_data =
+            TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
 
         let name = &token_settings_account_data.name;
         validate_token_settings_account(program_id, name, token_settings_account_info)?;
+
+        if token_settings_account_data.emergency {
+            return Err(TokenProxyError::EmergencyEnabled.into());
+        }
 
         let (mint_account, vault_account) = token_settings_account_data
             .kind
@@ -839,13 +855,17 @@ impl Processor {
         }
 
         // Validate Setting Account
-        let token_settings_account_data = TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
+        let token_settings_account_data =
+            TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
 
         let name = &token_settings_account_data.name;
         validate_token_settings_account(program_id, name, token_settings_account_info)?;
 
         // Validate Round Loader Settings Account
-        bridge_utils::helper::validate_settings_account(&round_loader::id(), rl_settings_account_info)?;
+        bridge_utils::helper::validate_settings_account(
+            &round_loader::id(),
+            rl_settings_account_info,
+        )?;
 
         let rl_settings_account_data =
             round_loader::Settings::unpack(&rl_settings_account_info.data.borrow())?;
@@ -1065,7 +1085,15 @@ impl Processor {
             return Err(ProgramError::InvalidArgument);
         }
 
-        let mut token_settings_account_data = TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
+        let mut token_settings_account_data =
+            TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
+
+        let name = &token_settings_account_data.name;
+        validate_token_settings_account(program_id, name, token_settings_account_info)?;
+
+        if token_settings_account_data.emergency {
+            return Err(TokenProxyError::EmergencyEnabled.into());
+        }
 
         let withdrawal_amount = get_withdrawal_amount(
             withdrawal_account_data.event.data.amount,
@@ -1087,7 +1115,8 @@ impl Processor {
 
             // If current timestamp has expired
             if token_settings_account_data.withdrawal_ttl < current_timestamp {
-                token_settings_account_data.withdrawal_ttl = current_timestamp + WITHDRAWAL_TOKEN_PERIOD;
+                token_settings_account_data.withdrawal_ttl =
+                    current_timestamp + WITHDRAWAL_TOKEN_PERIOD;
                 token_settings_account_data.withdrawal_daily_amount = Default::default();
             }
 
@@ -1176,7 +1205,15 @@ impl Processor {
             return Err(ProgramError::InvalidArgument);
         }
 
-        let mut token_settings_account_data = TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
+        let mut token_settings_account_data =
+            TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
+
+        let name = &token_settings_account_data.name;
+        validate_token_settings_account(program_id, name, token_settings_account_info)?;
+
+        if token_settings_account_data.emergency {
+            return Err(TokenProxyError::EmergencyEnabled.into());
+        }
 
         let withdrawal_amount = get_withdrawal_amount(
             withdrawal_account_data.event.data.amount,
@@ -1204,10 +1241,11 @@ impl Processor {
                     }
 
                     // Increase withdrawal daily amount
-                    token_settings_account_data.withdrawal_daily_amount = token_settings_account_data
-                        .withdrawal_daily_amount
-                        .checked_add(withdrawal_amount)
-                        .ok_or(TokenProxyError::ArithmeticsError)?;
+                    token_settings_account_data.withdrawal_daily_amount =
+                        token_settings_account_data
+                            .withdrawal_daily_amount
+                            .checked_add(withdrawal_amount)
+                            .ok_or(TokenProxyError::ArithmeticsError)?;
 
                     if withdrawal_amount > token_settings_account_data.withdrawal_limit
                         || token_settings_account_data.withdrawal_daily_amount
@@ -1309,7 +1347,15 @@ impl Processor {
             return Err(ProgramError::InvalidArgument);
         }
 
-        let token_settings_account_data = TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
+        let token_settings_account_data =
+            TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
+
+        let name = &token_settings_account_data.name;
+        validate_token_settings_account(program_id, name, token_settings_account_info)?;
+
+        if token_settings_account_data.emergency {
+            return Err(TokenProxyError::EmergencyEnabled.into());
+        }
 
         if *authority_account_info.key != settings_account_data.withdrawal_manager {
             let programdata_account_info = next_account_info(account_info_iter)?;
@@ -1417,7 +1463,15 @@ impl Processor {
             return Err(ProgramError::InvalidArgument);
         }
 
-        let token_settings_account_data = TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
+        let token_settings_account_data =
+            TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
+
+        let name = &token_settings_account_data.name;
+        validate_token_settings_account(program_id, name, token_settings_account_info)?;
+
+        if token_settings_account_data.emergency {
+            return Err(TokenProxyError::EmergencyEnabled.into());
+        }
 
         let withdrawal_amount = get_withdrawal_amount(
             withdrawal_account_data.event.data.amount,
@@ -1493,10 +1547,15 @@ impl Processor {
         )?;
 
         // Validate Token Setting Account
-        let token_settings_account_data = TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
+        let token_settings_account_data =
+            TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
 
         let name = &token_settings_account_data.name;
         validate_token_settings_account(program_id, name, token_settings_account_info)?;
+
+        if token_settings_account_data.emergency {
+            return Err(TokenProxyError::EmergencyEnabled.into());
+        }
 
         if *token_settings_account_info.key != settings {
             return Err(ProgramError::InvalidArgument);
@@ -1640,10 +1699,15 @@ impl Processor {
         }
 
         // Validate Token Setting Account
-        let token_settings_account_data = TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
+        let token_settings_account_data =
+            TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
 
         let name = &token_settings_account_data.name;
         validate_token_settings_account(program_id, name, token_settings_account_info)?;
+
+        if token_settings_account_data.emergency {
+            return Err(TokenProxyError::EmergencyEnabled.into());
+        }
 
         if *token_settings_account_info.key != settings {
             return Err(ProgramError::InvalidArgument);
@@ -1909,7 +1973,8 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        let mut settings_account_data = TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
+        let mut settings_account_data =
+            TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
 
         // Validate Setting Account
         let name = &settings_account_data.name;
@@ -1951,7 +2016,8 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        let mut settings_account_data = TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
+        let mut settings_account_data =
+            TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
 
         // Validate Setting Account
         let name = &settings_account_data.name;
@@ -2050,6 +2116,99 @@ impl Processor {
         Settings::pack(
             settings_account_data,
             &mut settings_account_info.data.borrow_mut(),
+        )?;
+
+        Ok(())
+    }
+
+    fn process_enable_token_emergency_mode(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+
+        let authority_account_info = next_account_info(account_info_iter)?;
+        let settings_account_info = next_account_info(account_info_iter)?;
+        let token_settings_account_info = next_account_info(account_info_iter)?;
+
+        if !authority_account_info.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        // Validate Setting Account
+        bridge_utils::helper::validate_settings_account(program_id, settings_account_info)?;
+
+        let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+        let guardian = settings_account_data.guardian;
+
+        // Validate Guardian Account
+        if *authority_account_info.key != guardian {
+            let programdata_account_info = next_account_info(account_info_iter)?;
+
+            // Validate Initializer Account
+            bridge_utils::helper::validate_programdata_account(
+                program_id,
+                programdata_account_info.key,
+            )?;
+            bridge_utils::helper::validate_initializer_account(
+                authority_account_info.key,
+                programdata_account_info,
+            )?;
+        }
+
+        let mut token_settings_account_data =
+            TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
+
+        // Validate Setting Account
+        let name = &token_settings_account_data.name;
+        validate_token_settings_account(program_id, name, token_settings_account_info)?;
+
+        token_settings_account_data.emergency = true;
+
+        TokenSettings::pack(
+            token_settings_account_data,
+            &mut token_settings_account_info.data.borrow_mut(),
+        )?;
+
+        Ok(())
+    }
+
+    fn process_disable_token_emergency_mode(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+
+        let authority_account_info = next_account_info(account_info_iter)?;
+        let token_settings_account_info = next_account_info(account_info_iter)?;
+        let programdata_account_info = next_account_info(account_info_iter)?;
+
+        if !authority_account_info.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        // Validate Owner Account
+        bridge_utils::helper::validate_programdata_account(
+            program_id,
+            programdata_account_info.key,
+        )?;
+        bridge_utils::helper::validate_initializer_account(
+            authority_account_info.key,
+            programdata_account_info,
+        )?;
+
+        let mut token_settings_account_data =
+            TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
+
+        // Validate Setting Account
+        let name = &token_settings_account_data.name;
+        validate_token_settings_account(program_id, name, token_settings_account_info)?;
+
+        token_settings_account_data.emergency = false;
+
+        TokenSettings::pack(
+            token_settings_account_data,
+            &mut token_settings_account_info.data.borrow_mut(),
         )?;
 
         Ok(())

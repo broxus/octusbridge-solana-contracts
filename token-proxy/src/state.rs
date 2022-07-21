@@ -61,6 +61,7 @@ pub struct TokenSettings {
     pub withdrawal_daily_limit: u64,
     pub withdrawal_daily_amount: u64,
     pub withdrawal_ttl: i64,
+    pub emergency: bool,
 }
 
 impl Sealed for TokenSettings {}

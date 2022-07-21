@@ -140,7 +140,8 @@ impl Processor {
         )?;
 
         // Validate Settings Account
-        let settings_nonce = bridge_utils::helper::validate_settings_account(program_id, settings_account_info)?;
+        let settings_nonce =
+            bridge_utils::helper::validate_settings_account(program_id, settings_account_info)?;
         let settings_account_signer_seeds: &[&[_]] = &[br"settings", &[settings_nonce]];
 
         // Create Settings Account
@@ -271,7 +272,9 @@ impl Processor {
             return Err(ProgramError::IllegalOwner);
         }
 
-        if settings_account_data.current_round_number != 0 && settings_account_data.current_round_number >= round_number {
+        if settings_account_data.current_round_number != 0
+            && settings_account_data.current_round_number >= round_number
+        {
             return Err(RoundLoaderError::InvalidRelayRound.into());
         }
 

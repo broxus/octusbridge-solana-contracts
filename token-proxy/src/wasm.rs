@@ -36,8 +36,8 @@ pub fn initialize_settings_ix(
         guardian,
         withdrawal_manager,
     }
-        .try_to_vec()
-        .handle_error()?;
+    .try_to_vec()
+    .handle_error()?;
 
     let ix = Instruction {
         program_id: id(),
@@ -185,7 +185,8 @@ pub fn withdrawal_request_ix(
         amount,
     );
 
-    let rl_settings_pubkey = bridge_utils::helper::get_associated_settings_address(&round_loader::id());
+    let rl_settings_pubkey =
+        bridge_utils::helper::get_associated_settings_address(&round_loader::id());
 
     let data = TokenProxyInstruction::WithdrawRequest {
         event_timestamp,
@@ -888,9 +889,7 @@ pub fn enable_emergency_ix(authority_pubkey: String) -> Result<JsValue, JsValue>
 }
 
 #[wasm_bindgen(js_name = "enableEmergencyByOwner")]
-pub fn enable_emergency_by_owner_ix(
-    authority_pubkey: String,
-) -> Result<JsValue, JsValue> {
+pub fn enable_emergency_by_owner_ix(authority_pubkey: String) -> Result<JsValue, JsValue> {
     let settings_pubkey = get_settings_address();
     let program_data_pubkey = get_programdata_address();
 
@@ -937,6 +936,80 @@ pub fn disable_emergency_ix(authority_pubkey: String) -> Result<JsValue, JsValue
     return JsValue::from_serde(&ix).handle_error();
 }
 
+#[wasm_bindgen(js_name = "enableTokenEmergency")]
+pub fn enable_token_emergency_ix(authority_pubkey: String, token_name: String) -> Result<JsValue, JsValue> {
+    let settings_pubkey = get_settings_address();
+    let token_settings_pubkey = get_token_settings_address(&token_name);
+
+    let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
+
+    let data = TokenProxyInstruction::EnableTokenEmergencyMode
+        .try_to_vec()
+        .expect("pack");
+
+    let ix = Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(authority_pubkey, true),
+            AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new(token_settings_pubkey, false),
+        ],
+        data,
+    };
+
+    return JsValue::from_serde(&ix).handle_error();
+}
+
+#[wasm_bindgen(js_name = "enableTokenEmergencyByOwner")]
+pub fn enable_token_emergency_by_owner_ix(authority_pubkey: String, token_name: String) -> Result<JsValue, JsValue> {
+    let settings_pubkey = get_settings_address();
+    let token_settings_pubkey = get_token_settings_address(&token_name);
+    let program_data_pubkey = get_programdata_address();
+
+    let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
+
+    let data = TokenProxyInstruction::EnableTokenEmergencyMode
+        .try_to_vec()
+        .expect("pack");
+
+    let ix = Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(authority_pubkey, true),
+            AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new(token_settings_pubkey, false),
+            AccountMeta::new_readonly(program_data_pubkey, false),
+        ],
+        data,
+    };
+
+    return JsValue::from_serde(&ix).handle_error();
+}
+
+#[wasm_bindgen(js_name = "disableTokenEmergency")]
+pub fn disable_token_emergency_ix(authority_pubkey: String, token_name: String) -> Result<JsValue, JsValue> {
+    let token_settings_pubkey = get_token_settings_address(&token_name);
+    let program_data_pubkey = get_programdata_address();
+
+    let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
+
+    let data = TokenProxyInstruction::DisableTokenEmergencyMode
+        .try_to_vec()
+        .expect("pack");
+
+    let ix = Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(authority_pubkey, true),
+            AccountMeta::new(token_settings_pubkey, false),
+            AccountMeta::new_readonly(program_data_pubkey, false),
+        ],
+        data,
+    };
+
+    return JsValue::from_serde(&ix).handle_error();
+}
+
 #[wasm_bindgen(js_name = "unpackSettings")]
 pub fn unpack_settings(data: Vec<u8>) -> Result<JsValue, JsValue> {
     let settings = Settings::unpack(&data).handle_error()?;
@@ -966,6 +1039,7 @@ pub fn unpack_token_settings(data: Vec<u8>) -> Result<JsValue, JsValue> {
         withdrawal_daily_limit: token_settings.withdrawal_daily_limit,
         withdrawal_daily_amount: token_settings.withdrawal_daily_amount,
         withdrawal_ttl: token_settings.withdrawal_ttl,
+        emergency: token_settings.emergency,
     };
 
     return JsValue::from_serde(&s).handle_error();
@@ -1026,6 +1100,7 @@ pub struct WasmTokenSettings {
     pub withdrawal_daily_limit: u64,
     pub withdrawal_daily_amount: u64,
     pub withdrawal_ttl: i64,
+    pub emergency: bool,
 }
 
 #[derive(Serialize, Deserialize)]

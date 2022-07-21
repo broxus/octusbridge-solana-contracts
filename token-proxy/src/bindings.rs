@@ -82,8 +82,8 @@ pub fn initialize_settings_ix(
         guardian,
         withdrawal_manager,
     }
-        .try_to_vec()
-        .expect("pack");
+    .try_to_vec()
+    .expect("pack");
 
     Instruction {
         program_id: id(),
@@ -293,7 +293,8 @@ pub fn withdrawal_request_ix(
         recipient_address,
         amount,
     );
-    let rl_settings_pubkey = bridge_utils::helper::get_associated_settings_address(&round_loader::id());
+    let rl_settings_pubkey =
+        bridge_utils::helper::get_associated_settings_address(&round_loader::id());
     let relay_round_pubkey =
         round_loader::get_associated_relay_round_address(&round_loader::id(), round_number);
 
@@ -666,10 +667,7 @@ pub fn change_guardian_ix(owner: &Pubkey, new_guardian: Pubkey) -> Instruction {
     }
 }
 
-pub fn change_withdrawal_manager_ix(
-    owner: &Pubkey,
-    new_withdrawal_manager: Pubkey,
-) -> Instruction {
+pub fn change_withdrawal_manager_ix(owner: &Pubkey, new_withdrawal_manager: Pubkey) -> Instruction {
     let settings_pubkey = get_settings_address();
     let program_data_pubkey = get_programdata_address();
 
@@ -789,6 +787,65 @@ pub fn disable_emergency_ix(owner_pubkey: &Pubkey) -> Instruction {
         accounts: vec![
             AccountMeta::new(*owner_pubkey, true),
             AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new_readonly(program_data_pubkey, false),
+        ],
+        data,
+    }
+}
+
+pub fn enable_token_emergency_ix(guardian_pubkey: &Pubkey, token_name: &str) -> Instruction {
+    let settings_pubkey = get_settings_address();
+    let token_settings_pubkey = get_token_settings_address(token_name);
+
+    let data = TokenProxyInstruction::EnableTokenEmergencyMode
+        .try_to_vec()
+        .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(*guardian_pubkey, true),
+            AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new(token_settings_pubkey, false),
+        ],
+        data,
+    }
+}
+
+pub fn enable_token_emergency_by_owner_ix(owner_pubkey: &Pubkey, token_name: &str) -> Instruction {
+    let settings_pubkey = get_settings_address();
+    let token_settings_pubkey = get_token_settings_address(token_name);
+    let program_data_pubkey = get_programdata_address();
+
+    let data = TokenProxyInstruction::EnableTokenEmergencyMode
+        .try_to_vec()
+        .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(*owner_pubkey, true),
+            AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new(token_settings_pubkey, false),
+            AccountMeta::new_readonly(program_data_pubkey, false),
+        ],
+        data,
+    }
+}
+
+pub fn disable_token_emergency_ix(owner_pubkey: &Pubkey, token_name: &str) -> Instruction {
+    let token_settings_pubkey = get_token_settings_address(token_name);
+    let program_data_pubkey = get_programdata_address();
+
+    let data = TokenProxyInstruction::DisableTokenEmergencyMode
+        .try_to_vec()
+        .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(*owner_pubkey, true),
+            AccountMeta::new(token_settings_pubkey, false),
             AccountMeta::new_readonly(program_data_pubkey, false),
         ],
         data,
