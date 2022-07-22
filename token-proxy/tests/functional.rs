@@ -429,13 +429,13 @@ async fn test_deposit_ever() {
         name: name.clone(),
         kind: TokenKind::Ever { mint: mint_address },
         withdrawal_daily_amount: 0,
-        withdrawal_ttl: 0,
+        withdrawal_epoch: 0,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
         solana_decimals,
         ever_decimals,
-        emergency: false
+        emergency: false,
     };
 
     let mut token_settings_packed = vec![0; TokenSettings::LEN];
@@ -654,13 +654,13 @@ async fn test_deposit_sol() {
             vault: vault_address,
         },
         withdrawal_daily_amount: 0,
-        withdrawal_ttl: 0,
+        withdrawal_epoch: 0,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
         solana_decimals,
         ever_decimals,
-        emergency: false
+        emergency: false,
     };
 
     let mut token_settings_packed = vec![0; TokenSettings::LEN];
@@ -756,13 +756,13 @@ async fn test_withdrawal_request() {
         name: name.clone(),
         kind: TokenKind::Ever { mint: mint_address },
         withdrawal_daily_amount: 0,
-        withdrawal_ttl: 0,
+        withdrawal_epoch: 0,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
         solana_decimals,
         ever_decimals,
-        emergency: false
+        emergency: false,
     };
 
     let mut token_settings_packed = vec![0; TokenSettings::LEN];
@@ -975,13 +975,13 @@ async fn test_vote_for_withdrawal_request() {
         name: name.clone(),
         kind: TokenKind::Ever { mint: mint_address },
         withdrawal_daily_amount: 0,
-        withdrawal_ttl: 0,
+        withdrawal_epoch: 0,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
         solana_decimals,
         ever_decimals,
-        emergency: false
+        emergency: false,
     };
 
     let mut token_settings_packed = vec![0; TokenSettings::LEN];
@@ -1067,7 +1067,7 @@ async fn test_vote_for_withdrawal_request() {
         author,
         round_number,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
-        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::New, 0),
+        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::New, 0, 0),
         required_votes: relays.len() as u32,
         signers: relays.iter().map(|_| Vote::None).collect(),
         pda: PDA {
@@ -1216,13 +1216,13 @@ async fn test_withdrawal_ever() {
         name: name.clone(),
         kind: TokenKind::Ever { mint: mint_address },
         withdrawal_daily_amount: 0,
-        withdrawal_ttl: 0,
+        withdrawal_epoch: 0,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
         solana_decimals,
         ever_decimals,
-        emergency: false
+        emergency: false,
     };
 
     let mut token_settings_packed = vec![0; TokenSettings::LEN];
@@ -1291,7 +1291,7 @@ async fn test_withdrawal_ever() {
         author,
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
-        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::New, 0),
+        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::New, 0, 0),
         required_votes: 0,
         signers: vec![],
         pda: PDA {
@@ -1437,13 +1437,13 @@ async fn test_withdrawal_ever_2() {
         name: name.clone(),
         kind: TokenKind::Ever { mint: mint_address },
         withdrawal_daily_amount: 0,
-        withdrawal_ttl: 0,
+        withdrawal_epoch: 0,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
         solana_decimals,
         ever_decimals,
-        emergency: false
+        emergency: false,
     };
 
     let mut token_settings_packed = vec![0; TokenSettings::LEN];
@@ -1512,7 +1512,7 @@ async fn test_withdrawal_ever_2() {
         author,
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
-        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::New, 0),
+        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::New, 0, 0),
         required_votes: 0,
         signers: vec![],
         pda: PDA {
@@ -1671,13 +1671,13 @@ async fn test_withdrawal_sol() {
             vault: vault_address,
         },
         withdrawal_daily_amount: 0,
-        withdrawal_ttl: 0,
+        withdrawal_epoch: 0,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
         solana_decimals,
         ever_decimals,
-        emergency: false
+        emergency: false,
     };
 
     let mut token_settings_packed = vec![0; TokenSettings::LEN];
@@ -1746,7 +1746,7 @@ async fn test_withdrawal_sol() {
         author,
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
-        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::New, 0),
+        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::New, 0, 0),
         required_votes: 0,
         signers: vec![],
         pda: PDA {
@@ -1921,13 +1921,13 @@ async fn test_withdrawal_sol_2() {
             vault: vault_address,
         },
         withdrawal_daily_amount: 0,
-        withdrawal_ttl: 0,
+        withdrawal_epoch: 0,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
         solana_decimals,
         ever_decimals,
-        emergency: false
+        emergency: false,
     };
 
     let mut token_settings_packed = vec![0; TokenSettings::LEN];
@@ -1993,7 +1993,7 @@ async fn test_withdrawal_sol_2() {
         author,
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
-        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::New, 0),
+        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::New, 0, 0),
         required_votes: 0,
         signers: vec![],
         pda: PDA {
@@ -2127,13 +2127,13 @@ async fn test_withdrawal_different_decimals() {
         name: name.clone(),
         kind: TokenKind::Ever { mint: mint_address },
         withdrawal_daily_amount: 0,
-        withdrawal_ttl: 0,
+        withdrawal_epoch: 0,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
         solana_decimals,
         ever_decimals,
-        emergency: false
+        emergency: false,
     };
 
     let mut token_settings_packed = vec![0; TokenSettings::LEN];
@@ -2203,7 +2203,7 @@ async fn test_withdrawal_different_decimals() {
         author,
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(sender_address, ever_amount, recipient_address),
-        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::New, 0),
+        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::New, 0, 0),
         required_votes: 0,
         signers: vec![],
         pda: PDA {
@@ -2348,13 +2348,13 @@ async fn test_approve_withdrawal_ever() {
         name: name.clone(),
         kind: TokenKind::Ever { mint: mint_address },
         withdrawal_daily_amount: 0,
-        withdrawal_ttl: 0,
+        withdrawal_epoch: 0,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
         solana_decimals,
         ever_decimals,
-        emergency: false
+        emergency: false,
     };
 
     let mut token_settings_packed = vec![0; TokenSettings::LEN];
@@ -2423,7 +2423,7 @@ async fn test_approve_withdrawal_ever() {
         author,
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
-        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::WaitingForApprove, 0),
+        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::WaitingForApprove, 0, 0),
         required_votes: 0,
         signers: vec![],
         pda: PDA {
@@ -2598,13 +2598,13 @@ async fn test_approve_withdrawal_ever_by_owner() {
         name: name.clone(),
         kind: TokenKind::Ever { mint: mint_address },
         withdrawal_daily_amount: 0,
-        withdrawal_ttl: 0,
+        withdrawal_epoch: 0,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
         solana_decimals,
         ever_decimals,
-        emergency: false
+        emergency: false,
     };
 
     let mut token_settings_packed = vec![0; TokenSettings::LEN];
@@ -2673,7 +2673,7 @@ async fn test_approve_withdrawal_ever_by_owner() {
         author,
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
-        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::WaitingForApprove, 0),
+        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::WaitingForApprove, 0, 0),
         required_votes: 0,
         signers: vec![],
         pda: PDA {
@@ -2806,13 +2806,13 @@ async fn test_approve_withdrawal_sol() {
             vault: vault_address,
         },
         withdrawal_daily_amount: 0,
-        withdrawal_ttl: 0,
+        withdrawal_epoch: 0,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
         solana_decimals,
         ever_decimals,
-        emergency: false
+        emergency: false,
     };
 
     let mut token_settings_packed = vec![0; TokenSettings::LEN];
@@ -2923,7 +2923,7 @@ async fn test_approve_withdrawal_sol() {
         author,
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
-        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::WaitingForApprove, 0),
+        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::WaitingForApprove, 0, 0),
         required_votes: 0,
         signers: vec![],
         pda: PDA {
@@ -3056,13 +3056,13 @@ async fn test_approve_withdrawal_sol_2() {
             vault: vault_address,
         },
         withdrawal_daily_amount: 0,
-        withdrawal_ttl: 0,
+        withdrawal_epoch: 0,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
         solana_decimals,
         ever_decimals,
-        emergency: false
+        emergency: false,
     };
 
     let mut token_settings_packed = vec![0; TokenSettings::LEN];
@@ -3173,7 +3173,7 @@ async fn test_approve_withdrawal_sol_2() {
         author,
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
-        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::WaitingForApprove, 0),
+        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::WaitingForApprove, 0, 0),
         required_votes: 0,
         signers: vec![],
         pda: PDA {
@@ -3313,13 +3313,13 @@ async fn test_approve_withdrawal_sol_by_owner() {
             vault: vault_address,
         },
         withdrawal_daily_amount: 0,
-        withdrawal_ttl: 0,
+        withdrawal_epoch: 0,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
         solana_decimals,
         ever_decimals,
-        emergency: false
+        emergency: false,
     };
 
     let mut token_settings_packed = vec![0; TokenSettings::LEN];
@@ -3430,7 +3430,7 @@ async fn test_approve_withdrawal_sol_by_owner() {
         author,
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
-        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::WaitingForApprove, 0),
+        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::WaitingForApprove, 0, 0),
         required_votes: 0,
         signers: vec![],
         pda: PDA {
@@ -3608,13 +3608,13 @@ async fn test_cancel_withdrawal_sol() {
             vault: vault_address,
         },
         withdrawal_daily_amount: 0,
-        withdrawal_ttl: 0,
+        withdrawal_epoch: 0,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
         solana_decimals,
         ever_decimals,
-        emergency: false
+        emergency: false,
     };
 
     let mut token_settings_packed = vec![0; TokenSettings::LEN];
@@ -3668,7 +3668,7 @@ async fn test_cancel_withdrawal_sol() {
         author: author.pubkey(),
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
-        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::Pending, 0),
+        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::Pending, 0, 0),
         required_votes: 0,
         signers: vec![],
         pda: PDA {
@@ -3892,13 +3892,13 @@ async fn test_fill_withdrawal_sol() {
             vault: Pubkey::new_unique(),
         },
         withdrawal_daily_amount: 0,
-        withdrawal_ttl: 0,
+        withdrawal_epoch: 0,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
         solana_decimals,
         ever_decimals,
-        emergency: false
+        emergency: false,
     };
 
     let mut token_settings_packed = vec![0; TokenSettings::LEN];
@@ -3940,7 +3940,7 @@ async fn test_fill_withdrawal_sol() {
         author: withdrawal_author,
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
-        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::Pending, bounty),
+        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::Pending, bounty, 0),
         required_votes: 0,
         signers: vec![],
         pda: PDA {
@@ -4064,7 +4064,7 @@ async fn test_change_bounty_for_withdrawal_sol() {
         author: author.pubkey(),
         round_number: 5,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
-        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::Pending, 0),
+        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::Pending, 0, 0),
         required_votes: 0,
         signers: vec![],
         pda: PDA {
@@ -4355,13 +4355,13 @@ async fn test_change_deposit_limit() {
         name: name.clone(),
         kind: TokenKind::Ever { mint: mint_address },
         withdrawal_daily_amount: 0,
-        withdrawal_ttl: 0,
+        withdrawal_epoch: 0,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
         solana_decimals,
         ever_decimals,
-        emergency: false
+        emergency: false,
     };
 
     let mut token_settings_packed = vec![0; TokenSettings::LEN];
@@ -4463,13 +4463,13 @@ async fn test_change_withdrawal_limits() {
         name: name.clone(),
         kind: TokenKind::Ever { mint: mint_address },
         withdrawal_daily_amount: 0,
-        withdrawal_ttl: 0,
+        withdrawal_epoch: 0,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
         solana_decimals,
         ever_decimals,
-        emergency: false
+        emergency: false,
     };
 
     let mut token_settings_packed = vec![0; TokenSettings::LEN];
@@ -4815,13 +4815,13 @@ async fn test_enable_token_emergency() {
         name: name.clone(),
         kind: TokenKind::Ever { mint: mint_address },
         withdrawal_daily_amount: 0,
-        withdrawal_ttl: 0,
+        withdrawal_epoch: 0,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
         solana_decimals,
         ever_decimals,
-        emergency: false
+        emergency: false,
     };
 
     let mut token_settings_packed = vec![0; TokenSettings::LEN];
@@ -4857,7 +4857,8 @@ async fn test_enable_token_emergency() {
         .expect("get_account")
         .expect("account");
 
-    let token_settings_data = TokenSettings::unpack(token_settings_info.data()).expect("token_settings unpack");
+    let token_settings_data =
+        TokenSettings::unpack(token_settings_info.data()).expect("token_settings unpack");
 
     assert_eq!(token_settings_data.emergency, true);
 }
@@ -4944,13 +4945,13 @@ async fn test_enable_token_emergency_by_owner() {
         name: name.clone(),
         kind: TokenKind::Ever { mint: mint_address },
         withdrawal_daily_amount: 0,
-        withdrawal_ttl: 0,
+        withdrawal_epoch: 0,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
         solana_decimals,
         ever_decimals,
-        emergency: false
+        emergency: false,
     };
 
     let mut token_settings_packed = vec![0; TokenSettings::LEN];
@@ -4986,7 +4987,8 @@ async fn test_enable_token_emergency_by_owner() {
         .expect("get_account")
         .expect("account");
 
-    let token_settings_data = TokenSettings::unpack(token_settings_info.data()).expect("token_settings unpack");
+    let token_settings_data =
+        TokenSettings::unpack(token_settings_info.data()).expect("token_settings unpack");
 
     assert_eq!(token_settings_data.emergency, true);
 }
@@ -5073,13 +5075,13 @@ async fn test_disable_token_emergency() {
         name: name.clone(),
         kind: TokenKind::Ever { mint: mint_address },
         withdrawal_daily_amount: 0,
-        withdrawal_ttl: 0,
+        withdrawal_epoch: 0,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
         solana_decimals,
         ever_decimals,
-        emergency: false
+        emergency: false,
     };
 
     let mut token_settings_packed = vec![0; TokenSettings::LEN];
@@ -5115,7 +5117,8 @@ async fn test_disable_token_emergency() {
         .expect("get_account")
         .expect("account");
 
-    let token_settings_data = TokenSettings::unpack(token_settings_info.data()).expect("token_settings unpack");
+    let token_settings_data =
+        TokenSettings::unpack(token_settings_info.data()).expect("token_settings unpack");
 
     assert_eq!(token_settings_data.emergency, false);
 }

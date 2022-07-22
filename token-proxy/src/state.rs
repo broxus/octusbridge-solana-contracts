@@ -19,6 +19,7 @@ const WITHDRAWAL_TOKEN_EVENT_LEN: usize = 16    // amount
 
 const WITHDRAWAL_TOKEN_META_LEN: usize = 1  // status
     + 8                                     // bounty
+    + 8                                     // epoch
 ;
 
 const DEPOSIT_TOKEN_EVENT_LEN: usize = 16   // amount
@@ -60,7 +61,7 @@ pub struct TokenSettings {
     pub withdrawal_limit: u64,
     pub withdrawal_daily_limit: u64,
     pub withdrawal_daily_amount: u64,
-    pub withdrawal_ttl: i64,
+    pub withdrawal_epoch: i64,
     pub emergency: bool,
 }
 
@@ -164,7 +165,7 @@ impl DepositTokenMetaWithLen {
 }
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
-#[bridge_pack(length = 326)]
+#[bridge_pack(length = 332)]
 pub struct WithdrawalToken {
     pub is_initialized: bool,
     pub account_kind: AccountKind,
@@ -216,6 +217,7 @@ impl WithdrawalTokenEventWithLen {
 pub struct WithdrawalTokenMeta {
     pub status: WithdrawalTokenStatus,
     pub bounty: u64,
+    pub epoch: i64,
 }
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
@@ -225,10 +227,14 @@ pub struct WithdrawalTokenMetaWithLen {
 }
 
 impl WithdrawalTokenMetaWithLen {
-    pub fn new(status: WithdrawalTokenStatus, bounty: u64) -> Self {
+    pub fn new(status: WithdrawalTokenStatus, bounty: u64, epoch: i64) -> Self {
         Self {
             len: WITHDRAWAL_TOKEN_META_LEN as u32,
-            data: WithdrawalTokenMeta { status, bounty },
+            data: WithdrawalTokenMeta {
+                status,
+                bounty,
+                epoch,
+            },
         }
     }
 }

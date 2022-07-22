@@ -4,7 +4,7 @@ use bridge_utils::types::{EverAddress, Vote, RELAY_REPARATION};
 use round_loader::RelayRound;
 
 use solana_program::account_info::{next_account_info, AccountInfo};
-use solana_program::clock::Clock;
+use solana_program::clock::{Clock, SECONDS_PER_DAY};
 use solana_program::entrypoint::ProgramResult;
 use solana_program::hash::hash;
 use solana_program::program::{invoke, invoke_signed};
@@ -400,7 +400,7 @@ impl Processor {
                 mint: *mint_account_info.key,
             },
             withdrawal_daily_amount: 0,
-            withdrawal_ttl: 0,
+            withdrawal_epoch: 0,
             name,
             ever_decimals,
             solana_decimals,
@@ -532,7 +532,7 @@ impl Processor {
                 vault: *vault_account_info.key,
             },
             withdrawal_daily_amount: 0,
-            withdrawal_ttl: 0,
+            withdrawal_epoch: 0,
             name,
             ever_decimals,
             solana_decimals,
@@ -890,6 +890,8 @@ impl Processor {
             required_votes = rl_settings_account_data.min_required_votes;
         }
 
+        let epoch = clock.unix_timestamp / SECONDS_PER_DAY as i64;
+
         // Init Withdraw Account
         let withdrawal_account_data = WithdrawalToken {
             is_initialized: true,
@@ -899,7 +901,7 @@ impl Processor {
             round_number,
             required_votes,
             event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
-            meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::New, 0),
+            meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::New, 0, epoch),
             signers: vec![Vote::None; relay_round_account_data.relays.len()],
             pda: PDA {
                 settings: *token_settings_account_info.key,
@@ -1111,12 +1113,11 @@ impl Processor {
         if sig_count >= withdrawal_account_data.required_votes
             && withdrawal_account_data.meta.data.status == WithdrawalTokenStatus::New
         {
-            let current_timestamp = clock.unix_timestamp;
+            let current_epoch = clock.unix_timestamp / SECONDS_PER_DAY as i64;
 
-            // If current timestamp has expired
-            if token_settings_account_data.withdrawal_ttl < current_timestamp {
-                token_settings_account_data.withdrawal_ttl =
-                    current_timestamp + WITHDRAWAL_TOKEN_PERIOD;
+            // If current epoch has changed
+            if token_settings_account_data.withdrawal_epoch != current_epoch {
+                token_settings_account_data.withdrawal_epoch = current_epoch;
                 token_settings_account_data.withdrawal_daily_amount = Default::default();
             }
 
@@ -1231,12 +1232,11 @@ impl Processor {
         if sig_count >= withdrawal_account_data.required_votes {
             match withdrawal_status {
                 WithdrawalTokenStatus::New => {
-                    let current_timestamp = clock.unix_timestamp;
+                    let current_epoch = clock.unix_timestamp / SECONDS_PER_DAY as i64;
 
-                    // If current timestamp has expired
-                    if token_settings_account_data.withdrawal_ttl < current_timestamp {
-                        token_settings_account_data.withdrawal_ttl =
-                            current_timestamp + WITHDRAWAL_TOKEN_PERIOD;
+                    // If current epoch has changed
+                    if token_settings_account_data.withdrawal_epoch != current_epoch {
+                        token_settings_account_data.withdrawal_epoch = current_epoch;
                         token_settings_account_data.withdrawal_daily_amount = Default::default();
                     }
 
@@ -1306,6 +1306,8 @@ impl Processor {
         let settings_account_info = next_account_info(account_info_iter)?;
         let token_settings_account_info = next_account_info(account_info_iter)?;
         let token_program_info = next_account_info(account_info_iter)?;
+        let clock_info = next_account_info(account_info_iter)?;
+        let clock = Clock::from_account_info(clock_info)?;
 
         if !authority_account_info.is_signer {
             return Err(ProgramError::MissingRequiredSignature);
@@ -1347,7 +1349,7 @@ impl Processor {
             return Err(ProgramError::InvalidArgument);
         }
 
-        let token_settings_account_data =
+        let mut token_settings_account_data =
             TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
 
         let name = &token_settings_account_data.name;
@@ -1387,6 +1389,22 @@ impl Processor {
             withdrawal_amount,
         )?;
 
+        let current_epoch = clock.unix_timestamp / SECONDS_PER_DAY as i64;
+
+        // If withdrawal is in current epoch
+        if withdrawal_account_data.meta.data.epoch == current_epoch {
+            // Decrease withdrawal daily amount
+            token_settings_account_data.withdrawal_daily_amount = token_settings_account_data
+                .withdrawal_daily_amount
+                .checked_sub(withdrawal_amount)
+                .ok_or(TokenProxyError::ArithmeticsError)?;
+
+            TokenSettings::pack(
+                token_settings_account_data,
+                &mut token_settings_account_info.data.borrow_mut(),
+            )?;
+        }
+
         WithdrawalToken::pack(
             withdrawal_account_data,
             &mut withdrawal_account_info.data.borrow_mut(),
@@ -1405,9 +1423,11 @@ impl Processor {
         let vault_account_info = next_account_info(account_info_iter)?;
         let withdrawal_account_info = next_account_info(account_info_iter)?;
         let recipient_token_account_info = next_account_info(account_info_iter)?;
-        let token_settings_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
+        let token_settings_account_info = next_account_info(account_info_iter)?;
         let token_program_info = next_account_info(account_info_iter)?;
+        let clock_info = next_account_info(account_info_iter)?;
+        let clock = Clock::from_account_info(clock_info)?;
 
         if !authority_account_info.is_signer {
             return Err(ProgramError::MissingRequiredSignature);
@@ -1463,7 +1483,7 @@ impl Processor {
             return Err(ProgramError::InvalidArgument);
         }
 
-        let token_settings_account_data =
+        let mut token_settings_account_data =
             TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
 
         let name = &token_settings_account_data.name;
@@ -1488,6 +1508,22 @@ impl Processor {
             &mut withdrawal_account_data,
             withdrawal_amount,
         )?;
+
+        let current_epoch = clock.unix_timestamp / SECONDS_PER_DAY as i64;
+
+        // If withdrawal is in current epoch
+        if withdrawal_account_data.meta.data.epoch == current_epoch {
+            // Decrease withdrawal daily amount
+            token_settings_account_data.withdrawal_daily_amount = token_settings_account_data
+                .withdrawal_daily_amount
+                .checked_sub(withdrawal_amount)
+                .ok_or(TokenProxyError::ArithmeticsError)?;
+
+            TokenSettings::pack(
+                token_settings_account_data,
+                &mut token_settings_account_info.data.borrow_mut(),
+            )?;
+        }
 
         WithdrawalToken::pack(
             withdrawal_account_data,

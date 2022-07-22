@@ -248,8 +248,9 @@ pub fn approve_withdrawal_ever_ix(
             AccountMeta::new(withdrawal_pubkey, false),
             AccountMeta::new(recipient_token_pubkey, false),
             AccountMeta::new_readonly(settings_pubkey, false),
-            AccountMeta::new_readonly(token_settings_pubkey, false),
+            AccountMeta::new(token_settings_pubkey, false),
             AccountMeta::new_readonly(spl_token::id(), false),
+            AccountMeta::new_readonly(sysvar::clock::id(), false),
         ],
         data,
     };
@@ -288,8 +289,9 @@ pub fn approve_withdrawal_ever_by_owner_ix(
             AccountMeta::new(withdrawal_pubkey, false),
             AccountMeta::new(recipient_token_pubkey, false),
             AccountMeta::new_readonly(settings_pubkey, false),
-            AccountMeta::new_readonly(token_settings_pubkey, false),
+            AccountMeta::new(token_settings_pubkey, false),
             AccountMeta::new_readonly(spl_token::id(), false),
+            AccountMeta::new_readonly(sysvar::clock::id(), false),
             AccountMeta::new_readonly(program_data_pubkey, false),
         ],
         data,
@@ -331,9 +333,10 @@ pub fn approve_withdrawal_sol_ix(
             AccountMeta::new(vault_pubkey, false),
             AccountMeta::new(withdrawal_pubkey, false),
             AccountMeta::new(recipient_token_pubkey, false),
-            AccountMeta::new(token_settings_pubkey, false),
             AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new(token_settings_pubkey, false),
             AccountMeta::new_readonly(spl_token::id(), false),
+            AccountMeta::new_readonly(sysvar::clock::id(), false),
         ],
         data,
     };
@@ -375,9 +378,10 @@ pub fn approve_withdrawal_sol_by_owner_ix(
             AccountMeta::new(vault_pubkey, false),
             AccountMeta::new(withdrawal_pubkey, false),
             AccountMeta::new(recipient_token_pubkey, false),
-            AccountMeta::new(token_settings_pubkey, false),
             AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new(token_settings_pubkey, false),
             AccountMeta::new_readonly(spl_token::id(), false),
+            AccountMeta::new_readonly(sysvar::clock::id(), false),
             AccountMeta::new_readonly(program_data_pubkey, false),
         ],
         data,
@@ -937,7 +941,10 @@ pub fn disable_emergency_ix(authority_pubkey: String) -> Result<JsValue, JsValue
 }
 
 #[wasm_bindgen(js_name = "enableTokenEmergency")]
-pub fn enable_token_emergency_ix(authority_pubkey: String, token_name: String) -> Result<JsValue, JsValue> {
+pub fn enable_token_emergency_ix(
+    authority_pubkey: String,
+    token_name: String,
+) -> Result<JsValue, JsValue> {
     let settings_pubkey = get_settings_address();
     let token_settings_pubkey = get_token_settings_address(&token_name);
 
@@ -961,7 +968,10 @@ pub fn enable_token_emergency_ix(authority_pubkey: String, token_name: String) -
 }
 
 #[wasm_bindgen(js_name = "enableTokenEmergencyByOwner")]
-pub fn enable_token_emergency_by_owner_ix(authority_pubkey: String, token_name: String) -> Result<JsValue, JsValue> {
+pub fn enable_token_emergency_by_owner_ix(
+    authority_pubkey: String,
+    token_name: String,
+) -> Result<JsValue, JsValue> {
     let settings_pubkey = get_settings_address();
     let token_settings_pubkey = get_token_settings_address(&token_name);
     let program_data_pubkey = get_programdata_address();
@@ -987,7 +997,10 @@ pub fn enable_token_emergency_by_owner_ix(authority_pubkey: String, token_name: 
 }
 
 #[wasm_bindgen(js_name = "disableTokenEmergency")]
-pub fn disable_token_emergency_ix(authority_pubkey: String, token_name: String) -> Result<JsValue, JsValue> {
+pub fn disable_token_emergency_ix(
+    authority_pubkey: String,
+    token_name: String,
+) -> Result<JsValue, JsValue> {
     let token_settings_pubkey = get_token_settings_address(&token_name);
     let program_data_pubkey = get_programdata_address();
 
@@ -1038,7 +1051,7 @@ pub fn unpack_token_settings(data: Vec<u8>) -> Result<JsValue, JsValue> {
         withdrawal_limit: token_settings.withdrawal_limit,
         withdrawal_daily_limit: token_settings.withdrawal_daily_limit,
         withdrawal_daily_amount: token_settings.withdrawal_daily_amount,
-        withdrawal_ttl: token_settings.withdrawal_ttl,
+        withdrawal_epoch: token_settings.withdrawal_epoch,
         emergency: token_settings.emergency,
     };
 
@@ -1099,7 +1112,7 @@ pub struct WasmTokenSettings {
     pub withdrawal_limit: u64,
     pub withdrawal_daily_limit: u64,
     pub withdrawal_daily_amount: u64,
-    pub withdrawal_ttl: i64,
+    pub withdrawal_epoch: i64,
     pub emergency: bool,
 }
 
