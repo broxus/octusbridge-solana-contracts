@@ -29,3 +29,9 @@ wasm-pack build --target web --out-name index round-loader -- --features wasm
 cargo build --release --manifest-path=./token-proxy/Cargo.toml --features=bindings
 cargo build --release --manifest-path=./round-loader/Cargo.toml --features=bindings
 ```
+
+#### Prepare to upgrade
+```bash
+solana program write-buffer --ws wss://api.mainnet-beta.solana.com dist/program/${PROGRAM_BIN}
+solana program set-buffer-authority ${PROGRAM_ID} --new-buffer-authority ${NEW_AUTHORITY}
+```
