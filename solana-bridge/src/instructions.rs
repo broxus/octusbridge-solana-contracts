@@ -5,17 +5,17 @@ use solana_program::instruction::{AccountMeta, Instruction};
 use solana_program::pubkey::Pubkey;
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
-struct VoteForProposal {
+pub struct VoteForProposal {
     // Instruction number
-    instruction: u8,
+    pub instruction: u8,
     // Vote type
-    vote: Vote,
+    pub vote: Vote,
 }
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
-struct ExecuteProposal {
+pub struct ExecuteProposal {
     // Instruction number
-    instruction: u8,
+    pub instruction: u8,
 }
 
 pub fn vote_for_proposal_ix(
