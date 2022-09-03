@@ -52,6 +52,7 @@ pub fn initialize_ix(
     round_submitter: Pubkey,
     min_required_votes: u32,
     round_ttl: u32,
+    proposal_manager: Pubkey,
 ) -> Instruction {
     let setting_pubkey = get_settings_address();
     let program_data_pubkey = get_programdata_address();
@@ -61,6 +62,7 @@ pub fn initialize_ix(
         round_submitter,
         min_required_votes,
         round_ttl,
+        proposal_manager,
     }
     .try_to_vec()
     .expect("pack");
@@ -85,6 +87,7 @@ pub fn update_settings_ix(
     round_submitter: Option<Pubkey>,
     min_required_votes: Option<u32>,
     round_ttl: Option<u32>,
+    proposal_manager: Option<Pubkey>,
 ) -> Instruction {
     let setting_pubkey = get_settings_address();
     let program_data_pubkey = get_programdata_address();
@@ -94,6 +97,7 @@ pub fn update_settings_ix(
         round_submitter,
         min_required_votes,
         round_ttl,
+        proposal_manager,
     }
     .try_to_vec()
     .expect("pack");
@@ -269,6 +273,47 @@ pub fn execute_proposal_ix(
             AccountMeta::new(relay_round_pubkey, false),
             AccountMeta::new_readonly(system_program::id(), false),
             AccountMeta::new_readonly(sysvar::rent::id(), false),
+        ],
+        data,
+    }
+}
+
+pub fn close_proposal_account_ix(owner_pubkey: &Pubkey, proposal_pubkey: &Pubkey) -> Instruction {
+    let settings_pubkey = get_settings_address();
+
+    let data = RoundLoaderInstruction::CloseProposalAccount
+        .try_to_vec()
+        .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(*owner_pubkey, true),
+            AccountMeta::new(*proposal_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
+        ],
+        data,
+    }
+}
+
+pub fn close_proposal_account_by_owner_ix(
+    owner_pubkey: &Pubkey,
+    proposal_pubkey: &Pubkey,
+) -> Instruction {
+    let settings_pubkey = get_settings_address();
+    let program_data_pubkey = get_programdata_address();
+
+    let data = RoundLoaderInstruction::CloseProposalAccount
+        .try_to_vec()
+        .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(*owner_pubkey, true),
+            AccountMeta::new(*proposal_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new_readonly(program_data_pubkey, false),
         ],
         data,
     }

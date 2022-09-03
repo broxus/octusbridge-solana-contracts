@@ -23,18 +23,21 @@ pub fn initialize_settings_ix(
     initializer_pubkey: String,
     guardian: String,
     withdrawal_manager: String,
+    proposal_manager: String,
 ) -> Result<JsValue, JsValue> {
     let settings_pubkey = get_settings_address();
     let program_data_pubkey = get_programdata_address();
 
     let guardian = Pubkey::from_str(guardian.as_str()).handle_error()?;
     let withdrawal_manager = Pubkey::from_str(withdrawal_manager.as_str()).handle_error()?;
+    let proposal_manager = Pubkey::from_str(proposal_manager.as_str()).handle_error()?;
     let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
     let initializer_pubkey = Pubkey::from_str(initializer_pubkey.as_str()).handle_error()?;
 
     let data = TokenProxyInstruction::Initialize {
         guardian,
         withdrawal_manager,
+        proposal_manager,
     }
     .try_to_vec()
     .handle_error()?;
@@ -1015,6 +1018,62 @@ pub fn disable_token_emergency_ix(
         accounts: vec![
             AccountMeta::new(authority_pubkey, true),
             AccountMeta::new(token_settings_pubkey, false),
+            AccountMeta::new_readonly(program_data_pubkey, false),
+        ],
+        data,
+    };
+
+    return JsValue::from_serde(&ix).handle_error();
+}
+
+#[wasm_bindgen(js_name = "closeProposalAccount")]
+pub fn close_proposal_account_ix(
+    authority_pubkey: String,
+    proposal_pubkey: String,
+) -> Result<JsValue, JsValue> {
+    let settings_pubkey = get_settings_address();
+
+    let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
+    let proposal_pubkey = Pubkey::from_str(proposal_pubkey.as_str()).handle_error()?;
+
+    let data = TokenProxyInstruction::CloseProposalAccount
+        .try_to_vec()
+        .expect("pack");
+
+    let ix = Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(authority_pubkey, true),
+            AccountMeta::new(proposal_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
+        ],
+        data,
+    };
+
+    return JsValue::from_serde(&ix).handle_error();
+}
+
+#[wasm_bindgen(js_name = "closeProposalAccountByOwner")]
+pub fn close_proposal_account_by_owner_ix(
+    authority_pubkey: String,
+    proposal_pubkey: String,
+) -> Result<JsValue, JsValue> {
+    let settings_pubkey = get_settings_address();
+    let program_data_pubkey = get_programdata_address();
+
+    let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
+    let proposal_pubkey = Pubkey::from_str(proposal_pubkey.as_str()).handle_error()?;
+
+    let data = TokenProxyInstruction::CloseProposalAccount
+        .try_to_vec()
+        .expect("pack");
+
+    let ix = Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(authority_pubkey, true),
+            AccountMeta::new(proposal_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
             AccountMeta::new_readonly(program_data_pubkey, false),
         ],
         data,

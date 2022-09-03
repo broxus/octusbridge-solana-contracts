@@ -30,6 +30,7 @@ impl Processor {
                 round_submitter,
                 min_required_votes,
                 round_ttl,
+                proposal_manager,
             } => {
                 msg!("Instruction: Initialize");
                 Self::process_initialize(
@@ -39,6 +40,7 @@ impl Processor {
                     round_submitter,
                     min_required_votes,
                     round_ttl,
+                    proposal_manager,
                 )?;
             }
             RoundLoaderInstruction::UpdateSettings {
@@ -46,6 +48,7 @@ impl Processor {
                 round_submitter,
                 min_required_votes,
                 round_ttl,
+                proposal_manager,
             } => {
                 msg!("Instruction: Update Settings");
                 Self::process_update_settings(
@@ -55,6 +58,7 @@ impl Processor {
                     round_submitter,
                     min_required_votes,
                     round_ttl,
+                    proposal_manager,
                 )?;
             }
             RoundLoaderInstruction::CreateRelayRound {
@@ -103,6 +107,10 @@ impl Processor {
                 msg!("Instruction: Execute");
                 Self::process_execute_proposal(program_id, accounts)?;
             }
+            RoundLoaderInstruction::CloseProposalAccount => {
+                msg!("Instruction: Close withdrawal account");
+                Self::process_close_proposal_account(program_id, accounts)?;
+            }
         };
 
         Ok(())
@@ -115,6 +123,7 @@ impl Processor {
         round_submitter: Pubkey,
         min_required_votes: u32,
         round_ttl: u32,
+        proposal_manager: Pubkey,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -169,6 +178,7 @@ impl Processor {
             round_submitter,
             min_required_votes,
             round_ttl,
+            proposal_manager,
         };
 
         Settings::pack(
@@ -186,6 +196,7 @@ impl Processor {
         round_submitter: Option<Pubkey>,
         min_required_votes: Option<u32>,
         round_ttl: Option<u32>,
+        proposal_manager: Option<Pubkey>,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -229,6 +240,10 @@ impl Processor {
 
         if let Some(round_ttl) = round_ttl {
             settings_account_data.round_ttl = round_ttl;
+        }
+
+        if let Some(proposal_manager) = proposal_manager {
+            settings_account_data.proposal_manager = proposal_manager;
         }
 
         Settings::pack(
@@ -683,6 +698,67 @@ impl Processor {
 
         // Update Proposal Account
         RelayRoundProposal::pack(proposal, &mut proposal_account_info.data.borrow_mut())?;
+
+        Ok(())
+    }
+
+    fn process_close_proposal_account(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+
+        let authority_account_info = next_account_info(account_info_iter)?;
+        let proposal_account_info = next_account_info(account_info_iter)?;
+        let settings_account_info = next_account_info(account_info_iter)?;
+
+        if !authority_account_info.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        // Validate Setting Account
+        bridge_utils::helper::validate_settings_account(program_id, settings_account_info)?;
+
+        let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+        let proposal_manager = settings_account_data.proposal_manager;
+
+        if *authority_account_info.key != proposal_manager {
+            let programdata_account_info = next_account_info(account_info_iter)?;
+
+            // Validate Initializer Account
+            bridge_utils::helper::validate_programdata_account(
+                program_id,
+                programdata_account_info.key,
+            )?;
+            bridge_utils::helper::validate_initializer_account(
+                authority_account_info.key,
+                programdata_account_info,
+            )?;
+        }
+
+        if authority_account_info.key == proposal_account_info.key {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        if proposal_account_info.owner != program_id {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        let proposal_account_data =
+            Proposal::unpack_from_slice(&proposal_account_info.data.borrow())?;
+
+        if proposal_account_data.is_executed {
+            return Err(RoundLoaderError::ProposalExecuted.into());
+        }
+
+        let authority_starting_lamports = authority_account_info.lamports();
+        **authority_account_info.lamports.borrow_mut() = authority_starting_lamports
+            .checked_add(proposal_account_info.lamports())
+            .ok_or(RoundLoaderError::Overflow)?;
+
+        **proposal_account_info.lamports.borrow_mut() = 0;
+
+        bridge_utils::helper::delete_account(proposal_account_info)?;
 
         Ok(())
     }

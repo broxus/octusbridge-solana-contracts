@@ -16,6 +16,10 @@ pub enum RoundLoaderError {
     InvalidVote,
     #[error("Invalid proposal round number")]
     InvalidProposalRoundNumber,
+    #[error("Unable to close executed proposal")]
+    ProposalExecuted,
+    #[error("Operation overflowed")]
+    Overflow,
 }
 
 impl From<RoundLoaderError> for ProgramError {
