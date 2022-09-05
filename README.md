@@ -1,4 +1,4 @@
-# Everscale Solana Bridge contracts
+# Solana Bridge
 
 #### Build
 ```bash
@@ -33,5 +33,5 @@ cargo build --release --manifest-path=./round-loader/Cargo.toml --features=bindi
 #### Prepare to upgrade
 ```bash
 solana program write-buffer --ws wss://api.mainnet-beta.solana.com dist/program/${PROGRAM_BIN}
-solana program set-buffer-authority ${BUFFER_PROGRAM_ID} --new-buffer-authority ${NEW_AUTHORITY}
+solana program set-buffer-authority ${PROGRAM_ID} --new-buffer-authority ${NEW_AUTHORITY}
 ```

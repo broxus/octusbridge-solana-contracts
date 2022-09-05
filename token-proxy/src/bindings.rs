@@ -74,7 +74,6 @@ pub fn initialize_settings_ix(
     initializer_pubkey: &Pubkey,
     guardian: Pubkey,
     withdrawal_manager: Pubkey,
-    proposal_manager: Pubkey,
 ) -> Instruction {
     let settings_pubkey = get_settings_address();
     let program_data_pubkey = get_programdata_address();
@@ -82,7 +81,6 @@ pub fn initialize_settings_ix(
     let data = TokenProxyInstruction::Initialize {
         guardian,
         withdrawal_manager,
-        proposal_manager,
     }
     .try_to_vec()
     .expect("pack");
@@ -852,47 +850,6 @@ pub fn disable_token_emergency_ix(owner_pubkey: &Pubkey, token_name: &str) -> In
         accounts: vec![
             AccountMeta::new(*owner_pubkey, true),
             AccountMeta::new(token_settings_pubkey, false),
-            AccountMeta::new_readonly(program_data_pubkey, false),
-        ],
-        data,
-    }
-}
-
-pub fn close_proposal_account_ix(owner_pubkey: &Pubkey, proposal_pubkey: &Pubkey) -> Instruction {
-    let settings_pubkey = get_settings_address();
-
-    let data = TokenProxyInstruction::CloseProposalAccount
-        .try_to_vec()
-        .expect("pack");
-
-    Instruction {
-        program_id: id(),
-        accounts: vec![
-            AccountMeta::new(*owner_pubkey, true),
-            AccountMeta::new(*proposal_pubkey, false),
-            AccountMeta::new_readonly(settings_pubkey, false),
-        ],
-        data,
-    }
-}
-
-pub fn close_proposal_account_by_owner_ix(
-    owner_pubkey: &Pubkey,
-    proposal_pubkey: &Pubkey,
-) -> Instruction {
-    let settings_pubkey = get_settings_address();
-    let program_data_pubkey = get_programdata_address();
-
-    let data = TokenProxyInstruction::CloseProposalAccount
-        .try_to_vec()
-        .expect("pack");
-
-    Instruction {
-        program_id: id(),
-        accounts: vec![
-            AccountMeta::new(*owner_pubkey, true),
-            AccountMeta::new(*proposal_pubkey, false),
-            AccountMeta::new_readonly(settings_pubkey, false),
             AccountMeta::new_readonly(program_data_pubkey, false),
         ],
         data,

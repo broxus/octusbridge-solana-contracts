@@ -74,7 +74,6 @@ async fn test_init_relay_loader() {
     let round_ttl = 1209600;
     let round_end = chrono::Utc::now().timestamp();
     let relays = vec![Pubkey::from_str("2Xzby8BnopnMbCS12YgASrxJoemVFJFgSbSB8pbU1am3").unwrap()];
-    let proposal_manager = Pubkey::new_unique();
 
     let mut transaction = Transaction::new_with_payer(
         &[
@@ -85,7 +84,6 @@ async fn test_init_relay_loader() {
                 round_submitter,
                 min_required_votes,
                 round_ttl,
-                proposal_manager,
             ),
             create_relay_round_ix(
                 &funder.pubkey(),
@@ -119,7 +117,6 @@ async fn test_init_relay_loader() {
     assert_eq!(settings_data.round_submitter, round_submitter);
     assert_eq!(settings_data.min_required_votes, min_required_votes);
     assert_eq!(settings_data.round_ttl, round_ttl);
-    assert_eq!(settings_data.proposal_manager, proposal_manager);
 
     let relay_round_address = get_relay_round_address(round_number);
 
@@ -139,7 +136,6 @@ async fn test_init_relay_loader() {
     let new_current_round_number = 3;
     let new_round_submitter = Pubkey::new_unique();
     let new_min_required_votes = 12;
-    let new_proposal_manager = Pubkey::new_unique();
 
     let mut transaction = Transaction::new_with_payer(
         &[update_settings_ix(
@@ -148,7 +144,6 @@ async fn test_init_relay_loader() {
             Some(new_round_submitter),
             Some(new_min_required_votes),
             None,
-            Some(new_proposal_manager),
         )],
         Some(&initializer.pubkey()),
     );
@@ -170,7 +165,6 @@ async fn test_init_relay_loader() {
     assert_eq!(settings_data.current_round_number, new_current_round_number);
     assert_eq!(settings_data.round_submitter, new_round_submitter);
     assert_eq!(settings_data.min_required_votes, new_min_required_votes);
-    assert_eq!(settings_data.proposal_manager, new_proposal_manager);
 }
 
 #[tokio::test]
@@ -220,7 +214,6 @@ async fn test_create_proposal() {
         round_submitter: Pubkey::new_unique(),
         min_required_votes: 1,
         round_ttl: 1209600,
-        proposal_manager: Pubkey::new_unique(),
     };
 
     let mut settings_packed = vec![0; Settings::LEN];

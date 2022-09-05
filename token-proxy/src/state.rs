@@ -38,7 +38,6 @@ pub struct Settings {
     pub emergency: bool,
     pub guardian: Pubkey,
     pub withdrawal_manager: Pubkey,
-    pub proposal_manager: Pubkey,
 }
 
 impl Sealed for Settings {}
@@ -258,7 +257,7 @@ pub enum TokenKind {
 }
 
 #[derive(
-    Copy, BorshSerialize, BorshDeserialize, Serialize, Deserialize, Debug, Clone, PartialEq, Eq,
+    Copy, BorshSerialize, BorshDeserialize, Serialize, Deserialize, Debug, Clone, PartialEq,
 )]
 pub enum WithdrawalTokenStatus {
     New,

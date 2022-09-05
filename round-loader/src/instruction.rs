@@ -27,8 +27,6 @@ pub enum RoundLoaderInstruction {
         min_required_votes: u32,
         // Round TTL
         round_ttl: u32,
-        // Role to close proposals
-        proposal_manager: Pubkey,
     },
 
     /// Update Settings
@@ -44,8 +42,6 @@ pub enum RoundLoaderInstruction {
         min_required_votes: Option<u32>,
         // Round TTL
         round_ttl: Option<u32>,
-        // Role to close proposals
-        proposal_manager: Option<Pubkey>,
     },
 
     /// Create Relay Round
@@ -98,10 +94,4 @@ pub enum RoundLoaderInstruction {
     /// # Account references
     /// ...
     ExecuteProposal,
-
-    /// Close withdrawal account
-    ///
-    /// # Account references
-    /// ...
-    CloseProposalAccount,
 }

@@ -22,16 +22,14 @@ pub enum TokenProxyError {
     InsufficientVaultBalance,
     #[error("Relay already voted")]
     RelayAlreadyVoted,
-    #[error("Operation overflowed")]
-    Overflow,
+    #[error("Arithmetics error")]
+    ArithmeticsError,
     #[error("Token name is too long")]
     TokenNameLenLimit,
     #[error("Failed to construct public key")]
     ConstructPubkey,
     #[error("Invalid vote")]
     InvalidVote,
-    #[error("Unable to close executed proposal")]
-    ProposalExecuted,
 }
 
 impl From<TokenProxyError> for ProgramError {

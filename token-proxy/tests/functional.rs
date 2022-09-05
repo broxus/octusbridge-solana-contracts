@@ -53,7 +53,6 @@ async fn test_init_settings() {
 
     let guardian = Pubkey::new_unique();
     let withdrawal_manager = Pubkey::new_unique();
-    let proposal_manager = Pubkey::new_unique();
 
     let mut transaction = Transaction::new_with_payer(
         &[initialize_settings_ix(
@@ -61,7 +60,6 @@ async fn test_init_settings() {
             &initializer.pubkey(),
             guardian,
             withdrawal_manager,
-            proposal_manager,
         )],
         Some(&funder.pubkey()),
     );
@@ -336,7 +334,6 @@ async fn test_deposit_ever() {
     let withdrawal_daily_limit = 1000;
     let guardian = Pubkey::new_unique();
     let withdrawal_manager = Pubkey::new_unique();
-    let proposal_manager = Pubkey::new_unique();
 
     let mint_address = get_mint_address(&name);
 
@@ -408,7 +405,6 @@ async fn test_deposit_ever() {
         emergency: false,
         guardian,
         withdrawal_manager,
-        proposal_manager,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -536,7 +532,6 @@ async fn test_deposit_sol() {
     let withdrawal_daily_limit = 1000;
     let guardian = Pubkey::new_unique();
     let withdrawal_manager = Pubkey::new_unique();
-    let proposal_manager = Pubkey::new_unique();
 
     let mint_account_data = spl_token::state::Mint {
         is_initialized: true,
@@ -632,7 +627,6 @@ async fn test_deposit_sol() {
         emergency: false,
         guardian,
         withdrawal_manager,
-        proposal_manager,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -797,7 +791,6 @@ async fn test_withdrawal_request() {
         round_submitter: Pubkey::new_unique(),
         min_required_votes: 1,
         round_ttl: 0,
-        proposal_manager: Pubkey::new_unique(),
     };
 
     let mut rl_settings_packed = vec![0; round_loader::Settings::LEN];
@@ -1167,7 +1160,6 @@ async fn test_withdrawal_ever() {
     let withdrawal_daily_limit = 1000;
     let guardian = Pubkey::new_unique();
     let withdrawal_manager = Pubkey::new_unique();
-    let proposal_manager = Pubkey::new_unique();
 
     let mint_address = get_mint_address(&name);
 
@@ -1200,7 +1192,6 @@ async fn test_withdrawal_ever() {
         emergency: false,
         guardian,
         withdrawal_manager,
-        proposal_manager,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -1390,7 +1381,6 @@ async fn test_withdrawal_ever_2() {
     let withdrawal_daily_limit = 1000;
     let guardian = Pubkey::new_unique();
     let withdrawal_manager = Pubkey::new_unique();
-    let proposal_manager = Pubkey::new_unique();
 
     let mint_address = get_mint_address(&name);
 
@@ -1423,7 +1413,6 @@ async fn test_withdrawal_ever_2() {
         emergency: false,
         guardian,
         withdrawal_manager,
-        proposal_manager,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -1601,7 +1590,6 @@ async fn test_withdrawal_sol() {
     let withdrawal_daily_limit = 1000;
     let guardian = Pubkey::new_unique();
     let withdrawal_manager = Pubkey::new_unique();
-    let proposal_manager = Pubkey::new_unique();
 
     let mint_account_data = spl_token::state::Mint {
         is_initialized: true,
@@ -1656,7 +1644,6 @@ async fn test_withdrawal_sol() {
         emergency: false,
         guardian,
         withdrawal_manager,
-        proposal_manager,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -1853,7 +1840,6 @@ async fn test_withdrawal_sol_2() {
     let withdrawal_daily_limit = 1000;
     let guardian = Pubkey::new_unique();
     let withdrawal_manager = Pubkey::new_unique();
-    let proposal_manager = Pubkey::new_unique();
 
     let mint_account_data = spl_token::state::Mint {
         is_initialized: true,
@@ -1908,7 +1894,6 @@ async fn test_withdrawal_sol_2() {
         emergency: false,
         guardian,
         withdrawal_manager,
-        proposal_manager,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -2086,7 +2071,6 @@ async fn test_withdrawal_different_decimals() {
     let withdrawal_daily_limit = 100000000;
     let guardian = Pubkey::new_unique();
     let withdrawal_manager = Pubkey::new_unique();
-    let proposal_manager = Pubkey::new_unique();
 
     let mint_address = get_mint_address(&name);
 
@@ -2119,7 +2103,6 @@ async fn test_withdrawal_different_decimals() {
         emergency: false,
         guardian,
         withdrawal_manager,
-        proposal_manager,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -2341,7 +2324,6 @@ async fn test_approve_withdrawal_ever() {
         emergency: false,
         guardian: Pubkey::new_unique(),
         withdrawal_manager: withdrawal_manager.pubkey(),
-        proposal_manager: Pubkey::new_unique(),
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -2560,7 +2542,6 @@ async fn test_approve_withdrawal_ever_by_owner() {
     let withdrawal_daily_limit = 1000;
     let guardian = Pubkey::new_unique();
     let withdrawal_manager = Pubkey::new_unique();
-    let proposal_manager = Pubkey::new_unique();
 
     let mint_address = get_mint_address(&name);
 
@@ -2593,7 +2574,6 @@ async fn test_approve_withdrawal_ever_by_owner() {
         emergency: false,
         guardian,
         withdrawal_manager,
-        proposal_manager,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -2789,7 +2769,6 @@ async fn test_approve_withdrawal_sol() {
     let withdrawal_daily_limit = 1000;
     let vault_address = get_vault_address(&name);
     let guardian = Pubkey::new_unique();
-    let proposal_manager = Pubkey::new_unique();
 
     // Add Settings Account
     let settings_address = get_settings_address();
@@ -2800,7 +2779,6 @@ async fn test_approve_withdrawal_sol() {
         emergency: false,
         guardian,
         withdrawal_manager: withdrawal_manager.pubkey(),
-        proposal_manager,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -3040,7 +3018,6 @@ async fn test_approve_withdrawal_sol_2() {
     let withdrawal_limit = 10000;
     let withdrawal_daily_limit = 1000;
     let guardian = Pubkey::new_unique();
-    let proposal_manager = Pubkey::new_unique();
     let vault_address = get_vault_address(&name);
 
     // Add Settings Account
@@ -3052,7 +3029,6 @@ async fn test_approve_withdrawal_sol_2() {
         emergency: false,
         guardian,
         withdrawal_manager: withdrawal_manager.pubkey(),
-        proposal_manager,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -3298,7 +3274,6 @@ async fn test_approve_withdrawal_sol_by_owner() {
     let withdrawal_daily_limit = 1000;
     let guardian = Pubkey::new_unique();
     let withdrawal_manager = Pubkey::new_unique();
-    let proposal_manager = Pubkey::new_unique();
 
     let vault_address = get_vault_address(&name);
 
@@ -3311,7 +3286,6 @@ async fn test_approve_withdrawal_sol_by_owner() {
         emergency: false,
         guardian,
         withdrawal_manager,
-        proposal_manager,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -3553,7 +3527,6 @@ async fn test_cancel_withdrawal_sol() {
     let withdrawal_daily_limit = 1000;
     let guardian = Pubkey::new_unique();
     let withdrawal_manager = Pubkey::new_unique();
-    let proposal_manager = Pubkey::new_unique();
 
     let mint_account_data = spl_token::state::Mint {
         is_initialized: true,
@@ -3608,7 +3581,6 @@ async fn test_cancel_withdrawal_sol() {
         emergency: false,
         guardian,
         withdrawal_manager,
-        proposal_manager,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -3880,7 +3852,6 @@ async fn test_fill_withdrawal_sol() {
     let withdrawal_daily_limit = 1000;
     let guardian = Pubkey::new_unique();
     let withdrawal_manager = Pubkey::new_unique();
-    let proposal_manager = Pubkey::new_unique();
 
     let solana_decimals = 9;
     let ever_decimals = 9;
@@ -3894,7 +3865,6 @@ async fn test_fill_withdrawal_sol() {
         emergency: false,
         guardian,
         withdrawal_manager,
-        proposal_manager,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -4186,7 +4156,6 @@ async fn test_change_guardian() {
     // Add Settings Account
     let guardian = Pubkey::new_unique();
     let withdrawal_manager = Pubkey::new_unique();
-    let proposal_manager = Pubkey::new_unique();
 
     // Add Settings Account
     let settings_address = get_settings_address();
@@ -4197,7 +4166,6 @@ async fn test_change_guardian() {
         emergency: false,
         guardian,
         withdrawal_manager,
-        proposal_manager,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -4278,7 +4246,6 @@ async fn test_change_withdrawal_manager() {
     // Add Settings Account
     let guardian = Pubkey::new_unique();
     let withdrawal_manager = Pubkey::new_unique();
-    let proposal_manager = Pubkey::new_unique();
 
     // Add Settings Account
     let settings_address = get_settings_address();
@@ -4289,7 +4256,6 @@ async fn test_change_withdrawal_manager() {
         emergency: false,
         guardian,
         withdrawal_manager,
-        proposal_manager,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -4568,7 +4534,6 @@ async fn test_enable_emergency() {
     // Setup environment
     let guardian = Keypair::new();
     let withdrawal_manager = Pubkey::new_unique();
-    let proposal_manager = Pubkey::new_unique();
 
     // Add Settings Account
     let settings_address = get_settings_address();
@@ -4579,7 +4544,6 @@ async fn test_enable_emergency() {
         emergency: false,
         guardian: guardian.pubkey(),
         withdrawal_manager,
-        proposal_manager,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -4658,7 +4622,6 @@ async fn test_enable_emergency_by_owner() {
     // Add Settings Account
     let guardian = Pubkey::new_unique();
     let withdrawal_manager = Pubkey::new_unique();
-    let proposal_manager = Pubkey::new_unique();
 
     // Add Settings Account
     let settings_address = get_settings_address();
@@ -4669,7 +4632,6 @@ async fn test_enable_emergency_by_owner() {
         emergency: false,
         guardian,
         withdrawal_manager,
-        proposal_manager,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -4748,7 +4710,6 @@ async fn test_disable_emergency() {
     // Add Settings Account
     let guardian = Pubkey::new_unique();
     let withdrawal_manager = Pubkey::new_unique();
-    let proposal_manager = Pubkey::new_unique();
 
     // Add Settings Account
     let settings_address = get_settings_address();
@@ -4759,7 +4720,6 @@ async fn test_disable_emergency() {
         emergency: false,
         guardian,
         withdrawal_manager,
-        proposal_manager,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -4811,7 +4771,6 @@ async fn test_enable_token_emergency() {
     // Setup environment
     let guardian = Keypair::new();
     let withdrawal_manager = Pubkey::new_unique();
-    let proposal_manager = Pubkey::new_unique();
 
     // Add Settings Account
     let settings_address = get_settings_address();
@@ -4822,7 +4781,6 @@ async fn test_enable_token_emergency() {
         emergency: false,
         guardian: guardian.pubkey(),
         withdrawal_manager,
-        proposal_manager,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -4943,7 +4901,6 @@ async fn test_enable_token_emergency_by_owner() {
     // Add Settings Account
     let guardian = Pubkey::new_unique();
     let withdrawal_manager = Pubkey::new_unique();
-    let proposal_manager = Pubkey::new_unique();
 
     // Add Settings Account
     let settings_address = get_settings_address();
@@ -4954,7 +4911,6 @@ async fn test_enable_token_emergency_by_owner() {
         emergency: false,
         guardian,
         withdrawal_manager,
-        proposal_manager,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -5075,7 +5031,6 @@ async fn test_disable_token_emergency() {
     // Add Settings Account
     let guardian = Pubkey::new_unique();
     let withdrawal_manager = Pubkey::new_unique();
-    let proposal_manager = Pubkey::new_unique();
 
     // Add Settings Account
     let settings_address = get_settings_address();
@@ -5086,7 +5041,6 @@ async fn test_disable_token_emergency() {
         emergency: false,
         guardian,
         withdrawal_manager,
-        proposal_manager,
     };
 
     let mut settings_packed = vec![0; Settings::LEN];
@@ -5167,344 +5121,4 @@ async fn test_disable_token_emergency() {
         TokenSettings::unpack(token_settings_info.data()).expect("token_settings unpack");
 
     assert_eq!(token_settings_data.emergency, false);
-}
-
-#[tokio::test]
-async fn test_close_withdrawal_account() {
-    let mut program_test = ProgramTest::new(
-        "token_proxy",
-        token_proxy::id(),
-        processor!(Processor::process),
-    );
-
-    // Setup environment
-    let proposal_manager = Keypair::new();
-
-    // Add Settings Account
-    let settings_address = get_settings_address();
-
-    let settings_account_data = Settings {
-        is_initialized: true,
-        account_kind: AccountKind::Settings,
-        emergency: false,
-        guardian: Pubkey::new_unique(),
-        withdrawal_manager: Pubkey::new_unique(),
-        proposal_manager: proposal_manager.pubkey(),
-    };
-
-    let mut settings_packed = vec![0; Settings::LEN];
-    Settings::pack(settings_account_data, &mut settings_packed).unwrap();
-    program_test.add_account(
-        settings_address,
-        Account {
-            lamports: Rent::default().minimum_balance(Settings::LEN),
-            data: settings_packed,
-            owner: token_proxy::id(),
-            executable: false,
-            rent_epoch: 0,
-        },
-    );
-
-    // Add Token Settings Account
-    let name = "WEVER".to_string();
-    let deposit_limit = 10000000;
-    let withdrawal_limit = 10000;
-    let withdrawal_daily_limit = 1000;
-    let ever_decimals = 9;
-    let solana_decimals = 9;
-    let round_number = 12;
-
-    let mint_address = get_mint_address(&name);
-
-    let token_settings_address = get_token_settings_address(&name);
-
-    let token_settings_account_data = TokenSettings {
-        is_initialized: true,
-        account_kind: AccountKind::Settings,
-        name: name.clone(),
-        kind: TokenKind::Ever { mint: mint_address },
-        withdrawal_daily_amount: 0,
-        withdrawal_epoch: 0,
-        deposit_limit,
-        withdrawal_limit,
-        withdrawal_daily_limit,
-        solana_decimals,
-        ever_decimals,
-        emergency: false,
-    };
-
-    let mut token_settings_packed = vec![0; TokenSettings::LEN];
-    TokenSettings::pack(token_settings_account_data, &mut token_settings_packed).unwrap();
-    program_test.add_account(
-        token_settings_address,
-        Account {
-            lamports: Rent::default().minimum_balance(TokenSettings::LEN),
-            data: token_settings_packed,
-            owner: token_proxy::id(),
-            executable: false,
-            rent_epoch: 0,
-        },
-    );
-
-    // Add Withdrawal Account
-    let author = Pubkey::new_unique();
-    let event_timestamp = 1650988297;
-    let event_transaction_lt = 1650988334;
-    let event_configuration = Pubkey::new_unique();
-    let recipient_address = Pubkey::new_unique();
-    let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
-    let amount = 10;
-
-    let relays = vec![
-        Pubkey::new_unique(),
-        Pubkey::new_unique(),
-        Pubkey::new_unique(),
-    ];
-
-    let withdrawal_address = get_withdrawal_address(
-        &token_settings_address,
-        event_timestamp,
-        event_transaction_lt,
-        &event_configuration,
-        sender_address,
-        recipient_address,
-        amount,
-    );
-
-    let withdrawal_account_data = WithdrawalToken {
-        is_initialized: true,
-        account_kind: AccountKind::Proposal,
-        is_executed: false,
-        author,
-        round_number,
-        event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
-        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::New, 0, 0),
-        required_votes: relays.len() as u32,
-        signers: relays.iter().map(|_| Vote::None).collect(),
-        pda: PDA {
-            event_timestamp,
-            event_transaction_lt,
-            event_configuration,
-            settings: token_settings_address,
-        },
-    };
-
-    let mut withdrawal_packed = vec![0; WithdrawalToken::LEN];
-    WithdrawalToken::pack(withdrawal_account_data, &mut withdrawal_packed).unwrap();
-    program_test.add_account(
-        withdrawal_address,
-        Account {
-            lamports: Rent::default().minimum_balance(WithdrawalToken::LEN) + RELAY_REPARATION * 3,
-            data: withdrawal_packed,
-            owner: token_proxy::id(),
-            executable: false,
-            rent_epoch: 0,
-        },
-    );
-
-    // Start Program Test
-    let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
-
-    let mut transaction = Transaction::new_with_payer(
-        &[close_proposal_account_ix(
-            &proposal_manager.pubkey(),
-            &withdrawal_address,
-        )],
-        Some(&funder.pubkey()),
-    );
-    transaction.sign(&[&funder, &proposal_manager], recent_blockhash);
-
-    banks_client
-        .process_transaction(transaction)
-        .await
-        .expect("process_transaction");
-
-    let withdrawal_info = banks_client
-        .get_account(withdrawal_address)
-        .await
-        .expect("get_account");
-
-    assert_eq!(withdrawal_info, None);
-}
-
-#[tokio::test]
-async fn test_close_withdrawal_account_by_owner() {
-    let mut program_test = ProgramTest::new(
-        "token_proxy",
-        token_proxy::id(),
-        processor!(Processor::process),
-    );
-
-    // Setup environment
-    let owner = Keypair::new();
-
-    // Add Program Data Account
-    let programdata_address =
-        Pubkey::find_program_address(&[token_proxy::id().as_ref()], &bpf_loader_upgradeable::id())
-            .0;
-
-    let programdata_data = UpgradeableLoaderState::ProgramData {
-        slot: 0,
-        upgrade_authority_address: Some(owner.pubkey()),
-    };
-
-    let programdata_data_serialized =
-        bincode::serialize::<UpgradeableLoaderState>(&programdata_data).unwrap();
-
-    program_test.add_account(
-        programdata_address,
-        Account {
-            lamports: Rent::default().minimum_balance(programdata_data_serialized.len()),
-            data: programdata_data_serialized,
-            owner: token_proxy::id(),
-            executable: false,
-            rent_epoch: 0,
-        },
-    );
-
-    // Add Settings Account
-    let settings_address = get_settings_address();
-
-    let settings_account_data = Settings {
-        is_initialized: true,
-        account_kind: AccountKind::Settings,
-        emergency: false,
-        guardian: Pubkey::new_unique(),
-        withdrawal_manager: Pubkey::new_unique(),
-        proposal_manager: Pubkey::new_unique(),
-    };
-
-    let mut settings_packed = vec![0; Settings::LEN];
-    Settings::pack(settings_account_data, &mut settings_packed).unwrap();
-    program_test.add_account(
-        settings_address,
-        Account {
-            lamports: Rent::default().minimum_balance(Settings::LEN),
-            data: settings_packed,
-            owner: token_proxy::id(),
-            executable: false,
-            rent_epoch: 0,
-        },
-    );
-
-    // Add Token Settings Account
-    let name = "WEVER".to_string();
-    let deposit_limit = 10000000;
-    let withdrawal_limit = 10000;
-    let withdrawal_daily_limit = 1000;
-    let ever_decimals = 9;
-    let solana_decimals = 9;
-    let round_number = 12;
-
-    let mint_address = get_mint_address(&name);
-
-    let token_settings_address = get_token_settings_address(&name);
-
-    let token_settings_account_data = TokenSettings {
-        is_initialized: true,
-        account_kind: AccountKind::Settings,
-        name: name.clone(),
-        kind: TokenKind::Ever { mint: mint_address },
-        withdrawal_daily_amount: 0,
-        withdrawal_epoch: 0,
-        deposit_limit,
-        withdrawal_limit,
-        withdrawal_daily_limit,
-        solana_decimals,
-        ever_decimals,
-        emergency: false,
-    };
-
-    let mut token_settings_packed = vec![0; TokenSettings::LEN];
-    TokenSettings::pack(token_settings_account_data, &mut token_settings_packed).unwrap();
-    program_test.add_account(
-        token_settings_address,
-        Account {
-            lamports: Rent::default().minimum_balance(TokenSettings::LEN),
-            data: token_settings_packed,
-            owner: token_proxy::id(),
-            executable: false,
-            rent_epoch: 0,
-        },
-    );
-
-    // Add Withdrawal Account
-    let author = Pubkey::new_unique();
-    let event_timestamp = 1650988297;
-    let event_transaction_lt = 1650988334;
-    let event_configuration = Pubkey::new_unique();
-    let recipient_address = Pubkey::new_unique();
-    let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
-    let amount = 10;
-
-    let relays = vec![
-        Pubkey::new_unique(),
-        Pubkey::new_unique(),
-        Pubkey::new_unique(),
-    ];
-
-    let withdrawal_address = get_withdrawal_address(
-        &token_settings_address,
-        event_timestamp,
-        event_transaction_lt,
-        &event_configuration,
-        sender_address,
-        recipient_address,
-        amount,
-    );
-
-    let withdrawal_account_data = WithdrawalToken {
-        is_initialized: true,
-        account_kind: AccountKind::Proposal,
-        is_executed: false,
-        author,
-        round_number,
-        event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
-        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::New, 0, 0),
-        required_votes: relays.len() as u32,
-        signers: relays.iter().map(|_| Vote::None).collect(),
-        pda: PDA {
-            event_timestamp,
-            event_transaction_lt,
-            event_configuration,
-            settings: token_settings_address,
-        },
-    };
-
-    let mut withdrawal_packed = vec![0; WithdrawalToken::LEN];
-    WithdrawalToken::pack(withdrawal_account_data, &mut withdrawal_packed).unwrap();
-    program_test.add_account(
-        withdrawal_address,
-        Account {
-            lamports: Rent::default().minimum_balance(WithdrawalToken::LEN) + RELAY_REPARATION * 3,
-            data: withdrawal_packed,
-            owner: token_proxy::id(),
-            executable: false,
-            rent_epoch: 0,
-        },
-    );
-
-    // Start Program Test
-    let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
-
-    let mut transaction = Transaction::new_with_payer(
-        &[close_proposal_account_by_owner_ix(
-            &owner.pubkey(),
-            &withdrawal_address,
-        )],
-        Some(&funder.pubkey()),
-    );
-    transaction.sign(&[&funder, &owner], recent_blockhash);
-
-    banks_client
-        .process_transaction(transaction)
-        .await
-        .expect("process_transaction");
-
-    let withdrawal_info = banks_client
-        .get_account(withdrawal_address)
-        .await
-        .expect("get_account");
-
-    assert_eq!(withdrawal_info, None);
 }

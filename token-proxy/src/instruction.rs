@@ -35,8 +35,6 @@ pub enum TokenProxyInstruction {
         guardian: Pubkey,
         // Withdrawal manager pubkey
         withdrawal_manager: Pubkey,
-        // Role to close proposals
-        proposal_manager: Pubkey,
     },
 
     /// Initialize Mint Account
@@ -181,15 +179,6 @@ pub enum TokenProxyInstruction {
         new_withdrawal_manager: Pubkey,
     },
 
-    /// Change Proposdal Manager
-    ///
-    /// # Account references
-    /// ...
-    ChangeProposalManager {
-        // New withdrawal manager pubkey
-        new_proposal_manager: Pubkey,
-    },
-
     /// Change deposit limit
     ///
     /// # Account references
@@ -233,10 +222,4 @@ pub enum TokenProxyInstruction {
     /// # Account references
     /// ...
     DisableTokenEmergencyMode,
-
-    /// Close withdrawal account
-    ///
-    /// # Account references
-    /// ...
-    CloseProposalAccount,
 }

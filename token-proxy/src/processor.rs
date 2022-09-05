@@ -31,16 +31,9 @@ impl Processor {
             TokenProxyInstruction::Initialize {
                 guardian,
                 withdrawal_manager,
-                proposal_manager,
             } => {
                 msg!("Instruction: Initialize Token Proxy");
-                Self::process_initialize(
-                    program_id,
-                    accounts,
-                    guardian,
-                    withdrawal_manager,
-                    proposal_manager,
-                )?;
+                Self::process_initialize(program_id, accounts, guardian, withdrawal_manager)?;
             }
             TokenProxyInstruction::InitializeMint {
                 name,
@@ -190,12 +183,6 @@ impl Processor {
                     new_withdrawal_manager,
                 )?;
             }
-            TokenProxyInstruction::ChangeProposalManager {
-                new_proposal_manager,
-            } => {
-                msg!("Instruction: Update proposal manager");
-                Self::process_change_proposal_manager(program_id, accounts, new_proposal_manager)?;
-            }
             TokenProxyInstruction::ChangeDepositLimit { new_deposit_limit } => {
                 msg!("Instruction: Update deposit limit");
                 Self::process_change_deposit_limit(program_id, accounts, new_deposit_limit)?;
@@ -228,10 +215,6 @@ impl Processor {
                 msg!("Instruction: Disable token emergency mode");
                 Self::process_disable_token_emergency_mode(program_id, accounts)?;
             }
-            TokenProxyInstruction::CloseProposalAccount => {
-                msg!("Instruction: Close withdrawal account");
-                Self::process_close_proposal_account(program_id, accounts)?;
-            }
         };
 
         Ok(())
@@ -242,7 +225,6 @@ impl Processor {
         accounts: &[AccountInfo],
         guardian: Pubkey,
         withdrawal_manager: Pubkey,
-        proposal_manager: Pubkey,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -297,7 +279,6 @@ impl Processor {
             emergency: false,
             guardian,
             withdrawal_manager,
-            proposal_manager,
         };
 
         Settings::pack(
@@ -761,7 +742,7 @@ impl Processor {
         if vault_account_data
             .amount
             .checked_add(amount)
-            .ok_or(TokenProxyError::Overflow)?
+            .ok_or(TokenProxyError::ArithmeticsError)?
             > token_settings_account_data.deposit_limit
         {
             return Err(TokenProxyError::DepositLimit.into());
@@ -1055,15 +1036,8 @@ impl Processor {
             withdrawal_account_data.pack_into_slice(&mut withdrawal_account_info.data.borrow_mut());
 
             // Get back voting reparation to Relay
-            let withdrawal_starting_lamports = withdrawal_account_info.lamports();
-            **withdrawal_account_info.lamports.borrow_mut() = withdrawal_starting_lamports
-                .checked_sub(RELAY_REPARATION)
-                .ok_or(TokenProxyError::Overflow)?;
-
-            let relay_starting_lamports = relay_account_info.lamports();
-            **relay_account_info.lamports.borrow_mut() = relay_starting_lamports
-                .checked_add(RELAY_REPARATION)
-                .ok_or(TokenProxyError::Overflow)?;
+            **withdrawal_account_info.try_borrow_mut_lamports()? -= RELAY_REPARATION;
+            **relay_account_info.try_borrow_mut_lamports()? += RELAY_REPARATION;
         }
 
         Ok(())
@@ -1151,7 +1125,7 @@ impl Processor {
             token_settings_account_data.withdrawal_daily_amount = token_settings_account_data
                 .withdrawal_daily_amount
                 .checked_add(withdrawal_amount)
-                .ok_or(TokenProxyError::Overflow)?;
+                .ok_or(TokenProxyError::ArithmeticsError)?;
 
             if withdrawal_amount > token_settings_account_data.withdrawal_limit
                 || token_settings_account_data.withdrawal_daily_amount
@@ -1271,7 +1245,7 @@ impl Processor {
                         token_settings_account_data
                             .withdrawal_daily_amount
                             .checked_add(withdrawal_amount)
-                            .ok_or(TokenProxyError::Overflow)?;
+                            .ok_or(TokenProxyError::ArithmeticsError)?;
 
                     if withdrawal_amount > token_settings_account_data.withdrawal_limit
                         || token_settings_account_data.withdrawal_daily_amount
@@ -1423,7 +1397,7 @@ impl Processor {
             token_settings_account_data.withdrawal_daily_amount = token_settings_account_data
                 .withdrawal_daily_amount
                 .checked_sub(withdrawal_amount)
-                .ok_or(TokenProxyError::Overflow)?;
+                .ok_or(TokenProxyError::ArithmeticsError)?;
 
             TokenSettings::pack(
                 token_settings_account_data,
@@ -1543,7 +1517,7 @@ impl Processor {
             token_settings_account_data.withdrawal_daily_amount = token_settings_account_data
                 .withdrawal_daily_amount
                 .checked_sub(withdrawal_amount)
-                .ok_or(TokenProxyError::Overflow)?;
+                .ok_or(TokenProxyError::ArithmeticsError)?;
 
             TokenSettings::pack(
                 token_settings_account_data,
@@ -1813,7 +1787,7 @@ impl Processor {
                 &[author_account_info.key],
                 withdrawal_amount
                     .checked_sub(withdrawal_account_data.meta.data.bounty)
-                    .ok_or(TokenProxyError::Overflow)?,
+                    .ok_or(TokenProxyError::ArithmeticsError)?,
             )?,
             &[
                 token_program_info.clone(),
@@ -2001,45 +1975,6 @@ impl Processor {
 
         let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
         settings_account_data.withdrawal_manager = new_withdrawal_manager;
-
-        Settings::pack(
-            settings_account_data,
-            &mut settings_account_info.data.borrow_mut(),
-        )?;
-
-        Ok(())
-    }
-
-    fn process_change_proposal_manager(
-        program_id: &Pubkey,
-        accounts: &[AccountInfo],
-        new_proposal_manager: Pubkey,
-    ) -> ProgramResult {
-        let account_info_iter = &mut accounts.iter();
-
-        let authority_account_info = next_account_info(account_info_iter)?;
-        let settings_account_info = next_account_info(account_info_iter)?;
-        let programdata_account_info = next_account_info(account_info_iter)?;
-
-        if !authority_account_info.is_signer {
-            return Err(ProgramError::MissingRequiredSignature);
-        }
-
-        // Validate Initializer Account
-        bridge_utils::helper::validate_programdata_account(
-            program_id,
-            programdata_account_info.key,
-        )?;
-        bridge_utils::helper::validate_initializer_account(
-            authority_account_info.key,
-            programdata_account_info,
-        )?;
-
-        // Validate Setting Account
-        bridge_utils::helper::validate_settings_account(program_id, settings_account_info)?;
-
-        let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
-        settings_account_data.proposal_manager = new_proposal_manager;
 
         Settings::pack(
             settings_account_data,
@@ -2314,67 +2249,6 @@ impl Processor {
 
         Ok(())
     }
-
-    fn process_close_proposal_account(
-        program_id: &Pubkey,
-        accounts: &[AccountInfo],
-    ) -> ProgramResult {
-        let account_info_iter = &mut accounts.iter();
-
-        let authority_account_info = next_account_info(account_info_iter)?;
-        let proposal_account_info = next_account_info(account_info_iter)?;
-        let settings_account_info = next_account_info(account_info_iter)?;
-
-        if !authority_account_info.is_signer {
-            return Err(ProgramError::MissingRequiredSignature);
-        }
-
-        // Validate Setting Account
-        bridge_utils::helper::validate_settings_account(program_id, settings_account_info)?;
-
-        let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
-        let proposal_manager = settings_account_data.proposal_manager;
-
-        if *authority_account_info.key != proposal_manager {
-            let programdata_account_info = next_account_info(account_info_iter)?;
-
-            // Validate Initializer Account
-            bridge_utils::helper::validate_programdata_account(
-                program_id,
-                programdata_account_info.key,
-            )?;
-            bridge_utils::helper::validate_initializer_account(
-                authority_account_info.key,
-                programdata_account_info,
-            )?;
-        }
-
-        if authority_account_info.key == proposal_account_info.key {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
-        if proposal_account_info.owner != program_id {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
-        let proposal_account_data =
-            Proposal::unpack_from_slice(&proposal_account_info.data.borrow())?;
-
-        if proposal_account_data.is_executed {
-            return Err(TokenProxyError::ProposalExecuted.into());
-        }
-
-        let authority_starting_lamports = authority_account_info.lamports();
-        **authority_account_info.lamports.borrow_mut() = authority_starting_lamports
-            .checked_add(proposal_account_info.lamports())
-            .ok_or(TokenProxyError::Overflow)?;
-
-        **proposal_account_info.lamports.borrow_mut() = 0;
-
-        bridge_utils::helper::delete_account(proposal_account_info)?;
-
-        Ok(())
-    }
 }
 
 fn make_sol_transfer<'a>(
@@ -2511,7 +2385,7 @@ fn make_ever_transfer<'a>(
     Ok(())
 }
 
-fn get_withdrawal_amount(amount: u128, ever_decimals: u8, solana_decimals: u8) -> u64 {
+pub fn get_withdrawal_amount(amount: u128, ever_decimals: u8, solana_decimals: u8) -> u64 {
     if ever_decimals > solana_decimals {
         let trunc_divisor = 10u128.pow((ever_decimals - solana_decimals) as u32);
         (amount / trunc_divisor) as u64
@@ -2521,7 +2395,7 @@ fn get_withdrawal_amount(amount: u128, ever_decimals: u8, solana_decimals: u8) -
     }
 }
 
-fn get_deposit_amount(amount: u64, ever_decimals: u8, solana_decimals: u8) -> u128 {
+pub fn get_deposit_amount(amount: u64, ever_decimals: u8, solana_decimals: u8) -> u128 {
     let mut amount = amount as u128;
     if ever_decimals > solana_decimals {
         let trunc_divisor = 10u128.pow((ever_decimals - solana_decimals) as u32);
