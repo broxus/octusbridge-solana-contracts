@@ -191,7 +191,11 @@ async fn test_create_proposal() {
     let round_number = 0;
 
     // Add Relays Accounts
-    let relays = vec![Keypair::new(), Keypair::new(), Keypair::new()];
+    let mut relays = vec![];
+    for _ in 0..100 {
+        relays.push(Keypair::new());
+    }
+
     let relay_init_lamports = 100000;
     for relay in &relays {
         program_test.add_account(
@@ -359,13 +363,7 @@ async fn test_create_proposal() {
 
     assert_eq!(proposal_data.signers, vec![Vote::None; relays.len()]);
 
-    assert_eq!(
-        proposal_data.event.data.relays,
-        new_relays
-            .iter()
-            .map(|relay| relay.to_bytes().to_vec())
-            .collect::<Vec<Vec<u8>>>()
-    );
+    assert_eq!(proposal_data.event.data.relays, new_relays);
     assert_eq!(proposal_data.event.data.round_end, new_round_end);
 
     // Vote for Proposal

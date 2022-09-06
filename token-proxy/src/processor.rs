@@ -992,9 +992,13 @@ impl Processor {
             return Err(TokenProxyError::InvalidVote.into());
         }
 
+        msg!("11111");
+
         // Validate Withdrawal Account
         let mut withdrawal_account_data =
             Proposal::unpack_from_slice(&withdrawal_account_info.data.borrow())?;
+
+        msg!("222222");
 
         let settings = withdrawal_account_data.pda.settings;
         let event_timestamp = withdrawal_account_data.pda.event_timestamp;
@@ -1012,6 +1016,8 @@ impl Processor {
             withdrawal_account_info,
         )?;
 
+        msg!("333333");
+
         let round_number = withdrawal_account_data.round_number;
 
         // Validate Relay Round Account
@@ -1022,6 +1028,8 @@ impl Processor {
         )?;
 
         let relay_round_account_data = RelayRound::unpack(&relay_round_account_info.data.borrow())?;
+
+        msg!("444444");
 
         // Vote for withdraw request
         let index = relay_round_account_data
@@ -1639,15 +1647,7 @@ impl Processor {
         )?;
 
         // Init Deposit Account
-        let sender_address = Pubkey::new_from_array(
-            withdrawal_account_data
-                .event
-                .data
-                .recipient_address
-                .clone()
-                .try_into()
-                .map_err(|_| TokenProxyError::ConstructPubkey)?,
-        );
+        let sender_address = withdrawal_account_data.event.data.recipient_address;
 
         let recipient_address = match recipient_address {
             Some(recipient_address) => recipient_address,
@@ -1757,15 +1757,7 @@ impl Processor {
             return Err(ProgramError::InvalidArgument);
         }
 
-        let recipient_token_address = Pubkey::new_from_array(
-            withdrawal_account_data
-                .event
-                .data
-                .recipient_address
-                .clone()
-                .try_into()
-                .map_err(|_| TokenProxyError::ConstructPubkey)?,
-        );
+        let recipient_token_address = withdrawal_account_data.event.data.recipient_address;
 
         if recipient_token_account_data.owner != recipient_token_address {
             return Err(ProgramError::InvalidAccountData);
@@ -2268,15 +2260,8 @@ fn make_sol_transfer<'a>(
         return Err(ProgramError::InvalidArgument);
     }
 
-    let recipient_token_address = Pubkey::new_from_array(
-        withdrawal_account_data
-            .event
-            .data
-            .recipient_address
-            .clone()
-            .try_into()
-            .map_err(|_| TokenProxyError::ConstructPubkey)?,
-    );
+    let recipient_token_address = withdrawal_account_data.event.data.recipient_address;
+
     if recipient_token_account_data.owner != recipient_token_address {
         return Err(ProgramError::InvalidArgument);
     }
@@ -2339,15 +2324,8 @@ fn make_ever_transfer<'a>(
     let recipient_token_account_data =
         spl_token::state::Account::unpack(&recipient_token_account_info.data.borrow())?;
 
-    let recipient_token_address = Pubkey::new_from_array(
-        withdrawal_account_data
-            .event
-            .data
-            .recipient_address
-            .clone()
-            .try_into()
-            .map_err(|_| TokenProxyError::ConstructPubkey)?,
-    );
+    let recipient_token_address = withdrawal_account_data.event.data.recipient_address;
+
     if recipient_token_account_data.owner != recipient_token_address {
         return Err(ProgramError::InvalidArgument);
     }

@@ -502,10 +502,7 @@ async fn test_deposit_ever() {
         .expect("account");
 
     let deposit_data = DepositToken::unpack(deposit_info.data()).expect("deposit token unpack");
-    assert_eq!(
-        deposit_data.event.data.sender_address,
-        sender.pubkey().to_bytes().to_vec()
-    );
+    assert_eq!(deposit_data.event.data.sender_address, sender.pubkey());
     assert_eq!(deposit_data.event.data.amount as u64, amount);
     assert_eq!(deposit_data.event.data.recipient_address, recipient_address);
     assert_eq!(deposit_data.meta.data.seed, deposit_seed.as_u128());
@@ -720,10 +717,7 @@ async fn test_deposit_sol() {
         .expect("account");
 
     let deposit_data = DepositToken::unpack(deposit_info.data()).expect("deposit token unpack");
-    assert_eq!(
-        deposit_data.event.data.sender_address,
-        sender.pubkey().to_bytes().to_vec()
-    );
+    assert_eq!(deposit_data.event.data.sender_address, sender.pubkey());
     assert_eq!(deposit_data.event.data.amount as u64, amount);
     assert_eq!(deposit_data.event.data.recipient_address, recipient_address);
     assert_eq!(deposit_data.meta.data.seed, deposit_seed.as_u128());
