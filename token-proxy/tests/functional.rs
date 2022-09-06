@@ -458,10 +458,14 @@ async fn test_deposit_ever() {
     let recipient_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 32;
 
+    let author_token_pubkey =
+        spl_associated_token_account::get_associated_token_address(&sender.pubkey(), &mint_address);
+
     let mut transaction = Transaction::new_with_payer(
         &[deposit_ever_ix(
             &funder.pubkey(),
             &sender.pubkey(),
+            &author_token_pubkey,
             &name,
             deposit_seed,
             recipient_address,
@@ -680,11 +684,17 @@ async fn test_deposit_sol() {
     let recipient_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
     let amount = 32;
 
+    let author_token_pubkey = spl_associated_token_account::get_associated_token_address(
+        &sender.pubkey(),
+        &mint.pubkey(),
+    );
+
     let mut transaction = Transaction::new_with_payer(
         &[deposit_sol_ix(
             &funder.pubkey(),
             &sender.pubkey(),
             &mint.pubkey(),
+            &author_token_pubkey,
             &name,
             deposit_seed,
             recipient_address,

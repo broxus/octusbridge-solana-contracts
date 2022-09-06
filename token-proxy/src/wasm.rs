@@ -585,6 +585,7 @@ pub fn fill_withdrawal_sol_ix(
 pub fn deposit_ever_ix(
     funder_pubkey: String,
     authority_pubkey: String,
+    author_token_pubkey: String,
     name: String,
     deposit_seed: String,
     recipient_address: String,
@@ -606,8 +607,7 @@ pub fn deposit_ever_ix(
 
     let recipient_address = EverAddress::from_str(&recipient_address).handle_error()?;
 
-    let author_token_pubkey =
-        spl_associated_token_account::get_associated_token_address(&authority_pubkey, &mint_pubkey);
+    let author_token_pubkey = Pubkey::from_str(author_token_pubkey.as_str()).handle_error()?;
 
     let data = TokenProxyInstruction::DepositEver {
         deposit_seed,
@@ -642,6 +642,7 @@ pub fn deposit_sol_ix(
     funder_pubkey: String,
     author_pubkey: String,
     mint_pubkey: String,
+    author_token_pubkey: String,
     name: String,
     deposit_seed: String,
     recipient_address: String,
@@ -661,11 +662,9 @@ pub fn deposit_sol_ix(
     let mint_pubkey = Pubkey::from_str(mint_pubkey.as_str()).handle_error()?;
     let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
     let author_pubkey = Pubkey::from_str(author_pubkey.as_str()).handle_error()?;
+    let author_token_pubkey = Pubkey::from_str(author_token_pubkey.as_str()).handle_error()?;
 
     let recipient_address = EverAddress::from_str(&recipient_address).handle_error()?;
-
-    let author_token_pubkey =
-        spl_associated_token_account::get_associated_token_address(&author_pubkey, &mint_pubkey);
 
     let data = TokenProxyInstruction::DepositSol {
         deposit_seed,

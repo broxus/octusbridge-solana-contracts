@@ -186,6 +186,7 @@ pub fn initialize_vault_ix(
 pub fn deposit_ever_ix(
     funder_pubkey: &Pubkey,
     author_pubkey: &Pubkey,
+    author_token_pubkey: &Pubkey,
     token_name: &str,
     deposit_seed: Uuid,
     recipient_address: EverAddress,
@@ -194,8 +195,6 @@ pub fn deposit_ever_ix(
     let mint_pubkey = get_mint_address(token_name);
     let token_settings_pubkey = get_token_settings_address(token_name);
     let settings_pubkey = get_settings_address();
-    let author_token_pubkey =
-        spl_associated_token_account::get_associated_token_address(author_pubkey, &mint_pubkey);
 
     let deposit_seed = deposit_seed.as_u128();
     let deposit_pubkey = get_deposit_address(deposit_seed, &token_settings_pubkey);
@@ -213,7 +212,7 @@ pub fn deposit_ever_ix(
         accounts: vec![
             AccountMeta::new(*funder_pubkey, true),
             AccountMeta::new(*author_pubkey, true),
-            AccountMeta::new(author_token_pubkey, false),
+            AccountMeta::new(*author_token_pubkey, false),
             AccountMeta::new(deposit_pubkey, false),
             AccountMeta::new(mint_pubkey, false),
             AccountMeta::new(token_settings_pubkey, false),
@@ -230,6 +229,7 @@ pub fn deposit_sol_ix(
     funder_pubkey: &Pubkey,
     author_pubkey: &Pubkey,
     mint_pubkey: &Pubkey,
+    author_token_pubkey: &Pubkey,
     token_name: &str,
     deposit_seed: Uuid,
     recipient_address: EverAddress,
@@ -241,8 +241,6 @@ pub fn deposit_sol_ix(
 
     let deposit_seed = deposit_seed.as_u128();
     let deposit_pubkey = get_deposit_address(deposit_seed, &token_settings_pubkey);
-    let author_token_pubkey =
-        spl_associated_token_account::get_associated_token_address(author_pubkey, mint_pubkey);
 
     let data = TokenProxyInstruction::DepositSol {
         deposit_seed,
@@ -257,7 +255,7 @@ pub fn deposit_sol_ix(
         accounts: vec![
             AccountMeta::new(*funder_pubkey, true),
             AccountMeta::new(*author_pubkey, true),
-            AccountMeta::new(author_token_pubkey, false),
+            AccountMeta::new(*author_token_pubkey, false),
             AccountMeta::new(vault_pubkey, false),
             AccountMeta::new(deposit_pubkey, false),
             AccountMeta::new_readonly(*mint_pubkey, false),
