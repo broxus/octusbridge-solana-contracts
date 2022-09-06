@@ -992,13 +992,9 @@ impl Processor {
             return Err(TokenProxyError::InvalidVote.into());
         }
 
-        msg!("11111");
-
         // Validate Withdrawal Account
         let mut withdrawal_account_data =
             Proposal::unpack_from_slice(&withdrawal_account_info.data.borrow())?;
-
-        msg!("222222");
 
         let settings = withdrawal_account_data.pda.settings;
         let event_timestamp = withdrawal_account_data.pda.event_timestamp;
@@ -1016,8 +1012,6 @@ impl Processor {
             withdrawal_account_info,
         )?;
 
-        msg!("333333");
-
         let round_number = withdrawal_account_data.round_number;
 
         // Validate Relay Round Account
@@ -1028,8 +1022,6 @@ impl Processor {
         )?;
 
         let relay_round_account_data = RelayRound::unpack(&relay_round_account_info.data.borrow())?;
-
-        msg!("444444");
 
         // Vote for withdraw request
         let index = relay_round_account_data
