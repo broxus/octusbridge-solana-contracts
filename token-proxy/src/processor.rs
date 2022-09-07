@@ -870,9 +870,10 @@ impl Processor {
         let rl_settings_account_data =
             round_loader::Settings::unpack(&rl_settings_account_info.data.borrow())?;
 
-        let round_number = rl_settings_account_data.current_round_number;
-
         // Validate Relay Round Account
+        let relay_round_account_data = RelayRound::unpack(&relay_round_account_info.data.borrow())?;
+        let round_number = relay_round_account_data.round_number;
+
         round_loader::validate_relay_round_account(
             &round_loader::id(),
             round_number,
@@ -880,7 +881,6 @@ impl Processor {
         )?;
 
         let relay_round_account_data = RelayRound::unpack(&relay_round_account_info.data.borrow())?;
-
         if relay_round_account_data.round_end <= clock.unix_timestamp as u32 {
             return Err(TokenProxyError::RelayRoundExpired.into());
         }
@@ -917,6 +917,7 @@ impl Processor {
         let withdrawal_nonce = bridge_utils::helper::validate_proposal_account(
             program_id,
             token_settings_account_info.key,
+            round_number,
             event_timestamp,
             event_transaction_lt,
             &event_configuration,
@@ -926,6 +927,7 @@ impl Processor {
         let withdrawal_account_signer_seeds: &[&[_]] = &[
             br"proposal",
             &token_settings_account_info.key.to_bytes(),
+            &round_number.to_le_bytes(),
             &event_timestamp.to_le_bytes(),
             &event_transaction_lt.to_le_bytes(),
             &event_configuration.to_bytes(),
@@ -997,6 +999,7 @@ impl Processor {
             Proposal::unpack_from_slice(&withdrawal_account_info.data.borrow())?;
 
         let settings = withdrawal_account_data.pda.settings;
+        let round_number = withdrawal_account_data.round_number;
         let event_timestamp = withdrawal_account_data.pda.event_timestamp;
         let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
         let event_configuration = withdrawal_account_data.pda.event_configuration;
@@ -1005,6 +1008,7 @@ impl Processor {
         bridge_utils::helper::validate_proposal_account(
             program_id,
             &settings,
+            round_number,
             event_timestamp,
             event_transaction_lt,
             &event_configuration,
@@ -1067,6 +1071,7 @@ impl Processor {
         let mut withdrawal_account_data =
             WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
         let settings = withdrawal_account_data.pda.settings;
+        let round_number = withdrawal_account_data.round_number;
         let event_timestamp = withdrawal_account_data.pda.event_timestamp;
         let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
         let event_configuration = withdrawal_account_data.pda.event_configuration;
@@ -1075,6 +1080,7 @@ impl Processor {
         bridge_utils::helper::validate_proposal_account(
             program_id,
             &settings,
+            round_number,
             event_timestamp,
             event_transaction_lt,
             &event_configuration,
@@ -1184,6 +1190,7 @@ impl Processor {
         let mut withdrawal_account_data =
             WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
         let settings = withdrawal_account_data.pda.settings;
+        let round_number = withdrawal_account_data.round_number;
         let event_timestamp = withdrawal_account_data.pda.event_timestamp;
         let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
         let event_configuration = withdrawal_account_data.pda.event_configuration;
@@ -1192,6 +1199,7 @@ impl Processor {
         bridge_utils::helper::validate_proposal_account(
             program_id,
             &settings,
+            round_number,
             event_timestamp,
             event_transaction_lt,
             &event_configuration,
@@ -1325,6 +1333,7 @@ impl Processor {
         let mut withdrawal_account_data =
             WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
         let settings = withdrawal_account_data.pda.settings;
+        let round_number = withdrawal_account_data.round_number;
         let event_timestamp = withdrawal_account_data.pda.event_timestamp;
         let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
         let event_configuration = withdrawal_account_data.pda.event_configuration;
@@ -1333,6 +1342,7 @@ impl Processor {
         bridge_utils::helper::validate_proposal_account(
             program_id,
             &settings,
+            round_number,
             event_timestamp,
             event_transaction_lt,
             &event_configuration,
@@ -1445,6 +1455,7 @@ impl Processor {
         let mut withdrawal_account_data =
             WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
         let settings = withdrawal_account_data.pda.settings;
+        let round_number = withdrawal_account_data.round_number;
         let event_timestamp = withdrawal_account_data.pda.event_timestamp;
         let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
         let event_configuration = withdrawal_account_data.pda.event_configuration;
@@ -1453,6 +1464,7 @@ impl Processor {
         bridge_utils::helper::validate_proposal_account(
             program_id,
             &settings,
+            round_number,
             event_timestamp,
             event_transaction_lt,
             &event_configuration,
@@ -1567,6 +1579,7 @@ impl Processor {
         let mut withdrawal_account_data =
             WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
         let settings = withdrawal_account_data.pda.settings;
+        let round_number = withdrawal_account_data.round_number;
         let event_timestamp = withdrawal_account_data.pda.event_timestamp;
         let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
         let event_configuration = withdrawal_account_data.pda.event_configuration;
@@ -1575,6 +1588,7 @@ impl Processor {
         bridge_utils::helper::validate_proposal_account(
             program_id,
             &settings,
+            round_number,
             event_timestamp,
             event_transaction_lt,
             &event_configuration,
@@ -1707,6 +1721,7 @@ impl Processor {
         let mut withdrawal_account_data =
             WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
         let settings = withdrawal_account_data.pda.settings;
+        let round_number = withdrawal_account_data.round_number;
         let event_timestamp = withdrawal_account_data.pda.event_timestamp;
         let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
         let event_configuration = withdrawal_account_data.pda.event_configuration;
@@ -1715,6 +1730,7 @@ impl Processor {
         bridge_utils::helper::validate_proposal_account(
             program_id,
             &settings,
+            round_number,
             event_timestamp,
             event_transaction_lt,
             &event_configuration,
@@ -1857,6 +1873,7 @@ impl Processor {
         let mut withdrawal_account_data =
             WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
         let settings = withdrawal_account_data.pda.settings;
+        let round_number = withdrawal_account_data.round_number;
         let event_timestamp = withdrawal_account_data.pda.event_timestamp;
         let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
         let event_configuration = withdrawal_account_data.pda.event_configuration;
@@ -1865,6 +1882,7 @@ impl Processor {
         bridge_utils::helper::validate_proposal_account(
             program_id,
             &settings,
+            round_number,
             event_timestamp,
             event_transaction_lt,
             &event_configuration,

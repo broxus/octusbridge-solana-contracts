@@ -26,6 +26,7 @@ pub fn get_token_settings_address(name: &str) -> Pubkey {
 
 pub fn get_withdrawal_address(
     settings: &Pubkey,
+    round_number: u32,
     event_timestamp: u32,
     event_transaction_lt: u64,
     event_configuration: &Pubkey,
@@ -46,6 +47,7 @@ pub fn get_withdrawal_address(
     bridge_utils::helper::get_associated_proposal_address(
         program_id,
         settings,
+        round_number,
         event_timestamp,
         event_transaction_lt,
         event_configuration,
@@ -284,6 +286,7 @@ pub fn withdrawal_request_ix(
 ) -> Instruction {
     let withdrawal_pubkey = get_withdrawal_address(
         token_settings_pubkey,
+        round_number,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,

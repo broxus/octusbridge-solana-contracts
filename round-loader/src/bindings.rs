@@ -19,6 +19,7 @@ pub fn get_settings_address() -> Pubkey {
 }
 
 pub fn get_proposal_address(
+    round_number: u32,
     event_timestamp: u32,
     event_transaction_lt: u64,
     event_configuration: &Pubkey,
@@ -33,6 +34,7 @@ pub fn get_proposal_address(
     bridge_utils::helper::get_associated_proposal_address(
         program_id,
         settings,
+        round_number,
         event_timestamp,
         event_transaction_lt,
         event_configuration,
@@ -144,12 +146,14 @@ pub fn create_relay_round_ix(
 pub fn create_proposal_ix(
     funder_pubkey: &Pubkey,
     creator_pubkey: &Pubkey,
+    round_number: u32,
     event_timestamp: u32,
     event_transaction_lt: u64,
     event_configuration: Pubkey,
     event_data: &[u8],
 ) -> Instruction {
     let proposal_pubkey = get_proposal_address(
+        round_number,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
@@ -159,6 +163,7 @@ pub fn create_proposal_ix(
     let event_data = hash(event_data);
 
     let data = RoundLoaderInstruction::CreateProposal {
+        round_number,
         event_timestamp,
         event_transaction_lt,
         event_configuration,

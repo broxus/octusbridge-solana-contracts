@@ -62,6 +62,8 @@ pub enum RoundLoaderInstruction {
     /// # Account references
     /// ...
     CreateProposal {
+        // Round number
+        round_number: u32,
         // Ever event timestamp
         event_timestamp: u32,
         // Ever event transaction lt

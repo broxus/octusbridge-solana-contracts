@@ -16,6 +16,7 @@ pub fn get_associated_relay_round_address(program_id: &Pubkey, round_number: u32
 pub fn get_associated_proposal_address(
     program_id: &Pubkey,
     settings: &Pubkey,
+    round_number: u32,
     event_timestamp: u32,
     event_transaction_lt: u64,
     event_configuration: &Pubkey,
@@ -25,6 +26,7 @@ pub fn get_associated_proposal_address(
         &[
             br"proposal",
             &settings.to_bytes(),
+            &round_number.to_le_bytes(),
             &event_timestamp.to_le_bytes(),
             &event_transaction_lt.to_le_bytes(),
             &event_configuration.to_bytes(),
@@ -75,6 +77,7 @@ pub fn validate_initializer_account(
 pub fn validate_proposal_account(
     program_id: &Pubkey,
     settings: &Pubkey,
+    round_number: u32,
     event_timestamp: u32,
     event_transaction_lt: u64,
     event_configuration: &Pubkey,
@@ -85,6 +88,7 @@ pub fn validate_proposal_account(
         &[
             br"proposal",
             &settings.to_bytes(),
+            &round_number.to_le_bytes(),
             &event_timestamp.to_le_bytes(),
             &event_transaction_lt.to_le_bytes(),
             &event_configuration.to_bytes(),

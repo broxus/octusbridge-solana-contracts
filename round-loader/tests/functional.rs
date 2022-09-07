@@ -278,6 +278,7 @@ async fn test_create_proposal() {
         .expect("serialize proposal event data");
 
     let proposal_pubkey = get_proposal_address(
+        round_number,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
@@ -288,6 +289,7 @@ async fn test_create_proposal() {
         &[create_proposal_ix(
             &funder.pubkey(),
             &proposal_creator.pubkey(),
+            round_number,
             event_timestamp,
             event_transaction_lt,
             event_configuration,

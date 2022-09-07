@@ -72,6 +72,7 @@ impl Processor {
                 )?;
             }
             RoundLoaderInstruction::CreateProposal {
+                round_number,
                 event_timestamp,
                 event_transaction_lt,
                 event_configuration,
@@ -81,6 +82,7 @@ impl Processor {
                 Self::process_create_proposal(
                     program_id,
                     accounts,
+                    round_number,
                     event_timestamp,
                     event_transaction_lt,
                     event_configuration,
@@ -330,6 +332,7 @@ impl Processor {
     fn process_create_proposal(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
+        round_number: u32,
         event_timestamp: u32,
         event_transaction_lt: u64,
         event_configuration: Pubkey,
@@ -355,6 +358,7 @@ impl Processor {
         let proposal_nonce = bridge_utils::helper::validate_proposal_account(
             program_id,
             &settings,
+            round_number,
             event_timestamp,
             event_transaction_lt,
             &event_configuration,
@@ -364,6 +368,7 @@ impl Processor {
         let proposal_account_signer_seeds: &[&[_]] = &[
             br"proposal",
             &settings.to_bytes(),
+            &round_number.to_le_bytes(),
             &event_timestamp.to_le_bytes(),
             &event_transaction_lt.to_le_bytes(),
             &event_configuration.to_bytes(),
@@ -544,6 +549,8 @@ impl Processor {
         let mut proposal_account_data =
             Proposal::unpack_from_slice(&proposal_account_info.data.borrow())?;
 
+        let round_number = proposal_account_data.round_number;
+
         let settings = proposal_account_data.pda.settings;
         let event_timestamp = proposal_account_data.pda.event_timestamp;
         let event_transaction_lt = proposal_account_data.pda.event_transaction_lt;
@@ -554,14 +561,13 @@ impl Processor {
         bridge_utils::helper::validate_proposal_account(
             program_id,
             &settings,
+            round_number,
             event_timestamp,
             event_transaction_lt,
             &event_configuration,
             &event_data,
             proposal_account_info,
         )?;
-
-        let round_number = proposal_account_data.round_number;
 
         // Validate Relay Round Account
         validate_relay_round_account(program_id, round_number, relay_round_account_info)?;

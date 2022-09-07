@@ -917,6 +917,7 @@ async fn test_withdrawal_request() {
 
     let withdrawal_address = get_withdrawal_address(
         &token_settings_address,
+        round_number,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
@@ -949,6 +950,155 @@ async fn test_withdrawal_request() {
     assert_eq!(withdrawal_data.signers.len(), relays.len());
     for (i, _) in relays.iter().enumerate() {
         assert_eq!(withdrawal_data.signers[i], Vote::None);
+    }
+}
+
+#[tokio::test]
+async fn test_withdrawal_request_invalid_round() {
+    let mut program_test = ProgramTest::new(
+        "token_proxy",
+        token_proxy::id(),
+        processor!(Processor::process),
+    );
+
+    // Setup environment
+    let name = "WEVER".to_string();
+    let deposit_limit = 10000000;
+    let withdrawal_limit = 10000;
+    let withdrawal_daily_limit = 1000;
+    let solana_decimals = 9;
+    let ever_decimals = 9;
+
+    let mint_address = get_mint_address(&name);
+
+    // Add Token Settings Account
+    let token_settings_address = get_token_settings_address(&name);
+
+    let token_settings_account_data = TokenSettings {
+        is_initialized: true,
+        account_kind: AccountKind::Settings,
+        name: name.clone(),
+        kind: TokenKind::Ever { mint: mint_address },
+        withdrawal_daily_amount: 0,
+        withdrawal_epoch: 0,
+        deposit_limit,
+        withdrawal_limit,
+        withdrawal_daily_limit,
+        solana_decimals,
+        ever_decimals,
+        emergency: false,
+    };
+
+    let mut token_settings_packed = vec![0; TokenSettings::LEN];
+    TokenSettings::pack(token_settings_account_data, &mut token_settings_packed).unwrap();
+    program_test.add_account(
+        token_settings_address,
+        Account {
+            lamports: Rent::default().minimum_balance(TokenSettings::LEN),
+            data: token_settings_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Round Loader Settings Account
+    let round_number = 12;
+    let rl_settings_address =
+        bridge_utils::helper::get_associated_settings_address(&round_loader::id());
+
+    let rl_settings_account_data = round_loader::Settings {
+        is_initialized: true,
+        account_kind: AccountKind::Settings,
+        current_round_number: round_number,
+        round_submitter: Pubkey::new_unique(),
+        min_required_votes: 1,
+        round_ttl: 0,
+    };
+
+    let mut rl_settings_packed = vec![0; round_loader::Settings::LEN];
+    round_loader::Settings::pack(rl_settings_account_data, &mut rl_settings_packed).unwrap();
+    program_test.add_account(
+        rl_settings_address,
+        Account {
+            lamports: Rent::default().minimum_balance(round_loader::Settings::LEN),
+            data: rl_settings_packed,
+            owner: round_loader::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Recipient Token Account
+    let recipient_address = Pubkey::new_unique();
+    let recipient_associated_token_address =
+        spl_associated_token_account::get_associated_token_address(
+            &recipient_address,
+            &mint_address,
+        );
+
+    let recipient_account_data = spl_token::state::Account {
+        mint: mint_address,
+        owner: recipient_address,
+        state: AccountState::Initialized,
+        ..Default::default()
+    };
+
+    let mut recipient_packed = vec![0; spl_token::state::Account::LEN];
+    spl_token::state::Account::pack(recipient_account_data, &mut recipient_packed).unwrap();
+    program_test.add_account(
+        recipient_associated_token_address,
+        Account {
+            lamports: Rent::default().minimum_balance(spl_token::state::Account::LEN),
+            data: recipient_packed,
+            owner: spl_token::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Author Account
+    let author = Keypair::new();
+    program_test.add_account(
+        author.pubkey(),
+        Account {
+            lamports: 100000000,
+            data: vec![],
+            owner: solana_program::system_program::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Start Program Test
+    let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
+
+    let event_timestamp = 1650988297;
+    let event_transaction_lt = 1650988334;
+    let event_configuration = Pubkey::new_unique();
+    let sender_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
+    let amount = 32;
+
+    let mut transaction = Transaction::new_with_payer(
+        &[withdrawal_request_ix(
+            &funder.pubkey(),
+            &author.pubkey(),
+            &token_settings_address,
+            event_timestamp,
+            event_transaction_lt,
+            event_configuration,
+            round_number,
+            sender_address,
+            recipient_address,
+            amount,
+        )],
+        Some(&funder.pubkey()),
+    );
+    transaction.sign(&[&funder, &author], recent_blockhash);
+
+    match banks_client.process_transaction(transaction).await {
+        Ok(_) => assert!(false, "Withdrawal request should not be created"),
+        Err(_) => assert!(true),
     }
 }
 
@@ -1056,6 +1206,7 @@ async fn test_vote_for_withdrawal_request() {
 
     let withdrawal_address = get_withdrawal_address(
         &token_settings_address,
+        round_number,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
@@ -1272,6 +1423,7 @@ async fn test_withdrawal_ever() {
 
     // Add Withdrawal Account
     let author = Pubkey::new_unique();
+    let round_number = 5;
     let event_timestamp = 1650988297;
     let event_transaction_lt = 1650988334;
     let event_configuration = Pubkey::new_unique();
@@ -1280,6 +1432,7 @@ async fn test_withdrawal_ever() {
 
     let withdrawal_address = get_withdrawal_address(
         &token_settings_address,
+        round_number,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
@@ -1293,7 +1446,7 @@ async fn test_withdrawal_ever() {
         account_kind: AccountKind::Proposal,
         is_executed: false,
         author,
-        round_number: 5,
+        round_number,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
         meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::New, 0, 0),
         required_votes: 0,
@@ -1493,6 +1646,7 @@ async fn test_withdrawal_ever_2() {
 
     // Add Withdrawal Account
     let author = Pubkey::new_unique();
+    let round_number = 9;
     let event_timestamp = 1650988297;
     let event_transaction_lt = 1650988334;
     let event_configuration = Pubkey::new_unique();
@@ -1501,6 +1655,7 @@ async fn test_withdrawal_ever_2() {
 
     let withdrawal_address = get_withdrawal_address(
         &token_settings_address,
+        round_number,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
@@ -1514,7 +1669,7 @@ async fn test_withdrawal_ever_2() {
         account_kind: AccountKind::Proposal,
         is_executed: false,
         author,
-        round_number: 5,
+        round_number,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
         meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::New, 0, 0),
         required_votes: 0,
@@ -1727,6 +1882,7 @@ async fn test_withdrawal_sol() {
 
     // Add Withdrawal Account
     let author = Pubkey::new_unique();
+    let round_number = 5;
     let event_timestamp = 1650988297;
     let event_transaction_lt = 1650988334;
     let event_configuration = Pubkey::new_unique();
@@ -1735,6 +1891,7 @@ async fn test_withdrawal_sol() {
 
     let withdrawal_address = get_withdrawal_address(
         &token_settings_address,
+        round_number,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
@@ -1748,7 +1905,7 @@ async fn test_withdrawal_sol() {
         account_kind: AccountKind::Proposal,
         is_executed: false,
         author,
-        round_number: 5,
+        round_number,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
         meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::New, 0, 0),
         required_votes: 0,
@@ -1974,6 +2131,7 @@ async fn test_withdrawal_sol_2() {
 
     // Add Withdrawal Account
     let author = Pubkey::new_unique();
+    let round_number = 5;
     let event_timestamp = 1650988297;
     let event_transaction_lt = 1650988334;
     let event_configuration = Pubkey::new_unique();
@@ -1982,6 +2140,7 @@ async fn test_withdrawal_sol_2() {
 
     let withdrawal_address = get_withdrawal_address(
         &token_settings_address,
+        round_number,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
@@ -1995,7 +2154,7 @@ async fn test_withdrawal_sol_2() {
         account_kind: AccountKind::Proposal,
         is_executed: false,
         author,
-        round_number: 5,
+        round_number,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
         meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::New, 0, 0),
         required_votes: 0,
@@ -2183,6 +2342,7 @@ async fn test_withdrawal_different_decimals() {
 
     // Add Withdrawal Account
     let author = Pubkey::new_unique();
+    let round_number = 9;
     let event_timestamp = 1650988297;
     let event_transaction_lt = 1650988334;
     let event_configuration = Pubkey::new_unique();
@@ -2192,6 +2352,7 @@ async fn test_withdrawal_different_decimals() {
 
     let withdrawal_address = get_withdrawal_address(
         &token_settings_address,
+        round_number,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
@@ -2205,7 +2366,7 @@ async fn test_withdrawal_different_decimals() {
         account_kind: AccountKind::Proposal,
         is_executed: false,
         author,
-        round_number: 5,
+        round_number,
         event: WithdrawalTokenEventWithLen::new(sender_address, ever_amount, recipient_address),
         meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::New, 0, 0),
         required_votes: 0,
@@ -2404,6 +2565,7 @@ async fn test_approve_withdrawal_ever() {
 
     // Add Withdrawal Account
     let author = Pubkey::new_unique();
+    let round_number = 5;
     let event_timestamp = 1650988297;
     let event_transaction_lt = 1650988334;
     let event_configuration = Pubkey::new_unique();
@@ -2412,6 +2574,7 @@ async fn test_approve_withdrawal_ever() {
 
     let withdrawal_address = get_withdrawal_address(
         &token_settings_address,
+        round_number,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
@@ -2425,7 +2588,7 @@ async fn test_approve_withdrawal_ever() {
         account_kind: AccountKind::Proposal,
         is_executed: true,
         author,
-        round_number: 5,
+        round_number,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
         meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::WaitingForApprove, 0, 0),
         required_votes: 0,
@@ -2654,6 +2817,7 @@ async fn test_approve_withdrawal_ever_by_owner() {
 
     // Add Withdrawal Account
     let author = Pubkey::new_unique();
+    let round_number = 5;
     let event_timestamp = 1650988297;
     let event_transaction_lt = 1650988334;
     let event_configuration = Pubkey::new_unique();
@@ -2662,6 +2826,7 @@ async fn test_approve_withdrawal_ever_by_owner() {
 
     let withdrawal_address = get_withdrawal_address(
         &token_settings_address,
+        round_number,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
@@ -2675,7 +2840,7 @@ async fn test_approve_withdrawal_ever_by_owner() {
         account_kind: AccountKind::Proposal,
         is_executed: true,
         author,
-        round_number: 5,
+        round_number,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
         meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::WaitingForApprove, 0, 0),
         required_votes: 0,
@@ -2904,6 +3069,7 @@ async fn test_approve_withdrawal_sol() {
 
     // Add Withdrawal Account
     let author = Pubkey::new_unique();
+    let round_number = 5;
     let event_timestamp = 1650988297;
     let event_transaction_lt = 1650988334;
     let event_configuration = Pubkey::new_unique();
@@ -2912,6 +3078,7 @@ async fn test_approve_withdrawal_sol() {
 
     let withdrawal_address = get_withdrawal_address(
         &token_settings_address,
+        round_number,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
@@ -2925,7 +3092,7 @@ async fn test_approve_withdrawal_sol() {
         account_kind: AccountKind::Proposal,
         is_executed: true,
         author,
-        round_number: 5,
+        round_number,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
         meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::WaitingForApprove, 0, 0),
         required_votes: 0,
@@ -3154,6 +3321,7 @@ async fn test_approve_withdrawal_sol_2() {
 
     // Add Withdrawal Account
     let author = Pubkey::new_unique();
+    let round_number = 5;
     let event_timestamp = 1650988297;
     let event_transaction_lt = 1650988334;
     let event_configuration = Pubkey::new_unique();
@@ -3162,6 +3330,7 @@ async fn test_approve_withdrawal_sol_2() {
 
     let withdrawal_address = get_withdrawal_address(
         &token_settings_address,
+        round_number,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
@@ -3175,7 +3344,7 @@ async fn test_approve_withdrawal_sol_2() {
         account_kind: AccountKind::Proposal,
         is_executed: true,
         author,
-        round_number: 5,
+        round_number,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
         meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::WaitingForApprove, 0, 0),
         required_votes: 0,
@@ -3411,6 +3580,7 @@ async fn test_approve_withdrawal_sol_by_owner() {
 
     // Add Withdrawal Account
     let author = Pubkey::new_unique();
+    let round_number = 5;
     let event_timestamp = 1650988297;
     let event_transaction_lt = 1650988334;
     let event_configuration = Pubkey::new_unique();
@@ -3419,6 +3589,7 @@ async fn test_approve_withdrawal_sol_by_owner() {
 
     let withdrawal_address = get_withdrawal_address(
         &token_settings_address,
+        round_number,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
@@ -3432,7 +3603,7 @@ async fn test_approve_withdrawal_sol_by_owner() {
         account_kind: AccountKind::Proposal,
         is_executed: true,
         author,
-        round_number: 5,
+        round_number,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
         meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::WaitingForApprove, 0, 0),
         required_votes: 0,
@@ -3648,6 +3819,7 @@ async fn test_cancel_withdrawal_sol() {
     );
 
     // Add Withdrawal Account
+    let round_number = 7;
     let event_timestamp = 1650988297;
     let event_transaction_lt = 1650988334;
     let event_configuration = Pubkey::new_unique();
@@ -3657,6 +3829,7 @@ async fn test_cancel_withdrawal_sol() {
 
     let withdrawal_address = get_withdrawal_address(
         &token_settings_address,
+        round_number,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
@@ -3670,7 +3843,7 @@ async fn test_cancel_withdrawal_sol() {
         account_kind: AccountKind::Proposal,
         is_executed: true,
         author: author.pubkey(),
-        round_number: 5,
+        round_number,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
         meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::Pending, 0, 0),
         required_votes: 0,
@@ -3920,6 +4093,7 @@ async fn test_fill_withdrawal_sol() {
 
     // Add Withdrawal Account
     let withdrawal_author = Pubkey::new_unique();
+    let round_number = 9;
     let event_timestamp = 1650988297;
     let event_transaction_lt = 1650988334;
     let event_configuration = Pubkey::new_unique();
@@ -3929,6 +4103,7 @@ async fn test_fill_withdrawal_sol() {
 
     let withdrawal_address = get_withdrawal_address(
         &token_settings_address,
+        round_number,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
@@ -3942,7 +4117,7 @@ async fn test_fill_withdrawal_sol() {
         account_kind: AccountKind::Proposal,
         is_executed: true,
         author: withdrawal_author,
-        round_number: 5,
+        round_number,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
         meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::Pending, bounty, 0),
         required_votes: 0,
@@ -4043,6 +4218,7 @@ async fn test_change_bounty_for_withdrawal_sol() {
 
     // Add Withdrawal Account
     let author = Keypair::new();
+    let round_number = 9;
     let event_timestamp = 1650988297;
     let event_transaction_lt = 1650988334;
     let event_configuration = Pubkey::new_unique();
@@ -4053,6 +4229,7 @@ async fn test_change_bounty_for_withdrawal_sol() {
 
     let withdrawal_address = get_withdrawal_address(
         &token_settings_address,
+        round_number,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
@@ -4066,7 +4243,7 @@ async fn test_change_bounty_for_withdrawal_sol() {
         account_kind: AccountKind::Proposal,
         is_executed: true,
         author: author.pubkey(),
-        round_number: 5,
+        round_number,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
         meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::Pending, 0, 0),
         required_votes: 0,
