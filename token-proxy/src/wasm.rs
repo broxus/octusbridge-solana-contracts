@@ -177,6 +177,7 @@ pub fn withdrawal_request_ix(
 
     let withdrawal_pubkey = get_withdrawal_address(
         &token_settings_pubkey,
+        round_number,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
