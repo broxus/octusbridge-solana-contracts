@@ -105,6 +105,10 @@ impl Processor {
                 msg!("Instruction: Execute");
                 Self::process_execute_proposal(program_id, accounts)?;
             }
+            RoundLoaderInstruction::ExecuteProposalByAdmin => {
+                msg!("Instruction: Execute by admin");
+                Self::process_execute_proposal_by_admin(program_id, accounts)?;
+            }
         };
 
         Ok(())
@@ -693,6 +697,92 @@ impl Processor {
 
             proposal.is_executed = true;
         }
+
+        // Update Proposal Account
+        RelayRoundProposal::pack(proposal, &mut proposal_account_info.data.borrow_mut())?;
+
+        Ok(())
+    }
+
+    fn process_execute_proposal_by_admin(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+
+        let creator_account_info = next_account_info(account_info_iter)?;
+        let settings_account_info = next_account_info(account_info_iter)?;
+        let proposal_account_info = next_account_info(account_info_iter)?;
+        let relay_round_account_info = next_account_info(account_info_iter)?;
+        let system_program_info = next_account_info(account_info_iter)?;
+        let rent_sysvar_info = next_account_info(account_info_iter)?;
+        let rent = &Rent::from_account_info(rent_sysvar_info)?;
+        // Validate Settings Account
+        bridge_utils::helper::validate_settings_account(program_id, settings_account_info)?;
+
+        if settings_account_info.owner != program_id {
+            return Err(ProgramError::InvalidArgument);
+        }
+
+        let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+
+        if settings_account_data.round_submitter != *creator_account_info.key {
+            return Err(ProgramError::IllegalOwner);
+        }
+
+        if !creator_account_info.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        let mut proposal = RelayRoundProposal::unpack(&proposal_account_info.data.borrow())?;
+
+        // Validate a new Relay Round Account
+        let round_number = proposal.event.data.round_num;
+        let nonce =
+            validate_relay_round_account(program_id, round_number, relay_round_account_info)?;
+
+        let relay_round_account_signer_seeds: &[&[_]] =
+            &[&round_number.to_le_bytes(), &[nonce]];
+
+        // Create a new Relay Round Account
+        invoke_signed(
+            &system_instruction::create_account(
+                creator_account_info.key,
+                relay_round_account_info.key,
+                1.max(rent.minimum_balance(RelayRound::LEN)),
+                RelayRound::LEN as u64,
+                program_id,
+            ),
+            &[
+                creator_account_info.clone(),
+                relay_round_account_info.clone(),
+                system_program_info.clone(),
+            ],
+            &[relay_round_account_signer_seeds],
+        )?;
+
+        let round_end = proposal.event.data.round_end + settings_account_data.round_ttl;
+
+        // Init a new Relay Round Account
+        let relay_round_account_data = RelayRound {
+            is_initialized: true,
+            account_kind: AccountKind::RelayRound,
+            round_number,
+            round_end,
+            relays: proposal.event.data.relays.clone(),
+        };
+
+        RelayRound::pack(
+            relay_round_account_data,
+            &mut relay_round_account_info.data.borrow_mut(),
+        )?;
+
+        // Update Settings Account
+        settings_account_data.current_round_number = round_number;
+
+        Settings::pack(
+            settings_account_data,
+            &mut settings_account_info.data.borrow_mut(),
+        )?;
+
+        proposal.is_executed = true;
 
         // Update Proposal Account
         RelayRoundProposal::pack(proposal, &mut proposal_account_info.data.borrow_mut())?;

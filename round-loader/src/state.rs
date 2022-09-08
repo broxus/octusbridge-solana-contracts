@@ -24,6 +24,7 @@ pub const LOAD_DATA_BEGIN_OFFSET: usize = 1 // is_executed
     + 4                                     // event_timestamp
     + 8                                     // event_transaction_lt
     + PUBKEY_BYTES                          // event_configuration
+    + 4                                     // RelayRoundProposalEventWithLen len
 ;
 
 pub const LOAD_DATA_END_OFFSET: usize = LOAD_DATA_BEGIN_OFFSET
