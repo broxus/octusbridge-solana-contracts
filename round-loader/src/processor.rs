@@ -704,7 +704,10 @@ impl Processor {
         Ok(())
     }
 
-    fn process_execute_proposal_by_admin(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+    fn process_execute_proposal_by_admin(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+    ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
         let creator_account_info = next_account_info(account_info_iter)?;
@@ -714,6 +717,11 @@ impl Processor {
         let system_program_info = next_account_info(account_info_iter)?;
         let rent_sysvar_info = next_account_info(account_info_iter)?;
         let rent = &Rent::from_account_info(rent_sysvar_info)?;
+
+        if !creator_account_info.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
         // Validate Settings Account
         bridge_utils::helper::validate_settings_account(program_id, settings_account_info)?;
 
@@ -722,13 +730,8 @@ impl Processor {
         }
 
         let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
-
         if settings_account_data.round_submitter != *creator_account_info.key {
             return Err(ProgramError::IllegalOwner);
-        }
-
-        if !creator_account_info.is_signer {
-            return Err(ProgramError::MissingRequiredSignature);
         }
 
         let mut proposal = RelayRoundProposal::unpack(&proposal_account_info.data.borrow())?;
@@ -738,8 +741,7 @@ impl Processor {
         let nonce =
             validate_relay_round_account(program_id, round_number, relay_round_account_info)?;
 
-        let relay_round_account_signer_seeds: &[&[_]] =
-            &[&round_number.to_le_bytes(), &[nonce]];
+        let relay_round_account_signer_seeds: &[&[_]] = &[&round_number.to_le_bytes(), &[nonce]];
 
         // Create a new Relay Round Account
         invoke_signed(
