@@ -185,12 +185,14 @@ pub fn execute_ix(
 #[wasm_bindgen(js_name = "executeByAdmin")]
 pub fn execute_by_admin_ix(
     funder_pubkey: String,
+    creator_pubkey: String,
     proposal_pubkey: String,
     round_number: u32,
 ) -> Result<JsValue, JsValue> {
     let program_id = &id();
 
     let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
+    let creator_pubkey = Pubkey::from_str(creator_pubkey.as_str()).handle_error()?;
     let proposal_pubkey = Pubkey::from_str(proposal_pubkey.as_str()).handle_error()?;
 
     let settings_pubkey = bridge_utils::helper::get_associated_settings_address(program_id);
@@ -204,6 +206,7 @@ pub fn execute_by_admin_ix(
         program_id: id(),
         accounts: vec![
             AccountMeta::new(funder_pubkey, true),
+            AccountMeta::new(creator_pubkey, true),
             AccountMeta::new(settings_pubkey, false),
             AccountMeta::new(proposal_pubkey, false),
             AccountMeta::new(relay_round_pubkey, false),

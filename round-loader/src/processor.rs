@@ -401,6 +401,7 @@ impl Processor {
         let proposal_account_data = RelayRoundProposal {
             account_kind: AccountKind::Proposal,
             author: *creator_account_info.key,
+            round_number,
             pda: PDA {
                 settings,
                 event_timestamp,
@@ -497,10 +498,6 @@ impl Processor {
 
         if proposal.author != *creator_account_info.key {
             return Err(ProgramError::IllegalOwner);
-        }
-
-        if round_number >= proposal.event.data.round_num {
-            return Err(RoundLoaderError::InvalidProposalRoundNumber.into());
         }
 
         // Validate Relay Round Account
@@ -710,6 +707,7 @@ impl Processor {
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
+        let funder_account_info = next_account_info(account_info_iter)?;
         let creator_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
         let proposal_account_info = next_account_info(account_info_iter)?;
@@ -746,14 +744,14 @@ impl Processor {
         // Create a new Relay Round Account
         invoke_signed(
             &system_instruction::create_account(
-                creator_account_info.key,
+                funder_account_info.key,
                 relay_round_account_info.key,
                 1.max(rent.minimum_balance(RelayRound::LEN)),
                 RelayRound::LEN as u64,
                 program_id,
             ),
             &[
-                creator_account_info.clone(),
+                funder_account_info.clone(),
                 relay_round_account_info.clone(),
                 system_program_info.clone(),
             ],

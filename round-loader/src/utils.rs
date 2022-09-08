@@ -14,7 +14,7 @@ pub fn validate_relay_round_account(
     let (account, nonce) = Pubkey::find_program_address(&[&round_number.to_le_bytes()], program_id);
 
     if account != *account_info.key {
-        return Err(ProgramError::MaxAccountsDataSizeExceeded);
+        return Err(ProgramError::InvalidArgument);
     }
 
     Ok(nonce)

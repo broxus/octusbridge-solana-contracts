@@ -666,13 +666,14 @@ async fn test_create_proposal_and_execute_by_admin() {
     // Execute Proposal by admin
     let mut transaction = Transaction::new_with_payer(
         &[execute_proposal_by_admin_ix(
+            &funder.pubkey(),
             &round_submitter.pubkey(),
             &proposal_pubkey,
             new_round_number,
         )],
-        Some(&round_submitter.pubkey()),
+        Some(&funder.pubkey()),
     );
-    transaction.sign(&[&round_submitter], recent_blockhash);
+    transaction.sign(&[&funder, &round_submitter], recent_blockhash);
 
     banks_client
         .process_transaction(transaction)

@@ -115,7 +115,7 @@ pub fn validate_settings_account(
     let (account, nonce) = Pubkey::find_program_address(&[br"settings"], program_id);
 
     if account != *account_info.key {
-        return Err(ProgramError::UnsupportedSysvar);
+        return Err(ProgramError::InvalidArgument);
     }
 
     Ok(nonce)

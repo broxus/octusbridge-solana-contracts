@@ -281,6 +281,7 @@ pub fn execute_proposal_ix(
 
 pub fn execute_proposal_by_admin_ix(
     funder_pubkey: &Pubkey,
+    creator_pubkey: &Pubkey,
     proposal_pubkey: &Pubkey,
     round_number: u32,
 ) -> Instruction {
@@ -295,6 +296,7 @@ pub fn execute_proposal_by_admin_ix(
         program_id: id(),
         accounts: vec![
             AccountMeta::new(*funder_pubkey, true),
+            AccountMeta::new(*creator_pubkey, true),
             AccountMeta::new(settings_pubkey, false),
             AccountMeta::new(*proposal_pubkey, false),
             AccountMeta::new(relay_round_pubkey, false),
