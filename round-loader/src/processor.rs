@@ -464,24 +464,28 @@ impl Processor {
         }
 
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
-        let round_number = settings_account_data.current_round_number;
+        let settings = settings_account_info.key;
 
-        // Validate Relay Round Account
-        validate_relay_round_account(program_id, round_number, relay_round_account_info)?;
-
-        if relay_round_account_info.owner != program_id {
-            return Err(ProgramError::InvalidArgument);
-        }
-
-        let relay_round_account_data = RelayRound::unpack(&relay_round_account_info.data.borrow())?;
-
-        let mut required_votes = (relay_round_account_data.relays.len() * 2 / 3 + 1) as u32;
-        if settings_account_data.min_required_votes > required_votes {
-            required_votes = settings_account_data.min_required_votes;
-        }
-
+        // Validate Proposal Account
         let mut proposal =
             RelayRoundProposal::unpack_unchecked(&proposal_account_info.data.borrow())?;
+
+        let round_number = proposal.round_number;
+        let event_timestamp = proposal.pda.event_timestamp;
+        let event_transaction_lt = proposal.pda.event_transaction_lt;
+        let event_configuration = proposal.pda.event_configuration;
+        let event_data = hash(&proposal.event.data.try_to_vec()?);
+
+        bridge_utils::helper::validate_proposal_account(
+            program_id,
+            settings,
+            round_number,
+            event_timestamp,
+            event_transaction_lt,
+            &event_configuration,
+            &event_data,
+            proposal_account_info,
+        )?;
 
         if proposal.is_initialized {
             return Err(ProgramError::AccountAlreadyInitialized);
@@ -493,6 +497,16 @@ impl Processor {
 
         if round_number >= proposal.event.data.round_num {
             return Err(RoundLoaderError::InvalidProposalRoundNumber.into());
+        }
+
+        // Validate Relay Round Account
+        validate_relay_round_account(program_id, round_number, relay_round_account_info)?;
+
+        let relay_round_account_data = RelayRound::unpack(&relay_round_account_info.data.borrow())?;
+
+        let mut required_votes = (relay_round_account_data.relays.len() * 2 / 3 + 1) as u32;
+        if settings_account_data.min_required_votes > required_votes {
+            required_votes = settings_account_data.min_required_votes;
         }
 
         proposal.is_initialized = true;
