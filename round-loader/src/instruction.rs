@@ -96,4 +96,10 @@ pub enum RoundLoaderInstruction {
     /// # Account references
     /// ...
     ExecuteProposal,
+
+    /// Execute proposal by admin
+    ///
+    /// # Account references
+    /// ...
+    ExecuteProposalByAdmin,
 }

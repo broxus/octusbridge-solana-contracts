@@ -278,3 +278,29 @@ pub fn execute_proposal_ix(
         data,
     }
 }
+
+pub fn execute_proposal_by_admin_ix(
+    funder_pubkey: &Pubkey,
+    proposal_pubkey: &Pubkey,
+    round_number: u32,
+) -> Instruction {
+    let settings_pubkey = get_settings_address();
+    let relay_round_pubkey = get_relay_round_address(round_number);
+
+    let data = RoundLoaderInstruction::ExecuteProposalByAdmin
+        .try_to_vec()
+        .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(*funder_pubkey, true),
+            AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new(*proposal_pubkey, false),
+            AccountMeta::new(relay_round_pubkey, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+            AccountMeta::new_readonly(sysvar::rent::id(), false),
+        ],
+        data,
+    }
+}
