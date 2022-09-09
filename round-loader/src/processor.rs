@@ -427,16 +427,15 @@ impl Processor {
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
-        let creator_account_info = next_account_info(account_info_iter)?;
         let proposal_account_info = next_account_info(account_info_iter)?;
 
-        if !creator_account_info.is_signer {
-            return Err(ProgramError::MissingRequiredSignature);
-        }
-
-        let proposal = RelayRoundProposal::unpack_unchecked(&proposal_account_info.data.borrow())?;
-        if proposal.is_initialized {
-            return Err(ProgramError::AccountAlreadyInitialized);
+        // Don't allow to write to finalized proposal
+        if let Ok(proposal) =
+            RelayRoundProposal::unpack_unchecked(&proposal_account_info.data.borrow())
+        {
+            if proposal.is_initialized {
+                return Err(ProgramError::AccountAlreadyInitialized);
+            }
         }
 
         write_proposal_data(
@@ -451,15 +450,11 @@ impl Processor {
     fn process_finalize_proposal(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
-        let creator_account_info = next_account_info(account_info_iter)?;
+        let funder_account_info = next_account_info(account_info_iter)?;
         let proposal_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
         let relay_round_account_info = next_account_info(account_info_iter)?;
         let system_program_info = next_account_info(account_info_iter)?;
-
-        if !creator_account_info.is_signer {
-            return Err(ProgramError::MissingRequiredSignature);
-        }
 
         // Validate Settings Account
         bridge_utils::helper::validate_settings_account(program_id, settings_account_info)?;
@@ -496,10 +491,6 @@ impl Processor {
             return Err(ProgramError::AccountAlreadyInitialized);
         }
 
-        if proposal.author != *creator_account_info.key {
-            return Err(ProgramError::IllegalOwner);
-        }
-
         // Validate Relay Round Account
         validate_relay_round_account(program_id, round_number, relay_round_account_info)?;
 
@@ -522,12 +513,12 @@ impl Processor {
         // Send voting reparation for Relay to withdrawal account
         invoke(
             &system_instruction::transfer(
-                creator_account_info.key,
+                funder_account_info.key,
                 proposal_account_info.key,
                 RELAY_REPARATION * relay_round_account_data.relays.len() as u64,
             ),
             &[
-                creator_account_info.clone(),
+                funder_account_info.clone(),
                 proposal_account_info.clone(),
                 system_program_info.clone(),
             ],

@@ -310,14 +310,13 @@ async fn test_create_proposal() {
     for (chunk, i) in write_data.try_to_vec().unwrap().chunks(chunk_size).zip(0..) {
         let mut transaction = Transaction::new_with_payer(
             &[write_proposal_ix(
-                &proposal_creator.pubkey(),
                 &proposal_pubkey,
                 (i * chunk_size) as u32,
                 chunk.to_vec(),
             )],
             Some(&funder.pubkey()),
         );
-        transaction.sign(&[&funder, &proposal_creator], recent_blockhash);
+        transaction.sign(&[&funder], recent_blockhash);
 
         banks_client
             .process_transaction(transaction)
@@ -328,13 +327,13 @@ async fn test_create_proposal() {
     // Finalize Proposal
     let mut transaction = Transaction::new_with_payer(
         &[finalize_proposal_ix(
-            &proposal_creator.pubkey(),
+            &funder.pubkey(),
             &proposal_pubkey,
             round_number,
         )],
         Some(&funder.pubkey()),
     );
-    transaction.sign(&[&funder, &proposal_creator], recent_blockhash);
+    transaction.sign(&[&funder], recent_blockhash);
 
     banks_client
         .process_transaction(transaction)
@@ -605,14 +604,13 @@ async fn test_create_proposal_and_execute_by_admin() {
     for (chunk, i) in write_data.try_to_vec().unwrap().chunks(chunk_size).zip(0..) {
         let mut transaction = Transaction::new_with_payer(
             &[write_proposal_ix(
-                &proposal_creator.pubkey(),
                 &proposal_pubkey,
                 (i * chunk_size) as u32,
                 chunk.to_vec(),
             )],
             Some(&funder.pubkey()),
         );
-        transaction.sign(&[&funder, &proposal_creator], recent_blockhash);
+        transaction.sign(&[&funder], recent_blockhash);
 
         banks_client
             .process_transaction(transaction)

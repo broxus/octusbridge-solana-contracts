@@ -257,7 +257,7 @@ pub enum TokenKind {
 }
 
 #[derive(
-    Copy, BorshSerialize, BorshDeserialize, Serialize, Deserialize, Debug, Clone, PartialEq,
+    Copy, BorshSerialize, BorshDeserialize, Serialize, Deserialize, Debug, Clone, Eq, PartialEq,
 )]
 pub enum WithdrawalTokenStatus {
     New,

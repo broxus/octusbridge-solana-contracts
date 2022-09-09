@@ -185,28 +185,20 @@ pub fn create_proposal_ix(
     }
 }
 
-pub fn write_proposal_ix(
-    creator_pubkey: &Pubkey,
-    proposal_pubkey: &Pubkey,
-    offset: u32,
-    bytes: Vec<u8>,
-) -> Instruction {
+pub fn write_proposal_ix(proposal_pubkey: &Pubkey, offset: u32, bytes: Vec<u8>) -> Instruction {
     let data = RoundLoaderInstruction::WriteProposal { offset, bytes }
         .try_to_vec()
         .expect("pack");
 
     Instruction {
         program_id: id(),
-        accounts: vec![
-            AccountMeta::new(*creator_pubkey, true),
-            AccountMeta::new(*proposal_pubkey, false),
-        ],
+        accounts: vec![AccountMeta::new(*proposal_pubkey, false)],
         data,
     }
 }
 
 pub fn finalize_proposal_ix(
-    creator_pubkey: &Pubkey,
+    funder_pubkey: &Pubkey,
     proposal_pubkey: &Pubkey,
     round_number: u32,
 ) -> Instruction {
@@ -220,7 +212,7 @@ pub fn finalize_proposal_ix(
     Instruction {
         program_id: id(),
         accounts: vec![
-            AccountMeta::new(*creator_pubkey, true),
+            AccountMeta::new(*funder_pubkey, true),
             AccountMeta::new(*proposal_pubkey, false),
             AccountMeta::new_readonly(settings_pubkey, false),
             AccountMeta::new_readonly(relay_round_pubkey, false),
