@@ -880,7 +880,6 @@ impl Processor {
             relay_round_account_info,
         )?;
 
-        let relay_round_account_data = RelayRound::unpack(&relay_round_account_info.data.borrow())?;
         if relay_round_account_data.round_end <= clock.unix_timestamp as u32 {
             return Err(TokenProxyError::RelayRoundExpired.into());
         }
