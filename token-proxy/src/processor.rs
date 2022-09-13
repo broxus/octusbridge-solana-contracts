@@ -1018,6 +1018,17 @@ impl Processor {
 
         let round_number = withdrawal_account_data.round_number;
 
+        // Check number of votes
+        let sig_count = withdrawal_account_data
+            .signers
+            .iter()
+            .filter(|vote| **vote == Vote::Confirm)
+            .count() as u32;
+
+        if sig_count == withdrawal_account_data.required_votes {
+            return Err(TokenProxyError::VotesOverflow.into());
+        }
+
         // Validate Relay Round Account
         round_loader::validate_relay_round_account(
             &round_loader::id(),
@@ -1116,7 +1127,7 @@ impl Processor {
             .filter(|vote| **vote == Vote::Confirm)
             .count() as u32;
 
-        if sig_count >= withdrawal_account_data.required_votes
+        if sig_count == withdrawal_account_data.required_votes
             && withdrawal_account_data.meta.data.status == WithdrawalTokenStatus::New
         {
             let current_epoch = clock.unix_timestamp / SECONDS_PER_DAY as i64;
@@ -1237,7 +1248,7 @@ impl Processor {
             .filter(|vote| **vote == Vote::Confirm)
             .count() as u32;
 
-        if sig_count >= withdrawal_account_data.required_votes {
+        if sig_count == withdrawal_account_data.required_votes {
             match withdrawal_status {
                 WithdrawalTokenStatus::New => {
                     let current_epoch = clock.unix_timestamp / SECONDS_PER_DAY as i64;

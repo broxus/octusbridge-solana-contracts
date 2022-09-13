@@ -1152,7 +1152,18 @@ async fn test_vote_for_withdrawal_request() {
     );
 
     // Add Relays Accounts
-    let relays = vec![Keypair::new(), Keypair::new(), Keypair::new()];
+    let relays = vec![
+        Keypair::new(),
+        Keypair::new(),
+        Keypair::new(),
+        Keypair::new(),
+        Keypair::new(),
+        Keypair::new(),
+        Keypair::new(),
+        Keypair::new(),
+        Keypair::new(),
+        Keypair::new(),
+    ];
     let relay_init_lamports = 100000;
     for relay in &relays {
         program_test.add_account(
@@ -1223,7 +1234,7 @@ async fn test_vote_for_withdrawal_request() {
         round_number,
         event: WithdrawalTokenEventWithLen::new(sender_address, amount, recipient_address),
         meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::New, 0, 0),
-        required_votes: relays.len() as u32,
+        required_votes: (relays.len() * 2 / 3 + 1) as u32,
         signers: relays.iter().map(|_| Vote::None).collect(),
         pda: PDA {
             event_timestamp,
@@ -1238,7 +1249,7 @@ async fn test_vote_for_withdrawal_request() {
     program_test.add_account(
         withdrawal_address,
         Account {
-            lamports: Rent::default().minimum_balance(WithdrawalToken::LEN) + RELAY_REPARATION * 3,
+            lamports: Rent::default().minimum_balance(WithdrawalToken::LEN) + RELAY_REPARATION * 10,
             data: withdrawal_packed,
             owner: token_proxy::id(),
             executable: false,
@@ -1262,10 +1273,7 @@ async fn test_vote_for_withdrawal_request() {
         );
         transaction.sign(&[&funder, &relay], recent_blockhash);
 
-        banks_client
-            .process_transaction(transaction)
-            .await
-            .expect("process_transaction");
+        let _ = banks_client.process_transaction(transaction).await;
     }
 
     let withdrawal_info = banks_client
@@ -1275,25 +1283,14 @@ async fn test_vote_for_withdrawal_request() {
         .expect("account");
 
     let withdrawal_data = WithdrawalToken::unpack(withdrawal_info.data()).expect("mint unpack");
-    assert_eq!(withdrawal_data.signers.len(), relays.len());
-    for (i, _) in relays.iter().enumerate() {
-        assert_eq!(withdrawal_data.signers[i], Vote::Confirm);
-    }
 
-    assert_eq!(
-        withdrawal_info.lamports,
-        Rent::default().minimum_balance(WithdrawalToken::LEN)
-    );
+    let sig_count = withdrawal_data
+        .signers
+        .iter()
+        .filter(|vote| **vote == Vote::Confirm)
+        .count() as u32;
 
-    for relay in &relays {
-        let relay_info = banks_client
-            .get_account(relay.pubkey())
-            .await
-            .expect("get_account")
-            .expect("account");
-
-        assert_eq!(relay_info.lamports, relay_init_lamports + RELAY_REPARATION);
-    }
+    assert_eq!(sig_count, withdrawal_data.required_votes);
 }
 
 #[tokio::test]

@@ -575,6 +575,17 @@ impl Processor {
             proposal_account_info,
         )?;
 
+        // Check number of votes
+        let sig_count = proposal_account_data
+            .signers
+            .iter()
+            .filter(|vote| **vote == Vote::Confirm)
+            .count() as u32;
+
+        if sig_count == proposal_account_data.required_votes {
+            return Err(RoundLoaderError::VotesOverflow.into());
+        }
+
         // Validate Relay Round Account
         validate_relay_round_account(program_id, round_number, relay_round_account_info)?;
 
@@ -633,7 +644,7 @@ impl Processor {
             .filter(|vote| **vote == Vote::Confirm)
             .count() as u32;
 
-        if !proposal.is_executed && sig_count >= proposal.required_votes {
+        if !proposal.is_executed && sig_count == proposal.required_votes {
             // Validate a new Relay Round Account
             let round_number = proposal.event.data.round_num;
             let nonce =

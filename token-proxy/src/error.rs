@@ -28,6 +28,8 @@ pub enum TokenProxyError {
     TokenNameLenLimit,
     #[error("Invalid vote")]
     InvalidVote,
+    #[error("Votes overflow")]
+    VotesOverflow,
 }
 
 impl From<TokenProxyError> for ProgramError {
