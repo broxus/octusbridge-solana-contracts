@@ -110,10 +110,6 @@ impl Processor {
                 msg!("Instruction: Execute by admin");
                 Self::process_execute_proposal_by_admin(program_id, accounts)?;
             }
-            RoundLoaderInstruction::CloseProposalAccount => {
-                msg!("Instruction: Close proposal account");
-                Self::process_close_proposal_account(program_id, accounts)?;
-            }
         };
 
         Ok(())
@@ -793,72 +789,6 @@ impl Processor {
 
         // Update Proposal Account
         RelayRoundProposal::pack(proposal, &mut proposal_account_info.data.borrow_mut())?;
-
-        Ok(())
-    }
-
-    fn process_close_proposal_account(
-        program_id: &Pubkey,
-        accounts: &[AccountInfo],
-    ) -> ProgramResult {
-        let account_info_iter = &mut accounts.iter();
-
-        let authority_account_info = next_account_info(account_info_iter)?;
-        let proposal_account_info = next_account_info(account_info_iter)?;
-
-        if !authority_account_info.is_signer {
-            return Err(ProgramError::MissingRequiredSignature);
-        }
-
-        // Validate Proposal Account
-        let proposal_account_data =
-            RelayRoundProposal::unpack_unchecked(&proposal_account_info.data.borrow())?;
-
-        let settings = proposal_account_data.pda.settings;
-        let round_number = proposal_account_data.round_number;
-        let event_timestamp = proposal_account_data.pda.event_timestamp;
-        let event_transaction_lt = proposal_account_data.pda.event_transaction_lt;
-        let event_configuration = proposal_account_data.pda.event_configuration;
-        let event_data = hash(&proposal_account_data.event.data.try_to_vec()?);
-
-        bridge_utils::helper::validate_proposal_account(
-            program_id,
-            &settings,
-            round_number,
-            event_timestamp,
-            event_transaction_lt,
-            &event_configuration,
-            &event_data,
-            proposal_account_info,
-        )?;
-
-        if proposal_account_data.author != *authority_account_info.key {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
-        if proposal_account_data.is_executed {
-            return Err(SolanaBridgeError::UnclosedProposal.into());
-        }
-
-        // Make sure relays don't start voting
-        let unvoted_count = proposal_account_data
-            .signers
-            .iter()
-            .filter(|vote| **vote == Vote::None)
-            .count();
-
-        if unvoted_count != proposal_account_data.signers.len() {
-            return Err(SolanaBridgeError::UnclosedProposal.into());
-        }
-
-        let authority_starting_lamports = authority_account_info.lamports();
-        **authority_account_info.lamports.borrow_mut() = authority_starting_lamports
-            .checked_add(proposal_account_info.lamports())
-            .ok_or(SolanaBridgeError::Overflow)?;
-
-        **proposal_account_info.lamports.borrow_mut() = 0;
-
-        bridge_utils::helper::delete_account(proposal_account_info)?;
 
         Ok(())
     }

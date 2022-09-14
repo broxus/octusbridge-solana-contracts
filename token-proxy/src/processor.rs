@@ -217,10 +217,6 @@ impl Processor {
                 msg!("Instruction: Disable token emergency mode");
                 Self::process_disable_token_emergency_mode(program_id, accounts)?;
             }
-            TokenProxyInstruction::CloseWithdrawalAccount => {
-                msg!("Instruction: Close withdrawal account");
-                Self::process_close_withdrawal_account(program_id, accounts)?;
-            }
         };
 
         Ok(())
@@ -748,7 +744,7 @@ impl Processor {
         if vault_account_data
             .amount
             .checked_add(amount)
-            .ok_or(SolanaBridgeError::Overflow)?
+            .ok_or(SolanaBridgeError::ArithmeticsError)?
             > token_settings_account_data.deposit_limit
         {
             return Err(SolanaBridgeError::DepositLimit.into());
@@ -1056,15 +1052,8 @@ impl Processor {
             withdrawal_account_data.pack_into_slice(&mut withdrawal_account_info.data.borrow_mut());
 
             // Get back voting reparation to Relay
-            let withdrawal_starting_lamports = withdrawal_account_info.lamports();
-            **withdrawal_account_info.lamports.borrow_mut() = withdrawal_starting_lamports
-                .checked_sub(RELAY_REPARATION)
-                .ok_or(SolanaBridgeError::Overflow)?;
-
-            let relay_starting_lamports = relay_account_info.lamports();
-            **relay_account_info.lamports.borrow_mut() = relay_starting_lamports
-                .checked_add(RELAY_REPARATION)
-                .ok_or(SolanaBridgeError::Overflow)?;
+            **withdrawal_account_info.try_borrow_mut_lamports()? -= RELAY_REPARATION;
+            **relay_account_info.try_borrow_mut_lamports()? += RELAY_REPARATION;
         }
 
         Ok(())
@@ -1154,7 +1143,7 @@ impl Processor {
             token_settings_account_data.withdrawal_daily_amount = token_settings_account_data
                 .withdrawal_daily_amount
                 .checked_add(withdrawal_amount)
-                .ok_or(SolanaBridgeError::Overflow)?;
+                .ok_or(SolanaBridgeError::ArithmeticsError)?;
 
             if withdrawal_amount > token_settings_account_data.withdrawal_limit
                 || token_settings_account_data.withdrawal_daily_amount
@@ -1276,7 +1265,7 @@ impl Processor {
                         token_settings_account_data
                             .withdrawal_daily_amount
                             .checked_add(withdrawal_amount)
-                            .ok_or(SolanaBridgeError::Overflow)?;
+                            .ok_or(SolanaBridgeError::ArithmeticsError)?;
 
                     if withdrawal_amount > token_settings_account_data.withdrawal_limit
                         || token_settings_account_data.withdrawal_daily_amount
@@ -1430,7 +1419,7 @@ impl Processor {
             token_settings_account_data.withdrawal_daily_amount = token_settings_account_data
                 .withdrawal_daily_amount
                 .checked_sub(withdrawal_amount)
-                .ok_or(SolanaBridgeError::Overflow)?;
+                .ok_or(SolanaBridgeError::ArithmeticsError)?;
 
             TokenSettings::pack(
                 token_settings_account_data,
@@ -1552,7 +1541,7 @@ impl Processor {
             token_settings_account_data.withdrawal_daily_amount = token_settings_account_data
                 .withdrawal_daily_amount
                 .checked_sub(withdrawal_amount)
-                .ok_or(SolanaBridgeError::Overflow)?;
+                .ok_or(SolanaBridgeError::ArithmeticsError)?;
 
             TokenSettings::pack(
                 token_settings_account_data,
@@ -1810,7 +1799,7 @@ impl Processor {
                 &[author_account_info.key],
                 withdrawal_amount
                     .checked_sub(withdrawal_account_data.meta.data.bounty)
-                    .ok_or(SolanaBridgeError::Overflow)?,
+                    .ok_or(SolanaBridgeError::ArithmeticsError)?,
             )?,
             &[
                 token_program_info.clone(),
@@ -2271,71 +2260,6 @@ impl Processor {
             token_settings_account_data,
             &mut token_settings_account_info.data.borrow_mut(),
         )?;
-
-        Ok(())
-    }
-
-    fn process_close_withdrawal_account(
-        program_id: &Pubkey,
-        accounts: &[AccountInfo],
-    ) -> ProgramResult {
-        let account_info_iter = &mut accounts.iter();
-
-        let authority_account_info = next_account_info(account_info_iter)?;
-        let withdrawal_account_info = next_account_info(account_info_iter)?;
-
-        if !authority_account_info.is_signer {
-            return Err(ProgramError::MissingRequiredSignature);
-        }
-
-        // Validate Withdrawal Account
-        let withdrawal_account_data =
-            WithdrawalToken::unpack(&withdrawal_account_info.data.borrow())?;
-        let settings = withdrawal_account_data.pda.settings;
-        let round_number = withdrawal_account_data.round_number;
-        let event_timestamp = withdrawal_account_data.pda.event_timestamp;
-        let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
-        let event_configuration = withdrawal_account_data.pda.event_configuration;
-        let event_data = hash(&withdrawal_account_data.event.data.try_to_vec()?);
-
-        bridge_utils::helper::validate_proposal_account(
-            program_id,
-            &settings,
-            round_number,
-            event_timestamp,
-            event_transaction_lt,
-            &event_configuration,
-            &event_data,
-            withdrawal_account_info,
-        )?;
-
-        if withdrawal_account_data.author != *authority_account_info.key {
-            return Err(ProgramError::InvalidAccountData);
-        }
-
-        if withdrawal_account_data.meta.data.status != WithdrawalTokenStatus::New {
-            return Err(SolanaBridgeError::UnclosedProposal.into());
-        }
-
-        // Make sure relays don't start voting
-        let unvoted_count = withdrawal_account_data
-            .signers
-            .iter()
-            .filter(|vote| **vote == Vote::None)
-            .count();
-
-        if unvoted_count != withdrawal_account_data.signers.len() {
-            return Err(SolanaBridgeError::UnclosedProposal.into());
-        }
-
-        let authority_starting_lamports = authority_account_info.lamports();
-        **authority_account_info.lamports.borrow_mut() = authority_starting_lamports
-            .checked_add(withdrawal_account_info.lamports())
-            .ok_or(SolanaBridgeError::Overflow)?;
-
-        **withdrawal_account_info.lamports.borrow_mut() = 0;
-
-        bridge_utils::helper::delete_account(withdrawal_account_info)?;
 
         Ok(())
     }
