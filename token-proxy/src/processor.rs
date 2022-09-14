@@ -1,4 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
+
+use bridge_utils::errors::SolanaBridgeError;
 use bridge_utils::state::{AccountKind, Proposal, PDA};
 use bridge_utils::types::{EverAddress, Vote, RELAY_REPARATION};
 use round_loader::RelayRound;
@@ -328,7 +330,7 @@ impl Processor {
 
         // Check asset name length
         if name.len() > MAX_NAME_LEN {
-            return Err(TokenProxyError::TokenNameLenLimit.into());
+            return Err(SolanaBridgeError::TokenNameLenLimit.into());
         }
 
         // Validate Mint Account
@@ -456,7 +458,7 @@ impl Processor {
 
         // Check asset name length
         if name.len() > MAX_NAME_LEN {
-            return Err(TokenProxyError::TokenNameLenLimit.into());
+            return Err(SolanaBridgeError::TokenNameLenLimit.into());
         }
 
         // Validate Vault Account
@@ -580,7 +582,7 @@ impl Processor {
 
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
         if settings_account_data.emergency {
-            return Err(TokenProxyError::EmergencyEnabled.into());
+            return Err(SolanaBridgeError::EmergencyEnabled.into());
         }
 
         // Validate Token Settings Account
@@ -591,7 +593,7 @@ impl Processor {
         validate_token_settings_account(program_id, name, token_settings_account_info)?;
 
         if token_settings_account_data.emergency {
-            return Err(TokenProxyError::EmergencyEnabled.into());
+            return Err(SolanaBridgeError::EmergencyEnabled.into());
         }
 
         // Validate Mint Account
@@ -707,7 +709,7 @@ impl Processor {
 
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
         if settings_account_data.emergency {
-            return Err(TokenProxyError::EmergencyEnabled.into());
+            return Err(SolanaBridgeError::EmergencyEnabled.into());
         }
 
         // Validate Token Setting Account
@@ -718,13 +720,13 @@ impl Processor {
         validate_token_settings_account(program_id, name, token_settings_account_info)?;
 
         if token_settings_account_data.emergency {
-            return Err(TokenProxyError::EmergencyEnabled.into());
+            return Err(SolanaBridgeError::EmergencyEnabled.into());
         }
 
         let (mint_account, vault_account) = token_settings_account_data
             .kind
             .as_solana()
-            .ok_or(TokenProxyError::InvalidTokenKind)?;
+            .ok_or(SolanaBridgeError::InvalidTokenKind)?;
 
         // Validate Mint Account
         if mint_account_info.key != mint_account && mint_account_info.owner != &spl_token::id() {
@@ -742,10 +744,10 @@ impl Processor {
         if vault_account_data
             .amount
             .checked_add(amount)
-            .ok_or(TokenProxyError::ArithmeticsError)?
+            .ok_or(SolanaBridgeError::ArithmeticsError)?
             > token_settings_account_data.deposit_limit
         {
-            return Err(TokenProxyError::DepositLimit.into());
+            return Err(SolanaBridgeError::DepositLimit.into());
         }
 
         // Transfer SOL tokens to Vault Account
@@ -881,7 +883,7 @@ impl Processor {
         )?;
 
         if relay_round_account_data.round_end <= clock.unix_timestamp as u32 {
-            return Err(TokenProxyError::RelayRoundExpired.into());
+            return Err(SolanaBridgeError::RelayRoundExpired.into());
         }
 
         let mut required_votes = (relay_round_account_data.relays.len() * 2 / 3 + 1) as u32;
@@ -990,7 +992,7 @@ impl Processor {
 
         // Validate vote
         if vote == Vote::None {
-            return Err(TokenProxyError::InvalidVote.into());
+            return Err(SolanaBridgeError::InvalidVote.into());
         }
 
         // Validate Withdrawal Account
@@ -1025,7 +1027,7 @@ impl Processor {
             .count() as u32;
 
         if sig_count == withdrawal_account_data.required_votes {
-            return Err(TokenProxyError::VotesOverflow.into());
+            return Err(SolanaBridgeError::VotesOverflow.into());
         }
 
         // Validate Relay Round Account
@@ -1042,7 +1044,7 @@ impl Processor {
             .relays
             .iter()
             .position(|pubkey| pubkey == relay_account_info.key)
-            .ok_or(TokenProxyError::InvalidRelay)?;
+            .ok_or(SolanaBridgeError::InvalidRelay)?;
 
         if withdrawal_account_data.signers[index] == Vote::None {
             // Vote for proposal
@@ -1074,7 +1076,7 @@ impl Processor {
 
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
         if settings_account_data.emergency {
-            return Err(TokenProxyError::EmergencyEnabled.into());
+            return Err(SolanaBridgeError::EmergencyEnabled.into());
         }
 
         // Validate Withdrawal Account
@@ -1110,7 +1112,7 @@ impl Processor {
         validate_token_settings_account(program_id, name, token_settings_account_info)?;
 
         if token_settings_account_data.emergency {
-            return Err(TokenProxyError::EmergencyEnabled.into());
+            return Err(SolanaBridgeError::EmergencyEnabled.into());
         }
 
         let withdrawal_amount = get_withdrawal_amount(
@@ -1141,7 +1143,7 @@ impl Processor {
             token_settings_account_data.withdrawal_daily_amount = token_settings_account_data
                 .withdrawal_daily_amount
                 .checked_add(withdrawal_amount)
-                .ok_or(TokenProxyError::ArithmeticsError)?;
+                .ok_or(SolanaBridgeError::ArithmeticsError)?;
 
             if withdrawal_amount > token_settings_account_data.withdrawal_limit
                 || token_settings_account_data.withdrawal_daily_amount
@@ -1193,7 +1195,7 @@ impl Processor {
 
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
         if settings_account_data.emergency {
-            return Err(TokenProxyError::EmergencyEnabled.into());
+            return Err(SolanaBridgeError::EmergencyEnabled.into());
         }
 
         // Validate Withdrawal Account
@@ -1231,7 +1233,7 @@ impl Processor {
         validate_token_settings_account(program_id, name, token_settings_account_info)?;
 
         if token_settings_account_data.emergency {
-            return Err(TokenProxyError::EmergencyEnabled.into());
+            return Err(SolanaBridgeError::EmergencyEnabled.into());
         }
 
         let withdrawal_amount = get_withdrawal_amount(
@@ -1263,7 +1265,7 @@ impl Processor {
                         token_settings_account_data
                             .withdrawal_daily_amount
                             .checked_add(withdrawal_amount)
-                            .ok_or(TokenProxyError::ArithmeticsError)?;
+                            .ok_or(SolanaBridgeError::ArithmeticsError)?;
 
                     if withdrawal_amount > token_settings_account_data.withdrawal_limit
                         || token_settings_account_data.withdrawal_daily_amount
@@ -1336,7 +1338,7 @@ impl Processor {
 
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
         if settings_account_data.emergency {
-            return Err(TokenProxyError::EmergencyEnabled.into());
+            return Err(SolanaBridgeError::EmergencyEnabled.into());
         }
 
         // Validate Withdrawal Account
@@ -1361,7 +1363,7 @@ impl Processor {
         )?;
 
         if withdrawal_account_data.meta.data.status != WithdrawalTokenStatus::WaitingForApprove {
-            return Err(TokenProxyError::InvalidWithdrawalStatus.into());
+            return Err(SolanaBridgeError::InvalidWithdrawalStatus.into());
         }
 
         // Validate Token Setting Account
@@ -1376,7 +1378,7 @@ impl Processor {
         validate_token_settings_account(program_id, name, token_settings_account_info)?;
 
         if token_settings_account_data.emergency {
-            return Err(TokenProxyError::EmergencyEnabled.into());
+            return Err(SolanaBridgeError::EmergencyEnabled.into());
         }
 
         if *authority_account_info.key != settings_account_data.withdrawal_manager {
@@ -1417,7 +1419,7 @@ impl Processor {
             token_settings_account_data.withdrawal_daily_amount = token_settings_account_data
                 .withdrawal_daily_amount
                 .checked_sub(withdrawal_amount)
-                .ok_or(TokenProxyError::ArithmeticsError)?;
+                .ok_or(SolanaBridgeError::ArithmeticsError)?;
 
             TokenSettings::pack(
                 token_settings_account_data,
@@ -1458,7 +1460,7 @@ impl Processor {
 
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
         if settings_account_data.emergency {
-            return Err(TokenProxyError::EmergencyEnabled.into());
+            return Err(SolanaBridgeError::EmergencyEnabled.into());
         }
 
         // Validate Withdrawal Account
@@ -1483,7 +1485,7 @@ impl Processor {
         )?;
 
         if withdrawal_account_data.meta.data.status != WithdrawalTokenStatus::WaitingForApprove {
-            return Err(TokenProxyError::InvalidWithdrawalStatus.into());
+            return Err(SolanaBridgeError::InvalidWithdrawalStatus.into());
         }
 
         if *authority_account_info.key != settings_account_data.withdrawal_manager {
@@ -1512,7 +1514,7 @@ impl Processor {
         validate_token_settings_account(program_id, name, token_settings_account_info)?;
 
         if token_settings_account_data.emergency {
-            return Err(TokenProxyError::EmergencyEnabled.into());
+            return Err(SolanaBridgeError::EmergencyEnabled.into());
         }
 
         let withdrawal_amount = get_withdrawal_amount(
@@ -1539,7 +1541,7 @@ impl Processor {
             token_settings_account_data.withdrawal_daily_amount = token_settings_account_data
                 .withdrawal_daily_amount
                 .checked_sub(withdrawal_amount)
-                .ok_or(TokenProxyError::ArithmeticsError)?;
+                .ok_or(SolanaBridgeError::ArithmeticsError)?;
 
             TokenSettings::pack(
                 token_settings_account_data,
@@ -1582,7 +1584,7 @@ impl Processor {
 
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
         if settings_account_data.emergency {
-            return Err(TokenProxyError::EmergencyEnabled.into());
+            return Err(SolanaBridgeError::EmergencyEnabled.into());
         }
 
         // Validate Withdrawal Account
@@ -1614,7 +1616,7 @@ impl Processor {
         validate_token_settings_account(program_id, name, token_settings_account_info)?;
 
         if token_settings_account_data.emergency {
-            return Err(TokenProxyError::EmergencyEnabled.into());
+            return Err(SolanaBridgeError::EmergencyEnabled.into());
         }
 
         if *token_settings_account_info.key != settings {
@@ -1626,7 +1628,7 @@ impl Processor {
         }
 
         if withdrawal_account_data.meta.data.status != WithdrawalTokenStatus::Pending {
-            return Err(TokenProxyError::InvalidWithdrawalStatus.into());
+            return Err(SolanaBridgeError::InvalidWithdrawalStatus.into());
         }
 
         withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Cancelled;
@@ -1724,7 +1726,7 @@ impl Processor {
 
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
         if settings_account_data.emergency {
-            return Err(TokenProxyError::EmergencyEnabled.into());
+            return Err(SolanaBridgeError::EmergencyEnabled.into());
         }
 
         // Validate Withdrawal Account
@@ -1749,7 +1751,7 @@ impl Processor {
         )?;
 
         if withdrawal_account_data.meta.data.status != WithdrawalTokenStatus::Pending {
-            return Err(TokenProxyError::InvalidWithdrawalStatus.into());
+            return Err(SolanaBridgeError::InvalidWithdrawalStatus.into());
         }
 
         // Validate Token Setting Account
@@ -1760,7 +1762,7 @@ impl Processor {
         validate_token_settings_account(program_id, name, token_settings_account_info)?;
 
         if token_settings_account_data.emergency {
-            return Err(TokenProxyError::EmergencyEnabled.into());
+            return Err(SolanaBridgeError::EmergencyEnabled.into());
         }
 
         if *token_settings_account_info.key != settings {
@@ -1797,7 +1799,7 @@ impl Processor {
                 &[author_account_info.key],
                 withdrawal_amount
                     .checked_sub(withdrawal_account_data.meta.data.bounty)
-                    .ok_or(TokenProxyError::ArithmeticsError)?,
+                    .ok_or(SolanaBridgeError::ArithmeticsError)?,
             )?,
             &[
                 token_program_info.clone(),
@@ -1901,7 +1903,7 @@ impl Processor {
         )?;
 
         if withdrawal_account_data.meta.data.status != WithdrawalTokenStatus::Pending {
-            return Err(TokenProxyError::InvalidWithdrawalStatus.into());
+            return Err(SolanaBridgeError::InvalidWithdrawalStatus.into());
         }
 
         if withdrawal_account_data.author != *author_account_info.key {

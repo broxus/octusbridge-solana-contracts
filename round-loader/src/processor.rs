@@ -1,4 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
+use bridge_utils::errors::SolanaBridgeError;
 use bridge_utils::state::{AccountKind, Proposal, PDA};
 use bridge_utils::types::{Vote, RELAY_REPARATION};
 
@@ -281,7 +282,7 @@ impl Processor {
         if settings_account_data.current_round_number != 0
             && settings_account_data.current_round_number > round_number
         {
-            return Err(RoundLoaderError::InvalidRelayRound.into());
+            return Err(SolanaBridgeError::InvalidRelayRound.into());
         }
 
         settings_account_data.current_round_number = round_number;
@@ -544,7 +545,7 @@ impl Processor {
 
         // Validate vote
         if vote == Vote::None {
-            return Err(RoundLoaderError::InvalidVote.into());
+            return Err(SolanaBridgeError::InvalidVote.into());
         }
 
         // Validate Proposal Account
@@ -583,7 +584,7 @@ impl Processor {
             .count() as u32;
 
         if sig_count == proposal_account_data.required_votes {
-            return Err(RoundLoaderError::VotesOverflow.into());
+            return Err(SolanaBridgeError::VotesOverflow.into());
         }
 
         // Validate Relay Round Account
@@ -600,7 +601,7 @@ impl Processor {
             .relays
             .iter()
             .position(|pubkey| pubkey == voter_account_info.key)
-            .ok_or(RoundLoaderError::InvalidRelay)?;
+            .ok_or(SolanaBridgeError::InvalidRelay)?;
 
         if proposal_account_data.signers[index] == Vote::None {
             // Vote for proposal

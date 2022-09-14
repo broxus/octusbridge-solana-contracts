@@ -253,6 +253,7 @@ dependencies = [
  "hex",
  "serde",
  "solana-program",
+ "thiserror",
 ]
 
 [[package]]
@@ -1880,7 +1881,6 @@ dependencies = [
  "solana-program",
  "solana-program-test",
  "solana-sdk",
- "thiserror",
  "wasm-bindgen",
 ]
 
@@ -2827,7 +2827,6 @@ dependencies = [
  "solana-sdk",
  "spl-associated-token-account",
  "spl-token",
- "thiserror",
  "uuid",
  "wasm-bindgen",
 ]
