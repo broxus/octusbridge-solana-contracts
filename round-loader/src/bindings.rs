@@ -298,3 +298,18 @@ pub fn execute_proposal_by_admin_ix(
         data,
     }
 }
+
+pub fn close_proposal_account_ix(author_pubkey: &Pubkey, proposal_pubkey: &Pubkey) -> Instruction {
+    let data = RoundLoaderInstruction::CloseProposalAccount
+        .try_to_vec()
+        .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(*author_pubkey, true),
+            AccountMeta::new(*proposal_pubkey, false),
+        ],
+        data,
+    }
+}

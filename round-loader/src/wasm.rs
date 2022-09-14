@@ -219,6 +219,30 @@ pub fn execute_by_admin_ix(
     return JsValue::from_serde(&ix).handle_error();
 }
 
+#[wasm_bindgen(js_name = "closeProposalAccount")]
+pub fn close_proposal_account_ix(
+    authority_pubkey: String,
+    proposal_pubkey: String,
+) -> Result<JsValue, JsValue> {
+    let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
+    let proposal_pubkey = Pubkey::from_str(proposal_pubkey.as_str()).handle_error()?;
+
+    let data = RoundLoaderInstruction::CloseProposalAccount
+        .try_to_vec()
+        .expect("pack");
+
+    let ix = Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(authority_pubkey, true),
+            AccountMeta::new(proposal_pubkey, false),
+        ],
+        data,
+    };
+
+    return JsValue::from_serde(&ix).handle_error();
+}
+
 #[wasm_bindgen(js_name = "unpackSettings")]
 pub fn unpack_settings(data: Vec<u8>) -> Result<JsValue, JsValue> {
     let settings = Settings::unpack(&data).handle_error()?;

@@ -222,4 +222,10 @@ pub enum TokenProxyInstruction {
     /// # Account references
     /// ...
     DisableTokenEmergencyMode,
+
+    /// Close a new withdrawal account
+    ///
+    /// # Account references
+    /// ...
+    CloseWithdrawalAccount,
 }

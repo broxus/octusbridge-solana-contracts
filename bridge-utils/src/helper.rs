@@ -1,9 +1,9 @@
 use solana_program::account_info::AccountInfo;
-use solana_program::bpf_loader_upgradeable;
 use solana_program::bpf_loader_upgradeable::UpgradeableLoaderState;
 use solana_program::hash::Hash;
 use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
+use solana_program::{bpf_loader_upgradeable, system_program};
 
 pub fn get_programdata_address(program_id: &Pubkey) -> Pubkey {
     Pubkey::find_program_address(&[program_id.as_ref()], &bpf_loader_upgradeable::id()).0
@@ -119,4 +119,12 @@ pub fn validate_settings_account(
     }
 
     Ok(nonce)
+}
+
+pub fn delete_account(account_info: &AccountInfo) -> Result<(), ProgramError> {
+    account_info.assign(&system_program::id());
+    let mut account_data = account_info.data.borrow_mut();
+    let data_len = account_data.len();
+    solana_program::program_memory::sol_memset(*account_data, 0, data_len);
+    Ok(())
 }

@@ -856,3 +856,21 @@ pub fn disable_token_emergency_ix(owner_pubkey: &Pubkey, token_name: &str) -> In
         data,
     }
 }
+
+pub fn close_withdrawal_account_ix(
+    author_pubkey: &Pubkey,
+    withdrawal_pubkey: &Pubkey,
+) -> Instruction {
+    let data = TokenProxyInstruction::CloseWithdrawalAccount
+        .try_to_vec()
+        .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(*author_pubkey, true),
+            AccountMeta::new(*withdrawal_pubkey, false),
+        ],
+        data,
+    }
+}

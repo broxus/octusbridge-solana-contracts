@@ -1,10 +1,10 @@
 #![cfg(feature = "test-bpf")]
 
 use borsh::BorshSerialize;
-use bridge_utils::types::Vote;
+use bridge_utils::types::{Vote, RELAY_REPARATION};
 use std::str::FromStr;
 
-use bridge_utils::state::AccountKind;
+use bridge_utils::state::{AccountKind, PDA};
 use solana_program::bpf_loader_upgradeable::UpgradeableLoaderState;
 use solana_program::rent::Rent;
 use solana_program::{bpf_loader_upgradeable, program_pack::Pack, pubkey::Pubkey};
@@ -269,8 +269,7 @@ async fn test_create_proposal() {
     let new_round_number = round_number + 1;
     let new_round_end = 1759950990;
     let write_data =
-        RelayRoundProposalEventWithLen::new(new_round_number, new_relays.clone(), new_round_end)
-            .unwrap();
+        RelayRoundProposalEventWithLen::new(new_round_number, new_relays.clone(), new_round_end);
 
     let serialized_write_data = write_data
         .data
@@ -550,8 +549,7 @@ async fn test_create_proposal_and_execute_by_admin() {
     let new_round_number = round_number + 1;
     let new_round_end = 1759950990;
     let write_data =
-        RelayRoundProposalEventWithLen::new(new_round_number, new_relays.clone(), new_round_end)
-            .unwrap();
+        RelayRoundProposalEventWithLen::new(new_round_number, new_relays.clone(), new_round_end);
 
     let serialized_write_data = write_data
         .data
@@ -699,4 +697,101 @@ async fn test_create_proposal_and_execute_by_admin() {
     let settings_data = Settings::unpack(settings_account.data()).expect("settings unpack");
 
     assert_eq!(settings_data.current_round_number, new_round_number);
+}
+
+#[tokio::test]
+async fn test_close_withdrawal_account() {
+    let mut program_test = ProgramTest::new(
+        "round_loader",
+        round_loader::id(),
+        processor!(Processor::process),
+    );
+
+    // Setup environment
+
+    // Add Withdrawal Account
+    let author = Keypair::new();
+
+    let round_number = 1;
+    let event_timestamp = 1650988297;
+    let event_transaction_lt = 1650988334;
+    let event_configuration = Pubkey::new_unique();
+    let settings = get_settings_address();
+
+    let round_num = 1;
+    let relays = vec![
+        Pubkey::new_unique(),
+        Pubkey::new_unique(),
+        Pubkey::new_unique(),
+    ];
+    let round_end = 1;
+
+    let event_data = RelayRoundProposalEventWithLen::new(round_num, relays.clone(), round_end)
+        .data
+        .try_to_vec()
+        .unwrap();
+
+    let proposal_address = get_proposal_address(
+        round_number,
+        event_timestamp,
+        event_transaction_lt,
+        &event_configuration,
+        &event_data,
+    );
+
+    let proposal_account_data = RelayRoundProposal {
+        is_initialized: true,
+        account_kind: AccountKind::Proposal,
+        is_executed: false,
+        author: author.pubkey(),
+        round_number,
+        event: RelayRoundProposalEventWithLen::new(round_num, relays.clone(), round_end),
+        meta: RelayRoundProposalMetaWithLen::new(),
+        required_votes: relays.len() as u32,
+        signers: relays.iter().map(|_| Vote::None).collect(),
+        pda: PDA {
+            event_timestamp,
+            event_transaction_lt,
+            event_configuration,
+            settings,
+        },
+    };
+
+    let mut proposal_packed = vec![0; RelayRoundProposal::LEN];
+    RelayRoundProposal::pack(proposal_account_data, &mut proposal_packed).unwrap();
+    program_test.add_account(
+        proposal_address,
+        Account {
+            lamports: Rent::default().minimum_balance(RelayRoundProposal::LEN)
+                + RELAY_REPARATION * 3,
+            data: proposal_packed,
+            owner: round_loader::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Start Program Test
+    let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
+
+    let mut transaction = Transaction::new_with_payer(
+        &[close_proposal_account_ix(
+            &author.pubkey(),
+            &proposal_address,
+        )],
+        Some(&funder.pubkey()),
+    );
+    transaction.sign(&[&funder, &author], recent_blockhash);
+
+    banks_client
+        .process_transaction(transaction)
+        .await
+        .expect("process_transaction");
+
+    let proposal_info = banks_client
+        .get_account(proposal_address)
+        .await
+        .expect("get_account");
+
+    assert_eq!(proposal_info, None);
 }
