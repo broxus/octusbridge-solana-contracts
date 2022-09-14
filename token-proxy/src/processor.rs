@@ -744,7 +744,7 @@ impl Processor {
         if vault_account_data
             .amount
             .checked_add(amount)
-            .ok_or(SolanaBridgeError::ArithmeticsError)?
+            .ok_or(SolanaBridgeError::Overflow)?
             > token_settings_account_data.deposit_limit
         {
             return Err(SolanaBridgeError::DepositLimit.into());
@@ -1052,8 +1052,15 @@ impl Processor {
             withdrawal_account_data.pack_into_slice(&mut withdrawal_account_info.data.borrow_mut());
 
             // Get back voting reparation to Relay
-            **withdrawal_account_info.try_borrow_mut_lamports()? -= RELAY_REPARATION;
-            **relay_account_info.try_borrow_mut_lamports()? += RELAY_REPARATION;
+            let withdrawal_starting_lamports = withdrawal_account_info.lamports();
+            **withdrawal_account_info.lamports.borrow_mut() = withdrawal_starting_lamports
+                .checked_sub(RELAY_REPARATION)
+                .ok_or(SolanaBridgeError::Overflow)?;
+
+            let relay_starting_lamports = relay_account_info.lamports();
+            **relay_account_info.lamports.borrow_mut() = relay_starting_lamports
+                .checked_add(RELAY_REPARATION)
+                .ok_or(SolanaBridgeError::Overflow)?;
         }
 
         Ok(())
@@ -1143,7 +1150,7 @@ impl Processor {
             token_settings_account_data.withdrawal_daily_amount = token_settings_account_data
                 .withdrawal_daily_amount
                 .checked_add(withdrawal_amount)
-                .ok_or(SolanaBridgeError::ArithmeticsError)?;
+                .ok_or(SolanaBridgeError::Overflow)?;
 
             if withdrawal_amount > token_settings_account_data.withdrawal_limit
                 || token_settings_account_data.withdrawal_daily_amount
@@ -1265,7 +1272,7 @@ impl Processor {
                         token_settings_account_data
                             .withdrawal_daily_amount
                             .checked_add(withdrawal_amount)
-                            .ok_or(SolanaBridgeError::ArithmeticsError)?;
+                            .ok_or(SolanaBridgeError::Overflow)?;
 
                     if withdrawal_amount > token_settings_account_data.withdrawal_limit
                         || token_settings_account_data.withdrawal_daily_amount
@@ -1419,7 +1426,7 @@ impl Processor {
             token_settings_account_data.withdrawal_daily_amount = token_settings_account_data
                 .withdrawal_daily_amount
                 .checked_sub(withdrawal_amount)
-                .ok_or(SolanaBridgeError::ArithmeticsError)?;
+                .ok_or(SolanaBridgeError::Overflow)?;
 
             TokenSettings::pack(
                 token_settings_account_data,
@@ -1541,7 +1548,7 @@ impl Processor {
             token_settings_account_data.withdrawal_daily_amount = token_settings_account_data
                 .withdrawal_daily_amount
                 .checked_sub(withdrawal_amount)
-                .ok_or(SolanaBridgeError::ArithmeticsError)?;
+                .ok_or(SolanaBridgeError::Overflow)?;
 
             TokenSettings::pack(
                 token_settings_account_data,
@@ -1799,7 +1806,7 @@ impl Processor {
                 &[author_account_info.key],
                 withdrawal_amount
                     .checked_sub(withdrawal_account_data.meta.data.bounty)
-                    .ok_or(SolanaBridgeError::ArithmeticsError)?,
+                    .ok_or(SolanaBridgeError::Overflow)?,
             )?,
             &[
                 token_program_info.clone(),

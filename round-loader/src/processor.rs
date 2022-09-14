@@ -609,8 +609,15 @@ impl Processor {
             proposal_account_data.pack_into_slice(&mut proposal_account_info.data.borrow_mut());
 
             // Get back voting reparation to Relay
-            **proposal_account_info.try_borrow_mut_lamports()? -= RELAY_REPARATION;
-            **voter_account_info.try_borrow_mut_lamports()? += RELAY_REPARATION;
+            let proposal_starting_lamports = proposal_account_info.lamports();
+            **proposal_account_info.lamports.borrow_mut() = proposal_starting_lamports
+                .checked_sub(RELAY_REPARATION)
+                .ok_or(SolanaBridgeError::Overflow)?;
+
+            let voter_starting_lamports = voter_account_info.lamports();
+            **voter_account_info.lamports.borrow_mut() = voter_starting_lamports
+                .checked_add(RELAY_REPARATION)
+                .ok_or(SolanaBridgeError::Overflow)?;
         }
 
         Ok(())

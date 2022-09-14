@@ -22,8 +22,8 @@ pub enum SolanaBridgeError {
     InsufficientVaultBalance,
     #[error("Relay already voted")]
     RelayAlreadyVoted,
-    #[error("Arithmetics error")]
-    ArithmeticsError,
+    #[error("Operation overflowed")]
+    Overflow,
     #[error("Token name is too long")]
     TokenNameLenLimit,
     #[error("Invalid vote")]
@@ -52,7 +52,7 @@ impl TryFrom<u32> for SolanaBridgeError {
             6 => Ok(SolanaBridgeError::InvalidWithdrawalStatus),
             7 => Ok(SolanaBridgeError::InsufficientVaultBalance),
             8 => Ok(SolanaBridgeError::RelayAlreadyVoted),
-            9 => Ok(SolanaBridgeError::ArithmeticsError),
+            9 => Ok(SolanaBridgeError::Overflow),
             10 => Ok(SolanaBridgeError::TokenNameLenLimit),
             11 => Ok(SolanaBridgeError::InvalidVote),
             12 => Ok(SolanaBridgeError::VotesOverflow),

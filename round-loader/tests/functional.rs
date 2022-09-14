@@ -269,8 +269,7 @@ async fn test_create_proposal() {
     let new_round_number = round_number + 1;
     let new_round_end = 1759950990;
     let write_data =
-        RelayRoundProposalEventWithLen::new(new_round_number, new_relays.clone(), new_round_end)
-            .unwrap();
+        RelayRoundProposalEventWithLen::new(new_round_number, new_relays.clone(), new_round_end);
 
     let serialized_write_data = write_data
         .data
@@ -550,8 +549,7 @@ async fn test_create_proposal_and_execute_by_admin() {
     let new_round_number = round_number + 1;
     let new_round_end = 1759950990;
     let write_data =
-        RelayRoundProposalEventWithLen::new(new_round_number, new_relays.clone(), new_round_end)
-            .unwrap();
+        RelayRoundProposalEventWithLen::new(new_round_number, new_relays.clone(), new_round_end);
 
     let serialized_write_data = write_data
         .data
