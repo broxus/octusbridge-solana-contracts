@@ -5,3 +5,4 @@
 /token-proxy/target
 /.idea
 **/*.DS_Store
+/dist
