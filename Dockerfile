@@ -6,7 +6,6 @@ WORKDIR /root/contracts
 
 # Common packages
 ARG DEBIAN_FRONTEND=noninteractive
-ENV TZ=Europe/Belgrade
 
 RUN apt update && \
     apt install --no-install-recommends -y \
