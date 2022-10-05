@@ -2,7 +2,7 @@ FROM ubuntu:20.04
 
 MAINTAINER Alexey Pashinov <pashinov93@gmail.com>
 
-WORKDIR /root
+WORKDIR /root/contracts
 
 # Common packages
 ARG DEBIAN_FRONTEND=noninteractive
