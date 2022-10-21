@@ -57,7 +57,7 @@ pub fn initialize_ix(
         data,
     };
 
-    return JsValue::from_serde(&ix).handle_error();
+    return serde_wasm_bindgen::to_value(&ix).handle_error();
 }
 
 #[wasm_bindgen(js_name = "updateSettings")]
@@ -99,7 +99,7 @@ pub fn update_settings_ix(
         data,
     };
 
-    return JsValue::from_serde(&ix).handle_error();
+    return serde_wasm_bindgen::to_value(&ix).handle_error();
 }
 
 #[wasm_bindgen(js_name = "createRelayRound")]
@@ -145,7 +145,7 @@ pub fn create_relay_round_ix(
         data,
     };
 
-    return JsValue::from_serde(&ix).handle_error();
+    return serde_wasm_bindgen::to_value(&ix).handle_error();
 }
 
 #[wasm_bindgen(js_name = "execute")]
@@ -179,7 +179,7 @@ pub fn execute_ix(
         data,
     };
 
-    return JsValue::from_serde(&ix).handle_error();
+    return serde_wasm_bindgen::to_value(&ix).handle_error();
 }
 
 #[wasm_bindgen(js_name = "executeByAdmin")]
@@ -216,7 +216,7 @@ pub fn execute_by_admin_ix(
         data,
     };
 
-    return JsValue::from_serde(&ix).handle_error();
+    return serde_wasm_bindgen::to_value(&ix).handle_error();
 }
 
 #[wasm_bindgen(js_name = "unpackSettings")]
@@ -231,7 +231,7 @@ pub fn unpack_settings(data: Vec<u8>) -> Result<JsValue, JsValue> {
         round_ttl: settings.round_ttl,
     };
 
-    return JsValue::from_serde(&s).handle_error();
+    return serde_wasm_bindgen::to_value(&s).handle_error();
 }
 
 #[wasm_bindgen(js_name = "unpackRelayRound")]
@@ -245,7 +245,7 @@ pub fn unpack_relay_round(data: Vec<u8>) -> Result<JsValue, JsValue> {
         relays: relay_round.relays,
     };
 
-    return JsValue::from_serde(&rr).handle_error();
+    return serde_wasm_bindgen::to_value(&rr).handle_error();
 }
 
 #[wasm_bindgen(js_name = "unpackRelayRoundProposal")]
@@ -264,7 +264,7 @@ pub fn unpack_relay_round_proposal(data: Vec<u8>) -> Result<JsValue, JsValue> {
         signers: relay_round_proposal.signers,
     };
 
-    return JsValue::from_serde(&rrp).handle_error();
+    return serde_wasm_bindgen::to_value(&rrp).handle_error();
 }
 
 #[derive(Serialize, Deserialize)]

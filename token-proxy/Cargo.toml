@@ -21,7 +21,8 @@ spl-token = {version = "3.2", features = ["no-entrypoint"]}
 getrandom = { version = "0.2", features = ["js"], optional = true }
 js-sys = { version = "0.3", optional = true }
 spl-associated-token-account = {version = "1", features = ["no-entrypoint"], optional = true }
-wasm-bindgen = { version = "0.2.79", features = ["serde-serialize"], optional = true }
+wasm-bindgen = { version = "0.2.83", features = ["serde-serialize"], optional = true }
+serde-wasm-bindgen = "*"
 uuid = { version = "0.8", features = ["v4", "serde"], optional = true }
 
 bridge-derive = { path = "../bridge-derive" }

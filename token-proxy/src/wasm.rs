@@ -52,7 +52,7 @@ pub fn initialize_settings_ix(
         data,
     };
 
-    return JsValue::from_serde(&ix).handle_error();
+    return serde_wasm_bindgen::to_value(&ix).handle_error();
 }
 
 #[wasm_bindgen(js_name = "initializeMint")]
@@ -99,7 +99,7 @@ pub fn initialize_mint_ix(
         data,
     };
 
-    return JsValue::from_serde(&ix).handle_error();
+    return serde_wasm_bindgen::to_value(&ix).handle_error();
 }
 
 #[wasm_bindgen(js_name = "initializeVault")]
@@ -147,7 +147,7 @@ pub fn initialize_vault_ix(
         data,
     };
 
-    return JsValue::from_serde(&ix).handle_error();
+    return serde_wasm_bindgen::to_value(&ix).handle_error();
 }
 
 #[wasm_bindgen(js_name = "withdrawalRequest")]
@@ -216,7 +216,7 @@ pub fn withdrawal_request_ix(
         data,
     };
 
-    return JsValue::from_serde(&ix).handle_error();
+    return serde_wasm_bindgen::to_value(&ix).handle_error();
 }
 
 #[wasm_bindgen(js_name = "approveWithdrawalEver")]
@@ -256,7 +256,7 @@ pub fn approve_withdrawal_ever_ix(
         data,
     };
 
-    return JsValue::from_serde(&ix).handle_error();
+    return serde_wasm_bindgen::to_value(&ix).handle_error();
 }
 
 #[wasm_bindgen(js_name = "approveWithdrawalEverByOwner")]
@@ -298,7 +298,7 @@ pub fn approve_withdrawal_ever_by_owner_ix(
         data,
     };
 
-    return JsValue::from_serde(&ix).handle_error();
+    return serde_wasm_bindgen::to_value(&ix).handle_error();
 }
 
 #[wasm_bindgen(js_name = "approveWithdrawalSol")]
@@ -342,7 +342,7 @@ pub fn approve_withdrawal_sol_ix(
         data,
     };
 
-    return JsValue::from_serde(&ix).handle_error();
+    return serde_wasm_bindgen::to_value(&ix).handle_error();
 }
 
 #[wasm_bindgen(js_name = "approveWithdrawalSolByOwner")]
@@ -388,7 +388,7 @@ pub fn approve_withdrawal_sol_by_owner_ix(
         data,
     };
 
-    return JsValue::from_serde(&ix).handle_error();
+    return serde_wasm_bindgen::to_value(&ix).handle_error();
 }
 
 #[wasm_bindgen(js_name = "withdrawalEver")]
@@ -426,7 +426,7 @@ pub fn withdrawal_ever_ix(
         data,
     };
 
-    return JsValue::from_serde(&ix).handle_error();
+    return serde_wasm_bindgen::to_value(&ix).handle_error();
 }
 
 #[wasm_bindgen(js_name = "withdrawalSol")]
@@ -466,7 +466,7 @@ pub fn withdrawal_sol_ix(
         data,
     };
 
-    return JsValue::from_serde(&ix).handle_error();
+    return serde_wasm_bindgen::to_value(&ix).handle_error();
 }
 
 #[wasm_bindgen(js_name = "cancelWithdrawalSol")]
@@ -518,7 +518,7 @@ pub fn cancel_withdrawal_sol_ix(
         data,
     };
 
-    return JsValue::from_serde(&ix).handle_error();
+    return serde_wasm_bindgen::to_value(&ix).handle_error();
 }
 
 #[wasm_bindgen(js_name = "fillWithdrawalSol")]
@@ -579,7 +579,7 @@ pub fn fill_withdrawal_sol_ix(
         data,
     };
 
-    return JsValue::from_serde(&ix).handle_error();
+    return serde_wasm_bindgen::to_value(&ix).handle_error();
 }
 
 #[wasm_bindgen(js_name = "depositEver")]
@@ -635,7 +635,7 @@ pub fn deposit_ever_ix(
         data,
     };
 
-    return JsValue::from_serde(&ix).handle_error();
+    return serde_wasm_bindgen::to_value(&ix).handle_error();
 }
 
 #[wasm_bindgen(js_name = "depositSol")]
@@ -693,7 +693,7 @@ pub fn deposit_sol_ix(
         data,
     };
 
-    return JsValue::from_serde(&ix).handle_error();
+    return serde_wasm_bindgen::to_value(&ix).handle_error();
 }
 
 #[wasm_bindgen(js_name = "voteForWithdrawRequest")]
@@ -723,7 +723,7 @@ pub fn vote_for_withdraw_request_ix(
         data,
     };
 
-    return JsValue::from_serde(&ix).handle_error();
+    return serde_wasm_bindgen::to_value(&ix).handle_error();
 }
 
 #[wasm_bindgen(js_name = "changeGuardian")]
@@ -751,7 +751,7 @@ pub fn change_guardian_ix(
         data,
     };
 
-    return JsValue::from_serde(&ix).handle_error();
+    return serde_wasm_bindgen::to_value(&ix).handle_error();
 }
 
 #[wasm_bindgen(js_name = "changeWithdrawalManager")]
@@ -782,7 +782,7 @@ pub fn change_withdrawal_manager_ix(
         data,
     };
 
-    return JsValue::from_serde(&ix).handle_error();
+    return serde_wasm_bindgen::to_value(&ix).handle_error();
 }
 
 #[wasm_bindgen(js_name = "changeBounty")]
@@ -807,7 +807,7 @@ pub fn change_bounty_ix(
         data,
     };
 
-    return JsValue::from_serde(&ix).handle_error();
+    return serde_wasm_bindgen::to_value(&ix).handle_error();
 }
 
 #[wasm_bindgen(js_name = "changeDepositLimit")]
@@ -835,7 +835,7 @@ pub fn change_deposit_limit_ix(
         data,
     };
 
-    return JsValue::from_serde(&ix).handle_error();
+    return serde_wasm_bindgen::to_value(&ix).handle_error();
 }
 
 #[wasm_bindgen(js_name = "changeWithdrawalLimits")]
@@ -867,7 +867,7 @@ pub fn change_withdrawal_limits_ix(
         data,
     };
 
-    return JsValue::from_serde(&ix).handle_error();
+    return serde_wasm_bindgen::to_value(&ix).handle_error();
 }
 
 #[wasm_bindgen(js_name = "enableEmergency")]
@@ -889,7 +889,7 @@ pub fn enable_emergency_ix(authority_pubkey: String) -> Result<JsValue, JsValue>
         data,
     };
 
-    return JsValue::from_serde(&ix).handle_error();
+    return serde_wasm_bindgen::to_value(&ix).handle_error();
 }
 
 #[wasm_bindgen(js_name = "enableEmergencyByOwner")]
@@ -913,7 +913,7 @@ pub fn enable_emergency_by_owner_ix(authority_pubkey: String) -> Result<JsValue,
         data,
     };
 
-    return JsValue::from_serde(&ix).handle_error();
+    return serde_wasm_bindgen::to_value(&ix).handle_error();
 }
 
 #[wasm_bindgen(js_name = "disableEmergency")]
@@ -937,7 +937,7 @@ pub fn disable_emergency_ix(authority_pubkey: String) -> Result<JsValue, JsValue
         data,
     };
 
-    return JsValue::from_serde(&ix).handle_error();
+    return serde_wasm_bindgen::to_value(&ix).handle_error();
 }
 
 #[wasm_bindgen(js_name = "enableTokenEmergency")]
@@ -964,7 +964,7 @@ pub fn enable_token_emergency_ix(
         data,
     };
 
-    return JsValue::from_serde(&ix).handle_error();
+    return serde_wasm_bindgen::to_value(&ix).handle_error();
 }
 
 #[wasm_bindgen(js_name = "enableTokenEmergencyByOwner")]
@@ -993,7 +993,7 @@ pub fn enable_token_emergency_by_owner_ix(
         data,
     };
 
-    return JsValue::from_serde(&ix).handle_error();
+    return serde_wasm_bindgen::to_value(&ix).handle_error();
 }
 
 #[wasm_bindgen(js_name = "disableTokenEmergency")]
@@ -1020,7 +1020,7 @@ pub fn disable_token_emergency_ix(
         data,
     };
 
-    return JsValue::from_serde(&ix).handle_error();
+    return serde_wasm_bindgen::to_value(&ix).handle_error();
 }
 
 #[wasm_bindgen(js_name = "unpackSettings")]
@@ -1033,7 +1033,7 @@ pub fn unpack_settings(data: Vec<u8>) -> Result<JsValue, JsValue> {
         withdrawal_manager: settings.withdrawal_manager,
     };
 
-    return JsValue::from_serde(&s).handle_error();
+    return serde_wasm_bindgen::to_value(&s).handle_error();
 }
 
 #[wasm_bindgen(js_name = "unpackTokenSettings")]
@@ -1055,7 +1055,7 @@ pub fn unpack_token_settings(data: Vec<u8>) -> Result<JsValue, JsValue> {
         emergency: token_settings.emergency,
     };
 
-    return JsValue::from_serde(&s).handle_error();
+    return serde_wasm_bindgen::to_value(&s).handle_error();
 }
 
 #[wasm_bindgen(js_name = "unpackWithdrawal")]
@@ -1074,7 +1074,7 @@ pub fn unpack_withdrawal(data: Vec<u8>) -> Result<JsValue, JsValue> {
         signers: withdrawal.signers,
     };
 
-    return JsValue::from_serde(&w).handle_error();
+    return serde_wasm_bindgen::to_value(&w).handle_error();
 }
 
 #[wasm_bindgen(js_name = "unpackDeposit")]
@@ -1090,7 +1090,7 @@ pub fn unpack_deposit(data: Vec<u8>) -> Result<JsValue, JsValue> {
         },
     };
 
-    return JsValue::from_serde(&d).handle_error();
+    return serde_wasm_bindgen::to_value(&d).handle_error();
 }
 
 #[derive(Serialize, Deserialize)]
