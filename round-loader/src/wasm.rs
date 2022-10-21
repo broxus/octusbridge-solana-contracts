@@ -118,7 +118,7 @@ pub fn create_relay_round_ix(
     let setting_pubkey = bridge_utils::helper::get_associated_settings_address(program_id);
     let relay_round_pubkey = get_associated_relay_round_address(program_id, round_number);
 
-    let relays: Vec<String> = relays.into_serde().handle_error()?;
+    let relays: Vec<String> = serde_wasm_bindgen::from_value(relays).handle_error()?;
     let relays = relays
         .into_iter()
         .map(|x| Pubkey::from_str(x.as_str()).unwrap())

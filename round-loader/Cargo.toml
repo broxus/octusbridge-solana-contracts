@@ -19,6 +19,7 @@ solana-program = "1.9"
 getrandom = { version = "0.2", features = ["js"], optional = true }
 js-sys = { version = "0.3", optional = true }
 wasm-bindgen = { version = "0.2.83", features = ["serde-serialize"], optional = true }
+serde-wasm-bindgen = "*"
 
 bridge-derive = { path = "../bridge-derive" }
 bridge-utils = { path = "../bridge-utils" }

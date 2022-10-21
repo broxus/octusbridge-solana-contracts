@@ -1878,6 +1878,7 @@ dependencies = [
  "getrandom 0.2.7",
  "js-sys",
  "serde",
+ "serde-wasm-bindgen",
  "solana-program",
  "solana-program-test",
  "solana-sdk",
