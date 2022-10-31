@@ -1093,6 +1093,38 @@ pub fn unpack_deposit(data: Vec<u8>) -> Result<JsValue, JsValue> {
     return serde_wasm_bindgen::to_value(&d).handle_error();
 }
 
+#[wasm_bindgen(js_name = "getProposalAddress")]
+pub fn get_proposal_address(
+    token_settings: String,
+    round_number: u32,
+    event_timestamp: u32,
+    event_transaction_lt: u64,
+    event_configuration: String,
+    sender_address: String,
+    recipient_address: String,
+    amount: String,
+) -> Result<JsValue, JsValue> {
+    let token_settings_pubkey = Pubkey::from_str(token_settings.as_str()).handle_error()?;
+    let recipient_address = Pubkey::from_str(recipient_address.as_str()).handle_error()?;
+    let event_configuration = Pubkey::from_str(event_configuration.as_str()).handle_error()?;
+    let amount = u128::from_str(&amount).handle_error()?;
+
+    let sender_address = EverAddress::from_str(&sender_address).handle_error()?;
+
+    let withdrawal_pubkey = get_withdrawal_address(
+        &token_settings_pubkey,
+        round_number,
+        event_timestamp,
+        event_transaction_lt,
+        &event_configuration,
+        sender_address,
+        recipient_address,
+        amount,
+    );
+
+    return serde_wasm_bindgen::to_value(&withdrawal_pubkey).handle_error();
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct WasmSettings {
     pub emergency: bool,
