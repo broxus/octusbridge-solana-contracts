@@ -99,6 +99,44 @@ pub enum TokenProxyInstruction {
         amount: u64,
     },
 
+    /// Deposit Multi token EVER
+    ///
+    /// # Account references
+    /// ...
+    DepositMultiTokenEver {
+        // Deposit seed
+        deposit_seed: u128,
+        // Ever recipient address
+        recipient_address: EverAddress,
+        // Deposit amount
+        amount: u64,
+        // Sol amount to transfer to ever
+        sol_amount: u64,
+        // Random payload to transfer to ever
+        payload: Vec<u8>,
+    },
+
+    /// Deposit Multi token SOL
+    ///
+    /// # Account references
+    /// ...
+    DepositMultiTokenSol {
+        // Deposit seed
+        deposit_seed: u128,
+        // Ever recipient address
+        recipient_address: EverAddress,
+        // Deposit amount
+        amount: u64,
+        // Mint name
+        name: String,
+        // Mint symbol
+        symbol: String,
+        // Sol amount to transfer to ever
+        sol_amount: u64,
+        // Random payload to transfer to ever
+        payload: Vec<u8>,
+    },
+
     /// Withdraw EVER/SOL request
     ///
     /// # Account references

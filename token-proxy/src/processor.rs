@@ -103,6 +103,46 @@ impl Processor {
                     amount,
                 )?;
             }
+            TokenProxyInstruction::DepositMultiTokenEver {
+                deposit_seed,
+                recipient_address,
+                amount,
+                sol_amount,
+                payload,
+            } => {
+                msg!("Instruction: Deposit MULTI TOKEN EVER");
+                Self::process_deposit_multi_token_ever(
+                    program_id,
+                    accounts,
+                    deposit_seed,
+                    recipient_address,
+                    amount,
+                    sol_amount,
+                    payload,
+                )?;
+            }
+            TokenProxyInstruction::DepositMultiTokenSol {
+                deposit_seed,
+                recipient_address,
+                amount,
+                name,
+                symbol,
+                sol_amount,
+                payload,
+            } => {
+                msg!("Instruction: Deposit MULTI TOKEN SOL");
+                Self::process_deposit_multi_token_sol(
+                    program_id,
+                    accounts,
+                    deposit_seed,
+                    recipient_address,
+                    amount,
+                    name,
+                    symbol,
+                    sol_amount,
+                    payload,
+                )?;
+            }
             TokenProxyInstruction::WithdrawRequest {
                 event_timestamp,
                 event_transaction_lt,
@@ -718,6 +758,311 @@ impl Processor {
 
         let name = &token_settings_account_data.name;
         validate_token_settings_account(program_id, name, token_settings_account_info)?;
+
+        if token_settings_account_data.emergency {
+            return Err(SolanaBridgeError::EmergencyEnabled.into());
+        }
+
+        let (mint_account, vault_account) = token_settings_account_data
+            .kind
+            .as_solana()
+            .ok_or(SolanaBridgeError::InvalidTokenKind)?;
+
+        // Validate Mint Account
+        if mint_account_info.key != mint_account && mint_account_info.owner != &spl_token::id() {
+            return Err(ProgramError::InvalidArgument);
+        }
+
+        // Validate Vault Account
+        if vault_account_info.key != vault_account && vault_account_info.owner != &spl_token::id() {
+            return Err(ProgramError::InvalidArgument);
+        }
+
+        let vault_account_data =
+            spl_token::state::Account::unpack(&vault_account_info.data.borrow())?;
+
+        if vault_account_data
+            .amount
+            .checked_add(amount)
+            .ok_or(SolanaBridgeError::Overflow)?
+            > token_settings_account_data.deposit_limit
+        {
+            return Err(SolanaBridgeError::DepositLimit.into());
+        }
+
+        // Transfer SOL tokens to Vault Account
+        invoke(
+            &spl_token::instruction::transfer(
+                &spl_token::id(),
+                creator_token_account_info.key,
+                vault_account_info.key,
+                creator_account_info.key,
+                &[creator_account_info.key],
+                amount,
+            )?,
+            &[
+                token_program_info.clone(),
+                creator_account_info.clone(),
+                creator_token_account_info.clone(),
+                vault_account_info.clone(),
+            ],
+        )?;
+
+        // Validate Deposit account
+        let deposit_nonce = validate_deposit_account(
+            program_id,
+            deposit_seed,
+            token_settings_account_info.key,
+            deposit_account_info,
+        )?;
+        let deposit_account_signer_seeds: &[&[_]] = &[
+            br"deposit",
+            &deposit_seed.to_le_bytes(),
+            &token_settings_account_info.key.to_bytes(),
+            &[deposit_nonce],
+        ];
+
+        // Create Deposit Account
+        invoke_signed(
+            &system_instruction::create_account(
+                funder_account_info.key,
+                deposit_account_info.key,
+                1.max(rent.minimum_balance(DepositToken::LEN)),
+                DepositToken::LEN as u64,
+                program_id,
+            ),
+            &[
+                funder_account_info.clone(),
+                deposit_account_info.clone(),
+                system_program_info.clone(),
+            ],
+            &[deposit_account_signer_seeds],
+        )?;
+
+        let amount = get_deposit_amount(
+            amount,
+            token_settings_account_data.ever_decimals,
+            token_settings_account_data.solana_decimals,
+        );
+
+        // Init Deposit Account
+        let deposit_account_data = DepositToken {
+            is_initialized: true,
+            account_kind: AccountKind::Deposit,
+            event: DepositTokenEventWithLen::new(
+                *creator_account_info.key,
+                amount,
+                recipient_address,
+            ),
+            meta: DepositTokenMetaWithLen::new(deposit_seed),
+        };
+
+        DepositToken::pack(
+            deposit_account_data,
+            &mut deposit_account_info.data.borrow_mut(),
+        )?;
+
+        Ok(())
+    }
+
+    fn process_deposit_multi_token_ever(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        deposit_seed: u128,
+        recipient_address: EverAddress,
+        amount: u64,
+        sol_amount: u64,
+        payload: Vec<u8>,
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+
+        let funder_account_info = next_account_info(account_info_iter)?;
+        let creator_account_info = next_account_info(account_info_iter)?;
+        let creator_token_account_info = next_account_info(account_info_iter)?;
+        let deposit_account_info = next_account_info(account_info_iter)?;
+        let mint_account_info = next_account_info(account_info_iter)?;
+        let token_settings_account_info = next_account_info(account_info_iter)?;
+        let settings_account_info = next_account_info(account_info_iter)?;
+        let multi_vault_account_info = next_account_info(account_info_iter)?;
+        let system_program_info = next_account_info(account_info_iter)?;
+        let token_program_info = next_account_info(account_info_iter)?;
+        let rent_sysvar_info = next_account_info(account_info_iter)?;
+        let rent = &Rent::from_account_info(rent_sysvar_info)?;
+
+        if !creator_account_info.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        // Validate Settings Account
+        bridge_utils::helper::validate_settings_account(program_id, settings_account_info)?;
+
+        let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+        if settings_account_data.emergency {
+            return Err(SolanaBridgeError::EmergencyEnabled.into());
+        }
+
+        // Validate Token Settings Account
+        let token_settings_account_data =
+            TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
+
+        let name = &token_settings_account_data.name;
+        validate_token_settings_account(program_id, name, token_settings_account_info)?;
+
+        if token_settings_account_data.emergency {
+            return Err(SolanaBridgeError::EmergencyEnabled.into());
+        }
+
+        // Validate Mint Account
+        validate_mint_account(program_id, name, mint_account_info)?;
+
+        // Validate Multi Vault Account
+        validate_multi_vault_account(program_id,  multi_vault_account_info)?;
+
+        if mint_account_info.owner != &spl_token::id() {
+            return Err(ProgramError::InvalidArgument);
+        }
+
+        // Burn EVER tokens
+        invoke(
+            &spl_token::instruction::burn(
+                &spl_token::id(),
+                creator_token_account_info.key,
+                mint_account_info.key,
+                creator_account_info.key,
+                &[creator_account_info.key],
+                amount,
+            )?,
+            &[
+                token_program_info.clone(),
+                creator_account_info.clone(),
+                creator_token_account_info.clone(),
+                mint_account_info.clone(),
+            ],
+        )?;
+
+        // Validate Deposit account
+        let deposit_nonce = validate_deposit_account(
+            program_id,
+            deposit_seed,
+            token_settings_account_info.key,
+            deposit_account_info,
+        )?;
+        let deposit_account_signer_seeds: &[&[_]] = &[
+            br"deposit",
+            &deposit_seed.to_le_bytes(),
+            &token_settings_account_info.key.to_bytes(),
+            &[deposit_nonce],
+        ];
+
+        // Create Deposit Account
+        invoke_signed(
+            &system_instruction::create_account(
+                funder_account_info.key,
+                deposit_account_info.key,
+                1.max(rent.minimum_balance(DepositMultiTokenEver::LEN)),
+                DepositMultiTokenEver::LEN as u64,
+                program_id,
+            ),
+            &[
+                funder_account_info.clone(),
+                deposit_account_info.clone(),
+                system_program_info.clone(),
+            ],
+            &[deposit_account_signer_seeds],
+        )?;
+
+        // Send sol amount to multi vault
+        invoke(
+            &system_instruction::transfer(
+                funder_account_info.key,
+                multi_vault_account_info.key,
+                sol_amount,
+            ),
+            &[
+                funder_account_info.clone(),
+                multi_vault_account_info.clone(),
+                system_program_info.clone(),
+            ],
+        )?;
+
+        let amount = get_deposit_amount(
+            amount,
+            token_settings_account_data.ever_decimals,
+            token_settings_account_data.solana_decimals,
+        );
+
+        // Init Deposit Account
+        let deposit_account_data = DepositMultiTokenEver {
+            is_initialized: true,
+            account_kind: AccountKind::Deposit,
+            event: DepositMultiTokenEverEventWithLen::new(
+                *creator_account_info.key,
+                amount,
+                sol_amount,
+                recipient_address,
+                payload
+            ),
+            meta: DepositTokenMetaWithLen::new(deposit_seed),
+        };
+
+        DepositToken::pack(
+            deposit_account_data,
+            &mut deposit_account_info.data.borrow_mut(),
+        )?;
+
+        Ok(())
+    }
+
+    fn process_deposit_multi_token_sol(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        deposit_seed: u128,
+        recipient_address: EverAddress,
+        amount: u64,
+        name: String,
+        symbol: String,
+        sol_amount: u64,
+        payload: Vec<u8>,
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+
+        !TODO CHECK SETTINGS !
+
+        let funder_account_info = next_account_info(account_info_iter)?;
+        let creator_account_info = next_account_info(account_info_iter)?;
+        let creator_token_account_info = next_account_info(account_info_iter)?;
+        let vault_account_info = next_account_info(account_info_iter)?;
+        let deposit_account_info = next_account_info(account_info_iter)?;
+        let mint_account_info = next_account_info(account_info_iter)?;
+        let settings_account_info = next_account_info(account_info_iter)?;
+        let token_settings_account_info = next_account_info(account_info_iter)?;
+        let multi_vault_account_info = next_account_info(account_info_iter)?;
+        let system_program_info = next_account_info(account_info_iter)?;
+        let token_program_info = next_account_info(account_info_iter)?;
+        let rent_sysvar_info = next_account_info(account_info_iter)?;
+        let rent = &Rent::from_account_info(rent_sysvar_info)?;
+
+        if !creator_account_info.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        // Validate Settings Account
+        bridge_utils::helper::validate_settings_account(program_id, settings_account_info)?;
+
+        let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+        if settings_account_data.emergency {
+            return Err(SolanaBridgeError::EmergencyEnabled.into());
+        }
+
+        // Validate Token Setting Account
+        let token_settings_account_data =
+            TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
+
+        let name = &token_settings_account_data.name;
+        validate_token_settings_account(program_id, name, token_settings_account_info)?;
+
+        // Validate Multi Vault Account
+        validate_multi_vault_account(program_id,  multi_vault_account_info)?;
 
         if token_settings_account_data.emergency {
             return Err(SolanaBridgeError::EmergencyEnabled.into());

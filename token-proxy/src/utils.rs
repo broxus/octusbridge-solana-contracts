@@ -98,3 +98,16 @@ pub fn validate_vault_account(
 
     Ok(nonce)
 }
+
+pub fn validate_multi_vault_account(
+    program_id: &Pubkey,
+    account_info: &AccountInfo,
+) -> Result<u8, ProgramError> {
+    let (account, nonce) = Pubkey::find_program_address(&[br"multivault"], program_id);
+
+    if account != *account_info.key {
+        return Err(ProgramError::InvalidArgument);
+    }
+
+    Ok(nonce)
+}
