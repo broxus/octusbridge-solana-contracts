@@ -957,6 +957,14 @@ impl Processor {
         let name = &token_settings_account_data.name;
         validate_token_settings_account(program_id, name, token_settings_account_info)?;
 
+        if let TokenKind::Ever { mint, .. } = token_settings_account_data.kind {
+            if *mint_account_info.key != mint {
+                return Err(SolanaBridgeError::InvalidTokenKind.into());
+            }
+        } else {
+            return Err(SolanaBridgeError::InvalidTokenKind.into());
+        }
+
         if token_settings_account_data.emergency {
             return Err(SolanaBridgeError::EmergencyEnabled.into());
         }
@@ -1211,6 +1219,14 @@ impl Processor {
         }
 
         validate_token_settings_account(program_id, &name, token_settings_account_info)?;
+
+        if let TokenKind::Solana { mint, .. } = token_settings_account_data.kind {
+            if *mint_account_info.key != mint {
+                return Err(SolanaBridgeError::InvalidTokenKind.into());
+            }
+        } else {
+            return Err(SolanaBridgeError::InvalidTokenKind.into());
+        }
 
         // Validate Multi Vault Account
         validate_multi_vault_account(program_id, multi_vault_account_info)?;
@@ -1631,6 +1647,14 @@ impl Processor {
         }
         validate_token_settings_account(program_id, &name, token_settings_account_info)?;
 
+        if let TokenKind::Ever { mint } = token_settings_account_data.kind {
+            if *mint_account_info.key != mint {
+                return Err(SolanaBridgeError::InvalidTokenKind.into());
+            }
+        } else {
+            return Err(SolanaBridgeError::InvalidTokenKind.into());
+        }
+
         // Validate Round Loader Settings Account
         bridge_utils::helper::validate_settings_account(
             &round_loader::id(),
@@ -1786,6 +1810,14 @@ impl Processor {
 
         let name = &token_settings_account_data.name;
         validate_token_settings_account(program_id, &name, token_settings_account_info)?;
+
+        if let TokenKind::Solana { mint, .. } = token_settings_account_data.kind {
+            if token_address != mint {
+                return Err(SolanaBridgeError::InvalidTokenKind.into());
+            }
+        } else {
+            return Err(SolanaBridgeError::InvalidTokenKind.into());
+        }
 
         // Validate Round Loader Settings Account
         bridge_utils::helper::validate_settings_account(
