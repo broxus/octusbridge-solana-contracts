@@ -273,7 +273,7 @@ impl DepositMultiTokenEverEventWithLen {
         payload: Vec<u8>,
     ) -> Self {
         Self {
-            len: (DEPOSIT_MULTI_TOKEN_EVER_EVENT_LEN + payload.len())  as u32,
+            len: (DEPOSIT_MULTI_TOKEN_EVER_EVENT_LEN + payload.len()) as u32,
             data: DepositMultiTokenEverEvent {
                 token_address,
                 amount,

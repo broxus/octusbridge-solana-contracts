@@ -108,6 +108,8 @@ pub enum TokenProxyInstruction {
         deposit_seed: u128,
         // Ever recipient address
         recipient_address: EverAddress,
+        // Ever token address
+        token_address: EverAddress,
         // Deposit amount
         amount: u64,
         // Sol amount to transfer to ever

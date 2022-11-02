@@ -106,6 +106,7 @@ impl Processor {
             TokenProxyInstruction::DepositMultiTokenEver {
                 deposit_seed,
                 recipient_address,
+                token_address,
                 amount,
                 sol_amount,
                 payload,
@@ -116,6 +117,7 @@ impl Processor {
                     accounts,
                     deposit_seed,
                     recipient_address,
+                    token_address,
                     amount,
                     sol_amount,
                     payload,
@@ -870,6 +872,7 @@ impl Processor {
         accounts: &[AccountInfo],
         deposit_seed: u128,
         recipient_address: EverAddress,
+        token_address: EverAddress,
         amount: u64,
         sol_amount: u64,
         payload: Vec<u8>,
@@ -916,7 +919,7 @@ impl Processor {
         validate_mint_account(program_id, name, mint_account_info)?;
 
         // Validate Multi Vault Account
-        validate_multi_vault_account(program_id,  multi_vault_account_info)?;
+        validate_multi_vault_account(program_id, multi_vault_account_info)?;
 
         if mint_account_info.owner != &spl_token::id() {
             return Err(ProgramError::InvalidArgument);
@@ -996,16 +999,16 @@ impl Processor {
             is_initialized: true,
             account_kind: AccountKind::Deposit,
             event: DepositMultiTokenEverEventWithLen::new(
-                *creator_account_info.key,
+                token_address,
                 amount,
                 sol_amount,
                 recipient_address,
-                payload
+                payload,
             ),
             meta: DepositTokenMetaWithLen::new(deposit_seed),
         };
 
-        DepositToken::pack(
+        DepositMultiTokenEver::pack(
             deposit_account_data,
             &mut deposit_account_info.data.borrow_mut(),
         )?;
@@ -1025,8 +1028,6 @@ impl Processor {
         payload: Vec<u8>,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
-
-        !TODO CHECK SETTINGS !
 
         let funder_account_info = next_account_info(account_info_iter)?;
         let creator_account_info = next_account_info(account_info_iter)?;
@@ -1054,15 +1055,119 @@ impl Processor {
             return Err(SolanaBridgeError::EmergencyEnabled.into());
         }
 
+        // Check asset name length
+        if name.len() > MAX_NAME_LEN {
+            return Err(SolanaBridgeError::TokenNameLenLimit.into());
+        }
+        // Check asset symbol length
+        if symbol.len() > MAX_NAME_LEN {
+            return Err(SolanaBridgeError::TokenNameLenLimit.into());
+        }
+
         // Validate Token Setting Account
+        if token_settings_account_info.lamports() == 0 {
+            // token settings account is not created
+
+            // Validate Vault Account
+            let vault_nonce = validate_vault_account(program_id, &name, vault_account_info)?;
+            let vault_account_signer_seeds: &[&[_]] = &[br"vault", name.as_bytes(), &[vault_nonce]];
+
+            // Create Vault Account
+            invoke_signed(
+                &system_instruction::create_account(
+                    funder_account_info.key,
+                    vault_account_info.key,
+                    1.max(rent.minimum_balance(spl_token::state::Account::LEN)),
+                    spl_token::state::Account::LEN as u64,
+                    &spl_token::id(),
+                ),
+                &[
+                    funder_account_info.clone(),
+                    vault_account_info.clone(),
+                    system_program_info.clone(),
+                ],
+                &[vault_account_signer_seeds],
+            )?;
+
+            // Init Vault Account
+            invoke_signed(
+                &spl_token::instruction::initialize_account(
+                    &spl_token::id(),
+                    vault_account_info.key,
+                    mint_account_info.key,
+                    vault_account_info.key,
+                )?,
+                &[
+                    vault_account_info.clone(),
+                    token_program_info.clone(),
+                    rent_sysvar_info.clone(),
+                    mint_account_info.clone(),
+                ],
+                &[vault_account_signer_seeds],
+            )?;
+
+            // Validate Settings Account
+            let token_settings_nonce =
+                validate_token_settings_account(program_id, &name, token_settings_account_info)?;
+            let token_settings_account_signer_seeds: &[&[_]] =
+                &[br"settings", name.as_bytes(), &[token_settings_nonce]];
+
+            // Create Settings Account
+            invoke_signed(
+                &system_instruction::create_account(
+                    funder_account_info.key,
+                    token_settings_account_info.key,
+                    1.max(rent.minimum_balance(TokenSettings::LEN)),
+                    TokenSettings::LEN as u64,
+                    program_id,
+                ),
+                &[
+                    funder_account_info.clone(),
+                    token_settings_account_info.clone(),
+                    system_program_info.clone(),
+                ],
+                &[token_settings_account_signer_seeds],
+            )?;
+
+            let mint_account_data = Mint::unpack(&mint_account_info.data.borrow())?;
+            let solana_decimals = mint_account_data.decimals;
+            let ever_decimals = mint_account_data.decimals;
+
+            // Init Settings Account
+            let token_settings_account_data = TokenSettings {
+                is_initialized: true,
+                account_kind: AccountKind::Settings,
+                kind: TokenKind::Solana {
+                    mint: *mint_account_info.key,
+                    vault: *vault_account_info.key,
+                },
+                withdrawal_daily_amount: 0,
+                withdrawal_epoch: 0,
+                name: name.clone(),
+                ever_decimals,
+                solana_decimals,
+                deposit_limit: 0,
+                withdrawal_limit: 0,
+                withdrawal_daily_limit: 0,
+                emergency: false,
+            };
+
+            TokenSettings::pack(
+                token_settings_account_data,
+                &mut token_settings_account_info.data.borrow_mut(),
+            )?;
+        }
         let token_settings_account_data =
             TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
 
-        let name = &token_settings_account_data.name;
-        validate_token_settings_account(program_id, name, token_settings_account_info)?;
+        if token_settings_account_data.name != name {
+            return Err(SolanaBridgeError::InvalidTokenSettingsName.into());
+        }
+
+        validate_token_settings_account(program_id, &name, token_settings_account_info)?;
 
         // Validate Multi Vault Account
-        validate_multi_vault_account(program_id,  multi_vault_account_info)?;
+        validate_multi_vault_account(program_id, multi_vault_account_info)?;
 
         if token_settings_account_data.emergency {
             return Err(SolanaBridgeError::EmergencyEnabled.into());
@@ -1113,6 +1218,20 @@ impl Processor {
             ],
         )?;
 
+        // Send sol amount to multi vault
+        invoke(
+            &system_instruction::transfer(
+                funder_account_info.key,
+                multi_vault_account_info.key,
+                sol_amount,
+            ),
+            &[
+                funder_account_info.clone(),
+                multi_vault_account_info.clone(),
+                system_program_info.clone(),
+            ],
+        )?;
+
         // Validate Deposit account
         let deposit_nonce = validate_deposit_account(
             program_id,
@@ -1132,8 +1251,8 @@ impl Processor {
             &system_instruction::create_account(
                 funder_account_info.key,
                 deposit_account_info.key,
-                1.max(rent.minimum_balance(DepositToken::LEN)),
-                DepositToken::LEN as u64,
+                1.max(rent.minimum_balance(DepositMultiTokenSol::LEN)),
+                DepositMultiTokenSol::LEN as u64,
                 program_id,
             ),
             &[
@@ -1151,18 +1270,23 @@ impl Processor {
         );
 
         // Init Deposit Account
-        let deposit_account_data = DepositToken {
+        let deposit_account_data = DepositMultiTokenSol {
             is_initialized: true,
             account_kind: AccountKind::Deposit,
-            event: DepositTokenEventWithLen::new(
-                *creator_account_info.key,
+            event: DepositMultiTokenSolEventWithLen::new(
+                *mint_account_info.key,
+                name,
+                symbol,
+                token_settings_account_data.solana_decimals,
                 amount,
+                sol_amount,
                 recipient_address,
+                payload,
             ),
             meta: DepositTokenMetaWithLen::new(deposit_seed),
         };
 
-        DepositToken::pack(
+        DepositMultiTokenSol::pack(
             deposit_account_data,
             &mut deposit_account_info.data.borrow_mut(),
         )?;

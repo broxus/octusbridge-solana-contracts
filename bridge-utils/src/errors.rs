@@ -30,6 +30,8 @@ pub enum SolanaBridgeError {
     InvalidVote,
     #[error("Votes overflow")]
     VotesOverflow,
+    #[error("Invalid token settings name")]
+    InvalidTokenSettingsName,
 }
 
 impl From<SolanaBridgeError> for ProgramError {
