@@ -158,6 +158,50 @@ pub enum TokenProxyInstruction {
         amount: u128,
     },
 
+    /// Withdraw Multi token EVER request
+    ///
+    /// # Account references
+    /// ...
+    WithdrawMultiTokenEverRequest {
+        // Ever event timestamp
+        event_timestamp: u32,
+        // Ever event transaction lt
+        event_transaction_lt: u64,
+        // Ever event configuration
+        event_configuration: Pubkey,
+        // Ever token root address
+        token_address: EverAddress,
+        // token name
+        name: String,
+        // token symbol
+        symbol: String,
+        // decimals
+        decimals: u8,
+        // Sender address
+        recipient_address: Pubkey,
+        // Withdrawal amount
+        amount: u128,
+    },
+
+    /// Withdraw multi token SOL request
+    ///
+    /// # Account references
+    /// ...
+    WithdrawMultiTokenSolRequest {
+        // Ever event timestamp
+        event_timestamp: u32,
+        // Ever event transaction lt
+        event_transaction_lt: u64,
+        // Ever event configuration
+        event_configuration: Pubkey,
+        // Mint address in solana
+        token_address: Pubkey,
+        // Sender address
+        recipient_address: Pubkey,
+        // Withdrawal amount
+        amount: u128,
+    },
+
     /// Approve Withdraw Ever
     ///
     /// # Account references

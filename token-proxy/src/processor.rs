@@ -165,6 +165,52 @@ impl Processor {
                     amount,
                 )?;
             }
+            TokenProxyInstruction::WithdrawMultiTokenEverRequest {
+                event_timestamp,
+                event_transaction_lt,
+                event_configuration,
+                token_address,
+                name,
+                symbol,
+                decimals,
+                recipient_address,
+                amount,
+            } => {
+                msg!("Instruction: Withdraw Multi token EVER request");
+                Self::process_withdraw_multi_token_ever_request(
+                    program_id,
+                    accounts,
+                    event_timestamp,
+                    event_transaction_lt,
+                    event_configuration,
+                    token_address,
+                    name,
+                    symbol,
+                    decimals,
+                    recipient_address,
+                    amount,
+                )?;
+            }
+            TokenProxyInstruction::WithdrawMultiTokenSolRequest {
+                event_timestamp,
+                event_transaction_lt,
+                event_configuration,
+                token_address,
+                recipient_address,
+                amount,
+            } => {
+                msg!("Instruction: Withdraw multi token SOL request");
+                Self::process_withdraw_multi_token_sol_request(
+                    program_id,
+                    accounts,
+                    event_timestamp,
+                    event_transaction_lt,
+                    event_configuration,
+                    token_address,
+                    recipient_address,
+                    amount,
+                )?;
+            }
             TokenProxyInstruction::VoteForWithdrawRequest { vote } => {
                 msg!("Instruction: Vote for Withdraw EVER/SOL request");
                 Self::process_vote_for_withdraw_request(program_id, accounts, vote)?;
@@ -1423,6 +1469,419 @@ impl Processor {
         )?;
 
         WithdrawalToken::pack(
+            withdrawal_account_data,
+            &mut withdrawal_account_info.data.borrow_mut(),
+        )?;
+
+        // Send voting reparation for Relay to withdrawal account
+        invoke(
+            &system_instruction::transfer(
+                funder_account_info.key,
+                withdrawal_account_info.key,
+                RELAY_REPARATION * relay_round_account_data.relays.len() as u64,
+            ),
+            &[
+                funder_account_info.clone(),
+                withdrawal_account_info.clone(),
+                system_program_info.clone(),
+            ],
+        )?;
+
+        Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn process_withdraw_multi_token_ever_request(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        event_timestamp: u32,
+        event_transaction_lt: u64,
+        event_configuration: Pubkey,
+        token_address: EverAddress,
+        name: String,
+        symbol: String,
+        decimals: u8,
+        recipient_address: Pubkey,
+        amount: u128,
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+
+        let funder_account_info = next_account_info(account_info_iter)?;
+        let author_account_info = next_account_info(account_info_iter)?;
+        let withdrawal_account_info = next_account_info(account_info_iter)?;
+        let token_settings_account_info = next_account_info(account_info_iter)?;
+        let mint_account_info = next_account_info(account_info_iter)?;
+        let spl_token_program_info = next_account_info(account_info_iter)?;
+        let rl_settings_account_info = next_account_info(account_info_iter)?;
+        let relay_round_account_info = next_account_info(account_info_iter)?;
+        let system_program_info = next_account_info(account_info_iter)?;
+
+        let rent_sysvar_info = next_account_info(account_info_iter)?;
+        let rent = &Rent::from_account_info(rent_sysvar_info)?;
+
+        let clock_info = next_account_info(account_info_iter)?;
+        let clock = Clock::from_account_info(clock_info)?;
+
+        if !author_account_info.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        // Check asset name length
+        if name.len() > MAX_NAME_LEN {
+            return Err(SolanaBridgeError::TokenNameLenLimit.into());
+        }
+        // Check asset name length
+        if symbol.len() > MAX_NAME_LEN {
+            return Err(SolanaBridgeError::TokenNameLenLimit.into());
+        }
+
+        // Validate Token Setting Account
+        if token_settings_account_info.lamports() == 0 {
+            // Validate Mint Account
+            let mint_nonce = validate_mint_account(program_id, &name, mint_account_info)?;
+            let mint_account_signer_seeds: &[&[_]] = &[br"mint", name.as_bytes(), &[mint_nonce]];
+
+            // Create Mint Account
+            invoke_signed(
+                &system_instruction::create_account(
+                    funder_account_info.key,
+                    mint_account_info.key,
+                    1.max(rent.minimum_balance(spl_token::state::Mint::LEN)),
+                    spl_token::state::Mint::LEN as u64,
+                    &spl_token::id(),
+                ),
+                &[
+                    funder_account_info.clone(),
+                    mint_account_info.clone(),
+                    system_program_info.clone(),
+                ],
+                &[mint_account_signer_seeds],
+            )?;
+
+            // Init Mint Account
+            invoke_signed(
+                &spl_token::instruction::initialize_mint(
+                    &spl_token::id(),
+                    mint_account_info.key,
+                    mint_account_info.key,
+                    None,
+                    decimals,
+                )?,
+                &[
+                    mint_account_info.clone(),
+                    spl_token_program_info.clone(),
+                    rent_sysvar_info.clone(),
+                ],
+                &[mint_account_signer_seeds],
+            )?;
+
+            // Validate Settings Account
+            let token_settings_nonce =
+                validate_token_settings_account(program_id, &name, token_settings_account_info)?;
+            let token_settings_account_signer_seeds: &[&[_]] =
+                &[br"settings", name.as_bytes(), &[token_settings_nonce]];
+
+            // Create Settings Account
+            invoke_signed(
+                &system_instruction::create_account(
+                    funder_account_info.key,
+                    token_settings_account_info.key,
+                    1.max(rent.minimum_balance(TokenSettings::LEN)),
+                    TokenSettings::LEN as u64,
+                    program_id,
+                ),
+                &[
+                    funder_account_info.clone(),
+                    token_settings_account_info.clone(),
+                    system_program_info.clone(),
+                ],
+                &[token_settings_account_signer_seeds],
+            )?;
+
+            // Init Settings Account
+            let token_settings_account_data = TokenSettings {
+                is_initialized: true,
+                account_kind: AccountKind::Settings,
+                kind: TokenKind::Ever {
+                    mint: *mint_account_info.key,
+                },
+                withdrawal_daily_amount: 0,
+                withdrawal_epoch: 0,
+                name: name.clone(),
+                ever_decimals: decimals,
+                solana_decimals: decimals,
+                deposit_limit: 0,
+                withdrawal_limit: 0,
+                withdrawal_daily_limit: 0,
+                emergency: false,
+            };
+
+            TokenSettings::pack(
+                token_settings_account_data,
+                &mut token_settings_account_info.data.borrow_mut(),
+            )?;
+        }
+
+        // Validate Setting Account
+        let token_settings_account_data =
+            TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
+
+        if token_settings_account_data.name != name {
+            return Err(SolanaBridgeError::InvalidTokenSettingsName.into());
+        }
+        validate_token_settings_account(program_id, &name, token_settings_account_info)?;
+
+        // Validate Round Loader Settings Account
+        bridge_utils::helper::validate_settings_account(
+            &round_loader::id(),
+            rl_settings_account_info,
+        )?;
+
+        let rl_settings_account_data =
+            round_loader::Settings::unpack(&rl_settings_account_info.data.borrow())?;
+
+        // Validate Relay Round Account
+        let relay_round_account_data = RelayRound::unpack(&relay_round_account_info.data.borrow())?;
+        let round_number = relay_round_account_data.round_number;
+
+        round_loader::validate_relay_round_account(
+            &round_loader::id(),
+            round_number,
+            relay_round_account_info,
+        )?;
+
+        if relay_round_account_data.round_end <= clock.unix_timestamp as u32 {
+            return Err(SolanaBridgeError::RelayRoundExpired.into());
+        }
+
+        let mut required_votes = (relay_round_account_data.relays.len() * 2 / 3 + 1) as u32;
+        if rl_settings_account_data.min_required_votes > required_votes {
+            required_votes = rl_settings_account_data.min_required_votes;
+        }
+
+        let epoch = clock.unix_timestamp / SECONDS_PER_DAY as i64;
+
+        // Init Withdraw Account
+        let withdrawal_account_data = WithdrawalMultiTokenEver {
+            is_initialized: true,
+            account_kind: AccountKind::Proposal,
+            is_executed: false,
+            author: *author_account_info.key,
+            round_number,
+            required_votes,
+            event: WithdrawalMultiTokenEverEventWithLen::new(
+                token_address,
+                name,
+                symbol,
+                decimals,
+                amount,
+                recipient_address,
+            ),
+            meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::New, 0, epoch),
+            signers: vec![Vote::None; relay_round_account_data.relays.len()],
+            pda: PDA {
+                settings: *token_settings_account_info.key,
+                event_timestamp,
+                event_transaction_lt,
+                event_configuration,
+            },
+        };
+
+        let event_data = hash(&withdrawal_account_data.event.data.try_to_vec()?);
+
+        // Validate Withdrawal Account
+        let withdrawal_nonce = bridge_utils::helper::validate_proposal_account(
+            program_id,
+            token_settings_account_info.key,
+            round_number,
+            event_timestamp,
+            event_transaction_lt,
+            &event_configuration,
+            &event_data,
+            withdrawal_account_info,
+        )?;
+        let withdrawal_account_signer_seeds: &[&[_]] = &[
+            br"proposal",
+            &token_settings_account_info.key.to_bytes(),
+            &round_number.to_le_bytes(),
+            &event_timestamp.to_le_bytes(),
+            &event_transaction_lt.to_le_bytes(),
+            &event_configuration.to_bytes(),
+            &event_data.to_bytes(),
+            &[withdrawal_nonce],
+        ];
+
+        // Create Withdraw Account
+        invoke_signed(
+            &system_instruction::create_account(
+                funder_account_info.key,
+                withdrawal_account_info.key,
+                1.max(rent.minimum_balance(WithdrawalMultiTokenEver::LEN)),
+                WithdrawalMultiTokenEver::LEN as u64,
+                program_id,
+            ),
+            &[
+                funder_account_info.clone(),
+                withdrawal_account_info.clone(),
+                system_program_info.clone(),
+            ],
+            &[withdrawal_account_signer_seeds],
+        )?;
+
+        WithdrawalMultiTokenEver::pack(
+            withdrawal_account_data,
+            &mut withdrawal_account_info.data.borrow_mut(),
+        )?;
+
+        // Send voting reparation for Relay to withdrawal account
+        invoke(
+            &system_instruction::transfer(
+                funder_account_info.key,
+                withdrawal_account_info.key,
+                RELAY_REPARATION * relay_round_account_data.relays.len() as u64,
+            ),
+            &[
+                funder_account_info.clone(),
+                withdrawal_account_info.clone(),
+                system_program_info.clone(),
+            ],
+        )?;
+
+        Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn process_withdraw_multi_token_sol_request(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        event_timestamp: u32,
+        event_transaction_lt: u64,
+        event_configuration: Pubkey,
+        token_address: Pubkey,
+        recipient_address: Pubkey,
+        amount: u128,
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+
+        let funder_account_info = next_account_info(account_info_iter)?;
+        let author_account_info = next_account_info(account_info_iter)?;
+        let withdrawal_account_info = next_account_info(account_info_iter)?;
+        let token_settings_account_info = next_account_info(account_info_iter)?;
+        let rl_settings_account_info = next_account_info(account_info_iter)?;
+        let relay_round_account_info = next_account_info(account_info_iter)?;
+        let system_program_info = next_account_info(account_info_iter)?;
+
+        let rent_sysvar_info = next_account_info(account_info_iter)?;
+        let rent = &Rent::from_account_info(rent_sysvar_info)?;
+
+        let clock_info = next_account_info(account_info_iter)?;
+        let clock = Clock::from_account_info(clock_info)?;
+
+        if !author_account_info.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+        // Validate Setting Account
+        let token_settings_account_data =
+            TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
+
+        let name = &token_settings_account_data.name;
+        validate_token_settings_account(program_id, &name, token_settings_account_info)?;
+
+        // Validate Round Loader Settings Account
+        bridge_utils::helper::validate_settings_account(
+            &round_loader::id(),
+            rl_settings_account_info,
+        )?;
+
+        let rl_settings_account_data =
+            round_loader::Settings::unpack(&rl_settings_account_info.data.borrow())?;
+
+        // Validate Relay Round Account
+        let relay_round_account_data = RelayRound::unpack(&relay_round_account_info.data.borrow())?;
+        let round_number = relay_round_account_data.round_number;
+
+        round_loader::validate_relay_round_account(
+            &round_loader::id(),
+            round_number,
+            relay_round_account_info,
+        )?;
+
+        if relay_round_account_data.round_end <= clock.unix_timestamp as u32 {
+            return Err(SolanaBridgeError::RelayRoundExpired.into());
+        }
+
+        let mut required_votes = (relay_round_account_data.relays.len() * 2 / 3 + 1) as u32;
+        if rl_settings_account_data.min_required_votes > required_votes {
+            required_votes = rl_settings_account_data.min_required_votes;
+        }
+
+        let epoch = clock.unix_timestamp / SECONDS_PER_DAY as i64;
+
+        // Init Withdraw Account
+        let withdrawal_account_data = WithdrawalMultiTokenSol {
+            is_initialized: true,
+            account_kind: AccountKind::Proposal,
+            is_executed: false,
+            author: *author_account_info.key,
+            round_number,
+            required_votes,
+            event: WithdrawalMultiTokenSolEventWithLen::new(
+                token_address,
+                amount,
+                recipient_address,
+            ),
+            meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::New, 0, epoch),
+            signers: vec![Vote::None; relay_round_account_data.relays.len()],
+            pda: PDA {
+                settings: *token_settings_account_info.key,
+                event_timestamp,
+                event_transaction_lt,
+                event_configuration,
+            },
+        };
+
+        let event_data = hash(&withdrawal_account_data.event.data.try_to_vec()?);
+
+        // Validate Withdrawal Account
+        let withdrawal_nonce = bridge_utils::helper::validate_proposal_account(
+            program_id,
+            token_settings_account_info.key,
+            round_number,
+            event_timestamp,
+            event_transaction_lt,
+            &event_configuration,
+            &event_data,
+            withdrawal_account_info,
+        )?;
+        let withdrawal_account_signer_seeds: &[&[_]] = &[
+            br"proposal",
+            &token_settings_account_info.key.to_bytes(),
+            &round_number.to_le_bytes(),
+            &event_timestamp.to_le_bytes(),
+            &event_transaction_lt.to_le_bytes(),
+            &event_configuration.to_bytes(),
+            &event_data.to_bytes(),
+            &[withdrawal_nonce],
+        ];
+
+        // Create Withdraw Account
+        invoke_signed(
+            &system_instruction::create_account(
+                funder_account_info.key,
+                withdrawal_account_info.key,
+                1.max(rent.minimum_balance(WithdrawalMultiTokenSol::LEN)),
+                WithdrawalMultiTokenSol::LEN as u64,
+                program_id,
+            ),
+            &[
+                funder_account_info.clone(),
+                withdrawal_account_info.clone(),
+                system_program_info.clone(),
+            ],
+            &[withdrawal_account_signer_seeds],
+        )?;
+
+        WithdrawalMultiTokenSol::pack(
             withdrawal_account_data,
             &mut withdrawal_account_info.data.borrow_mut(),
         )?;
