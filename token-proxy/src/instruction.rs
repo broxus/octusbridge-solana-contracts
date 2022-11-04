@@ -26,6 +26,18 @@ pub enum TokenProxyInstruction {
     /// ...
     WithdrawSol,
 
+    /// Withdraw Multi Token EVER
+    ///
+    /// # Account references
+    /// ...
+    WithdrawMultiTokenEver,
+
+    /// Withdraw Multi Token SOL
+    ///
+    /// # Account references
+    /// ...
+    WithdrawMultiTokenSol,
+
     /// Initialize Token Proxy
     ///
     /// # Account references
