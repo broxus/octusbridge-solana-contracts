@@ -5300,3 +5300,820 @@ async fn test_disable_token_emergency() {
 
     assert_eq!(token_settings_data.emergency, false);
 }
+
+#[tokio::test]
+async fn test_deposit_multi_token_ever() {
+    let mut program_test = ProgramTest::new(
+        "token_proxy",
+        token_proxy::id(),
+        processor!(Processor::process),
+    );
+
+    // Setup environment
+
+    // Add Mint Account
+    let name = "WEVER".to_string();
+    let solana_decimals = 9;
+    let ever_decimals = 9;
+    let deposit_limit = 10000000;
+    let withdrawal_limit = 10000;
+    let withdrawal_daily_limit = 1000;
+    let guardian = Pubkey::new_unique();
+    let withdrawal_manager = Pubkey::new_unique();
+
+    let mint_address = get_mint_address(&name);
+
+    let mint_account_data = spl_token::state::Mint {
+        is_initialized: true,
+        mint_authority: program_option::COption::Some(mint_address),
+        supply: 100,
+        decimals: solana_decimals,
+        ..Default::default()
+    };
+
+    let mut mint_packed = vec![0; spl_token::state::Mint::LEN];
+    spl_token::state::Mint::pack(mint_account_data, &mut mint_packed).unwrap();
+    program_test.add_account(
+        mint_address,
+        Account {
+            lamports: Rent::default().minimum_balance(spl_token::state::Mint::LEN),
+            data: mint_packed,
+            owner: spl_token::id(),
+            executable: false,
+            rent_epoch: 1,
+        },
+    );
+
+    // Add Sender Account
+    let sender = Keypair::new();
+    program_test.add_account(
+        sender.pubkey(),
+        Account {
+            lamports: 100000000,
+            data: vec![],
+            owner: solana_program::system_program::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Sender Token Account
+    let sender_associated_token_address =
+        spl_associated_token_account::get_associated_token_address(&sender.pubkey(), &mint_address);
+
+    let sender_account_data = spl_token::state::Account {
+        mint: mint_address,
+        owner: sender.pubkey(),
+        amount: 100,
+        state: AccountState::Initialized,
+        ..Default::default()
+    };
+
+    let mut sender_packed = vec![0; spl_token::state::Account::LEN];
+    spl_token::state::Account::pack(sender_account_data, &mut sender_packed).unwrap();
+    program_test.add_account(
+        sender_associated_token_address,
+        Account {
+            lamports: Rent::default().minimum_balance(spl_token::state::Account::LEN),
+            data: sender_packed,
+            owner: spl_token::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Settings Account
+    let settings_address = get_settings_address();
+
+    let settings_account_data = Settings {
+        is_initialized: true,
+        account_kind: AccountKind::Settings,
+        emergency: false,
+        guardian,
+        withdrawal_manager,
+    };
+
+    let mut settings_packed = vec![0; Settings::LEN];
+    Settings::pack(settings_account_data, &mut settings_packed).unwrap();
+    program_test.add_account(
+        settings_address,
+        Account {
+            lamports: Rent::default().minimum_balance(Settings::LEN),
+            data: settings_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Token Settings Account
+    let token_settings_address = get_token_settings_address(&name);
+
+    let token_settings_account_data = TokenSettings {
+        is_initialized: true,
+        account_kind: AccountKind::Settings,
+        name: name.clone(),
+        kind: TokenKind::Ever { mint: mint_address },
+        withdrawal_daily_amount: 0,
+        withdrawal_epoch: 0,
+        deposit_limit,
+        withdrawal_limit,
+        withdrawal_daily_limit,
+        solana_decimals,
+        ever_decimals,
+        emergency: false,
+    };
+
+    let mut token_settings_packed = vec![0; TokenSettings::LEN];
+    TokenSettings::pack(token_settings_account_data, &mut token_settings_packed).unwrap();
+    program_test.add_account(
+        token_settings_address,
+        Account {
+            lamports: Rent::default().minimum_balance(TokenSettings::LEN),
+            data: token_settings_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Multi Vault Account
+    let multivault_address = get_multivault_address();
+    program_test.add_account(
+        multivault_address,
+        Account {
+            lamports: 100000000,
+            data: vec![],
+            owner: solana_program::system_program::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Start Program Test
+    let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
+
+    let deposit_seed = uuid::Uuid::new_v4();
+    let recipient_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
+    let token_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
+    let amount = 32;
+    let sol_amount = 100;
+
+    let author_token_pubkey =
+        spl_associated_token_account::get_associated_token_address(&sender.pubkey(), &mint_address);
+
+    let mut transaction = Transaction::new_with_payer(
+        &[deposit_multi_token_ever_ix(
+            &funder.pubkey(),
+            &sender.pubkey(),
+            &author_token_pubkey,
+            &name,
+            deposit_seed,
+            recipient_address,
+            token_address,
+            amount,
+            sol_amount,
+            vec![],
+        )],
+        Some(&funder.pubkey()),
+    );
+    transaction.sign(&[&funder, &sender], recent_blockhash);
+
+    banks_client
+        .process_transaction(transaction)
+        .await
+        .expect("process_transaction");
+
+    let deposit_address = get_deposit_address(deposit_seed.as_u128(), &token_settings_address);
+    let deposit_info = banks_client
+        .get_account(deposit_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let deposit_data =
+        DepositMultiTokenEver::unpack(deposit_info.data()).expect("deposit token unpack");
+    assert_eq!(deposit_data.event.data.amount as u64, amount);
+    assert_eq!(deposit_data.event.data.sol_amount as u64, sol_amount);
+    assert_eq!(deposit_data.event.data.recipient_address, recipient_address);
+    assert_eq!(deposit_data.event.data.token_address, token_address);
+    assert_eq!(deposit_data.meta.data.seed, deposit_seed.as_u128());
+}
+
+#[tokio::test]
+async fn test_deposit_multi_token_sol() {
+    let mut program_test = ProgramTest::new(
+        "token_proxy",
+        token_proxy::id(),
+        processor!(Processor::process),
+    );
+
+    // Setup environment
+
+    // Add Mint Account
+    let name = "OCTUSBRIDGE ETHEREUM USDT".to_string();
+    let symbol = "USDT".to_string();
+    let solana_decimals = 9;
+    let guardian = Pubkey::new_unique();
+    let withdrawal_manager = Pubkey::new_unique();
+
+    let mint_address = get_mint_address(&name);
+
+    let mint_account_data = spl_token::state::Mint {
+        is_initialized: true,
+        mint_authority: program_option::COption::Some(mint_address),
+        supply: 100,
+        decimals: solana_decimals,
+        ..Default::default()
+    };
+
+    let mut mint_packed = vec![0; spl_token::state::Mint::LEN];
+    spl_token::state::Mint::pack(mint_account_data, &mut mint_packed).unwrap();
+    program_test.add_account(
+        mint_address,
+        Account {
+            lamports: Rent::default().minimum_balance(spl_token::state::Mint::LEN),
+            data: mint_packed,
+            owner: spl_token::id(),
+            executable: false,
+            rent_epoch: 1,
+        },
+    );
+
+    // Add Sender Account
+    let sender = Keypair::new();
+    program_test.add_account(
+        sender.pubkey(),
+        Account {
+            lamports: 100000000,
+            data: vec![],
+            owner: solana_program::system_program::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Sender Token Account
+    let sender_associated_token_address =
+        spl_associated_token_account::get_associated_token_address(&sender.pubkey(), &mint_address);
+
+    let sender_account_data = spl_token::state::Account {
+        mint: mint_address,
+        owner: sender.pubkey(),
+        amount: 100,
+        state: AccountState::Initialized,
+        ..Default::default()
+    };
+
+    let mut sender_packed = vec![0; spl_token::state::Account::LEN];
+    spl_token::state::Account::pack(sender_account_data, &mut sender_packed).unwrap();
+    program_test.add_account(
+        sender_associated_token_address,
+        Account {
+            lamports: Rent::default().minimum_balance(spl_token::state::Account::LEN),
+            data: sender_packed,
+            owner: spl_token::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Settings Account
+    let settings_address = get_settings_address();
+
+    let settings_account_data = Settings {
+        is_initialized: true,
+        account_kind: AccountKind::Settings,
+        emergency: false,
+        guardian,
+        withdrawal_manager,
+    };
+
+    let mut settings_packed = vec![0; Settings::LEN];
+    Settings::pack(settings_account_data, &mut settings_packed).unwrap();
+    program_test.add_account(
+        settings_address,
+        Account {
+            lamports: Rent::default().minimum_balance(Settings::LEN),
+            data: settings_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Multi Vault Account
+    let multivault_address = get_multivault_address();
+    program_test.add_account(
+        multivault_address,
+        Account {
+            lamports: 100000000,
+            data: vec![],
+            owner: solana_program::system_program::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Start Program Test
+    let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
+
+    let deposit_seed = uuid::Uuid::new_v4();
+    let recipient_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
+    let amount = 32;
+    let sol_amount = 100;
+
+    let author_token_pubkey =
+        spl_associated_token_account::get_associated_token_address(&sender.pubkey(), &mint_address);
+
+    let mut transaction = Transaction::new_with_payer(
+        &[deposit_multi_token_sol_ix(
+            &funder.pubkey(),
+            &sender.pubkey(),
+            &author_token_pubkey,
+            deposit_seed,
+            recipient_address,
+            amount,
+            name.clone(),
+            symbol.clone(),
+            sol_amount,
+            vec![],
+        )],
+        Some(&funder.pubkey()),
+    );
+    transaction.sign(&[&funder, &sender], recent_blockhash);
+
+    banks_client
+        .process_transaction(transaction)
+        .await
+        .expect("process_transaction");
+
+    // Add Token Settings Account
+    let token_settings_address = get_token_settings_address(&name);
+    let token_settings_info = banks_client
+        .get_account(token_settings_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let token_settings =
+        TokenSettings::unpack(token_settings_info.data()).expect("deposit token unpack");
+    assert_eq!(token_settings.is_initialized, true);
+    assert_eq!(token_settings.name, name);
+    assert_eq!(token_settings.solana_decimals, solana_decimals);
+    assert_eq!(token_settings.ever_decimals, solana_decimals);
+
+    let deposit_address = get_deposit_address(deposit_seed.as_u128(), &token_settings_address);
+    let deposit_info = banks_client
+        .get_account(deposit_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let deposit_data =
+        DepositMultiTokenSol::unpack(deposit_info.data()).expect("deposit token unpack");
+    assert_eq!(deposit_data.event.data.amount as u64, amount);
+    assert_eq!(deposit_data.event.data.symbol, symbol);
+    assert_eq!(deposit_data.event.data.sol_amount as u64, sol_amount);
+    assert_eq!(deposit_data.event.data.recipient_address, recipient_address);
+    assert_eq!(deposit_data.meta.data.seed, deposit_seed.as_u128());
+}
+
+#[tokio::test]
+async fn test_withdrawal_multi_token_ever_request() {
+    let mut program_test = ProgramTest::new(
+        "token_proxy",
+        token_proxy::id(),
+        processor!(Processor::process),
+    );
+
+    // Setup environment
+    let name = "WEVER".to_string();
+    let symbol = "OCTUSBRIDGE WRAPPED EVER".to_string();
+    let ever_decimals = 9;
+
+    let mint_address = get_mint_address(&name);
+
+    // Add Round Loader Settings Account
+    let round_number = 12;
+    let rl_settings_address =
+        bridge_utils::helper::get_associated_settings_address(&round_loader::id());
+
+    let round_ttl = 1209600;
+    let rl_settings_account_data = round_loader::Settings {
+        is_initialized: true,
+        account_kind: AccountKind::Settings,
+        current_round_number: round_number,
+        round_submitter: Pubkey::new_unique(),
+        min_required_votes: 1,
+        round_ttl: 0,
+    };
+
+    let mut rl_settings_packed = vec![0; round_loader::Settings::LEN];
+    round_loader::Settings::pack(rl_settings_account_data, &mut rl_settings_packed).unwrap();
+    program_test.add_account(
+        rl_settings_address,
+        Account {
+            lamports: Rent::default().minimum_balance(round_loader::Settings::LEN),
+            data: rl_settings_packed,
+            owner: round_loader::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Relay Round Account
+    let relays = vec![
+        Pubkey::new_unique(),
+        Pubkey::new_unique(),
+        Pubkey::new_unique(),
+    ];
+    let relay_round_address =
+        round_loader::get_associated_relay_round_address(&round_loader::id(), round_number);
+
+    let round_end = round_ttl + chrono::Utc::now().timestamp() as u32;
+
+    let relay_round_data = round_loader::RelayRound {
+        is_initialized: true,
+        account_kind: AccountKind::RelayRound,
+        relays: relays.clone(),
+        round_number,
+        round_end,
+    };
+
+    let mut relay_round_packed = vec![0; round_loader::RelayRound::LEN];
+    round_loader::RelayRound::pack(relay_round_data, &mut relay_round_packed).unwrap();
+
+    program_test.add_account(
+        relay_round_address,
+        Account {
+            lamports: Rent::default().minimum_balance(round_loader::RelayRound::LEN),
+            data: relay_round_packed,
+            owner: round_loader::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Recipient Token Account
+    let recipient_address = Pubkey::new_unique();
+    let recipient_associated_token_address =
+        spl_associated_token_account::get_associated_token_address(
+            &recipient_address,
+            &mint_address,
+        );
+
+    let recipient_account_data = spl_token::state::Account {
+        mint: mint_address,
+        owner: recipient_address,
+        state: AccountState::Initialized,
+        ..Default::default()
+    };
+
+    let mut recipient_packed = vec![0; spl_token::state::Account::LEN];
+    spl_token::state::Account::pack(recipient_account_data, &mut recipient_packed).unwrap();
+    program_test.add_account(
+        recipient_associated_token_address,
+        Account {
+            lamports: Rent::default().minimum_balance(spl_token::state::Account::LEN),
+            data: recipient_packed,
+            owner: spl_token::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Author Account
+    let author = Keypair::new();
+    program_test.add_account(
+        author.pubkey(),
+        Account {
+            lamports: 100000000,
+            data: vec![],
+            owner: solana_program::system_program::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Start Program Test
+    let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
+
+    let event_timestamp = 1650988297;
+    let event_transaction_lt = 1650988334;
+    let event_configuration = Pubkey::new_unique();
+    let token_address = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
+    let amount = 32;
+
+    let mut transaction = Transaction::new_with_payer(
+        &[withdrawal_multi_token_ever_request_ix(
+            &funder.pubkey(),
+            &author.pubkey(),
+            event_timestamp,
+            event_transaction_lt,
+            event_configuration,
+            token_address,
+            name.clone(),
+            symbol.clone(),
+            ever_decimals,
+            round_number,
+            recipient_address,
+            amount,
+        )],
+        Some(&funder.pubkey()),
+    );
+    transaction.sign(&[&funder, &author], recent_blockhash);
+
+    banks_client
+        .process_transaction(transaction)
+        .await
+        .expect("process_transaction");
+
+    let token_settings_pubkey = get_token_settings_address(&name);
+
+    let withdrawal_address = get_multivault_withdrawal_ever_address(
+        &token_settings_pubkey,
+        round_number,
+        event_timestamp,
+        event_transaction_lt,
+        &event_configuration,
+        token_address,
+        name.clone(),
+        symbol.clone(),
+        ever_decimals,
+        recipient_address,
+        amount,
+    );
+    let withdrawal_info = banks_client
+        .get_account(withdrawal_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let withdrawal_data =
+        WithdrawalMultiTokenEver::unpack(withdrawal_info.data()).expect("withdrawal token unpack");
+
+    assert_eq!(withdrawal_data.is_initialized, true);
+
+    assert_eq!(withdrawal_data.pda.settings, token_settings_pubkey);
+    assert_eq!(withdrawal_data.pda.event_timestamp, event_timestamp);
+    assert_eq!(
+        withdrawal_data.pda.event_transaction_lt,
+        event_transaction_lt
+    );
+    assert_eq!(withdrawal_data.pda.event_configuration, event_configuration);
+
+    assert_eq!(withdrawal_data.event.data.amount, amount);
+    assert_eq!(withdrawal_data.meta.data.status, WithdrawalTokenStatus::New);
+
+    assert_eq!(withdrawal_data.signers.len(), relays.len());
+    for (i, _) in relays.iter().enumerate() {
+        assert_eq!(withdrawal_data.signers[i], Vote::None);
+    }
+}
+
+#[tokio::test]
+async fn test_withdrawal_multi_token_sol_request() {
+    let mut program_test = ProgramTest::new(
+        "token_proxy",
+        token_proxy::id(),
+        processor!(Processor::process),
+    );
+
+    // Setup environment
+
+    // Add Mint Account
+    let mint = Keypair::new();
+
+    let name = "USDT".to_string();
+    let solana_decimals = 9;
+    let ever_decimals = 9;
+    let deposit_limit = 10000000;
+    let withdrawal_limit = 10000;
+    let withdrawal_daily_limit = 1000;
+
+    let mint_account_data = spl_token::state::Mint {
+        is_initialized: true,
+        mint_authority: program_option::COption::Some(mint.pubkey()),
+        decimals: solana_decimals,
+        ..Default::default()
+    };
+
+    let mut mint_packed = vec![0; spl_token::state::Mint::LEN];
+    spl_token::state::Mint::pack(mint_account_data, &mut mint_packed).unwrap();
+    program_test.add_account(
+        mint.pubkey(),
+        Account {
+            lamports: Rent::default().minimum_balance(spl_token::state::Mint::LEN),
+            data: mint_packed,
+            owner: spl_token::id(),
+            executable: false,
+            rent_epoch: 1,
+        },
+    );
+
+    // Add Token Settings Account
+    let token_settings_address = get_token_settings_address(&name);
+
+    let token_settings_account_data = TokenSettings {
+        is_initialized: true,
+        account_kind: AccountKind::Settings,
+        name: name.clone(),
+        kind: TokenKind::Solana {
+            mint: mint.pubkey(),
+            vault: Pubkey::new_unique(),
+        },
+        withdrawal_daily_amount: 0,
+        withdrawal_epoch: 0,
+        deposit_limit,
+        withdrawal_limit,
+        withdrawal_daily_limit,
+        solana_decimals,
+        ever_decimals,
+        emergency: false,
+    };
+
+    let mut token_settings_packed = vec![0; TokenSettings::LEN];
+    TokenSettings::pack(token_settings_account_data, &mut token_settings_packed).unwrap();
+    program_test.add_account(
+        token_settings_address,
+        Account {
+            lamports: Rent::default().minimum_balance(TokenSettings::LEN),
+            data: token_settings_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Round Loader Settings Account
+    let round_number = 12;
+    let rl_settings_address =
+        bridge_utils::helper::get_associated_settings_address(&round_loader::id());
+
+    let round_ttl = 1209600;
+    let rl_settings_account_data = round_loader::Settings {
+        is_initialized: true,
+        account_kind: AccountKind::Settings,
+        current_round_number: round_number,
+        round_submitter: Pubkey::new_unique(),
+        min_required_votes: 1,
+        round_ttl: 0,
+    };
+
+    let mut rl_settings_packed = vec![0; round_loader::Settings::LEN];
+    round_loader::Settings::pack(rl_settings_account_data, &mut rl_settings_packed).unwrap();
+    program_test.add_account(
+        rl_settings_address,
+        Account {
+            lamports: Rent::default().minimum_balance(round_loader::Settings::LEN),
+            data: rl_settings_packed,
+            owner: round_loader::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Relay Round Account
+    let relays = vec![
+        Pubkey::new_unique(),
+        Pubkey::new_unique(),
+        Pubkey::new_unique(),
+    ];
+    let relay_round_address =
+        round_loader::get_associated_relay_round_address(&round_loader::id(), round_number);
+
+    let round_end = round_ttl + chrono::Utc::now().timestamp() as u32;
+
+    let relay_round_data = round_loader::RelayRound {
+        is_initialized: true,
+        account_kind: AccountKind::RelayRound,
+        relays: relays.clone(),
+        round_number,
+        round_end,
+    };
+
+    let mut relay_round_packed = vec![0; round_loader::RelayRound::LEN];
+    round_loader::RelayRound::pack(relay_round_data, &mut relay_round_packed).unwrap();
+
+    program_test.add_account(
+        relay_round_address,
+        Account {
+            lamports: Rent::default().minimum_balance(round_loader::RelayRound::LEN),
+            data: relay_round_packed,
+            owner: round_loader::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Recipient Token Account
+    let recipient_address = Pubkey::new_unique();
+    let recipient_associated_token_address =
+        spl_associated_token_account::get_associated_token_address(
+            &recipient_address,
+            &mint.pubkey(),
+        );
+
+    let recipient_account_data = spl_token::state::Account {
+        mint: mint.pubkey(),
+        owner: recipient_address,
+        state: AccountState::Initialized,
+        ..Default::default()
+    };
+
+    let mut recipient_packed = vec![0; spl_token::state::Account::LEN];
+    spl_token::state::Account::pack(recipient_account_data, &mut recipient_packed).unwrap();
+    program_test.add_account(
+        recipient_associated_token_address,
+        Account {
+            lamports: Rent::default().minimum_balance(spl_token::state::Account::LEN),
+            data: recipient_packed,
+            owner: spl_token::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Author Account
+    let author = Keypair::new();
+    program_test.add_account(
+        author.pubkey(),
+        Account {
+            lamports: 100000000,
+            data: vec![],
+            owner: solana_program::system_program::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Start Program Test
+    let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
+
+    let event_timestamp = 1650988297;
+    let event_transaction_lt = 1650988334;
+    let event_configuration = Pubkey::new_unique();
+    let amount = 32;
+
+    let mut transaction = Transaction::new_with_payer(
+        &[withdrawal_multi_token_sol_request_ix(
+            &funder.pubkey(),
+            &author.pubkey(),
+            event_timestamp,
+            event_transaction_lt,
+            event_configuration,
+            mint.pubkey(),
+            name.clone(),
+            round_number,
+            recipient_address,
+            amount,
+        )],
+        Some(&funder.pubkey()),
+    );
+    transaction.sign(&[&funder, &author], recent_blockhash);
+
+    banks_client
+        .process_transaction(transaction)
+        .await
+        .expect("process_transaction");
+
+    let token_settings_pubkey = get_token_settings_address(&name);
+
+    let withdrawal_address = get_multivault_withdrawal_sol_address(
+        &token_settings_pubkey,
+        round_number,
+        event_timestamp,
+        event_transaction_lt,
+        &event_configuration,
+        mint.pubkey(),
+        recipient_address,
+        amount,
+    );
+    let withdrawal_info = banks_client
+        .get_account(withdrawal_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let withdrawal_data =
+        WithdrawalMultiTokenSol::unpack(withdrawal_info.data()).expect("withdrawal token unpack");
+
+    assert_eq!(withdrawal_data.is_initialized, true);
+
+    assert_eq!(withdrawal_data.pda.settings, token_settings_pubkey);
+    assert_eq!(withdrawal_data.pda.event_timestamp, event_timestamp);
+    assert_eq!(
+        withdrawal_data.pda.event_transaction_lt,
+        event_transaction_lt
+    );
+    assert_eq!(withdrawal_data.pda.event_configuration, event_configuration);
+
+    assert_eq!(withdrawal_data.event.data.amount, amount);
+    assert_eq!(withdrawal_data.meta.data.status, WithdrawalTokenStatus::New);
+
+    assert_eq!(withdrawal_data.signers.len(), relays.len());
+    for (i, _) in relays.iter().enumerate() {
+        assert_eq!(withdrawal_data.signers[i], Vote::None);
+    }
+}

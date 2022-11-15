@@ -18,6 +18,10 @@ pub fn get_associated_mint_address(program_id: &Pubkey, name: &str) -> Pubkey {
     Pubkey::find_program_address(&[br"mint", name.as_bytes()], program_id).0
 }
 
+pub fn get_associated_multivault_address(program_id: &Pubkey) -> Pubkey {
+    Pubkey::find_program_address(&[br"multivault"], program_id).0
+}
+
 pub fn get_associated_deposit_address(
     program_id: &Pubkey,
     seed: u128,

@@ -938,9 +938,9 @@ impl Processor {
         let creator_token_account_info = next_account_info(account_info_iter)?;
         let deposit_account_info = next_account_info(account_info_iter)?;
         let mint_account_info = next_account_info(account_info_iter)?;
+        let multi_vault_account_info = next_account_info(account_info_iter)?;
         let token_settings_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
-        let multi_vault_account_info = next_account_info(account_info_iter)?;
         let system_program_info = next_account_info(account_info_iter)?;
         let token_program_info = next_account_info(account_info_iter)?;
         let rent_sysvar_info = next_account_info(account_info_iter)?;
@@ -1097,9 +1097,9 @@ impl Processor {
         let vault_account_info = next_account_info(account_info_iter)?;
         let deposit_account_info = next_account_info(account_info_iter)?;
         let mint_account_info = next_account_info(account_info_iter)?;
-        let settings_account_info = next_account_info(account_info_iter)?;
-        let token_settings_account_info = next_account_info(account_info_iter)?;
         let multi_vault_account_info = next_account_info(account_info_iter)?;
+        let token_settings_account_info = next_account_info(account_info_iter)?;
+        let settings_account_info = next_account_info(account_info_iter)?;
         let system_program_info = next_account_info(account_info_iter)?;
         let token_program_info = next_account_info(account_info_iter)?;
         let rent_sysvar_info = next_account_info(account_info_iter)?;
@@ -1266,6 +1266,7 @@ impl Processor {
             .checked_add(amount)
             .ok_or(SolanaBridgeError::Overflow)?
             > token_settings_account_data.deposit_limit
+            && token_settings_account_data.deposit_limit != 0
         {
             return Err(SolanaBridgeError::DepositLimit.into());
         }
@@ -1660,7 +1661,7 @@ impl Processor {
         )?;
 
         let create_token_settings_lamports = if token_settings_account_info.lamports() == 0 {
-            1.max(rent.minimum_balance(spl_token::state::Mint::LEN))
+            1.max(rent.minimum_balance(Mint::LEN))
                 + 1.max(rent.minimum_balance(TokenSettings::LEN))
                 + RELAY_REPARATION
         } else {
@@ -2203,7 +2204,6 @@ impl Processor {
         let token_settings_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
         let token_program_info = next_account_info(account_info_iter)?;
-        let spl_token_program_info = next_account_info(account_info_iter)?;
         let system_program_info = next_account_info(account_info_iter)?;
 
         let rent_sysvar_info = next_account_info(account_info_iter)?;
@@ -2277,7 +2277,7 @@ impl Processor {
                 )?,
                 &[
                     mint_account_info.clone(),
-                    spl_token_program_info.clone(),
+                    token_program_info.clone(),
                     rent_sysvar_info.clone(),
                 ],
                 &[mint_account_signer_seeds],

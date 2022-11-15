@@ -55,6 +55,78 @@ pub fn get_withdrawal_address(
     )
 }
 
+pub fn get_multivault_withdrawal_ever_address(
+    settings: &Pubkey,
+    round_number: u32,
+    event_timestamp: u32,
+    event_transaction_lt: u64,
+    event_configuration: &Pubkey,
+    token_address: EverAddress,
+    name: String,
+    symbol: String,
+    decimals: u8,
+    recipient_address: Pubkey,
+    amount: u128,
+) -> Pubkey {
+    let program_id = &id();
+
+    let event_data = hash(
+        &WithdrawalMultiTokenEverEventWithLen::new(
+            token_address,
+            name,
+            symbol,
+            decimals,
+            amount,
+            recipient_address,
+        )
+        .data
+        .try_to_vec()
+        .expect("pack"),
+    )
+    .to_bytes();
+
+    bridge_utils::helper::get_associated_proposal_address(
+        program_id,
+        settings,
+        round_number,
+        event_timestamp,
+        event_transaction_lt,
+        event_configuration,
+        &event_data,
+    )
+}
+
+pub fn get_multivault_withdrawal_sol_address(
+    settings: &Pubkey,
+    round_number: u32,
+    event_timestamp: u32,
+    event_transaction_lt: u64,
+    event_configuration: &Pubkey,
+    token_address: Pubkey,
+    recipient_address: Pubkey,
+    amount: u128,
+) -> Pubkey {
+    let program_id = &id();
+
+    let event_data = hash(
+        &WithdrawalMultiTokenSolEventWithLen::new(token_address, amount, recipient_address)
+            .data
+            .try_to_vec()
+            .expect("pack"),
+    )
+    .to_bytes();
+
+    bridge_utils::helper::get_associated_proposal_address(
+        program_id,
+        settings,
+        round_number,
+        event_timestamp,
+        event_transaction_lt,
+        event_configuration,
+        &event_data,
+    )
+}
+
 pub fn get_deposit_address(seed: u128, settings_address: &Pubkey) -> Pubkey {
     let program_id = &id();
     get_associated_deposit_address(program_id, seed, settings_address)
@@ -63,6 +135,11 @@ pub fn get_deposit_address(seed: u128, settings_address: &Pubkey) -> Pubkey {
 pub fn get_vault_address(name: &str) -> Pubkey {
     let program_id = &id();
     get_associated_vault_address(program_id, name)
+}
+
+pub fn get_multivault_address() -> Pubkey {
+    let program_id = &id();
+    get_associated_multivault_address(program_id)
 }
 
 pub fn get_mint_address(name: &str) -> Pubkey {
@@ -852,6 +929,235 @@ pub fn disable_token_emergency_ix(owner_pubkey: &Pubkey, token_name: &str) -> In
             AccountMeta::new(*owner_pubkey, true),
             AccountMeta::new(token_settings_pubkey, false),
             AccountMeta::new_readonly(program_data_pubkey, false),
+        ],
+        data,
+    }
+}
+
+pub fn deposit_multi_token_ever_ix(
+    funder_pubkey: &Pubkey,
+    author_pubkey: &Pubkey,
+    author_token_pubkey: &Pubkey,
+    token_name: &str,
+    deposit_seed: Uuid,
+    recipient_address: EverAddress,
+    token_address: EverAddress,
+    amount: u64,
+    sol_amount: u64,
+    payload: Vec<u8>,
+) -> Instruction {
+    let mint_pubkey = get_mint_address(token_name);
+    let token_settings_pubkey = get_token_settings_address(token_name);
+    let settings_pubkey = get_settings_address();
+
+    let deposit_seed = deposit_seed.as_u128();
+    let deposit_pubkey = get_deposit_address(deposit_seed, &token_settings_pubkey);
+
+    let multivault_pubkey = get_multivault_address();
+
+    let data = TokenProxyInstruction::DepositMultiTokenEver {
+        deposit_seed,
+        recipient_address,
+        token_address,
+        amount,
+        sol_amount,
+        payload,
+    }
+    .try_to_vec()
+    .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(*funder_pubkey, true),
+            AccountMeta::new(*author_pubkey, true),
+            AccountMeta::new(*author_token_pubkey, false),
+            AccountMeta::new(deposit_pubkey, false),
+            AccountMeta::new(mint_pubkey, false),
+            AccountMeta::new(multivault_pubkey, false),
+            AccountMeta::new(token_settings_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+            AccountMeta::new_readonly(spl_token::id(), false),
+            AccountMeta::new_readonly(sysvar::rent::id(), false),
+        ],
+        data,
+    }
+}
+
+pub fn deposit_multi_token_sol_ix(
+    funder_pubkey: &Pubkey,
+    author_pubkey: &Pubkey,
+    author_token_pubkey: &Pubkey,
+    deposit_seed: Uuid,
+    recipient_address: EverAddress,
+    amount: u64,
+    name: String,
+    symbol: String,
+    sol_amount: u64,
+    payload: Vec<u8>,
+) -> Instruction {
+    let mint_pubkey = get_mint_address(&name);
+    let token_settings_pubkey = get_token_settings_address(&name);
+    let settings_pubkey = get_settings_address();
+
+    let deposit_seed = deposit_seed.as_u128();
+    let deposit_pubkey = get_deposit_address(deposit_seed, &token_settings_pubkey);
+
+    let vault_pubkey = get_vault_address(&name);
+    let multivault_pubkey = get_multivault_address();
+
+    let data = TokenProxyInstruction::DepositMultiTokenSol {
+        deposit_seed,
+        recipient_address,
+        amount,
+        name,
+        symbol,
+        sol_amount,
+        payload,
+    }
+    .try_to_vec()
+    .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(*funder_pubkey, true),
+            AccountMeta::new(*author_pubkey, true),
+            AccountMeta::new(*author_token_pubkey, false),
+            AccountMeta::new(vault_pubkey, false),
+            AccountMeta::new(deposit_pubkey, false),
+            AccountMeta::new(mint_pubkey, false),
+            AccountMeta::new(multivault_pubkey, false),
+            AccountMeta::new(token_settings_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+            AccountMeta::new_readonly(spl_token::id(), false),
+            AccountMeta::new_readonly(sysvar::rent::id(), false),
+        ],
+        data,
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn withdrawal_multi_token_ever_request_ix(
+    funder_pubkey: &Pubkey,
+    author_pubkey: &Pubkey,
+    event_timestamp: u32,
+    event_transaction_lt: u64,
+    event_configuration: Pubkey,
+    token_address: EverAddress,
+    name: String,
+    symbol: String,
+    decimals: u8,
+    round_number: u32,
+    recipient_address: Pubkey,
+    amount: u128,
+) -> Instruction {
+    let token_settings_pubkey = get_token_settings_address(&name);
+
+    let withdrawal_pubkey = get_multivault_withdrawal_ever_address(
+        &token_settings_pubkey,
+        round_number,
+        event_timestamp,
+        event_transaction_lt,
+        &event_configuration,
+        token_address,
+        name.clone(),
+        symbol.clone(),
+        decimals,
+        recipient_address,
+        amount,
+    );
+    let rl_settings_pubkey =
+        bridge_utils::helper::get_associated_settings_address(&round_loader::id());
+    let relay_round_pubkey =
+        round_loader::get_associated_relay_round_address(&round_loader::id(), round_number);
+
+    let data = TokenProxyInstruction::WithdrawMultiTokenEverRequest {
+        event_timestamp,
+        event_transaction_lt,
+        event_configuration,
+        token_address,
+        name,
+        symbol,
+        decimals,
+        recipient_address,
+        amount,
+    }
+    .try_to_vec()
+    .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(*funder_pubkey, true),
+            AccountMeta::new(*author_pubkey, true),
+            AccountMeta::new(withdrawal_pubkey, false),
+            AccountMeta::new_readonly(token_settings_pubkey, false),
+            AccountMeta::new_readonly(rl_settings_pubkey, false),
+            AccountMeta::new_readonly(relay_round_pubkey, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+            AccountMeta::new_readonly(sysvar::rent::id(), false),
+            AccountMeta::new_readonly(sysvar::clock::id(), false),
+        ],
+        data,
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn withdrawal_multi_token_sol_request_ix(
+    funder_pubkey: &Pubkey,
+    author_pubkey: &Pubkey,
+    event_timestamp: u32,
+    event_transaction_lt: u64,
+    event_configuration: Pubkey,
+    token_address: Pubkey,
+    name: String,
+    round_number: u32,
+    recipient_address: Pubkey,
+    amount: u128,
+) -> Instruction {
+    let token_settings_pubkey = get_token_settings_address(&name);
+
+    let withdrawal_pubkey = get_multivault_withdrawal_sol_address(
+        &token_settings_pubkey,
+        round_number,
+        event_timestamp,
+        event_transaction_lt,
+        &event_configuration,
+        token_address,
+        recipient_address,
+        amount,
+    );
+    let rl_settings_pubkey =
+        bridge_utils::helper::get_associated_settings_address(&round_loader::id());
+    let relay_round_pubkey =
+        round_loader::get_associated_relay_round_address(&round_loader::id(), round_number);
+
+    let data = TokenProxyInstruction::WithdrawMultiTokenSolRequest {
+        event_timestamp,
+        event_transaction_lt,
+        event_configuration,
+        token_address,
+        recipient_address,
+        amount,
+    }
+    .try_to_vec()
+    .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(*funder_pubkey, true),
+            AccountMeta::new(*author_pubkey, true),
+            AccountMeta::new(withdrawal_pubkey, false),
+            AccountMeta::new_readonly(token_settings_pubkey, false),
+            AccountMeta::new_readonly(rl_settings_pubkey, false),
+            AccountMeta::new_readonly(relay_round_pubkey, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+            AccountMeta::new_readonly(sysvar::rent::id(), false),
+            AccountMeta::new_readonly(sysvar::clock::id(), false),
         ],
         data,
     }
