@@ -219,6 +219,150 @@ pub fn withdrawal_request_ix(
     return serde_wasm_bindgen::to_value(&ix).handle_error();
 }
 
+#[wasm_bindgen(js_name = "withdrawalMultiTokenEverRequest")]
+pub fn withdrawal_multi_token_ever_request_ix(
+    funder_pubkey: String,
+    author_pubkey: String,
+    name: String,
+    symbol: String,
+    decimals: u8,
+    event_timestamp: u32,
+    event_transaction_lt: u64,
+    event_configuration: String,
+    token_address: String,
+    recipient_address: String,
+    amount: String,
+    round_number: u32,
+) -> Result<JsValue, JsValue> {
+    let token_settings_pubkey = get_token_settings_address(&name);
+
+    let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
+    let author_pubkey = Pubkey::from_str(author_pubkey.as_str()).handle_error()?;
+    let recipient_address = Pubkey::from_str(recipient_address.as_str()).handle_error()?;
+    let event_configuration = Pubkey::from_str(event_configuration.as_str()).handle_error()?;
+    let amount = u128::from_str(&amount).handle_error()?;
+
+    let token_address = EverAddress::from_str(&token_address).handle_error()?;
+
+    let relay_round_pubkey = get_associated_relay_round_address(&round_loader::id(), round_number);
+
+    let withdrawal_pubkey = get_multivault_withdrawal_ever_address(
+        &token_settings_pubkey,
+        round_number,
+        event_timestamp,
+        event_transaction_lt,
+        &event_configuration,
+        token_address,
+        name.clone(),
+        symbol.clone(),
+        decimals,
+        recipient_address,
+        amount,
+    );
+
+    let rl_settings_pubkey =
+        bridge_utils::helper::get_associated_settings_address(&round_loader::id());
+
+    let data = TokenProxyInstruction::WithdrawMultiTokenEverRequest {
+        event_timestamp,
+        event_transaction_lt,
+        event_configuration,
+        token_address,
+        name,
+        symbol,
+        decimals,
+        recipient_address,
+        amount,
+    }
+    .try_to_vec()
+    .handle_error()?;
+
+    let ix = Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(funder_pubkey, true),
+            AccountMeta::new(author_pubkey, true),
+            AccountMeta::new(withdrawal_pubkey, false),
+            AccountMeta::new_readonly(token_settings_pubkey, false),
+            AccountMeta::new_readonly(rl_settings_pubkey, false),
+            AccountMeta::new_readonly(relay_round_pubkey, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+            AccountMeta::new_readonly(sysvar::rent::id(), false),
+            AccountMeta::new_readonly(sysvar::clock::id(), false),
+        ],
+        data,
+    };
+
+    return serde_wasm_bindgen::to_value(&ix).handle_error();
+}
+
+#[wasm_bindgen(js_name = "withdrawalMultiTokenSolRequest")]
+pub fn withdrawal_multi_token_sol_request_ix(
+    funder_pubkey: String,
+    author_pubkey: String,
+    name: String,
+    event_timestamp: u32,
+    event_transaction_lt: u64,
+    event_configuration: String,
+    recipient_address: String,
+    amount: String,
+    round_number: u32,
+) -> Result<JsValue, JsValue> {
+    let token_settings_pubkey = get_token_settings_address(&name);
+
+    let token_address = get_mint_address(&name);
+    let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
+    let author_pubkey = Pubkey::from_str(author_pubkey.as_str()).handle_error()?;
+    let recipient_address = Pubkey::from_str(recipient_address.as_str()).handle_error()?;
+    let event_configuration = Pubkey::from_str(event_configuration.as_str()).handle_error()?;
+    let amount = u128::from_str(&amount).handle_error()?;
+
+    let relay_round_pubkey = get_associated_relay_round_address(&round_loader::id(), round_number);
+
+    let withdrawal_pubkey = get_multivault_withdrawal_sol_address(
+        &token_settings_pubkey,
+        round_number,
+        event_timestamp,
+        event_transaction_lt,
+        &event_configuration,
+        token_address,
+        recipient_address,
+        amount,
+    );
+
+    let rl_settings_pubkey =
+        bridge_utils::helper::get_associated_settings_address(&round_loader::id());
+
+    let data = TokenProxyInstruction::WithdrawMultiTokenSolRequest {
+        event_timestamp,
+        event_transaction_lt,
+        event_configuration,
+        token_address,
+        recipient_address,
+        amount,
+    }
+    .try_to_vec()
+    .handle_error()?;
+
+    let ix = Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(funder_pubkey, true),
+            AccountMeta::new(author_pubkey, true),
+            AccountMeta::new(withdrawal_pubkey, false),
+            AccountMeta::new_readonly(token_settings_pubkey, false),
+            AccountMeta::new_readonly(rl_settings_pubkey, false),
+            AccountMeta::new_readonly(relay_round_pubkey, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+            AccountMeta::new_readonly(sysvar::rent::id(), false),
+            AccountMeta::new_readonly(sysvar::clock::id(), false),
+        ],
+        data,
+    };
+
+    return serde_wasm_bindgen::to_value(&ix).handle_error();
+}
+
 #[wasm_bindgen(js_name = "approveWithdrawalEver")]
 pub fn approve_withdrawal_ever_ix(
     authority_pubkey: String,
@@ -638,6 +782,75 @@ pub fn deposit_ever_ix(
     return serde_wasm_bindgen::to_value(&ix).handle_error();
 }
 
+#[wasm_bindgen(js_name = "depositMultiTokenEver")]
+pub fn deposit_multi_token_ever_ix(
+    funder_pubkey: String,
+    authority_pubkey: String,
+    author_token_pubkey: String,
+    name: String,
+    deposit_seed: String,
+    recipient_address: String,
+    token_address: String,
+    amount: u64,
+    sol_amount: u64,
+    payload: String,
+) -> Result<JsValue, JsValue> {
+    let deposit_seed = uuid::Uuid::from_str(&deposit_seed)
+        .handle_error()?
+        .as_u128();
+
+    let mint_pubkey = get_mint_address(&name);
+
+    let settings_pubkey = get_settings_address();
+    let token_settings_pubkey = get_token_settings_address(&name);
+
+    let deposit_pubkey = get_deposit_address(deposit_seed, &token_settings_pubkey);
+
+    let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
+    let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
+
+    let recipient_address = EverAddress::from_str(&recipient_address).handle_error()?;
+
+    let token_address = EverAddress::from_str(&token_address).handle_error()?;
+
+    let author_token_pubkey = Pubkey::from_str(author_token_pubkey.as_str()).handle_error()?;
+
+    let payload = base64::decode(payload).handle_error()?;
+
+    let multivault_pubkey = get_multivault_address();
+
+    let data = TokenProxyInstruction::DepositMultiTokenEver {
+        deposit_seed,
+        recipient_address,
+        token_address,
+        amount,
+        sol_amount,
+        payload,
+    }
+    .try_to_vec()
+    .handle_error()?;
+
+    let ix = Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(funder_pubkey, true),
+            AccountMeta::new(authority_pubkey, true),
+            AccountMeta::new(author_token_pubkey, false),
+            AccountMeta::new(deposit_pubkey, false),
+            AccountMeta::new(mint_pubkey, false),
+            AccountMeta::new(multivault_pubkey, false),
+            AccountMeta::new(token_settings_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+            AccountMeta::new_readonly(spl_token::id(), false),
+            AccountMeta::new_readonly(sysvar::rent::id(), false),
+        ],
+        data,
+    };
+
+    return serde_wasm_bindgen::to_value(&ix).handle_error();
+}
+
 #[wasm_bindgen(js_name = "depositSol")]
 pub fn deposit_sol_ix(
     funder_pubkey: String,
@@ -686,6 +899,76 @@ pub fn deposit_sol_ix(
             AccountMeta::new_readonly(mint_pubkey, false),
             AccountMeta::new_readonly(settings_pubkey, false),
             AccountMeta::new_readonly(token_settings_pubkey, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+            AccountMeta::new_readonly(spl_token::id(), false),
+            AccountMeta::new_readonly(sysvar::rent::id(), false),
+        ],
+        data,
+    };
+
+    return serde_wasm_bindgen::to_value(&ix).handle_error();
+}
+
+#[wasm_bindgen(js_name = "depositMultiTokenSol")]
+pub fn deposit_multi_token_sol_ix(
+    funder_pubkey: String,
+    author_pubkey: String,
+    mint_pubkey: String,
+    author_token_pubkey: String,
+    deposit_seed: String,
+    recipient_address: String,
+    amount: u64,
+    name: String,
+    symbol: String,
+    sol_amount: u64,
+    payload: String,
+) -> Result<JsValue, JsValue> {
+    let deposit_seed = uuid::Uuid::from_str(&deposit_seed)
+        .handle_error()?
+        .as_u128();
+
+    let vault_pubkey = get_vault_address(&name);
+
+    let settings_pubkey = get_settings_address();
+    let token_settings_pubkey = get_token_settings_address(&name);
+
+    let deposit_pubkey = get_deposit_address(deposit_seed, &token_settings_pubkey);
+
+    let mint_pubkey = Pubkey::from_str(mint_pubkey.as_str()).handle_error()?;
+    let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
+    let author_pubkey = Pubkey::from_str(author_pubkey.as_str()).handle_error()?;
+    let author_token_pubkey = Pubkey::from_str(author_token_pubkey.as_str()).handle_error()?;
+
+    let recipient_address = EverAddress::from_str(&recipient_address).handle_error()?;
+
+    let multivault_pubkey = get_multivault_address();
+
+    let payload = base64::decode(payload).handle_error()?;
+
+    let data = TokenProxyInstruction::DepositMultiTokenSol {
+        deposit_seed,
+        recipient_address,
+        amount,
+        name,
+        symbol,
+        sol_amount,
+        payload,
+    }
+    .try_to_vec()
+    .handle_error()?;
+
+    let ix = Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(funder_pubkey, true),
+            AccountMeta::new(author_pubkey, true),
+            AccountMeta::new(author_token_pubkey, false),
+            AccountMeta::new(vault_pubkey, false),
+            AccountMeta::new(deposit_pubkey, false),
+            AccountMeta::new(mint_pubkey, false),
+            AccountMeta::new(multivault_pubkey, false),
+            AccountMeta::new(token_settings_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
             AccountMeta::new_readonly(system_program::id(), false),
             AccountMeta::new_readonly(spl_token::id(), false),
             AccountMeta::new_readonly(sysvar::rent::id(), false),
