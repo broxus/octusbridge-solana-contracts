@@ -77,7 +77,8 @@ pub fn withdrawal_multi_token_ever_request_ix(
     let author_pubkey = Pubkey::from_str(author_pubkey.as_str()).handle_error()?;
     let recipient_address = Pubkey::from_str(recipient_address.as_str()).handle_error()?;
     let event_configuration = Pubkey::from_str(event_configuration.as_str()).handle_error()?;
-    let token_settings_pubkey = get_token_settings_address(&name, &symbol, decimals, decimals,&mint_pubkey);
+    let token_settings_pubkey =
+        get_token_settings_address(&name, &symbol, decimals, decimals, &mint_pubkey);
 
     let amount = u128::from_str(&amount).handle_error()?;
 
@@ -155,7 +156,8 @@ pub fn withdrawal_multi_token_sol_request_ix(
     let mint_pubkey = Pubkey::from_str(mint_pubkey.as_str()).handle_error()?;
     let recipient_address = Pubkey::from_str(recipient_address.as_str()).handle_error()?;
     let event_configuration = Pubkey::from_str(event_configuration.as_str()).handle_error()?;
-    let token_settings_pubkey = get_token_settings_address(&name, &symbol, decimals, decimals,&mint_pubkey);
+    let token_settings_pubkey =
+        get_token_settings_address(&name, &symbol, decimals, decimals, &mint_pubkey);
 
     let amount = u128::from_str(&amount).handle_error()?;
 
@@ -228,7 +230,8 @@ pub fn deposit_multi_token_ever_ix(
     let settings_pubkey = get_settings_address();
 
     let mint_pubkey = Pubkey::from_str(mint_pubkey.as_str()).handle_error()?;
-    let token_settings_pubkey = get_token_settings_address(&name, &symbol, decimals, decimals,&mint_pubkey);
+    let token_settings_pubkey =
+        get_token_settings_address(&name, &symbol, decimals, decimals, &mint_pubkey);
 
     let deposit_pubkey = get_deposit_address(deposit_seed, &token_settings_pubkey);
 
@@ -302,8 +305,9 @@ pub fn deposit_multi_token_sol_ix(
     let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
     let author_pubkey = Pubkey::from_str(author_pubkey.as_str()).handle_error()?;
     let author_token_pubkey = Pubkey::from_str(author_token_pubkey.as_str()).handle_error()?;
-    let token_settings_pubkey = get_token_settings_address(&name, &symbol, decimals, decimals,&mint_pubkey);
-    let vault_pubkey = get_vault_address(&name, &symbol, decimals, decimals,&mint_pubkey);
+    let token_settings_pubkey =
+        get_token_settings_address(&name, &symbol, decimals, decimals, &mint_pubkey);
+    let vault_pubkey = get_vault_address(&name, &symbol, decimals, decimals, &mint_pubkey);
 
     let deposit_pubkey = get_deposit_address(deposit_seed, &token_settings_pubkey);
 
@@ -824,6 +828,38 @@ pub fn unpack_withdrawal_multitoken_sol(data: Vec<u8>) -> Result<JsValue, JsValu
     };
 
     return serde_wasm_bindgen::to_value(&w).handle_error();
+}
+
+#[wasm_bindgen(js_name = "unpackDepositEver")]
+pub fn unpack_deposit_ever(data: Vec<u8>) -> Result<JsValue, JsValue> {
+    let deposit = DepositMultiTokenEver::unpack(&data).handle_error()?;
+
+    let d = WasmDepositMultiTokenEver {
+        is_initialized: deposit.is_initialized,
+        account_kind: deposit.account_kind,
+        event: deposit.event,
+        meta: WasmDepositTokenMeta {
+            seed: deposit.meta.data.seed.to_string(),
+        },
+    };
+
+    return serde_wasm_bindgen::to_value(&d).handle_error();
+}
+
+#[wasm_bindgen(js_name = "unpackDepositSol")]
+pub fn unpack_deposit_sol(data: Vec<u8>) -> Result<JsValue, JsValue> {
+    let deposit = DepositMultiTokenSol::unpack(&data).handle_error()?;
+
+    let d = WasmDepositMultiTokenSol {
+        is_initialized: deposit.is_initialized,
+        account_kind: deposit.account_kind,
+        event: deposit.event,
+        meta: WasmDepositTokenMeta {
+            seed: deposit.meta.data.seed.to_string(),
+        },
+    };
+
+    return serde_wasm_bindgen::to_value(&d).handle_error();
 }
 
 #[derive(Serialize, Deserialize)]
