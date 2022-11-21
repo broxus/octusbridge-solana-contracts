@@ -751,6 +751,81 @@ pub fn get_proposal_address(
     return serde_wasm_bindgen::to_value(&withdrawal_pubkey).handle_error();
 }*/
 
+#[wasm_bindgen(js_name = "unpackSettings")]
+pub fn unpack_settings(data: Vec<u8>) -> Result<JsValue, JsValue> {
+    let settings = Settings::unpack(&data).handle_error()?;
+
+    let s = WasmSettings {
+        emergency: settings.emergency,
+        guardian: settings.guardian,
+        withdrawal_manager: settings.withdrawal_manager,
+    };
+
+    return serde_wasm_bindgen::to_value(&s).handle_error();
+}
+
+#[wasm_bindgen(js_name = "unpackTokenSettings")]
+pub fn unpack_token_settings(data: Vec<u8>) -> Result<JsValue, JsValue> {
+    let token_settings = TokenSettings::unpack(&data).handle_error()?;
+
+    let s = WasmTokenSettings {
+        is_initialized: token_settings.is_initialized,
+        account_kind: token_settings.account_kind,
+        name: token_settings.name,
+        ever_decimals: token_settings.ever_decimals,
+        solana_decimals: token_settings.solana_decimals,
+        kind: token_settings.kind,
+        deposit_limit: token_settings.deposit_limit,
+        withdrawal_limit: token_settings.withdrawal_limit,
+        withdrawal_daily_limit: token_settings.withdrawal_daily_limit,
+        withdrawal_daily_amount: token_settings.withdrawal_daily_amount,
+        withdrawal_epoch: token_settings.withdrawal_epoch,
+        emergency: token_settings.emergency,
+    };
+
+    return serde_wasm_bindgen::to_value(&s).handle_error();
+}
+
+#[wasm_bindgen(js_name = "unpackWithdrawalMultiTokenEver")]
+pub fn unpack_withdrawal_multitoken_ever(data: Vec<u8>) -> Result<JsValue, JsValue> {
+    let withdrawal = WithdrawalMultiTokenEver::unpack(&data).handle_error()?;
+
+    let w = WasmWithdrawalMultiTokenEver {
+        is_initialized: withdrawal.is_initialized,
+        account_kind: withdrawal.account_kind,
+        is_executed: withdrawal.is_executed,
+        author: withdrawal.author,
+        round_number: withdrawal.round_number,
+        required_votes: withdrawal.required_votes,
+        pda: withdrawal.pda,
+        event: withdrawal.event,
+        meta: withdrawal.meta,
+        signers: withdrawal.signers,
+    };
+
+    return serde_wasm_bindgen::to_value(&w).handle_error();
+}
+
+#[wasm_bindgen(js_name = "unpackWithdrawalMultiTokenSol")]
+pub fn unpack_withdrawal_multitoken_sol(data: Vec<u8>) -> Result<JsValue, JsValue> {
+    let withdrawal = WithdrawalMultiTokenSol::unpack(&data).handle_error()?;
+
+    let w = WasmWithdrawalMultiTokenSol {
+        is_initialized: withdrawal.is_initialized,
+        account_kind: withdrawal.account_kind,
+        is_executed: withdrawal.is_executed,
+        author: withdrawal.author,
+        round_number: withdrawal.round_number,
+        required_votes: withdrawal.required_votes,
+        pda: withdrawal.pda,
+        event: withdrawal.event,
+        meta: withdrawal.meta,
+        signers: withdrawal.signers,
+    };
+
+    return serde_wasm_bindgen::to_value(&w).handle_error();
+}
+
 #[derive(Serialize, Deserialize)]
 pub struct WasmSettings {
     pub emergency: bool,
