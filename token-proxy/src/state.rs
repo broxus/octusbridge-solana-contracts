@@ -52,7 +52,7 @@ const DEPOSIT_MULTI_TOKEN_EVER_EVENT_LEN: usize =
 ;
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
-#[bridge_pack(length = 100)]
+#[bridge_pack(length = 1000)]
 pub struct Settings {
     pub is_initialized: bool,
     pub account_kind: AccountKind,
