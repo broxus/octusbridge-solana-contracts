@@ -12,11 +12,6 @@ use solana_program::pubkey::{Pubkey, PUBKEY_BYTES};
 pub const MAX_NAME_LEN: usize = 32;
 pub const WITHDRAWAL_TOKEN_PERIOD: i64 = 86400;
 
-const WITHDRAWAL_TOKEN_EVENT_LEN: usize = 16    // amount
-    + 1 + 1 + PUBKEY_BYTES                      // ever sender address
-    + PUBKEY_BYTES                              // solana recipient address
-;
-
 const WITHDRAWAL_MULTI_TOKEN_EVER_EVENT_LEN: usize =
     1 + 1 + PUBKEY_BYTES                      // ever token address
     + 1                                       // decimals
@@ -33,11 +28,6 @@ const WITHDRAWAL_MULTI_TOKEN_SOL_EVENT_LEN: usize =
 const WITHDRAWAL_TOKEN_META_LEN: usize = 1  // status
     + 8                                     // bounty
     + 8                                     // epoch
-;
-
-const DEPOSIT_TOKEN_EVENT_LEN: usize = 16   // amount
-    + 1 + 1 + PUBKEY_BYTES                  // ever recipient address
-    + PUBKEY_BYTES                          // solana sender address
 ;
 
 const DEPOSIT_TOKEN_META_LEN: usize = 16    // seed
@@ -85,6 +75,7 @@ pub struct TokenSettings {
     pub is_initialized: bool,
     pub account_kind: AccountKind,
     pub name: String,
+    pub symbol: String,
     pub ever_decimals: u8,
     pub solana_decimals: u8,
     pub kind: TokenKind,
@@ -101,49 +92,6 @@ impl Sealed for TokenSettings {}
 impl IsInitialized for TokenSettings {
     fn is_initialized(&self) -> bool {
         self.is_initialized
-    }
-}
-
-#[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
-#[bridge_pack(length = 108)]
-pub struct DepositToken {
-    pub is_initialized: bool,
-    pub account_kind: AccountKind,
-    pub event: DepositTokenEventWithLen,
-    pub meta: DepositTokenMetaWithLen,
-}
-
-impl Sealed for DepositToken {}
-
-impl IsInitialized for DepositToken {
-    fn is_initialized(&self) -> bool {
-        self.is_initialized
-    }
-}
-
-#[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
-pub struct DepositTokenEvent {
-    pub sender_address: Pubkey,
-    pub amount: u128,
-    pub recipient_address: EverAddress,
-}
-
-#[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
-pub struct DepositTokenEventWithLen {
-    pub len: u32,
-    pub data: DepositTokenEvent,
-}
-
-impl DepositTokenEventWithLen {
-    pub fn new(sender_address: Pubkey, amount: u128, recipient_address: EverAddress) -> Self {
-        Self {
-            len: DEPOSIT_TOKEN_EVENT_LEN as u32,
-            data: DepositTokenEvent {
-                sender_address,
-                amount,
-                recipient_address,
-            },
-        }
     }
 }
 
@@ -280,55 +228,6 @@ impl DepositMultiTokenEverEventWithLen {
                 sol_amount,
                 recipient_address,
                 payload,
-            },
-        }
-    }
-}
-
-#[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
-#[bridge_pack(length = 330)]
-pub struct WithdrawalToken {
-    pub is_initialized: bool,
-    pub account_kind: AccountKind,
-    pub is_executed: bool,
-    pub author: Pubkey,
-    pub round_number: u32,
-    pub required_votes: u32,
-    pub pda: PDA,
-    pub event: WithdrawalTokenEventWithLen,
-    pub meta: WithdrawalTokenMetaWithLen,
-    pub signers: Vec<Vote>,
-}
-
-impl Sealed for WithdrawalToken {}
-
-impl IsInitialized for WithdrawalToken {
-    fn is_initialized(&self) -> bool {
-        self.is_initialized
-    }
-}
-
-#[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
-pub struct WithdrawalTokenEvent {
-    pub sender_address: EverAddress,
-    pub amount: u128,
-    pub recipient_address: Pubkey,
-}
-
-#[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
-pub struct WithdrawalTokenEventWithLen {
-    pub len: u32,
-    pub data: WithdrawalTokenEvent,
-}
-
-impl WithdrawalTokenEventWithLen {
-    pub fn new(sender_address: EverAddress, amount: u128, recipient_address: Pubkey) -> Self {
-        Self {
-            len: WITHDRAWAL_TOKEN_EVENT_LEN as u32,
-            data: WithdrawalTokenEvent {
-                sender_address,
-                amount,
-                recipient_address,
             },
         }
     }

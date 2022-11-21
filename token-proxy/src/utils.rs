@@ -6,16 +6,68 @@ pub fn get_associated_settings_address(program_id: &Pubkey) -> Pubkey {
     Pubkey::find_program_address(&[br"settings"], program_id).0
 }
 
-pub fn get_associated_token_settings_address(program_id: &Pubkey, name: &str) -> Pubkey {
-    Pubkey::find_program_address(&[br"settings", name.as_bytes()], program_id).0
+pub fn get_associated_token_settings_address(
+    program_id: &Pubkey,
+    name: &str,
+    symbol: &str,
+    ever_decimals: u8,
+    solana_decimals: u8,
+    mint: &Pubkey,
+) -> Pubkey {
+    Pubkey::find_program_address(
+        &[
+            br"settings",
+            name.as_bytes(),
+            symbol.as_bytes(),
+            &ever_decimals.to_le_bytes(),
+            &solana_decimals.to_le_bytes(),
+            &mint.to_bytes(),
+        ],
+        program_id,
+    )
+    .0
 }
 
-pub fn get_associated_vault_address(program_id: &Pubkey, name: &str) -> Pubkey {
-    Pubkey::find_program_address(&[br"vault", name.as_bytes()], program_id).0
+pub fn get_associated_vault_address(
+    program_id: &Pubkey,
+    name: &str,
+    symbol: &str,
+    ever_decimals: u8,
+    solana_decimals: u8,
+    mint: &Pubkey,
+) -> Pubkey {
+    Pubkey::find_program_address(
+        &[
+            br"vault",
+            name.as_bytes(),
+            symbol.as_bytes(),
+            &ever_decimals.to_le_bytes(),
+            &solana_decimals.to_le_bytes(),
+            &mint.to_bytes(),
+        ],
+        program_id,
+    )
+    .0
 }
 
-pub fn get_associated_mint_address(program_id: &Pubkey, name: &str) -> Pubkey {
-    Pubkey::find_program_address(&[br"mint", name.as_bytes()], program_id).0
+pub fn get_associated_mint_address(
+    program_id: &Pubkey,
+    name: &str,
+    symbol: &str,
+    ever_decimals: u8,
+    solana_decimals: u8,
+) -> Pubkey {
+    Pubkey::find_program_address(
+        &[
+            br"mint",
+            name.as_bytes(),
+            symbol.as_bytes(),
+            &ever_decimals.to_le_bytes(),
+            &solana_decimals.to_le_bytes(),
+        ],
+        program_id,
+    )
+    .0
 }
 
 pub fn get_associated_multivault_address(program_id: &Pubkey) -> Pubkey {
@@ -41,10 +93,23 @@ pub fn get_associated_deposit_address(
 pub fn validate_token_settings_account(
     program_id: &Pubkey,
     name: &str,
+    symbol: &str,
+    ever_decimals: u8,
+    solana_decimals: u8,
+    mint: &Pubkey,
     account_info: &AccountInfo,
 ) -> Result<u8, ProgramError> {
-    let (account, nonce) =
-        Pubkey::find_program_address(&[br"settings", name.as_bytes()], program_id);
+    let (account, nonce) = Pubkey::find_program_address(
+        &[
+            br"settings",
+            name.as_bytes(),
+            symbol.as_bytes(),
+            &ever_decimals.to_le_bytes(),
+            &solana_decimals.to_le_bytes(),
+            &mint.to_bytes(),
+        ],
+        program_id,
+    );
 
     if account != *account_info.key {
         return Err(ProgramError::InvalidArgument);
@@ -78,9 +143,21 @@ pub fn validate_deposit_account(
 pub fn validate_mint_account(
     program_id: &Pubkey,
     name: &str,
+    symbol: &str,
+    ever_decimals: u8,
+    solana_decimals: u8,
     account_info: &AccountInfo,
 ) -> Result<u8, ProgramError> {
-    let (account, nonce) = Pubkey::find_program_address(&[br"mint", name.as_bytes()], program_id);
+    let (account, nonce) = Pubkey::find_program_address(
+        &[
+            br"mint",
+            name.as_bytes(),
+            symbol.as_bytes(),
+            &ever_decimals.to_le_bytes(),
+            &solana_decimals.to_le_bytes(),
+        ],
+        program_id,
+    );
 
     if account != *account_info.key {
         return Err(ProgramError::InvalidArgument);
@@ -92,9 +169,23 @@ pub fn validate_mint_account(
 pub fn validate_vault_account(
     program_id: &Pubkey,
     name: &str,
+    symbol: &str,
+    ever_decimals: u8,
+    solana_decimals: u8,
+    mint: &Pubkey,
     account_info: &AccountInfo,
 ) -> Result<u8, ProgramError> {
-    let (account, nonce) = Pubkey::find_program_address(&[br"vault", name.as_bytes()], program_id);
+    let (account, nonce) = Pubkey::find_program_address(
+        &[
+            br"vault",
+            name.as_bytes(),
+            symbol.as_bytes(),
+            &ever_decimals.to_le_bytes(),
+            &solana_decimals.to_le_bytes(),
+            &mint.to_bytes(),
+        ],
+        program_id,
+    );
 
     if account != *account_info.key {
         return Err(ProgramError::InvalidArgument);
