@@ -60,7 +60,7 @@ pub fn initialize_settings_ix(
 pub fn withdrawal_multi_token_ever_request_ix(
     funder_pubkey: String,
     author_pubkey: String,
-    token_settings_pubkey: String,
+    mint_pubkey: String,
     name: String,
     symbol: String,
     decimals: u8,
@@ -72,11 +72,12 @@ pub fn withdrawal_multi_token_ever_request_ix(
     amount: String,
     round_number: u32,
 ) -> Result<JsValue, JsValue> {
+    let mint_pubkey = Pubkey::from_str(mint_pubkey.as_str()).handle_error()?;
     let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
     let author_pubkey = Pubkey::from_str(author_pubkey.as_str()).handle_error()?;
     let recipient_address = Pubkey::from_str(recipient_address.as_str()).handle_error()?;
     let event_configuration = Pubkey::from_str(event_configuration.as_str()).handle_error()?;
-    let token_settings_pubkey = Pubkey::from_str(token_settings_pubkey.as_str()).handle_error()?;
+    let token_settings_pubkey = get_token_settings_address(&name, &symbol, decimals, decimals,&mint_pubkey);
 
     let amount = u128::from_str(&amount).handle_error()?;
 
@@ -138,9 +139,10 @@ pub fn withdrawal_multi_token_ever_request_ix(
 pub fn withdrawal_multi_token_sol_request_ix(
     funder_pubkey: String,
     author_pubkey: String,
-    token_address: String,
-    token_settings_pubkey: String,
+    mint_pubkey: String,
     name: String,
+    symbol: String,
+    decimals: u8,
     event_timestamp: u32,
     event_transaction_lt: u64,
     event_configuration: String,
@@ -150,10 +152,10 @@ pub fn withdrawal_multi_token_sol_request_ix(
 ) -> Result<JsValue, JsValue> {
     let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
     let author_pubkey = Pubkey::from_str(author_pubkey.as_str()).handle_error()?;
-    let token_address = Pubkey::from_str(token_address.as_str()).handle_error()?;
+    let mint_pubkey = Pubkey::from_str(mint_pubkey.as_str()).handle_error()?;
     let recipient_address = Pubkey::from_str(recipient_address.as_str()).handle_error()?;
     let event_configuration = Pubkey::from_str(event_configuration.as_str()).handle_error()?;
-    let token_settings_pubkey = Pubkey::from_str(token_settings_pubkey.as_str()).handle_error()?;
+    let token_settings_pubkey = get_token_settings_address(&name, &symbol, decimals, decimals,&mint_pubkey);
 
     let amount = u128::from_str(&amount).handle_error()?;
 
@@ -165,7 +167,7 @@ pub fn withdrawal_multi_token_sol_request_ix(
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
-        token_address,
+        mint_pubkey,
         recipient_address,
         amount,
     );
@@ -177,7 +179,7 @@ pub fn withdrawal_multi_token_sol_request_ix(
         event_timestamp,
         event_transaction_lt,
         event_configuration,
-        token_address,
+        token_address: mint_pubkey,
         recipient_address,
         amount,
     }
@@ -209,8 +211,9 @@ pub fn deposit_multi_token_ever_ix(
     authority_pubkey: String,
     author_token_pubkey: String,
     mint_pubkey: String,
-    token_settings_pubkey: String,
     name: String,
+    symbol: String,
+    decimals: u8,
     deposit_seed: String,
     recipient_address: String,
     token_address: String,
@@ -225,7 +228,7 @@ pub fn deposit_multi_token_ever_ix(
     let settings_pubkey = get_settings_address();
 
     let mint_pubkey = Pubkey::from_str(mint_pubkey.as_str()).handle_error()?;
-    let token_settings_pubkey = Pubkey::from_str(token_settings_pubkey.as_str()).handle_error()?;
+    let token_settings_pubkey = get_token_settings_address(&name, &symbol, decimals, decimals,&mint_pubkey);
 
     let deposit_pubkey = get_deposit_address(deposit_seed, &token_settings_pubkey);
 
@@ -279,14 +282,13 @@ pub fn deposit_multi_token_sol_ix(
     funder_pubkey: String,
     author_pubkey: String,
     mint_pubkey: String,
+    name: String,
+    symbol: String,
+    decimals: u8,
     author_token_pubkey: String,
-    token_settings_pubkey: String,
-    vault_pubkey: String,
     deposit_seed: String,
     recipient_address: String,
     amount: u64,
-    name: String,
-    symbol: String,
     sol_amount: u64,
     payload: String,
 ) -> Result<JsValue, JsValue> {
@@ -300,8 +302,8 @@ pub fn deposit_multi_token_sol_ix(
     let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
     let author_pubkey = Pubkey::from_str(author_pubkey.as_str()).handle_error()?;
     let author_token_pubkey = Pubkey::from_str(author_token_pubkey.as_str()).handle_error()?;
-    let token_settings_pubkey = Pubkey::from_str(token_settings_pubkey.as_str()).handle_error()?;
-    let vault_pubkey = Pubkey::from_str(vault_pubkey.as_str()).handle_error()?;
+    let token_settings_pubkey = get_token_settings_address(&name, &symbol, decimals, decimals,&mint_pubkey);
+    let vault_pubkey = get_vault_address(&name, &symbol, decimals, decimals,&mint_pubkey);
 
     let deposit_pubkey = get_deposit_address(deposit_seed, &token_settings_pubkey);
 
