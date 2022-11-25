@@ -1,4 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
+use enum_as_inner::EnumAsInner;
 use serde::{Deserialize, Serialize};
 
 use solana_program::program_error::ProgramError;
@@ -35,24 +36,28 @@ impl Proposal {
 
 #[derive(Debug, Default, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 pub struct PDA {
-    pub settings: Pubkey,
     pub event_timestamp: u32,
     pub event_transaction_lt: u64,
     pub event_configuration: Pubkey,
 }
 
 #[derive(
-    Debug, Copy, Clone, BorshSerialize, BorshDeserialize, Serialize, Deserialize, PartialEq, Eq,
+    Debug,
+    Copy,
+    Clone,
+    BorshSerialize,
+    BorshDeserialize,
+    Serialize,
+    Deserialize,
+    EnumAsInner,
+    PartialEq,
+    Eq,
 )]
 pub enum AccountKind {
-    Settings,
-    Deposit,
-    Proposal,
-    RelayRound,
-}
-
-impl Default for AccountKind {
-    fn default() -> Self {
-        AccountKind::Settings
-    }
+    Settings(u8),
+    Deposit(u8),
+    Proposal(u8),
+    RelayRound(u8),
+    MultiVault(u8),
+    TokenSettings(u8, u8),
 }

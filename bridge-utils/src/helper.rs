@@ -9,13 +9,16 @@ pub fn get_programdata_address(program_id: &Pubkey) -> Pubkey {
     Pubkey::find_program_address(&[program_id.as_ref()], &bpf_loader_upgradeable::id()).0
 }
 
+pub fn get_associated_settings_address(program_id: &Pubkey) -> Pubkey {
+    Pubkey::find_program_address(&[b"settings"], program_id).0
+}
+
 pub fn get_associated_relay_round_address(program_id: &Pubkey, round_number: u32) -> Pubkey {
-    Pubkey::find_program_address(&[&round_number.to_le_bytes()], program_id).0
+    Pubkey::find_program_address(&[br"relay_round", &round_number.to_le_bytes()], program_id).0
 }
 
 pub fn get_associated_proposal_address(
     program_id: &Pubkey,
-    settings: &Pubkey,
     round_number: u32,
     event_timestamp: u32,
     event_transaction_lt: u64,
@@ -25,7 +28,6 @@ pub fn get_associated_proposal_address(
     Pubkey::find_program_address(
         &[
             br"proposal",
-            &settings.to_bytes(),
             &round_number.to_le_bytes(),
             &event_timestamp.to_le_bytes(),
             &event_transaction_lt.to_le_bytes(),
@@ -76,18 +78,17 @@ pub fn validate_initializer_account(
 
 pub fn validate_proposal_account(
     program_id: &Pubkey,
-    settings: &Pubkey,
     round_number: u32,
     event_timestamp: u32,
     event_transaction_lt: u64,
     event_configuration: &Pubkey,
     event_data: &Hash,
+    nonce: u8,
     proposal_account_info: &AccountInfo,
-) -> Result<u8, ProgramError> {
-    let (account, nonce) = Pubkey::find_program_address(
+) -> Result<(), ProgramError> {
+    let (account, expected_nonce) = Pubkey::find_program_address(
         &[
             br"proposal",
-            &settings.to_bytes(),
             &round_number.to_le_bytes(),
             &event_timestamp.to_le_bytes(),
             &event_transaction_lt.to_le_bytes(),
@@ -101,22 +102,9 @@ pub fn validate_proposal_account(
         return Err(ProgramError::InvalidArgument);
     }
 
-    Ok(nonce)
-}
-
-pub fn get_associated_settings_address(program_id: &Pubkey) -> Pubkey {
-    Pubkey::find_program_address(&[b"settings"], program_id).0
-}
-
-pub fn validate_settings_account(
-    program_id: &Pubkey,
-    account_info: &AccountInfo,
-) -> Result<u8, ProgramError> {
-    let (account, nonce) = Pubkey::find_program_address(&[br"settings"], program_id);
-
-    if account != *account_info.key {
+    if expected_nonce != nonce {
         return Err(ProgramError::InvalidArgument);
     }
 
-    Ok(nonce)
+    Ok(())
 }

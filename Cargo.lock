@@ -259,6 +259,7 @@ dependencies = [
  "bincode",
  "borsh",
  "bridge-derive",
+ "enum-as-inner",
  "hex",
  "serde",
  "solana-program",
@@ -751,9 +752,9 @@ dependencies = [
 
 [[package]]
 name = "enum-as-inner"
-version = "0.3.4"
+version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "570d109b813e904becc80d8d5da38376818a143348413f7149f1340fe04754d4"
+checksum = "c9720bba047d567ffc8a3cba48bf19126600e249ab7f128e9233e6376976a116"
 dependencies = [
  "heck",
  "proc-macro2",

@@ -73,7 +73,7 @@ impl IsInitialized for RelayRound {
     }
 }
 
-#[derive(Debug, Default, BorshSerialize, BorshDeserialize, BridgePack)]
+#[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
 #[bridge_pack(length = 3443)]
 pub struct RelayRoundProposal {
     pub is_initialized: bool,

@@ -1,4 +1,4 @@
-use borsh::{BorshDeserialize, BorshSerialize};
+/*use borsh::{BorshDeserialize, BorshSerialize};
 use bridge_utils::errors::SolanaBridgeError;
 use bridge_utils::state::{AccountKind, Proposal, PDA};
 use bridge_utils::types::{Vote, RELAY_REPARATION};
@@ -818,3 +818,4 @@ fn write_proposal_data(data: &mut [u8], offset: usize, bytes: &[u8]) -> Result<(
 
     Ok(())
 }
+*/

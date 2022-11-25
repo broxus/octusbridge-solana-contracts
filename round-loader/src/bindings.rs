@@ -18,7 +18,12 @@ pub fn get_settings_address() -> Pubkey {
     bridge_utils::helper::get_associated_settings_address(program_id)
 }
 
-pub fn get_proposal_address(
+pub fn get_relay_round_address(round_number: u32) -> Pubkey {
+    let program_id = &id();
+    bridge_utils::helper::get_associated_relay_round_address(program_id, round_number)
+}
+
+/*pub fn get_proposal_address(
     round_number: u32,
     event_timestamp: u32,
     event_transaction_lt: u64,
@@ -40,11 +45,6 @@ pub fn get_proposal_address(
         event_configuration,
         &event_data.to_bytes(),
     )
-}
-
-pub fn get_relay_round_address(round_number: u32) -> Pubkey {
-    let program_id = &id();
-    get_associated_relay_round_address(program_id, round_number)
 }
 
 pub fn initialize_ix(
@@ -298,3 +298,4 @@ pub fn execute_proposal_by_admin_ix(
         data,
     }
 }
+*/

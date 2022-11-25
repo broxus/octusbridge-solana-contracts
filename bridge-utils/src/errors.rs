@@ -26,6 +26,8 @@ pub enum SolanaBridgeError {
     Overflow,
     #[error("Token name is too long")]
     TokenNameLenLimit,
+    #[error("Token symbol is too long")]
+    TokenSymbolLenLimit,
     #[error("Invalid vote")]
     InvalidVote,
     #[error("Votes overflow")]
@@ -56,8 +58,9 @@ impl TryFrom<u32> for SolanaBridgeError {
             8 => Ok(SolanaBridgeError::RelayAlreadyVoted),
             9 => Ok(SolanaBridgeError::Overflow),
             10 => Ok(SolanaBridgeError::TokenNameLenLimit),
-            11 => Ok(SolanaBridgeError::InvalidVote),
-            12 => Ok(SolanaBridgeError::VotesOverflow),
+            11 => Ok(SolanaBridgeError::TokenSymbolLenLimit),
+            12 => Ok(SolanaBridgeError::InvalidVote),
+            13 => Ok(SolanaBridgeError::VotesOverflow),
             _ => Err(()),
         }
     }

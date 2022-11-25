@@ -1,4 +1,7 @@
+use borsh::BorshSerialize;
+use bridge_utils::types::EverAddress;
 use solana_program::account_info::AccountInfo;
+use solana_program::hash::hash;
 use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
 
@@ -6,125 +9,157 @@ pub fn get_associated_settings_address(program_id: &Pubkey) -> Pubkey {
     Pubkey::find_program_address(&[br"settings"], program_id).0
 }
 
-pub fn get_associated_token_settings_address(
-    program_id: &Pubkey,
-    name: &str,
-    symbol: &str,
-    ever_decimals: u8,
-    solana_decimals: u8,
-    mint: &Pubkey,
-) -> Pubkey {
-    Pubkey::find_program_address(
-        &[
-            br"settings",
-            name.as_bytes(),
-            symbol.as_bytes(),
-            &ever_decimals.to_le_bytes(),
-            &solana_decimals.to_le_bytes(),
-            &mint.to_bytes(),
-        ],
-        program_id,
-    )
-    .0
-}
-
-pub fn get_associated_vault_address(
-    program_id: &Pubkey,
-    name: &str,
-    symbol: &str,
-    ever_decimals: u8,
-    solana_decimals: u8,
-    mint: &Pubkey,
-) -> Pubkey {
-    Pubkey::find_program_address(
-        &[
-            br"vault",
-            name.as_bytes(),
-            symbol.as_bytes(),
-            &ever_decimals.to_le_bytes(),
-            &solana_decimals.to_le_bytes(),
-            &mint.to_bytes(),
-        ],
-        program_id,
-    )
-    .0
-}
-
-pub fn get_associated_mint_address(
-    program_id: &Pubkey,
-    name: &str,
-    symbol: &str,
-    ever_decimals: u8,
-    solana_decimals: u8,
-) -> Pubkey {
-    Pubkey::find_program_address(
-        &[
-            br"mint",
-            name.as_bytes(),
-            symbol.as_bytes(),
-            &ever_decimals.to_le_bytes(),
-            &solana_decimals.to_le_bytes(),
-        ],
-        program_id,
-    )
-    .0
-}
-
 pub fn get_associated_multivault_address(program_id: &Pubkey) -> Pubkey {
     Pubkey::find_program_address(&[br"multivault"], program_id).0
+}
+
+pub fn get_associated_token_settings_ever_address(
+    program_id: &Pubkey,
+    token: &EverAddress,
+) -> Pubkey {
+    let token_hash = hash(&token.try_to_vec().expect("pack"));
+    Pubkey::find_program_address(&[br"settings", token_hash.as_ref()], program_id).0
+}
+
+pub fn get_associated_token_settings_sol_address(program_id: &Pubkey, mint: &Pubkey) -> Pubkey {
+    Pubkey::find_program_address(&[br"settings", &mint.to_bytes()], program_id).0
+}
+
+pub fn get_associated_mint_address(program_id: &Pubkey, token: &EverAddress) -> Pubkey {
+    let token_hash = hash(&token.try_to_vec().expect("pack"));
+    Pubkey::find_program_address(&[br"mint", token_hash.as_ref()], program_id).0
+}
+
+pub fn get_associated_vault_address(program_id: &Pubkey, mint: &Pubkey) -> Pubkey {
+    Pubkey::find_program_address(&[br"vault", &mint.to_bytes()], program_id).0
 }
 
 pub fn get_associated_deposit_address(
     program_id: &Pubkey,
     seed: u128,
-    settings_address: &Pubkey,
+    token_settings_address: &Pubkey,
 ) -> Pubkey {
     Pubkey::find_program_address(
         &[
             br"deposit",
             &seed.to_le_bytes(),
-            &settings_address.to_bytes(),
+            &token_settings_address.to_bytes(),
         ],
         program_id,
     )
     .0
 }
 
-pub fn validate_token_settings_account(
+pub fn validate_settings_account(
     program_id: &Pubkey,
-    name: &str,
-    symbol: &str,
-    ever_decimals: u8,
-    solana_decimals: u8,
-    mint: &Pubkey,
+    nonce: u8,
     account_info: &AccountInfo,
-) -> Result<u8, ProgramError> {
-    let (account, nonce) = Pubkey::find_program_address(
-        &[
-            br"settings",
-            name.as_bytes(),
-            symbol.as_bytes(),
-            &ever_decimals.to_le_bytes(),
-            &solana_decimals.to_le_bytes(),
-            &mint.to_bytes(),
-        ],
-        program_id,
-    );
+) -> Result<(), ProgramError> {
+    let (account, expected_nonce) = Pubkey::find_program_address(&[br"settings"], program_id);
 
     if account != *account_info.key {
         return Err(ProgramError::InvalidArgument);
     }
 
-    Ok(nonce)
+    if expected_nonce != nonce {
+        return Err(ProgramError::InvalidArgument);
+    }
+
+    Ok(())
+}
+
+pub fn validate_token_settings_ever_account(
+    program_id: &Pubkey,
+    token: &EverAddress,
+    nonce: u8,
+    account_info: &AccountInfo,
+) -> Result<(), ProgramError> {
+    let token_hash = hash(&token.try_to_vec().expect("pack"));
+
+    let (account, expected_nonce) =
+        Pubkey::find_program_address(&[br"settings", token_hash.as_ref()], program_id);
+
+    if account != *account_info.key {
+        return Err(ProgramError::InvalidArgument);
+    }
+
+    if expected_nonce != nonce {
+        return Err(ProgramError::InvalidArgument);
+    }
+
+    Ok(())
+}
+
+pub fn validate_token_settings_sol_account(
+    program_id: &Pubkey,
+    mint: &Pubkey,
+    nonce: u8,
+    account_info: &AccountInfo,
+) -> Result<(), ProgramError> {
+    let (account, expected_nonce) =
+        Pubkey::find_program_address(&[br"settings", &mint.to_bytes()], program_id);
+
+    if account != *account_info.key {
+        return Err(ProgramError::InvalidArgument);
+    }
+
+    if expected_nonce != nonce {
+        return Err(ProgramError::InvalidArgument);
+    }
+
+    Ok(())
+}
+
+pub fn validate_mint_account(
+    program_id: &Pubkey,
+    token: &EverAddress,
+    nonce: u8,
+    account_info: &AccountInfo,
+) -> Result<(), ProgramError> {
+    let token_hash = hash(&token.try_to_vec().expect("pack"));
+
+    let (account, expected_nonce) =
+        Pubkey::find_program_address(&[br"mint", token_hash.as_ref()], program_id);
+
+    if account != *account_info.key {
+        return Err(ProgramError::InvalidArgument);
+    }
+
+    if expected_nonce != nonce {
+        return Err(ProgramError::InvalidArgument);
+    }
+
+    Ok(())
+}
+
+pub fn validate_vault_account(
+    program_id: &Pubkey,
+    mint: &Pubkey,
+    nonce: u8,
+    account_info: &AccountInfo,
+) -> Result<(), ProgramError> {
+    let (account, expected_nonce) =
+        Pubkey::find_program_address(&[br"vault", &mint.to_bytes()], program_id);
+
+    if account != *account_info.key {
+        return Err(ProgramError::InvalidArgument);
+    }
+
+    if expected_nonce != nonce {
+        return Err(ProgramError::InvalidArgument);
+    }
+
+    Ok(())
 }
 
 pub fn validate_deposit_account(
     program_id: &Pubkey,
     seed: u128,
     token_settings_address: &Pubkey,
+    nonce: u8,
     deposit_account_info: &AccountInfo,
-) -> Result<u8, ProgramError> {
-    let (account, nonce) = Pubkey::find_program_address(
+) -> Result<(), ProgramError> {
+    let (account, expected_nonce) = Pubkey::find_program_address(
         &[
             br"deposit",
             &seed.to_le_bytes(),
@@ -137,72 +172,27 @@ pub fn validate_deposit_account(
         return Err(ProgramError::InvalidArgument);
     }
 
-    Ok(nonce)
-}
-
-pub fn validate_mint_account(
-    program_id: &Pubkey,
-    name: &str,
-    symbol: &str,
-    ever_decimals: u8,
-    solana_decimals: u8,
-    account_info: &AccountInfo,
-) -> Result<u8, ProgramError> {
-    let (account, nonce) = Pubkey::find_program_address(
-        &[
-            br"mint",
-            name.as_bytes(),
-            symbol.as_bytes(),
-            &ever_decimals.to_le_bytes(),
-            &solana_decimals.to_le_bytes(),
-        ],
-        program_id,
-    );
-
-    if account != *account_info.key {
+    if expected_nonce != nonce {
         return Err(ProgramError::InvalidArgument);
     }
 
-    Ok(nonce)
-}
-
-pub fn validate_vault_account(
-    program_id: &Pubkey,
-    name: &str,
-    symbol: &str,
-    ever_decimals: u8,
-    solana_decimals: u8,
-    mint: &Pubkey,
-    account_info: &AccountInfo,
-) -> Result<u8, ProgramError> {
-    let (account, nonce) = Pubkey::find_program_address(
-        &[
-            br"vault",
-            name.as_bytes(),
-            symbol.as_bytes(),
-            &ever_decimals.to_le_bytes(),
-            &solana_decimals.to_le_bytes(),
-            &mint.to_bytes(),
-        ],
-        program_id,
-    );
-
-    if account != *account_info.key {
-        return Err(ProgramError::InvalidArgument);
-    }
-
-    Ok(nonce)
+    Ok(())
 }
 
 pub fn validate_multi_vault_account(
     program_id: &Pubkey,
+    nonce: u8,
     account_info: &AccountInfo,
-) -> Result<u8, ProgramError> {
-    let (account, nonce) = Pubkey::find_program_address(&[br"multivault"], program_id);
+) -> Result<(), ProgramError> {
+    let (account, expected_nonce) = Pubkey::find_program_address(&[br"multivault"], program_id);
 
     if account != *account_info.key {
         return Err(ProgramError::InvalidArgument);
     }
 
-    Ok(nonce)
+    if expected_nonce != nonce {
+        return Err(ProgramError::InvalidArgument);
+    }
+
+    Ok(())
 }

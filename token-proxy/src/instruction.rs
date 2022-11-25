@@ -33,6 +33,8 @@ pub enum TokenProxyInstruction {
     Initialize {
         // Guardian pubkey
         guardian: Pubkey,
+        // Manager pubkey
+        manager: Pubkey,
         // Withdrawal manager pubkey
         withdrawal_manager: Pubkey,
     },
@@ -45,9 +47,7 @@ pub enum TokenProxyInstruction {
         // Deposit seed
         deposit_seed: u128,
         // Ever recipient address
-        recipient_address: EverAddress,
-        // Ever token address
-        token_address: EverAddress,
+        recipient: EverAddress,
         // Deposit amount
         amount: u64,
         // Sol amount to transfer to ever
@@ -63,14 +63,14 @@ pub enum TokenProxyInstruction {
     DepositMultiTokenSol {
         // Deposit seed
         deposit_seed: u128,
-        // Ever recipient address
-        recipient_address: EverAddress,
-        // Deposit amount
-        amount: u64,
         // Mint name
         name: String,
         // Mint symbol
         symbol: String,
+        // Ever recipient address
+        recipient: EverAddress,
+        // Deposit amount
+        amount: u64,
         // Sol amount to transfer to ever
         sol_amount: u64,
         // Random payload to transfer to ever
@@ -89,15 +89,15 @@ pub enum TokenProxyInstruction {
         // Ever event configuration
         event_configuration: Pubkey,
         // Ever token root address
-        token_address: EverAddress,
+        token: EverAddress,
         // token name
         name: String,
         // token symbol
         symbol: String,
         // decimals
         decimals: u8,
-        // Sender address
-        recipient_address: Pubkey,
+        // Solana recipient address
+        recipient: Pubkey,
         // Withdrawal amount
         amount: u128,
     },
@@ -113,10 +113,8 @@ pub enum TokenProxyInstruction {
         event_transaction_lt: u64,
         // Ever event configuration
         event_configuration: Pubkey,
-        // Mint address in solana
-        token_address: Pubkey,
-        // Sender address
-        recipient_address: Pubkey,
+        // Solana recipient address
+        recipient: Pubkey,
         // Withdrawal amount
         amount: u128,
     },
