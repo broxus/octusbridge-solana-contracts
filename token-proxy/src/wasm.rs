@@ -24,17 +24,21 @@ pub fn initialize_settings_ix(
     initializer_pubkey: String,
     guardian: String,
     withdrawal_manager: String,
+    manager: String,
 ) -> Result<JsValue, JsValue> {
     let settings_pubkey = get_settings_address();
     let program_data_pubkey = get_programdata_address();
 
     let guardian = Pubkey::from_str(guardian.as_str()).handle_error()?;
     let withdrawal_manager = Pubkey::from_str(withdrawal_manager.as_str()).handle_error()?;
+    let manager = Pubkey::from_str(manager.as_str()).handle_error()?;
     let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
     let initializer_pubkey = Pubkey::from_str(initializer_pubkey.as_str()).handle_error()?;
+    let multivault_pubkey = get_multivault_address();
 
     let data = TokenProxyInstruction::Initialize {
         guardian,
+        manager,
         withdrawal_manager,
     }
     .try_to_vec()
@@ -46,6 +50,7 @@ pub fn initialize_settings_ix(
             AccountMeta::new(funder_pubkey, true),
             AccountMeta::new(initializer_pubkey, true),
             AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new(multivault_pubkey, false),
             AccountMeta::new_readonly(program_data_pubkey, false),
             AccountMeta::new_readonly(system_program::id(), false),
             AccountMeta::new_readonly(sysvar::rent::id(), false),
@@ -60,7 +65,6 @@ pub fn initialize_settings_ix(
 pub fn withdrawal_multi_token_ever_request_ix(
     funder_pubkey: String,
     author_pubkey: String,
-    mint_pubkey: String,
     name: String,
     symbol: String,
     decimals: u8,
@@ -72,31 +76,28 @@ pub fn withdrawal_multi_token_ever_request_ix(
     amount: String,
     round_number: u32,
 ) -> Result<JsValue, JsValue> {
-    let mint_pubkey = Pubkey::from_str(mint_pubkey.as_str()).handle_error()?;
     let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
     let author_pubkey = Pubkey::from_str(author_pubkey.as_str()).handle_error()?;
-    let recipient_address = Pubkey::from_str(recipient_address.as_str()).handle_error()?;
+    let recipient = Pubkey::from_str(recipient_address.as_str()).handle_error()?;
     let event_configuration = Pubkey::from_str(event_configuration.as_str()).handle_error()?;
-    let token_settings_pubkey =
-        get_token_settings_address(&name, &symbol, decimals, decimals, &mint_pubkey);
+    let token = EverAddress::from_str(&token_address).handle_error()?;
 
     let amount = u128::from_str(&amount).handle_error()?;
 
-    let token_address = EverAddress::from_str(&token_address).handle_error()?;
+    let token_settings_pubkey = get_token_settings_ever_address(&token);
 
     let relay_round_pubkey = get_associated_relay_round_address(&round_loader::id(), round_number);
 
-    let withdrawal_pubkey = get_multivault_withdrawal_ever_address(
-        &token_settings_pubkey,
+    let withdrawal_pubkey = get_withdrawal_ever_address(
         round_number,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
-        token_address,
+        token,
         name.clone(),
         symbol.clone(),
         decimals,
-        recipient_address,
+        recipient,
         amount,
     );
 
@@ -107,11 +108,11 @@ pub fn withdrawal_multi_token_ever_request_ix(
         event_timestamp,
         event_transaction_lt,
         event_configuration,
-        token_address,
+        token,
         name,
         symbol,
         decimals,
-        recipient_address,
+        recipient,
         amount,
     }
     .try_to_vec()
@@ -141,9 +142,6 @@ pub fn withdrawal_multi_token_sol_request_ix(
     funder_pubkey: String,
     author_pubkey: String,
     mint_pubkey: String,
-    name: String,
-    symbol: String,
-    decimals: u8,
     event_timestamp: u32,
     event_transaction_lt: u64,
     event_configuration: String,
@@ -153,24 +151,22 @@ pub fn withdrawal_multi_token_sol_request_ix(
 ) -> Result<JsValue, JsValue> {
     let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
     let author_pubkey = Pubkey::from_str(author_pubkey.as_str()).handle_error()?;
-    let mint_pubkey = Pubkey::from_str(mint_pubkey.as_str()).handle_error()?;
-    let recipient_address = Pubkey::from_str(recipient_address.as_str()).handle_error()?;
+    let mint = Pubkey::from_str(mint_pubkey.as_str()).handle_error()?;
+    let recipient = Pubkey::from_str(recipient_address.as_str()).handle_error()?;
     let event_configuration = Pubkey::from_str(event_configuration.as_str()).handle_error()?;
-    let token_settings_pubkey =
-        get_token_settings_address(&name, &symbol, decimals, decimals, &mint_pubkey);
+    let token_settings_pubkey = get_token_settings_sol_address(&mint);
 
     let amount = u128::from_str(&amount).handle_error()?;
 
     let relay_round_pubkey = get_associated_relay_round_address(&round_loader::id(), round_number);
 
-    let withdrawal_pubkey = get_multivault_withdrawal_sol_address(
-        &token_settings_pubkey,
+    let withdrawal_pubkey = get_withdrawal_sol_address(
         round_number,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
-        mint_pubkey,
-        recipient_address,
+        mint,
+        recipient,
         amount,
     );
 
@@ -181,8 +177,7 @@ pub fn withdrawal_multi_token_sol_request_ix(
         event_timestamp,
         event_transaction_lt,
         event_configuration,
-        token_address: mint_pubkey,
-        recipient_address,
+        recipient,
         amount,
     }
     .try_to_vec()
@@ -207,15 +202,88 @@ pub fn withdrawal_multi_token_sol_request_ix(
     return serde_wasm_bindgen::to_value(&ix).handle_error();
 }
 
+#[wasm_bindgen(js_name = "withdrawalMultiTokenEver")]
+pub fn withdrawal_multi_token_ever_ix(
+    funder_pubkey: String,
+    withdrawal_pubkey: String,
+    recipient_token_pubkey: String,
+    token: String,
+) -> Result<JsValue, JsValue> {
+    let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
+    let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).handle_error()?;
+    let recipient_token_pubkey =
+        Pubkey::from_str(recipient_token_pubkey.as_str()).handle_error()?;
+    let token = EverAddress::from_str(&token).handle_error()?;
+
+    let settings_pubkey = get_settings_address();
+    let mint_pubkey = get_mint_address(&token);
+    let token_settings_pubkey = get_token_settings_ever_address(&token);
+
+    let data = TokenProxyInstruction::WithdrawMultiTokenEver
+        .try_to_vec()
+        .handle_error()?;
+
+    let ix = Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(funder_pubkey, true),
+            AccountMeta::new(withdrawal_pubkey, false),
+            AccountMeta::new(mint_pubkey, false),
+            AccountMeta::new(recipient_token_pubkey, false),
+            AccountMeta::new(token_settings_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+            AccountMeta::new_readonly(spl_token::id(), false),
+            AccountMeta::new_readonly(sysvar::rent::id(), false),
+            AccountMeta::new_readonly(sysvar::clock::id(), false),
+        ],
+        data,
+    };
+
+    return serde_wasm_bindgen::to_value(&ix).handle_error();
+}
+
+#[wasm_bindgen(js_name = "withdrawalMultiTokenSol")]
+pub fn withdrawal_multi_token_sol_ix(
+    withdrawal_pubkey: String,
+    recipient_token_pubkey: String,
+    mint: String,
+) -> Result<JsValue, JsValue> {
+    let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).handle_error()?;
+    let mint = Pubkey::from_str(mint.as_str()).handle_error()?;
+    let recipient_token_pubkey =
+        Pubkey::from_str(recipient_token_pubkey.as_str()).handle_error()?;
+
+    let settings_pubkey = get_settings_address();
+    let vault_pubkey = get_vault_address(&mint);
+    let token_settings_pubkey = get_token_settings_sol_address(&mint);
+
+    let data = TokenProxyInstruction::WithdrawMultiTokenSol
+        .try_to_vec()
+        .handle_error()?;
+
+    let ix = Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(withdrawal_pubkey, false),
+            AccountMeta::new(vault_pubkey, false),
+            AccountMeta::new(recipient_token_pubkey, false),
+            AccountMeta::new(token_settings_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new_readonly(spl_token::id(), false),
+            AccountMeta::new_readonly(sysvar::clock::id(), false),
+        ],
+        data,
+    };
+
+    return serde_wasm_bindgen::to_value(&ix).handle_error();
+}
+
 #[wasm_bindgen(js_name = "depositMultiTokenEver")]
 pub fn deposit_multi_token_ever_ix(
     funder_pubkey: String,
-    authority_pubkey: String,
+    author_pubkey: String,
     author_token_pubkey: String,
-    mint_pubkey: String,
-    name: String,
-    symbol: String,
-    decimals: u8,
     deposit_seed: String,
     recipient_address: String,
     token_address: String,
@@ -227,31 +295,23 @@ pub fn deposit_multi_token_ever_ix(
         .handle_error()?
         .as_u128();
 
-    let settings_pubkey = get_settings_address();
-
-    let mint_pubkey = Pubkey::from_str(mint_pubkey.as_str()).handle_error()?;
-    let token_settings_pubkey =
-        get_token_settings_address(&name, &symbol, decimals, decimals, &mint_pubkey);
-
-    let deposit_pubkey = get_deposit_address(deposit_seed, &token_settings_pubkey);
-
     let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
-    let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
-
-    let recipient_address = EverAddress::from_str(&recipient_address).handle_error()?;
-
-    let token_address = EverAddress::from_str(&token_address).handle_error()?;
-
+    let author_pubkey = Pubkey::from_str(author_pubkey.as_str()).handle_error()?;
+    let recipient = EverAddress::from_str(&recipient_address).handle_error()?;
+    let token = EverAddress::from_str(&token_address).handle_error()?;
     let author_token_pubkey = Pubkey::from_str(author_token_pubkey.as_str()).handle_error()?;
+
+    let mint_pubkey = get_mint_address(&token);
+    let settings_pubkey = get_settings_address();
+    let multivault_pubkey = get_multivault_address();
+    let token_settings_pubkey = get_token_settings_ever_address(&token);
+    let deposit_pubkey = get_deposit_address(deposit_seed, &token_settings_pubkey);
 
     let payload = base64::decode(payload).handle_error()?;
 
-    let multivault_pubkey = get_multivault_address();
-
     let data = TokenProxyInstruction::DepositMultiTokenEver {
         deposit_seed,
-        recipient_address,
-        token_address,
+        recipient,
         amount,
         sol_amount,
         payload,
@@ -263,7 +323,7 @@ pub fn deposit_multi_token_ever_ix(
         program_id: id(),
         accounts: vec![
             AccountMeta::new(funder_pubkey, true),
-            AccountMeta::new(authority_pubkey, true),
+            AccountMeta::new(author_pubkey, true),
             AccountMeta::new(author_token_pubkey, false),
             AccountMeta::new(deposit_pubkey, false),
             AccountMeta::new(mint_pubkey, false),
@@ -287,7 +347,6 @@ pub fn deposit_multi_token_sol_ix(
     mint_pubkey: String,
     name: String,
     symbol: String,
-    decimals: u8,
     author_token_pubkey: String,
     deposit_seed: String,
     recipient_address: String,
@@ -299,27 +358,24 @@ pub fn deposit_multi_token_sol_ix(
         .handle_error()?
         .as_u128();
 
-    let settings_pubkey = get_settings_address();
-
     let mint_pubkey = Pubkey::from_str(mint_pubkey.as_str()).handle_error()?;
     let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
     let author_pubkey = Pubkey::from_str(author_pubkey.as_str()).handle_error()?;
     let author_token_pubkey = Pubkey::from_str(author_token_pubkey.as_str()).handle_error()?;
-    let token_settings_pubkey =
-        get_token_settings_address(&name, &symbol, decimals, decimals, &mint_pubkey);
-    let vault_pubkey = get_vault_address(&name, &symbol, decimals, decimals, &mint_pubkey);
+    let recipient = EverAddress::from_str(&recipient_address).handle_error()?;
+
+    let vault_pubkey = get_vault_address(&mint_pubkey);
+    let settings_pubkey = get_settings_address();
+    let multivault_pubkey = get_multivault_address();
+    let token_settings_pubkey = get_token_settings_sol_address(&mint_pubkey);
 
     let deposit_pubkey = get_deposit_address(deposit_seed, &token_settings_pubkey);
-
-    let recipient_address = EverAddress::from_str(&recipient_address).handle_error()?;
-
-    let multivault_pubkey = get_multivault_address();
 
     let payload = base64::decode(payload).handle_error()?;
 
     let data = TokenProxyInstruction::DepositMultiTokenSol {
         deposit_seed,
-        recipient_address,
+        recipient,
         amount,
         name,
         symbol,
@@ -775,9 +831,6 @@ pub fn unpack_token_settings(data: Vec<u8>) -> Result<JsValue, JsValue> {
     let s = WasmTokenSettings {
         is_initialized: token_settings.is_initialized,
         account_kind: token_settings.account_kind,
-        name: token_settings.name,
-        ever_decimals: token_settings.ever_decimals,
-        solana_decimals: token_settings.solana_decimals,
         kind: token_settings.kind,
         deposit_limit: token_settings.deposit_limit,
         withdrawal_limit: token_settings.withdrawal_limit,
@@ -873,9 +926,6 @@ pub struct WasmSettings {
 pub struct WasmTokenSettings {
     pub is_initialized: bool,
     pub account_kind: AccountKind,
-    pub name: String,
-    pub ever_decimals: u8,
-    pub solana_decimals: u8,
     pub kind: TokenKind,
     pub deposit_limit: u64,
     pub withdrawal_limit: u64,
