@@ -336,7 +336,11 @@ impl Processor {
             .into_settings()
             .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
 
-        validate_settings_account(program_id, settings_nonce, settings_account_info)?;
+        bridge_utils::helper::validate_settings_account(
+            program_id,
+            settings_nonce,
+            settings_account_info,
+        )?;
 
         if settings_account_data.emergency {
             return Err(SolanaBridgeError::EmergencyEnabled.into());
@@ -509,7 +513,11 @@ impl Processor {
             .into_settings()
             .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
 
-        validate_settings_account(program_id, settings_nonce, settings_account_info)?;
+        bridge_utils::helper::validate_settings_account(
+            program_id,
+            settings_nonce,
+            settings_account_info,
+        )?;
 
         if settings_account_data.emergency {
             return Err(SolanaBridgeError::EmergencyEnabled.into());
@@ -832,7 +840,7 @@ impl Processor {
             .into_settings()
             .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
 
-        validate_settings_account(
+        bridge_utils::helper::validate_settings_account(
             &round_loader::id(),
             rl_settings_nonce,
             rl_settings_account_info,
@@ -1019,7 +1027,7 @@ impl Processor {
             .into_settings()
             .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
 
-        validate_settings_account(
+        bridge_utils::helper::validate_settings_account(
             &round_loader::id(),
             rl_settings_nonce,
             rl_settings_account_info,
@@ -1271,7 +1279,11 @@ impl Processor {
             .into_settings()
             .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
 
-        validate_settings_account(program_id, settings_nonce, settings_account_info)?;
+        bridge_utils::helper::validate_settings_account(
+            program_id,
+            settings_nonce,
+            settings_account_info,
+        )?;
 
         if settings_account_data.emergency {
             return Err(SolanaBridgeError::EmergencyEnabled.into());
@@ -1541,7 +1553,11 @@ impl Processor {
             .into_settings()
             .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
 
-        validate_settings_account(program_id, settings_nonce, settings_account_info)?;
+        bridge_utils::helper::validate_settings_account(
+            program_id,
+            settings_nonce,
+            settings_account_info,
+        )?;
 
         if settings_account_data.emergency {
             return Err(SolanaBridgeError::EmergencyEnabled.into());

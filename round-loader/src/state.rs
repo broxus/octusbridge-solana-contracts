@@ -15,12 +15,11 @@ pub const MIN_RELAYS: usize = 3;
 pub const MAX_RELAYS: usize = 100;
 
 pub const LOAD_DATA_BEGIN_OFFSET: usize = 1 // is_executed
-    + 1                                     // account_kind
-    + 1                                     // is_withdrawal_executed
+    + 2                                     // account_kind
+    + 1                                     // is_executed
     + PUBKEY_BYTES                          // author
     + 4                                     // round_number
     + 4                                     // required_votes
-    + PUBKEY_BYTES                          // settings
     + 4                                     // event_timestamp
     + 8                                     // event_transaction_lt
     + PUBKEY_BYTES                          // event_configuration
@@ -56,7 +55,7 @@ impl IsInitialized for Settings {
 }
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
-#[bridge_pack(length = 3214)]
+#[bridge_pack(length = 3215)]
 pub struct RelayRound {
     pub is_initialized: bool,
     pub account_kind: AccountKind,
@@ -74,7 +73,7 @@ impl IsInitialized for RelayRound {
 }
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
-#[bridge_pack(length = 3443)]
+#[bridge_pack(length = 3414)]
 pub struct RelayRoundProposal {
     pub is_initialized: bool,
     pub account_kind: AccountKind,

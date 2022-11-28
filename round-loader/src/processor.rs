@@ -1,6 +1,6 @@
-/*use borsh::{BorshDeserialize, BorshSerialize};
+use borsh::{BorshDeserialize, BorshSerialize};
 use bridge_utils::errors::SolanaBridgeError;
-use bridge_utils::state::{AccountKind, Proposal, PDA};
+use bridge_utils::state::{AccountKind, PDA};
 use bridge_utils::types::{Vote, RELAY_REPARATION};
 
 use solana_program::account_info::{next_account_info, AccountInfo};
@@ -146,12 +146,15 @@ impl Processor {
             programdata_account_info,
         )?;
 
-        // Validate Settings Account
-        let settings_nonce =
-            bridge_utils::helper::validate_settings_account(program_id, settings_account_info)?;
+        // Create Settings Account
+        let (settings_pubkey, settings_nonce) =
+            Pubkey::find_program_address(&[br"settings"], program_id);
         let settings_account_signer_seeds: &[&[_]] = &[br"settings", &[settings_nonce]];
 
-        // Create Settings Account
+        if settings_pubkey != *settings_account_info.key {
+            return Err(ProgramError::InvalidArgument);
+        }
+
         invoke_signed(
             &system_instruction::create_account(
                 funder_account_info.key,
@@ -171,7 +174,7 @@ impl Processor {
         // Init Settings Account
         let settings_account_data = Settings {
             is_initialized: true,
-            account_kind: AccountKind::Settings,
+            account_kind: AccountKind::Settings(settings_nonce),
             current_round_number: genesis_round_number,
             round_submitter,
             min_required_votes,
@@ -214,13 +217,22 @@ impl Processor {
         )?;
 
         // Validate Settings Account
-        bridge_utils::helper::validate_settings_account(program_id, settings_account_info)?;
+        let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+
+        let settings_nonce = settings_account_data
+            .account_kind
+            .into_settings()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
+
+        bridge_utils::helper::validate_settings_account(
+            program_id,
+            settings_nonce,
+            settings_account_info,
+        )?;
 
         if settings_account_info.owner != program_id {
             return Err(ProgramError::InvalidArgument);
         }
-
-        let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
 
         if let Some(current_round_number) = current_round_number {
             settings_account_data.current_round_number = current_round_number;
@@ -268,13 +280,19 @@ impl Processor {
         }
 
         // Validate Settings Account
-        bridge_utils::helper::validate_settings_account(program_id, settings_account_info)?;
-
-        if settings_account_info.owner != program_id {
-            return Err(ProgramError::InvalidArgument);
-        }
-
         let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+
+        let settings_nonce = settings_account_data
+            .account_kind
+            .into_settings()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
+
+        bridge_utils::helper::validate_settings_account(
+            program_id,
+            settings_nonce,
+            settings_account_info,
+        )?;
+
         if settings_account_data.round_submitter != *creator_account_info.key {
             return Err(ProgramError::IllegalOwner);
         }
@@ -285,15 +303,21 @@ impl Processor {
             return Err(SolanaBridgeError::InvalidRelayRound.into());
         }
 
-        settings_account_data.current_round_number = round_number;
-
-        // Validate Relay Round Account
-        let relay_round_nonce =
-            validate_relay_round_account(program_id, round_number, relay_round_account_info)?;
-        let relay_round_account_signer_seeds: &[&[_]] =
-            &[&round_number.to_le_bytes(), &[relay_round_nonce]];
-
         // Create Relay Round Account
+        let (relay_round_pubkey, relay_round_nonce) = Pubkey::find_program_address(
+            &[br"relay_round", &round_number.to_le_bytes()],
+            program_id,
+        );
+        let relay_round_account_signer_seeds: &[&[_]] = &[
+            br"relay_round",
+            &round_number.to_le_bytes(),
+            &[relay_round_nonce],
+        ];
+
+        if relay_round_pubkey != *relay_round_account_info.key {
+            return Err(ProgramError::InvalidArgument);
+        }
+
         invoke_signed(
             &system_instruction::create_account(
                 funder_account_info.key,
@@ -310,12 +334,12 @@ impl Processor {
             &[relay_round_account_signer_seeds],
         )?;
 
+        // Init Relay Round Account
         let round_end = round_end + settings_account_data.round_ttl;
 
-        // Init Relay Round Account
         let relay_round_account_data = RelayRound {
             is_initialized: true,
-            account_kind: AccountKind::RelayRound,
+            account_kind: AccountKind::RelayRound(relay_round_nonce),
             round_number,
             round_end,
             relays,
@@ -325,6 +349,9 @@ impl Processor {
             relay_round_account_data,
             &mut relay_round_account_info.data.borrow_mut(),
         )?;
+
+        // Update Current Round Number
+        settings_account_data.current_round_number = round_number;
 
         Settings::pack(
             settings_account_data,
@@ -357,22 +384,20 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        let settings = bridge_utils::helper::get_associated_settings_address(program_id);
-
-        // Validate Proposal Account
-        let proposal_nonce = bridge_utils::helper::validate_proposal_account(
+        // Create Proposal Account
+        let (proposal_pubkey, proposal_nonce) = Pubkey::find_program_address(
+            &[
+                br"proposal",
+                &round_number.to_le_bytes(),
+                &event_timestamp.to_le_bytes(),
+                &event_transaction_lt.to_le_bytes(),
+                &event_configuration.to_bytes(),
+                &event_data.to_bytes(),
+            ],
             program_id,
-            &settings,
-            round_number,
-            event_timestamp,
-            event_transaction_lt,
-            &event_configuration,
-            &event_data,
-            proposal_account_info,
-        )?;
+        );
         let proposal_account_signer_seeds: &[&[_]] = &[
             br"proposal",
-            &settings.to_bytes(),
             &round_number.to_le_bytes(),
             &event_timestamp.to_le_bytes(),
             &event_transaction_lt.to_le_bytes(),
@@ -381,7 +406,10 @@ impl Processor {
             &[proposal_nonce],
         ];
 
-        // Create Proposal Account
+        if proposal_pubkey != *proposal_account_info.key {
+            return Err(ProgramError::InvalidArgument);
+        }
+
         invoke_signed(
             &system_instruction::create_account(
                 funder_account_info.key,
@@ -400,16 +428,20 @@ impl Processor {
 
         // Init Proposal Account
         let proposal_account_data = RelayRoundProposal {
-            account_kind: AccountKind::Proposal,
+            account_kind: AccountKind::Proposal(proposal_nonce),
             author: *creator_account_info.key,
             round_number,
+            required_votes: 0,
             pda: PDA {
-                settings,
                 event_timestamp,
                 event_transaction_lt,
                 event_configuration,
             },
-            ..Default::default()
+            is_initialized: Default::default(),
+            is_executed: Default::default(),
+            signers: Default::default(),
+            event: Default::default(),
+            meta: Default::default(),
         };
 
         RelayRoundProposal::pack(
@@ -458,58 +490,87 @@ impl Processor {
         let system_program_info = next_account_info(account_info_iter)?;
 
         // Validate Settings Account
-        bridge_utils::helper::validate_settings_account(program_id, settings_account_info)?;
-
-        if settings_account_info.owner != program_id {
-            return Err(ProgramError::InvalidArgument);
-        }
-
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
-        let settings = settings_account_info.key;
+
+        let settings_nonce = settings_account_data
+            .account_kind
+            .into_settings()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
+
+        bridge_utils::helper::validate_settings_account(
+            program_id,
+            settings_nonce,
+            settings_account_info,
+        )?;
 
         // Validate Proposal Account
-        let mut proposal =
+        let mut proposal_account_data =
             RelayRoundProposal::unpack_unchecked(&proposal_account_info.data.borrow())?;
+        let round_number = proposal_account_data.round_number;
+        let event_timestamp = proposal_account_data.pda.event_timestamp;
+        let event_transaction_lt = proposal_account_data.pda.event_transaction_lt;
+        let event_configuration = proposal_account_data.pda.event_configuration;
+        let event_data = hash(&proposal_account_data.event.data.try_to_vec()?);
 
-        let round_number = proposal.round_number;
-        let event_timestamp = proposal.pda.event_timestamp;
-        let event_transaction_lt = proposal.pda.event_transaction_lt;
-        let event_configuration = proposal.pda.event_configuration;
-        let event_data = hash(&proposal.event.data.try_to_vec()?);
+        let (_, proposal_nonce) = Pubkey::find_program_address(
+            &[
+                br"proposal",
+                &round_number.to_le_bytes(),
+                &event_timestamp.to_le_bytes(),
+                &event_transaction_lt.to_le_bytes(),
+                &event_configuration.to_bytes(),
+                &event_data.to_bytes(),
+            ],
+            program_id,
+        );
 
         bridge_utils::helper::validate_proposal_account(
             program_id,
-            settings,
             round_number,
             event_timestamp,
             event_transaction_lt,
             &event_configuration,
             &event_data,
+            proposal_nonce,
             proposal_account_info,
         )?;
 
-        if proposal.is_initialized {
+        if proposal_account_data.is_initialized {
             return Err(ProgramError::AccountAlreadyInitialized);
         }
 
         // Validate Relay Round Account
-        validate_relay_round_account(program_id, round_number, relay_round_account_info)?;
-
         let relay_round_account_data = RelayRound::unpack(&relay_round_account_info.data.borrow())?;
+        let relay_round_nonce = relay_round_account_data
+            .account_kind
+            .into_relay_round()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
+
+        let round_number = relay_round_account_data.round_number;
+
+        validate_relay_round_account(
+            program_id,
+            round_number,
+            relay_round_nonce,
+            relay_round_account_info,
+        )?;
 
         let mut required_votes = (relay_round_account_data.relays.len() * 2 / 3 + 1) as u32;
         if settings_account_data.min_required_votes > required_votes {
             required_votes = settings_account_data.min_required_votes;
         }
 
-        proposal.is_initialized = true;
-        proposal.round_number = round_number;
-        proposal.required_votes = required_votes;
-        proposal.signers = vec![Vote::None; relay_round_account_data.relays.len()];
+        proposal_account_data.is_initialized = true;
+        proposal_account_data.round_number = round_number;
+        proposal_account_data.required_votes = required_votes;
+        proposal_account_data.signers = vec![Vote::None; relay_round_account_data.relays.len()];
 
-        proposal.meta = RelayRoundProposalMetaWithLen::default();
+        proposal_account_data.meta = RelayRoundProposalMetaWithLen::default();
 
-        RelayRoundProposal::pack(proposal, &mut proposal_account_info.data.borrow_mut())?;
+        RelayRoundProposal::pack(
+            proposal_account_data,
+            &mut proposal_account_info.data.borrow_mut(),
+        )?;
 
         // Send voting reparation for Relay to withdrawal account
         invoke(
@@ -549,30 +610,34 @@ impl Processor {
         }
 
         // Validate Proposal Account
-        if proposal_account_info.owner != program_id {
-            return Err(ProgramError::InvalidArgument);
-        }
-
         let mut proposal_account_data =
-            Proposal::unpack_from_slice(&proposal_account_info.data.borrow())?;
-
+            RelayRoundProposal::unpack(&proposal_account_info.data.borrow())?;
         let round_number = proposal_account_data.round_number;
-
-        let settings = proposal_account_data.pda.settings;
         let event_timestamp = proposal_account_data.pda.event_timestamp;
         let event_transaction_lt = proposal_account_data.pda.event_transaction_lt;
         let event_configuration = proposal_account_data.pda.event_configuration;
+        let event_data = hash(&proposal_account_data.event.data.try_to_vec()?);
 
-        let event_data = hash(&proposal_account_data.event.try_to_vec()?[4..]);
+        let (_, proposal_nonce) = Pubkey::find_program_address(
+            &[
+                br"proposal",
+                &round_number.to_le_bytes(),
+                &event_timestamp.to_le_bytes(),
+                &event_transaction_lt.to_le_bytes(),
+                &event_configuration.to_bytes(),
+                &event_data.to_bytes(),
+            ],
+            program_id,
+        );
 
         bridge_utils::helper::validate_proposal_account(
             program_id,
-            &settings,
             round_number,
             event_timestamp,
             event_transaction_lt,
             &event_configuration,
             &event_data,
+            proposal_nonce,
             proposal_account_info,
         )?;
 
@@ -588,13 +653,20 @@ impl Processor {
         }
 
         // Validate Relay Round Account
-        validate_relay_round_account(program_id, round_number, relay_round_account_info)?;
-
-        if relay_round_account_info.owner != program_id {
-            return Err(ProgramError::InvalidArgument);
-        }
-
         let relay_round_account_data = RelayRound::unpack(&relay_round_account_info.data.borrow())?;
+        let relay_round_nonce = relay_round_account_data
+            .account_kind
+            .into_relay_round()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
+
+        let round_number = relay_round_account_data.round_number;
+
+        validate_relay_round_account(
+            program_id,
+            round_number,
+            relay_round_nonce,
+            relay_round_account_info,
+        )?;
 
         // Vote for proposal request
         let index = relay_round_account_data
@@ -635,33 +707,77 @@ impl Processor {
         let rent = &Rent::from_account_info(rent_sysvar_info)?;
 
         // Validate Settings Account
-        bridge_utils::helper::validate_settings_account(program_id, settings_account_info)?;
-
-        if settings_account_info.owner != program_id {
-            return Err(ProgramError::InvalidArgument);
-        }
-
         let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
 
-        let mut proposal = RelayRoundProposal::unpack(&proposal_account_info.data.borrow())?;
+        let settings_nonce = settings_account_data
+            .account_kind
+            .into_settings()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
+
+        bridge_utils::helper::validate_settings_account(
+            program_id,
+            settings_nonce,
+            settings_account_info,
+        )?;
+
+        // Validate Proposal Account
+        let mut proposal_account_data =
+            RelayRoundProposal::unpack(&proposal_account_info.data.borrow())?;
+
+        let round_number = proposal_account_data.round_number;
+        let event_timestamp = proposal_account_data.pda.event_timestamp;
+        let event_transaction_lt = proposal_account_data.pda.event_transaction_lt;
+        let event_configuration = proposal_account_data.pda.event_configuration;
+        let event_data = hash(&proposal_account_data.event.data.try_to_vec()?);
+
+        let (_, proposal_nonce) = Pubkey::find_program_address(
+            &[
+                br"proposal",
+                &round_number.to_le_bytes(),
+                &event_timestamp.to_le_bytes(),
+                &event_transaction_lt.to_le_bytes(),
+                &event_configuration.to_bytes(),
+                &event_data.to_bytes(),
+            ],
+            program_id,
+        );
+
+        bridge_utils::helper::validate_proposal_account(
+            program_id,
+            round_number,
+            event_timestamp,
+            event_transaction_lt,
+            &event_configuration,
+            &event_data,
+            proposal_nonce,
+            proposal_account_info,
+        )?;
 
         // Do we have enough signers.
-        let sig_count = proposal
+        let sig_count = proposal_account_data
             .signers
             .iter()
             .filter(|vote| **vote == Vote::Confirm)
             .count() as u32;
 
-        if !proposal.is_executed && sig_count == proposal.required_votes {
-            // Validate a new Relay Round Account
-            let round_number = proposal.event.data.round_num;
-            let nonce =
-                validate_relay_round_account(program_id, round_number, relay_round_account_info)?;
-
-            let relay_round_account_signer_seeds: &[&[_]] =
-                &[&round_number.to_le_bytes(), &[nonce]];
-
+        if !proposal_account_data.is_executed && sig_count == proposal_account_data.required_votes {
             // Create a new Relay Round Account
+            let round_number = proposal_account_data.event.data.round_num;
+
+            let (relay_round_pubkey, relay_round_nonce) = Pubkey::find_program_address(
+                &[br"relay_round", &round_number.to_le_bytes()],
+                program_id,
+            );
+            let relay_round_account_signer_seeds: &[&[_]] = &[
+                br"relay_round",
+                &round_number.to_le_bytes(),
+                &[relay_round_nonce],
+            ];
+
+            if relay_round_pubkey != *relay_round_account_info.key {
+                return Err(ProgramError::InvalidArgument);
+            }
+
             invoke_signed(
                 &system_instruction::create_account(
                     funder_account_info.key,
@@ -678,15 +794,16 @@ impl Processor {
                 &[relay_round_account_signer_seeds],
             )?;
 
-            let round_end = proposal.event.data.round_end + settings_account_data.round_ttl;
+            let round_end =
+                proposal_account_data.event.data.round_end + settings_account_data.round_ttl;
 
             // Init a new Relay Round Account
             let relay_round_account_data = RelayRound {
                 is_initialized: true,
-                account_kind: AccountKind::RelayRound,
+                account_kind: AccountKind::RelayRound(relay_round_nonce),
                 round_number,
                 round_end,
-                relays: proposal.event.data.relays.clone(),
+                relays: proposal_account_data.event.data.relays.clone(),
             };
 
             RelayRound::pack(
@@ -702,11 +819,14 @@ impl Processor {
                 &mut settings_account_info.data.borrow_mut(),
             )?;
 
-            proposal.is_executed = true;
+            proposal_account_data.is_executed = true;
         }
 
         // Update Proposal Account
-        RelayRoundProposal::pack(proposal, &mut proposal_account_info.data.borrow_mut())?;
+        RelayRoundProposal::pack(
+            proposal_account_data,
+            &mut proposal_account_info.data.borrow_mut(),
+        )?;
 
         Ok(())
     }
@@ -731,27 +851,42 @@ impl Processor {
         }
 
         // Validate Settings Account
-        bridge_utils::helper::validate_settings_account(program_id, settings_account_info)?;
-
-        if settings_account_info.owner != program_id {
-            return Err(ProgramError::InvalidArgument);
-        }
-
         let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+
+        let settings_nonce = settings_account_data
+            .account_kind
+            .into_settings()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
+
+        bridge_utils::helper::validate_settings_account(
+            program_id,
+            settings_nonce,
+            settings_account_info,
+        )?;
+
         if settings_account_data.round_submitter != *creator_account_info.key {
             return Err(ProgramError::IllegalOwner);
         }
 
         let mut proposal = RelayRoundProposal::unpack(&proposal_account_info.data.borrow())?;
 
-        // Validate a new Relay Round Account
-        let round_number = proposal.event.data.round_num;
-        let nonce =
-            validate_relay_round_account(program_id, round_number, relay_round_account_info)?;
-
-        let relay_round_account_signer_seeds: &[&[_]] = &[&round_number.to_le_bytes(), &[nonce]];
-
         // Create a new Relay Round Account
+        let round_number = proposal.event.data.round_num;
+
+        let (relay_round_pubkey, relay_round_nonce) = Pubkey::find_program_address(
+            &[br"relay_round", &round_number.to_le_bytes()],
+            program_id,
+        );
+        let relay_round_account_signer_seeds: &[&[_]] = &[
+            br"relay_round",
+            &round_number.to_le_bytes(),
+            &[relay_round_nonce],
+        ];
+
+        if relay_round_pubkey != *relay_round_account_info.key {
+            return Err(ProgramError::InvalidArgument);
+        }
+
         invoke_signed(
             &system_instruction::create_account(
                 funder_account_info.key,
@@ -773,7 +908,7 @@ impl Processor {
         // Init a new Relay Round Account
         let relay_round_account_data = RelayRound {
             is_initialized: true,
-            account_kind: AccountKind::RelayRound,
+            account_kind: AccountKind::RelayRound(relay_round_nonce),
             round_number,
             round_end,
             relays: proposal.event.data.relays.clone(),
@@ -818,4 +953,3 @@ fn write_proposal_data(data: &mut [u8], offset: usize, bytes: &[u8]) -> Result<(
 
     Ok(())
 }
-*/

@@ -6,6 +6,7 @@ use std::str::FromStr;
 
 use bridge_utils::state::AccountKind;
 use solana_program::bpf_loader_upgradeable::UpgradeableLoaderState;
+use solana_program::hash::hash;
 use solana_program::rent::Rent;
 use solana_program::{bpf_loader_upgradeable, program_pack::Pack, pubkey::Pubkey};
 use solana_program_test::{processor, tokio, ProgramTest};
@@ -95,13 +96,14 @@ async fn test_init_relay_loader() {
         ],
         Some(&funder.pubkey()),
     );
-    transaction.sign(&[&funder, &creator, &initializer], recent_blockhash);
+    transaction.sign(&[&funder, &initializer, &creator], recent_blockhash);
 
     banks_client
         .process_transaction(transaction)
         .await
         .expect("process_transaction");
 
+    // Check Settings Account
     let settings_address = get_settings_address();
 
     let settings_info = banks_client
@@ -118,6 +120,13 @@ async fn test_init_relay_loader() {
     assert_eq!(settings_data.min_required_votes, min_required_votes);
     assert_eq!(settings_data.round_ttl, round_ttl);
 
+    let (_, settings_nonce) = Pubkey::find_program_address(&[br"settings"], &round_loader::id());
+    assert_eq!(
+        settings_data.account_kind,
+        AccountKind::Settings(settings_nonce)
+    );
+
+    // Check Relay Round Account
     let relay_round_address = get_relay_round_address(round_number);
 
     let relay_round_info = banks_client
@@ -133,9 +142,19 @@ async fn test_init_relay_loader() {
     assert_eq!(relay_round_data.round_end, round_end as u32 + round_ttl);
     assert_eq!(relay_round_data.relays, relays);
 
+    let (_, relay_round_nonce) = Pubkey::find_program_address(
+        &[br"relay_round", &round_number.to_le_bytes()],
+        &round_loader::id(),
+    );
+    assert_eq!(
+        relay_round_data.account_kind,
+        AccountKind::RelayRound(relay_round_nonce)
+    );
+
+    // Update Settings
+    let new_min_required_votes = 12;
     let new_current_round_number = 3;
     let new_round_submitter = Pubkey::new_unique();
-    let new_min_required_votes = 12;
 
     let mut transaction = Transaction::new_with_payer(
         &[update_settings_ix(
@@ -176,6 +195,8 @@ async fn test_create_proposal() {
     );
 
     // Setup environment
+
+    // Add Creator Account
     let proposal_creator = Keypair::new();
     program_test.add_account(
         proposal_creator.pubkey(),
@@ -210,10 +231,13 @@ async fn test_create_proposal() {
         );
     }
 
+    // Add Settings Account
+    let (_, settings_nonce) = Pubkey::find_program_address(&[br"settings"], &round_loader::id());
+
     let settings_address = get_settings_address();
     let settings_account_data = Settings {
         is_initialized: true,
-        account_kind: AccountKind::Settings,
+        account_kind: AccountKind::Settings(settings_nonce),
         current_round_number: round_number,
         round_submitter: Pubkey::new_unique(),
         min_required_votes: 1,
@@ -233,11 +257,17 @@ async fn test_create_proposal() {
         },
     );
 
+    // Add Relay Round Account
+    let (_, relay_round_nonce) = Pubkey::find_program_address(
+        &[br"relay_round", &round_number.to_le_bytes()],
+        &round_loader::id(),
+    );
+
     let relay_round_address = get_relay_round_address(round_number);
 
     let relay_round_data = RelayRound {
         is_initialized: true,
-        account_kind: AccountKind::RelayRound,
+        account_kind: AccountKind::RelayRound(relay_round_nonce),
         round_number,
         round_end: chrono::Utc::now().timestamp() as u32,
         relays: relays.iter().map(|pair| pair.pubkey()).collect(),
@@ -349,7 +379,6 @@ async fn test_create_proposal() {
     let proposal_data = RelayRoundProposal::unpack(proposal_info.data()).expect("proposal unpack");
 
     assert_eq!(proposal_data.is_initialized, true);
-    assert_eq!(proposal_data.account_kind, AccountKind::Proposal);
     assert_eq!(proposal_data.is_executed, false);
     assert_eq!(proposal_data.round_number, round_number);
     assert_eq!(
@@ -357,14 +386,32 @@ async fn test_create_proposal() {
         (relays.len() * 2 / 3 + 1) as u32
     );
 
-    assert_eq!(proposal_data.pda.settings, settings_address);
     assert_eq!(proposal_data.pda.event_timestamp, event_timestamp);
     assert_eq!(proposal_data.pda.event_transaction_lt, event_transaction_lt);
+    assert_eq!(proposal_data.pda.event_configuration, event_configuration);
 
     assert_eq!(proposal_data.signers, vec![Vote::None; relays.len()]);
 
     assert_eq!(proposal_data.event.data.relays, new_relays);
     assert_eq!(proposal_data.event.data.round_end, new_round_end);
+
+    let event_data = hash(&serialized_write_data);
+    let (_, proposal_nonce) = Pubkey::find_program_address(
+        &[
+            br"proposal",
+            &round_number.to_le_bytes(),
+            &event_timestamp.to_le_bytes(),
+            &event_transaction_lt.to_le_bytes(),
+            &event_configuration.to_bytes(),
+            &event_data.to_bytes(),
+        ],
+        &round_loader::id(),
+    );
+
+    assert_eq!(
+        proposal_data.account_kind,
+        AccountKind::Proposal(proposal_nonce)
+    );
 
     // Vote for Proposal
     for relay in &relays {
@@ -490,10 +537,13 @@ async fn test_create_proposal_and_execute_by_admin() {
         },
     );
 
+    // Add Settings Account
+    let (_, settings_nonce) = Pubkey::find_program_address(&[br"settings"], &round_loader::id());
+
     let settings_address = get_settings_address();
     let settings_account_data = Settings {
         is_initialized: true,
-        account_kind: AccountKind::Settings,
+        account_kind: AccountKind::Settings(settings_nonce),
         current_round_number: round_number,
         round_submitter: round_submitter.pubkey(),
         min_required_votes: 1,
@@ -513,11 +563,17 @@ async fn test_create_proposal_and_execute_by_admin() {
         },
     );
 
+    // Add Relay Round Account
+    let (_, relay_round_nonce) = Pubkey::find_program_address(
+        &[br"relay_round", &round_number.to_le_bytes()],
+        &round_loader::id(),
+    );
+
     let relay_round_address = get_relay_round_address(round_number);
 
     let relay_round_data = RelayRound {
         is_initialized: true,
-        account_kind: AccountKind::RelayRound,
+        account_kind: AccountKind::RelayRound(relay_round_nonce),
         round_number,
         round_end: chrono::Utc::now().timestamp() as u32,
         relays: relays.iter().map(|pair| pair.pubkey()).collect(),
@@ -629,7 +685,6 @@ async fn test_create_proposal_and_execute_by_admin() {
     let proposal_data = RelayRoundProposal::unpack(proposal_info.data()).expect("proposal unpack");
 
     assert_eq!(proposal_data.is_initialized, true);
-    assert_eq!(proposal_data.account_kind, AccountKind::Proposal);
     assert_eq!(proposal_data.is_executed, false);
     assert_eq!(proposal_data.round_number, round_number);
     assert_eq!(
@@ -637,7 +692,6 @@ async fn test_create_proposal_and_execute_by_admin() {
         (relays.len() * 2 / 3 + 1) as u32
     );
 
-    assert_eq!(proposal_data.pda.settings, settings_address);
     assert_eq!(proposal_data.pda.event_timestamp, event_timestamp);
     assert_eq!(proposal_data.pda.event_transaction_lt, event_transaction_lt);
 
@@ -645,6 +699,24 @@ async fn test_create_proposal_and_execute_by_admin() {
 
     assert_eq!(proposal_data.event.data.relays, new_relays);
     assert_eq!(proposal_data.event.data.round_end, new_round_end);
+
+    let event_data = hash(&serialized_write_data);
+    let (_, proposal_nonce) = Pubkey::find_program_address(
+        &[
+            br"proposal",
+            &round_number.to_le_bytes(),
+            &event_timestamp.to_le_bytes(),
+            &event_transaction_lt.to_le_bytes(),
+            &event_configuration.to_bytes(),
+            &event_data.to_bytes(),
+        ],
+        &round_loader::id(),
+    );
+
+    assert_eq!(
+        proposal_data.account_kind,
+        AccountKind::Proposal(proposal_nonce)
+    );
 
     // Execute Proposal by admin
     let mut transaction = Transaction::new_with_payer(

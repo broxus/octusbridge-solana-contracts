@@ -50,24 +50,6 @@ pub fn get_associated_deposit_address(
     .0
 }
 
-pub fn validate_settings_account(
-    program_id: &Pubkey,
-    nonce: u8,
-    account_info: &AccountInfo,
-) -> Result<(), ProgramError> {
-    let (account, expected_nonce) = Pubkey::find_program_address(&[br"settings"], program_id);
-
-    if account != *account_info.key {
-        return Err(ProgramError::InvalidArgument);
-    }
-
-    if expected_nonce != nonce {
-        return Err(ProgramError::InvalidArgument);
-    }
-
-    Ok(())
-}
-
 pub fn validate_token_settings_ever_account(
     program_id: &Pubkey,
     token: &EverAddress,

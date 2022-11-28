@@ -23,7 +23,7 @@ pub fn get_relay_round_address(round_number: u32) -> Pubkey {
     bridge_utils::helper::get_associated_relay_round_address(program_id, round_number)
 }
 
-/*pub fn get_proposal_address(
+pub fn get_proposal_address(
     round_number: u32,
     event_timestamp: u32,
     event_transaction_lt: u64,
@@ -32,13 +32,10 @@ pub fn get_relay_round_address(round_number: u32) -> Pubkey {
 ) -> Pubkey {
     let program_id = &id();
 
-    let settings = &get_settings_address();
-
     let event_data = hash(event_data);
 
     bridge_utils::helper::get_associated_proposal_address(
         program_id,
-        settings,
         round_number,
         event_timestamp,
         event_transaction_lt,
@@ -298,4 +295,3 @@ pub fn execute_proposal_by_admin_ix(
         data,
     }
 }
-*/
