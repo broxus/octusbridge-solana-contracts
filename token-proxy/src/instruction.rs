@@ -189,7 +189,8 @@ pub enum TokenProxyInstruction {
     /// # Account references
     /// ...
     DisableTokenEmergencyMode,
-    /*/// Approve Withdraw Ever
+
+    /// Approve Withdraw Ever
     ///
     /// # Account references
     /// ...
@@ -199,5 +200,5 @@ pub enum TokenProxyInstruction {
     ///
     /// # Account references
     /// ...
-    ApproveWithdrawSol,*/
+    ApproveWithdrawSol,
 }

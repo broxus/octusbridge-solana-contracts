@@ -450,7 +450,7 @@ pub fn withdrawal_sol_ix(
     }
 }
 
-pub fn change_guardian_ix(owner: &Pubkey, new_guardian: Pubkey) -> Instruction {
+pub fn change_guardian_ix(owner: Pubkey, new_guardian: Pubkey) -> Instruction {
     let settings_pubkey = get_settings_address();
     let program_data_pubkey = get_programdata_address();
 
@@ -461,7 +461,7 @@ pub fn change_guardian_ix(owner: &Pubkey, new_guardian: Pubkey) -> Instruction {
     Instruction {
         program_id: id(),
         accounts: vec![
-            AccountMeta::new(*owner, true),
+            AccountMeta::new(owner, true),
             AccountMeta::new(settings_pubkey, false),
             AccountMeta::new_readonly(program_data_pubkey, false),
         ],
@@ -469,7 +469,7 @@ pub fn change_guardian_ix(owner: &Pubkey, new_guardian: Pubkey) -> Instruction {
     }
 }
 
-pub fn change_manager_ix(owner: &Pubkey, new_manager: Pubkey) -> Instruction {
+pub fn change_manager_ix(owner: Pubkey, new_manager: Pubkey) -> Instruction {
     let settings_pubkey = get_settings_address();
     let program_data_pubkey = get_programdata_address();
 
@@ -480,7 +480,7 @@ pub fn change_manager_ix(owner: &Pubkey, new_manager: Pubkey) -> Instruction {
     Instruction {
         program_id: id(),
         accounts: vec![
-            AccountMeta::new(*owner, true),
+            AccountMeta::new(owner, true),
             AccountMeta::new(settings_pubkey, false),
             AccountMeta::new_readonly(program_data_pubkey, false),
         ],
@@ -488,7 +488,7 @@ pub fn change_manager_ix(owner: &Pubkey, new_manager: Pubkey) -> Instruction {
     }
 }
 
-pub fn change_withdrawal_manager_ix(owner: &Pubkey, new_withdrawal_manager: Pubkey) -> Instruction {
+pub fn change_withdrawal_manager_ix(owner: Pubkey, new_withdrawal_manager: Pubkey) -> Instruction {
     let settings_pubkey = get_settings_address();
     let program_data_pubkey = get_programdata_address();
 
@@ -501,7 +501,7 @@ pub fn change_withdrawal_manager_ix(owner: &Pubkey, new_withdrawal_manager: Pubk
     Instruction {
         program_id: id(),
         accounts: vec![
-            AccountMeta::new(*owner, true),
+            AccountMeta::new(owner, true),
             AccountMeta::new(settings_pubkey, false),
             AccountMeta::new_readonly(program_data_pubkey, false),
         ],
@@ -510,8 +510,8 @@ pub fn change_withdrawal_manager_ix(owner: &Pubkey, new_withdrawal_manager: Pubk
 }
 
 pub fn change_deposit_limit_ix(
-    owner_pubkey: &Pubkey,
-    token_settings_pubkey: &Pubkey,
+    owner_pubkey: Pubkey,
+    token_settings_pubkey: Pubkey,
     new_deposit_limit: u64,
 ) -> Instruction {
     let program_data_pubkey = get_programdata_address();
@@ -523,8 +523,8 @@ pub fn change_deposit_limit_ix(
     Instruction {
         program_id: id(),
         accounts: vec![
-            AccountMeta::new(*owner_pubkey, true),
-            AccountMeta::new(*token_settings_pubkey, false),
+            AccountMeta::new(owner_pubkey, true),
+            AccountMeta::new(token_settings_pubkey, false),
             AccountMeta::new_readonly(program_data_pubkey, false),
         ],
         data,
@@ -532,8 +532,8 @@ pub fn change_deposit_limit_ix(
 }
 
 pub fn change_withdrawal_limits_ix(
-    owner_pubkey: &Pubkey,
-    token_settings_pubkey: &Pubkey,
+    owner_pubkey: Pubkey,
+    token_settings_pubkey: Pubkey,
     new_withdrawal_limit: Option<u64>,
     new_withdrawal_daily_limit: Option<u64>,
 ) -> Instruction {
@@ -549,15 +549,15 @@ pub fn change_withdrawal_limits_ix(
     Instruction {
         program_id: id(),
         accounts: vec![
-            AccountMeta::new(*owner_pubkey, true),
-            AccountMeta::new(*token_settings_pubkey, false),
+            AccountMeta::new(owner_pubkey, true),
+            AccountMeta::new(token_settings_pubkey, false),
             AccountMeta::new_readonly(program_data_pubkey, false),
         ],
         data,
     }
 }
 
-pub fn enable_emergency_ix(guardian_pubkey: &Pubkey) -> Instruction {
+pub fn enable_emergency_ix(guardian_pubkey: Pubkey) -> Instruction {
     let settings_pubkey = get_settings_address();
 
     let data = TokenProxyInstruction::EnableEmergencyMode
@@ -567,14 +567,14 @@ pub fn enable_emergency_ix(guardian_pubkey: &Pubkey) -> Instruction {
     Instruction {
         program_id: id(),
         accounts: vec![
-            AccountMeta::new(*guardian_pubkey, true),
+            AccountMeta::new(guardian_pubkey, true),
             AccountMeta::new(settings_pubkey, false),
         ],
         data,
     }
 }
 
-pub fn enable_emergency_by_owner_ix(owner_pubkey: &Pubkey) -> Instruction {
+pub fn enable_emergency_by_owner_ix(owner_pubkey: Pubkey) -> Instruction {
     let settings_pubkey = get_settings_address();
     let program_data_pubkey = get_programdata_address();
 
@@ -585,7 +585,7 @@ pub fn enable_emergency_by_owner_ix(owner_pubkey: &Pubkey) -> Instruction {
     Instruction {
         program_id: id(),
         accounts: vec![
-            AccountMeta::new(*owner_pubkey, true),
+            AccountMeta::new(owner_pubkey, true),
             AccountMeta::new(settings_pubkey, false),
             AccountMeta::new_readonly(program_data_pubkey, false),
         ],
@@ -593,7 +593,7 @@ pub fn enable_emergency_by_owner_ix(owner_pubkey: &Pubkey) -> Instruction {
     }
 }
 
-pub fn disable_emergency_ix(owner_pubkey: &Pubkey) -> Instruction {
+pub fn disable_emergency_ix(owner_pubkey: Pubkey) -> Instruction {
     let settings_pubkey = get_settings_address();
     let program_data_pubkey = get_programdata_address();
 
@@ -604,7 +604,7 @@ pub fn disable_emergency_ix(owner_pubkey: &Pubkey) -> Instruction {
     Instruction {
         program_id: id(),
         accounts: vec![
-            AccountMeta::new(*owner_pubkey, true),
+            AccountMeta::new(owner_pubkey, true),
             AccountMeta::new(settings_pubkey, false),
             AccountMeta::new_readonly(program_data_pubkey, false),
         ],
@@ -612,7 +612,7 @@ pub fn disable_emergency_ix(owner_pubkey: &Pubkey) -> Instruction {
     }
 }
 
-pub fn enable_emergency_token_ix(guardian_pubkey: &Pubkey) -> Instruction {
+pub fn enable_emergency_token_ix(guardian_pubkey: Pubkey) -> Instruction {
     let settings_pubkey = get_settings_address();
 
     let data = TokenProxyInstruction::EnableTokenEmergencyMode
@@ -622,14 +622,14 @@ pub fn enable_emergency_token_ix(guardian_pubkey: &Pubkey) -> Instruction {
     Instruction {
         program_id: id(),
         accounts: vec![
-            AccountMeta::new(*guardian_pubkey, true),
+            AccountMeta::new(guardian_pubkey, true),
             AccountMeta::new(settings_pubkey, false),
         ],
         data,
     }
 }
 
-pub fn enable_emergency_token_by_owner_ix(owner_pubkey: &Pubkey) -> Instruction {
+pub fn enable_emergency_token_by_owner_ix(owner_pubkey: Pubkey) -> Instruction {
     let settings_pubkey = get_settings_address();
     let program_data_pubkey = get_programdata_address();
 
@@ -640,7 +640,7 @@ pub fn enable_emergency_token_by_owner_ix(owner_pubkey: &Pubkey) -> Instruction 
     Instruction {
         program_id: id(),
         accounts: vec![
-            AccountMeta::new(*owner_pubkey, true),
+            AccountMeta::new(owner_pubkey, true),
             AccountMeta::new(settings_pubkey, false),
             AccountMeta::new_readonly(program_data_pubkey, false),
         ],
@@ -648,7 +648,7 @@ pub fn enable_emergency_token_by_owner_ix(owner_pubkey: &Pubkey) -> Instruction 
     }
 }
 
-pub fn disable_emergency_token_ix(owner_pubkey: &Pubkey) -> Instruction {
+pub fn disable_emergency_token_ix(owner_pubkey: Pubkey) -> Instruction {
     let settings_pubkey = get_settings_address();
     let program_data_pubkey = get_programdata_address();
 
@@ -659,9 +659,69 @@ pub fn disable_emergency_token_ix(owner_pubkey: &Pubkey) -> Instruction {
     Instruction {
         program_id: id(),
         accounts: vec![
-            AccountMeta::new(*owner_pubkey, true),
+            AccountMeta::new(owner_pubkey, true),
             AccountMeta::new(settings_pubkey, false),
             AccountMeta::new_readonly(program_data_pubkey, false),
+        ],
+        data,
+    }
+}
+
+pub fn approve_withdrawal_ever_ix(
+    authority_pubkey: Pubkey,
+    withdrawal_pubkey: Pubkey,
+    recipient_token_pubkey: Pubkey,
+    mint_pubkey: Pubkey,
+    token: &EverAddress,
+) -> Instruction {
+    let settings_pubkey = get_settings_address();
+    let token_settings_pubkey = get_token_settings_ever_address(token);
+
+    let data = TokenProxyInstruction::ApproveWithdrawEver
+        .try_to_vec()
+        .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(authority_pubkey, true),
+            AccountMeta::new(mint_pubkey, false),
+            AccountMeta::new(withdrawal_pubkey, false),
+            AccountMeta::new(recipient_token_pubkey, false),
+            AccountMeta::new(token_settings_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new_readonly(spl_token::id(), false),
+            AccountMeta::new_readonly(sysvar::clock::id(), false),
+        ],
+        data,
+    }
+}
+
+pub fn approve_withdrawal_sol_ix(
+    authority_pubkey: Pubkey,
+    withdrawal_pubkey: Pubkey,
+    recipient_token_pubkey: Pubkey,
+    mint_pubkey: Pubkey,
+) -> Instruction {
+    let settings_pubkey = get_settings_address();
+    let vault_pubkey = get_vault_address(&mint_pubkey);
+    let token_settings_pubkey = get_token_settings_sol_address(&mint_pubkey);
+
+    let data = TokenProxyInstruction::ApproveWithdrawSol
+        .try_to_vec()
+        .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(authority_pubkey, true),
+            AccountMeta::new(vault_pubkey, false),
+            AccountMeta::new(withdrawal_pubkey, false),
+            AccountMeta::new(recipient_token_pubkey, false),
+            AccountMeta::new(token_settings_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new_readonly(spl_token::id(), false),
+            AccountMeta::new_readonly(sysvar::clock::id(), false),
         ],
         data,
     }
