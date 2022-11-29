@@ -48,6 +48,7 @@ pub fn get_deposit_address(seed: u128, token_settings_address: &Pubkey) -> Pubke
     get_associated_deposit_address(program_id, seed, token_settings_address)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn get_withdrawal_ever_address(
     round_number: u32,
     event_timestamp: u32,

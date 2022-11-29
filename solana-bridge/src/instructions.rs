@@ -26,8 +26,7 @@ pub fn vote_for_proposal_ix(
     round_number: u32,
     vote: Vote,
 ) -> Instruction {
-    let relay_round_pubkey =
-        round_loader::get_associated_relay_round_address(&round_loader::id(), round_number);
+    let relay_round_pubkey = round_loader::get_relay_round_address(round_number);
 
     let data = VoteForProposal { instruction, vote }
         .try_to_vec()
