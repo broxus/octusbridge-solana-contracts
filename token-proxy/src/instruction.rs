@@ -119,7 +119,7 @@ pub enum TokenProxyInstruction {
         amount: u128,
     },
 
-    /// Change Guardian
+    /// Change Guardian Role
     ///
     /// # Account references
     /// ...
@@ -128,7 +128,16 @@ pub enum TokenProxyInstruction {
         new_guardian: Pubkey,
     },
 
-    /// Change Withdrawal Manager
+    /// Change Manager Role
+    ///
+    /// # Account references
+    /// ...
+    ChangeManager {
+        // New guardian pubkey
+        new_manager: Pubkey,
+    },
+
+    /// Change Withdrawal Manager Role
     ///
     /// # Account references
     /// ...
@@ -180,4 +189,15 @@ pub enum TokenProxyInstruction {
     /// # Account references
     /// ...
     DisableTokenEmergencyMode,
+    /*/// Approve Withdraw Ever
+    ///
+    /// # Account references
+    /// ...
+    ApproveWithdrawEver,
+
+    /// Approve Withdraw SOL
+    ///
+    /// # Account references
+    /// ...
+    ApproveWithdrawSol,*/
 }

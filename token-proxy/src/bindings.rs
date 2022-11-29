@@ -450,73 +450,30 @@ pub fn withdrawal_sol_ix(
     }
 }
 
-/*
-pub fn get_token_settings_address(
-    name: &str,
-    symbol: &str,
-    ever_decimals: u8,
-    solana_decimals: u8,
-    mint: &Pubkey,
-) -> Pubkey {
-    let program_id = &id();
-    get_associated_token_settings_address(
-        program_id,
-        name,
-        symbol,
-        ever_decimals,
-        solana_decimals,
-        mint,
-    )
-}
-
-pub fn get_multivault_withdrawal_ever_address(
-    settings: &Pubkey,
-    round_number: u32,
-    event_timestamp: u32,
-    event_transaction_lt: u64,
-    event_configuration: &Pubkey,
-    token_address: EverAddress,
-    name: String,
-    symbol: String,
-    decimals: u8,
-    recipient_address: Pubkey,
-    amount: u128,
-) -> Pubkey {
-    let program_id = &id();
-
-    let event_data = hash(
-        &WithdrawalMultiTokenEverEventWithLen::new(
-            token_address,
-            name,
-            symbol,
-            decimals,
-            amount,
-            recipient_address,
-        )
-        .data
-        .try_to_vec()
-        .expect("pack"),
-    )
-    .to_bytes();
-
-    bridge_utils::helper::get_associated_proposal_address(
-        program_id,
-        settings,
-        round_number,
-        event_timestamp,
-        event_transaction_lt,
-        event_configuration,
-        &event_data,
-    )
-}
-*/
-
-/*
 pub fn change_guardian_ix(owner: &Pubkey, new_guardian: Pubkey) -> Instruction {
     let settings_pubkey = get_settings_address();
     let program_data_pubkey = get_programdata_address();
 
     let data = TokenProxyInstruction::ChangeGuardian { new_guardian }
+        .try_to_vec()
+        .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(*owner, true),
+            AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new_readonly(program_data_pubkey, false),
+        ],
+        data,
+    }
+}
+
+pub fn change_manager_ix(owner: &Pubkey, new_manager: Pubkey) -> Instruction {
+    let settings_pubkey = get_settings_address();
+    let program_data_pubkey = get_programdata_address();
+
+    let data = TokenProxyInstruction::ChangeManager { new_manager }
         .try_to_vec()
         .expect("pack");
 
@@ -546,6 +503,54 @@ pub fn change_withdrawal_manager_ix(owner: &Pubkey, new_withdrawal_manager: Pubk
         accounts: vec![
             AccountMeta::new(*owner, true),
             AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new_readonly(program_data_pubkey, false),
+        ],
+        data,
+    }
+}
+
+pub fn change_deposit_limit_ix(
+    owner_pubkey: &Pubkey,
+    token_settings_pubkey: &Pubkey,
+    new_deposit_limit: u64,
+) -> Instruction {
+    let program_data_pubkey = get_programdata_address();
+
+    let data = TokenProxyInstruction::ChangeDepositLimit { new_deposit_limit }
+        .try_to_vec()
+        .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(*owner_pubkey, true),
+            AccountMeta::new(*token_settings_pubkey, false),
+            AccountMeta::new_readonly(program_data_pubkey, false),
+        ],
+        data,
+    }
+}
+
+pub fn change_withdrawal_limits_ix(
+    owner_pubkey: &Pubkey,
+    token_settings_pubkey: &Pubkey,
+    new_withdrawal_limit: Option<u64>,
+    new_withdrawal_daily_limit: Option<u64>,
+) -> Instruction {
+    let program_data_pubkey = get_programdata_address();
+
+    let data = TokenProxyInstruction::ChangeWithdrawalLimits {
+        new_withdrawal_limit,
+        new_withdrawal_daily_limit,
+    }
+    .try_to_vec()
+    .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(*owner_pubkey, true),
+            AccountMeta::new(*token_settings_pubkey, false),
             AccountMeta::new_readonly(program_data_pubkey, false),
         ],
         data,
@@ -605,4 +610,59 @@ pub fn disable_emergency_ix(owner_pubkey: &Pubkey) -> Instruction {
         ],
         data,
     }
-}*/
+}
+
+pub fn enable_emergency_token_ix(guardian_pubkey: &Pubkey) -> Instruction {
+    let settings_pubkey = get_settings_address();
+
+    let data = TokenProxyInstruction::EnableTokenEmergencyMode
+        .try_to_vec()
+        .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(*guardian_pubkey, true),
+            AccountMeta::new(settings_pubkey, false),
+        ],
+        data,
+    }
+}
+
+pub fn enable_emergency_token_by_owner_ix(owner_pubkey: &Pubkey) -> Instruction {
+    let settings_pubkey = get_settings_address();
+    let program_data_pubkey = get_programdata_address();
+
+    let data = TokenProxyInstruction::EnableTokenEmergencyMode
+        .try_to_vec()
+        .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(*owner_pubkey, true),
+            AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new_readonly(program_data_pubkey, false),
+        ],
+        data,
+    }
+}
+
+pub fn disable_emergency_token_ix(owner_pubkey: &Pubkey) -> Instruction {
+    let settings_pubkey = get_settings_address();
+    let program_data_pubkey = get_programdata_address();
+
+    let data = TokenProxyInstruction::DisableTokenEmergencyMode
+        .try_to_vec()
+        .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(*owner_pubkey, true),
+            AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new_readonly(program_data_pubkey, false),
+        ],
+        data,
+    }
+}

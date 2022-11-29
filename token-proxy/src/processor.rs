@@ -140,50 +140,61 @@ impl Processor {
             }
             TokenProxyInstruction::ChangeGuardian { new_guardian } => {
                 msg!("Instruction: Update guardian");
-                //Self::process_change_guardian(program_id, accounts, new_guardian)?;
+                Self::process_change_guardian(program_id, accounts, new_guardian)?;
+            }
+            TokenProxyInstruction::ChangeManager { new_manager } => {
+                msg!("Instruction: Update manager");
+                Self::process_change_manager(program_id, accounts, new_manager)?;
             }
             TokenProxyInstruction::ChangeWithdrawalManager {
                 new_withdrawal_manager,
             } => {
                 msg!("Instruction: Update withdrawal manager");
-                /*Self::process_change_withdrawal_manager(
+                Self::process_change_withdrawal_manager(
                     program_id,
                     accounts,
                     new_withdrawal_manager,
-                )?;*/
+                )?;
             }
             TokenProxyInstruction::ChangeDepositLimit { new_deposit_limit } => {
                 msg!("Instruction: Update deposit limit");
-                //Self::process_change_deposit_limit(program_id, accounts, new_deposit_limit)?;
+                Self::process_change_deposit_limit(program_id, accounts, new_deposit_limit)?;
             }
             TokenProxyInstruction::ChangeWithdrawalLimits {
                 new_withdrawal_limit,
                 new_withdrawal_daily_limit,
             } => {
                 msg!("Instruction: Update withdrawal limits");
-                /*Self::process_change_withdrawal_limits(
+                Self::process_change_withdrawal_limits(
                     program_id,
                     accounts,
                     new_withdrawal_limit,
                     new_withdrawal_daily_limit,
-                )?;*/
+                )?;
             }
             TokenProxyInstruction::EnableEmergencyMode => {
                 msg!("Instruction: Enable emergency mode");
-                //Self::process_enable_emergency_mode(program_id, accounts)?;
+                Self::process_enable_emergency_mode(program_id, accounts)?;
             }
             TokenProxyInstruction::DisableEmergencyMode => {
                 msg!("Instruction: Disable emergency mode");
-                //Self::process_disable_emergency_mode(program_id, accounts)?;
+                Self::process_disable_emergency_mode(program_id, accounts)?;
             }
             TokenProxyInstruction::EnableTokenEmergencyMode => {
                 msg!("Instruction: Enable token emergency mode");
-                //Self::process_enable_token_emergency_mode(program_id, accounts)?;
+                Self::process_enable_token_emergency_mode(program_id, accounts)?;
             }
             TokenProxyInstruction::DisableTokenEmergencyMode => {
                 msg!("Instruction: Disable token emergency mode");
-                //Self::process_disable_token_emergency_mode(program_id, accounts)?;
-            }
+                Self::process_disable_token_emergency_mode(program_id, accounts)?;
+            } /*TokenProxyInstruction::ApproveWithdrawEver => {
+                  msg!("Instruction: Approve Withdraw Multi Token EVER");
+                  Self::process_approve_withdraw_ever(program_id, accounts)?;
+              }
+              TokenProxyInstruction::ApproveWithdrawSol => {
+                  msg!("Instruction: Approve Withdraw Multi Token SOL");
+                  Self::process_approve_withdraw_sol(program_id, accounts)?;
+              }*/
         };
 
         Ok(())
@@ -1464,15 +1475,14 @@ impl Processor {
         // Validate Mint Account
         validate_mint_account(program_id, &token, mint_nonce, mint_account_info)?;
 
+        // Check connection between token and proposal
+        if token != withdrawal_account_data.event.data.token {
+            return Err(ProgramError::InvalidArgument);
+        }
+
         let mint_account_data = spl_token::state::Mint::unpack(&mint_account_info.data.borrow())?;
         let solana_decimals = mint_account_data.decimals;
         let ever_decimals = withdrawal_account_data.event.data.decimals;
-
-        let withdrawal_amount = get_withdrawal_amount(
-            withdrawal_account_data.event.data.amount,
-            ever_decimals,
-            solana_decimals,
-        );
 
         // Do we have enough signers.
         let sig_count = withdrawal_account_data
@@ -1491,6 +1501,12 @@ impl Processor {
                 token_settings_account_data.withdrawal_epoch = current_epoch;
                 token_settings_account_data.withdrawal_daily_amount = Default::default();
             }
+
+            let withdrawal_amount = get_withdrawal_amount(
+                withdrawal_account_data.event.data.amount,
+                ever_decimals,
+                solana_decimals,
+            );
 
             // Increase withdrawal daily amount
             token_settings_account_data.withdrawal_daily_amount = token_settings_account_data
@@ -1601,7 +1617,7 @@ impl Processor {
         let mut token_settings_account_data =
             TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
 
-        let (token_settings_nonce, _) = token_settings_account_data
+        let (token_settings_nonce, vault_nonce) = token_settings_account_data
             .account_kind
             .into_token_settings()
             .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
@@ -1622,7 +1638,13 @@ impl Processor {
             return Err(SolanaBridgeError::EmergencyEnabled.into());
         }
 
-        let withdrawal_amount = withdrawal_account_data.event.data.amount as u64;
+        // Validate Vault Account
+        validate_vault_account(program_id, &mint, vault_nonce, vault_account_info)?;
+
+        // Check connection between token and proposal
+        if mint != withdrawal_account_data.event.data.mint {
+            return Err(ProgramError::InvalidArgument);
+        }
 
         // Do we have enough signers.
         let sig_count = withdrawal_account_data
@@ -1632,6 +1654,8 @@ impl Processor {
             .count() as u32;
 
         if sig_count == withdrawal_account_data.required_votes {
+            let withdrawal_amount = withdrawal_account_data.event.data.amount as u64;
+
             match withdrawal_status {
                 WithdrawalTokenStatus::New => {
                     let current_epoch = clock.unix_timestamp / SECONDS_PER_DAY as i64;
@@ -1693,7 +1717,7 @@ impl Processor {
         Ok(())
     }
 
-    /*fn process_change_guardian(
+    fn process_change_guardian(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         new_guardian: Pubkey,
@@ -1718,11 +1742,70 @@ impl Processor {
             programdata_account_info,
         )?;
 
-        // Validate Setting Account
-        bridge_utils::helper::validate_settings_account(program_id, settings_account_info)?;
-
+        // Validate Settings Account
         let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+
+        let settings_nonce = settings_account_data
+            .account_kind
+            .into_settings()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
+
+        bridge_utils::helper::validate_settings_account(
+            program_id,
+            settings_nonce,
+            settings_account_info,
+        )?;
+
         settings_account_data.guardian = new_guardian;
+
+        Settings::pack(
+            settings_account_data,
+            &mut settings_account_info.data.borrow_mut(),
+        )?;
+
+        Ok(())
+    }
+
+    fn process_change_manager(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        new_manager: Pubkey,
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+
+        let authority_account_info = next_account_info(account_info_iter)?;
+        let settings_account_info = next_account_info(account_info_iter)?;
+        let programdata_account_info = next_account_info(account_info_iter)?;
+
+        if !authority_account_info.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        // Validate Initializer Account
+        bridge_utils::helper::validate_programdata_account(
+            program_id,
+            programdata_account_info.key,
+        )?;
+        bridge_utils::helper::validate_initializer_account(
+            authority_account_info.key,
+            programdata_account_info,
+        )?;
+
+        // Validate Settings Account
+        let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+
+        let settings_nonce = settings_account_data
+            .account_kind
+            .into_settings()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
+
+        bridge_utils::helper::validate_settings_account(
+            program_id,
+            settings_nonce,
+            settings_account_info,
+        )?;
+
+        settings_account_data.manager = new_manager;
 
         Settings::pack(
             settings_account_data,
@@ -1757,10 +1840,20 @@ impl Processor {
             programdata_account_info,
         )?;
 
-        // Validate Setting Account
-        bridge_utils::helper::validate_settings_account(program_id, settings_account_info)?;
-
+        // Validate Settings Account
         let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+
+        let settings_nonce = settings_account_data
+            .account_kind
+            .into_settings()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
+
+        bridge_utils::helper::validate_settings_account(
+            program_id,
+            settings_nonce,
+            settings_account_info,
+        )?;
+
         settings_account_data.withdrawal_manager = new_withdrawal_manager;
 
         Settings::pack(
@@ -1796,33 +1889,30 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        let mut settings_account_data =
+        // Validate Token Settings Account
+        let mut token_settings_account_data =
             TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
 
-        // Validate Setting Account
-        let name = &settings_account_data.name;
-        let symbol = &settings_account_data.symbol;
-        let ever_decimals = settings_account_data.ever_decimals;
-        let solana_decimals = settings_account_data.solana_decimals;
-        let mint = match settings_account_data.kind {
-            TokenKind::Ever { mint } => mint,
-            TokenKind::Solana { mint, .. } => mint,
-        };
+        let (_, token, _) = token_settings_account_data
+            .kind
+            .into_ever()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
+        let (token_settings_nonce, _) = token_settings_account_data
+            .account_kind
+            .into_token_settings()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
 
-        validate_token_settings_account(
+        validate_token_settings_ever_account(
             program_id,
-            name,
-            symbol,
-            ever_decimals,
-            solana_decimals,
-            &mint,
+            &token,
+            token_settings_nonce,
             token_settings_account_info,
         )?;
 
-        settings_account_data.deposit_limit = new_deposit_limit;
+        token_settings_account_data.deposit_limit = new_deposit_limit;
 
         TokenSettings::pack(
-            settings_account_data,
+            token_settings_account_data,
             &mut token_settings_account_info.data.borrow_mut(),
         )?;
 
@@ -1855,39 +1945,36 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        let mut settings_account_data =
+        // Validate Token Settings Account
+        let mut token_settings_account_data =
             TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
 
-        // Validate Setting Account
-        let name = &settings_account_data.name;
-        let symbol = &settings_account_data.symbol;
-        let ever_decimals = settings_account_data.ever_decimals;
-        let solana_decimals = settings_account_data.solana_decimals;
-        let mint = match settings_account_data.kind {
-            TokenKind::Ever { mint } => mint,
-            TokenKind::Solana { mint, .. } => mint,
-        };
+        let (_, token, _) = token_settings_account_data
+            .kind
+            .into_ever()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
+        let (token_settings_nonce, _) = token_settings_account_data
+            .account_kind
+            .into_token_settings()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
 
-        validate_token_settings_account(
+        validate_token_settings_ever_account(
             program_id,
-            name,
-            symbol,
-            ever_decimals,
-            solana_decimals,
-            &mint,
+            &token,
+            token_settings_nonce,
             token_settings_account_info,
         )?;
 
         if let Some(new_withdrawal_limit) = new_withdrawal_limit {
-            settings_account_data.withdrawal_limit = new_withdrawal_limit;
+            token_settings_account_data.withdrawal_limit = new_withdrawal_limit;
         }
 
         if let Some(new_withdrawal_daily_limit) = new_withdrawal_daily_limit {
-            settings_account_data.withdrawal_daily_limit = new_withdrawal_daily_limit;
+            token_settings_account_data.withdrawal_daily_limit = new_withdrawal_daily_limit;
         }
 
         TokenSettings::pack(
-            settings_account_data,
+            token_settings_account_data,
             &mut token_settings_account_info.data.borrow_mut(),
         )?;
 
@@ -1907,10 +1994,20 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        // Validate Setting Account
-        bridge_utils::helper::validate_settings_account(program_id, settings_account_info)?;
-
+        // Validate Settings Account
         let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+
+        let settings_nonce = settings_account_data
+            .account_kind
+            .into_settings()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
+
+        bridge_utils::helper::validate_settings_account(
+            program_id,
+            settings_nonce,
+            settings_account_info,
+        )?;
+
         let guardian = settings_account_data.guardian;
 
         // Validate Guardian Account
@@ -1962,10 +2059,20 @@ impl Processor {
             programdata_account_info,
         )?;
 
-        // Validate Setting Account
-        bridge_utils::helper::validate_settings_account(program_id, settings_account_info)?;
-
+        // Validate Settings Account
         let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+
+        let settings_nonce = settings_account_data
+            .account_kind
+            .into_settings()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
+
+        bridge_utils::helper::validate_settings_account(
+            program_id,
+            settings_nonce,
+            settings_account_info,
+        )?;
+
         settings_account_data.emergency = false;
 
         Settings::pack(
@@ -1990,10 +2097,20 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        // Validate Setting Account
-        bridge_utils::helper::validate_settings_account(program_id, settings_account_info)?;
-
+        // Validate Settings Account
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+
+        let settings_nonce = settings_account_data
+            .account_kind
+            .into_settings()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
+
+        bridge_utils::helper::validate_settings_account(
+            program_id,
+            settings_nonce,
+            settings_account_info,
+        )?;
+
         let guardian = settings_account_data.guardian;
 
         // Validate Guardian Account
@@ -2011,26 +2128,23 @@ impl Processor {
             )?;
         }
 
+        // Validate Token Settings Account
         let mut token_settings_account_data =
             TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
 
-        // Validate Setting Account
-        let name = &token_settings_account_data.name;
-        let symbol = &token_settings_account_data.symbol;
-        let ever_decimals = token_settings_account_data.ever_decimals;
-        let solana_decimals = token_settings_account_data.solana_decimals;
-        let mint = match token_settings_account_data.kind {
-            TokenKind::Ever { mint } => mint,
-            TokenKind::Solana { mint, .. } => mint,
-        };
+        let (_, token, _) = token_settings_account_data
+            .kind
+            .into_ever()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
+        let (token_settings_nonce, _) = token_settings_account_data
+            .account_kind
+            .into_token_settings()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
 
-        validate_token_settings_account(
+        validate_token_settings_ever_account(
             program_id,
-            name,
-            symbol,
-            ever_decimals,
-            solana_decimals,
-            &mint,
+            &token,
+            token_settings_nonce,
             token_settings_account_info,
         )?;
 
@@ -2068,26 +2182,23 @@ impl Processor {
             programdata_account_info,
         )?;
 
+        // Validate Token Settings Account
         let mut token_settings_account_data =
             TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
 
-        // Validate Setting Account
-        let name = &token_settings_account_data.name;
-        let symbol = &token_settings_account_data.symbol;
-        let ever_decimals = token_settings_account_data.ever_decimals;
-        let solana_decimals = token_settings_account_data.solana_decimals;
-        let mint = match token_settings_account_data.kind {
-            TokenKind::Ever { mint } => mint,
-            TokenKind::Solana { mint, .. } => mint,
-        };
+        let (_, token, _) = token_settings_account_data
+            .kind
+            .into_ever()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
+        let (token_settings_nonce, _) = token_settings_account_data
+            .account_kind
+            .into_token_settings()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
 
-        validate_token_settings_account(
+        validate_token_settings_ever_account(
             program_id,
-            name,
-            symbol,
-            ever_decimals,
-            solana_decimals,
-            &mint,
+            &token,
+            token_settings_nonce,
             token_settings_account_info,
         )?;
 
@@ -2099,7 +2210,7 @@ impl Processor {
         )?;
 
         Ok(())
-    }*/
+    }
 }
 
 fn make_multi_token_sol_transfer<'a>(

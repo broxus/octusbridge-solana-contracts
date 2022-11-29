@@ -134,33 +134,6 @@ pub fn validate_vault_account(
     Ok(())
 }
 
-pub fn validate_deposit_account(
-    program_id: &Pubkey,
-    seed: u128,
-    token_settings_address: &Pubkey,
-    nonce: u8,
-    deposit_account_info: &AccountInfo,
-) -> Result<(), ProgramError> {
-    let (account, expected_nonce) = Pubkey::find_program_address(
-        &[
-            br"deposit",
-            &seed.to_le_bytes(),
-            &token_settings_address.to_bytes(),
-        ],
-        program_id,
-    );
-
-    if account != *deposit_account_info.key {
-        return Err(ProgramError::InvalidArgument);
-    }
-
-    if expected_nonce != nonce {
-        return Err(ProgramError::InvalidArgument);
-    }
-
-    Ok(())
-}
-
 pub fn validate_multi_vault_account(
     program_id: &Pubkey,
     nonce: u8,
