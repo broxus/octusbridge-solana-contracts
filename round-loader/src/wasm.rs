@@ -18,7 +18,7 @@ use bridge_utils::types::*;
 use crate::*;
 
 #[wasm_bindgen(js_name = "getRelayRoundAddress")]
-pub fn get_relay_round_address(round_number: u32) -> Result<JsValue, JsValue> {
+pub fn get_relay_round_address_request(round_number: u32) -> Result<JsValue, JsValue> {
     let program_id = &id();
 
     let relay_round_pubkey = get_associated_relay_round_address(program_id, round_number);
