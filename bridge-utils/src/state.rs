@@ -61,3 +61,16 @@ pub enum AccountKind {
     MultiVault(u8),
     TokenSettings(u8, u8),
 }
+
+impl AccountKind {
+    fn to_value(&self) -> u8 {
+        match self {
+            AccountKind::Settings(_) => 0,
+            AccountKind::Deposit(_) => 1,
+            AccountKind::Proposal(_) => 2,
+            AccountKind::RelayRound(_) => 3,
+            AccountKind::MultiVault(_) => 4,
+            AccountKind::TokenSettings(_, _) => 5,
+        }
+    }
+}
