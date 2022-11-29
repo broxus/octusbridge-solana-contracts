@@ -116,7 +116,7 @@ pub fn create_relay_round_ix(
     let creator_pubkey = Pubkey::from_str(creator_pubkey.as_str()).handle_error()?;
 
     let setting_pubkey = bridge_utils::helper::get_associated_settings_address(program_id);
-    let relay_round_pubkey = get_associated_relay_round_address(program_id, round_number);
+    let relay_round_pubkey = get_relay_round_address(round_number);
 
     let relays: Vec<String> = serde_wasm_bindgen::from_value(relays).handle_error()?;
     let relays = relays
@@ -160,7 +160,7 @@ pub fn execute_ix(
     let proposal_pubkey = Pubkey::from_str(proposal_pubkey.as_str()).handle_error()?;
 
     let settings_pubkey = bridge_utils::helper::get_associated_settings_address(program_id);
-    let relay_round_pubkey = get_associated_relay_round_address(program_id, round_number);
+    let relay_round_pubkey = get_relay_round_address(round_number);
 
     let data = RoundLoaderInstruction::ExecuteProposal
         .try_to_vec()
@@ -196,7 +196,7 @@ pub fn execute_by_admin_ix(
     let proposal_pubkey = Pubkey::from_str(proposal_pubkey.as_str()).handle_error()?;
 
     let settings_pubkey = bridge_utils::helper::get_associated_settings_address(program_id);
-    let relay_round_pubkey = get_associated_relay_round_address(program_id, round_number);
+    let relay_round_pubkey = get_relay_round_address(round_number);
 
     let data = RoundLoaderInstruction::ExecuteProposalByAdmin
         .try_to_vec()
