@@ -416,20 +416,10 @@ impl Processor {
         )?;
 
         // Create Deposit Account
-        let (deposit_pubkey, deposit_nonce) = Pubkey::find_program_address(
-            &[
-                br"deposit",
-                &deposit_seed.to_le_bytes(),
-                &token_settings_account_info.key.to_bytes(),
-            ],
-            program_id,
-        );
-        let deposit_account_signer_seeds: &[&[_]] = &[
-            br"deposit",
-            &deposit_seed.to_le_bytes(),
-            &token_settings_account_info.key.to_bytes(),
-            &[deposit_nonce],
-        ];
+        let (deposit_pubkey, deposit_nonce) =
+            Pubkey::find_program_address(&[br"deposit", &deposit_seed.to_le_bytes()], program_id);
+        let deposit_account_signer_seeds: &[&[_]] =
+            &[br"deposit", &deposit_seed.to_le_bytes(), &[deposit_nonce]];
 
         if deposit_pubkey != *deposit_account_info.key {
             return Err(ProgramError::InvalidArgument);
@@ -737,20 +727,10 @@ impl Processor {
         )?;
 
         // Create Deposit Account
-        let (deposit_pubkey, deposit_nonce) = Pubkey::find_program_address(
-            &[
-                br"deposit",
-                &deposit_seed.to_le_bytes(),
-                &token_settings_account_info.key.to_bytes(),
-            ],
-            program_id,
-        );
-        let deposit_account_signer_seeds: &[&[_]] = &[
-            br"deposit",
-            &deposit_seed.to_le_bytes(),
-            &token_settings_account_info.key.to_bytes(),
-            &[deposit_nonce],
-        ];
+        let (deposit_pubkey, deposit_nonce) =
+            Pubkey::find_program_address(&[br"deposit", &deposit_seed.to_le_bytes()], program_id);
+        let deposit_account_signer_seeds: &[&[_]] =
+            &[br"deposit", &deposit_seed.to_le_bytes(), &[deposit_nonce]];
 
         if deposit_pubkey != *deposit_account_info.key {
             return Err(ProgramError::InvalidArgument);

@@ -4,7 +4,6 @@ use borsh::BorshSerialize;
 use bridge_utils::state::{AccountKind, Proposal, PDA};
 use bridge_utils::types::{EverAddress, Vote, RELAY_REPARATION};
 
-use bridge_utils::helper::get_associated_relay_round_address;
 use solana_program::bpf_loader_upgradeable::UpgradeableLoaderState;
 use solana_program::hash::hash;
 use solana_program::rent::Rent;
@@ -338,7 +337,7 @@ async fn test_deposit_ever() {
     assert_eq!(sender_data.amount, 100 - amount);
 
     // Check Deposit Account
-    let deposit_address = get_deposit_address(deposit_seed, &token_settings_address);
+    let deposit_address = get_deposit_address(deposit_seed);
     let deposit_info = banks_client
         .get_account(deposit_address)
         .await
@@ -351,11 +350,7 @@ async fn test_deposit_ever() {
     assert_eq!(deposit_data.is_initialized, true);
 
     let (_, deposit_nonce) = Pubkey::find_program_address(
-        &[
-            br"deposit",
-            &deposit_seed.to_le_bytes(),
-            &token_settings_address.to_bytes(),
-        ],
+        &[br"deposit", &deposit_seed.to_le_bytes()],
         &token_proxy::id(),
     );
     assert_eq!(
@@ -594,7 +589,7 @@ async fn test_deposit_ever_for_18_decimals() {
     assert_eq!(sender_data.amount, 100 - amount);
 
     // Check Deposit Account
-    let deposit_address = get_deposit_address(deposit_seed, &token_settings_address);
+    let deposit_address = get_deposit_address(deposit_seed);
     let deposit_info = banks_client
         .get_account(deposit_address)
         .await
@@ -607,11 +602,7 @@ async fn test_deposit_ever_for_18_decimals() {
     assert_eq!(deposit_data.is_initialized, true);
 
     let (_, deposit_nonce) = Pubkey::find_program_address(
-        &[
-            br"deposit",
-            &deposit_seed.to_le_bytes(),
-            &token_settings_address.to_bytes(),
-        ],
+        &[br"deposit", &deposit_seed.to_le_bytes()],
         &token_proxy::id(),
     );
     assert_eq!(
@@ -864,7 +855,7 @@ async fn test_deposit_sol() {
     );
 
     // Check Deposit Account
-    let deposit_address = get_deposit_address(deposit_seed, &token_settings_address);
+    let deposit_address = get_deposit_address(deposit_seed);
     let deposit_info = banks_client
         .get_account(deposit_address)
         .await
@@ -877,11 +868,7 @@ async fn test_deposit_sol() {
     assert_eq!(deposit_data.is_initialized, true);
 
     let (_, deposit_nonce) = Pubkey::find_program_address(
-        &[
-            br"deposit",
-            &deposit_seed.to_le_bytes(),
-            &token_settings_address.to_bytes(),
-        ],
+        &[br"deposit", &deposit_seed.to_le_bytes()],
         &token_proxy::id(),
     );
     assert_eq!(
@@ -961,7 +948,8 @@ async fn test_withdraw_ever_request() {
         Pubkey::new_unique(),
     ];
 
-    let relay_round_address = get_associated_relay_round_address(&round_loader::id(), round_number);
+    let relay_round_address =
+        bridge_utils::helper::get_associated_relay_round_address(&round_loader::id(), round_number);
 
     let (_, relay_round_nonce) = Pubkey::find_program_address(
         &[br"relay_round", &round_number.to_le_bytes()],
@@ -1174,7 +1162,8 @@ async fn test_withdraw_sol_request() {
         Pubkey::new_unique(),
     ];
 
-    let relay_round_address = get_associated_relay_round_address(&round_loader::id(), round_number);
+    let relay_round_address =
+        bridge_utils::helper::get_associated_relay_round_address(&round_loader::id(), round_number);
 
     let (_, relay_round_nonce) = Pubkey::find_program_address(
         &[br"relay_round", &round_number.to_le_bytes()],
@@ -1456,7 +1445,8 @@ async fn test_vote_for_withdrawal_request() {
     let round_number = 7;
     let round_ttl = 1209600;
 
-    let relay_round_address = get_associated_relay_round_address(&round_loader::id(), round_number);
+    let relay_round_address =
+        bridge_utils::helper::get_associated_relay_round_address(&round_loader::id(), round_number);
 
     let (_, relay_round_nonce) = Pubkey::find_program_address(
         &[br"relay_round", &round_number.to_le_bytes()],

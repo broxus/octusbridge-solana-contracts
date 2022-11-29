@@ -34,20 +34,8 @@ pub fn get_associated_vault_address(program_id: &Pubkey, mint: &Pubkey) -> Pubke
     Pubkey::find_program_address(&[br"vault", &mint.to_bytes()], program_id).0
 }
 
-pub fn get_associated_deposit_address(
-    program_id: &Pubkey,
-    seed: u128,
-    token_settings_address: &Pubkey,
-) -> Pubkey {
-    Pubkey::find_program_address(
-        &[
-            br"deposit",
-            &seed.to_le_bytes(),
-            &token_settings_address.to_bytes(),
-        ],
-        program_id,
-    )
-    .0
+pub fn get_associated_deposit_address(program_id: &Pubkey, seed: u128) -> Pubkey {
+    Pubkey::find_program_address(&[br"deposit", &seed.to_le_bytes()], program_id).0
 }
 
 pub fn validate_token_settings_ever_account(

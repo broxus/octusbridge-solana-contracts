@@ -43,9 +43,9 @@ pub fn get_vault_address(mint: &Pubkey) -> Pubkey {
     get_associated_vault_address(program_id, mint)
 }
 
-pub fn get_deposit_address(seed: u128, token_settings_address: &Pubkey) -> Pubkey {
+pub fn get_deposit_address(seed: u128) -> Pubkey {
     let program_id = &id();
-    get_associated_deposit_address(program_id, seed, token_settings_address)
+    get_associated_deposit_address(program_id, seed)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -162,7 +162,7 @@ pub fn deposit_multi_token_ever_ix(
     let settings_pubkey = get_settings_address();
     let multivault_pubkey = get_multivault_address();
     let token_settings_pubkey = get_token_settings_ever_address(token);
-    let deposit_pubkey = get_deposit_address(deposit_seed, &token_settings_pubkey);
+    let deposit_pubkey = get_deposit_address(deposit_seed);
 
     let data = TokenProxyInstruction::DepositMultiTokenEver {
         deposit_seed,
@@ -212,7 +212,7 @@ pub fn deposit_multi_token_sol_ix(
     let multivault_pubkey = get_multivault_address();
     let token_settings_pubkey = get_token_settings_sol_address(&mint_pubkey);
 
-    let deposit_pubkey = get_deposit_address(deposit_seed, &token_settings_pubkey);
+    let deposit_pubkey = get_deposit_address(deposit_seed);
 
     let data = TokenProxyInstruction::DepositMultiTokenSol {
         deposit_seed,
