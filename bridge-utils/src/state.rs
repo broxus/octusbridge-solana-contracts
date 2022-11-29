@@ -63,7 +63,7 @@ pub enum AccountKind {
 }
 
 impl AccountKind {
-    fn to_value(&self) -> u8 {
+    pub fn to_value(&self) -> u8 {
         match self {
             AccountKind::Settings(_) => 0,
             AccountKind::Deposit(_) => 1,
