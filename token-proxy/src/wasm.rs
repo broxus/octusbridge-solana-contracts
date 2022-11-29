@@ -305,7 +305,7 @@ pub fn deposit_multi_token_ever_ix(
     let settings_pubkey = get_settings_address();
     let multivault_pubkey = get_multivault_address();
     let token_settings_pubkey = get_token_settings_ever_address(&token);
-    let deposit_pubkey = get_deposit_address(deposit_seed, &token_settings_pubkey);
+    let deposit_pubkey = get_deposit_address(deposit_seed);
 
     let payload = base64::decode(payload).handle_error()?;
 
@@ -369,7 +369,7 @@ pub fn deposit_multi_token_sol_ix(
     let multivault_pubkey = get_multivault_address();
     let token_settings_pubkey = get_token_settings_sol_address(&mint_pubkey);
 
-    let deposit_pubkey = get_deposit_address(deposit_seed, &token_settings_pubkey);
+    let deposit_pubkey = get_deposit_address(deposit_seed);
 
     let payload = base64::decode(payload).handle_error()?;
 
