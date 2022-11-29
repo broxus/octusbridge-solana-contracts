@@ -10,12 +10,21 @@ use solana_program::program_pack::Pack;
 use solana_program::pubkey::Pubkey;
 use solana_program::{system_program, sysvar};
 
-use bridge_utils::helper::get_programdata_address;
+use bridge_utils::helper::{get_associated_relay_round_address, get_programdata_address};
 
 use bridge_utils::state::*;
 use bridge_utils::types::*;
 
 use crate::*;
+
+#[wasm_bindgen(js_name = "getRelayRoundAddress")]
+pub fn get_relay_round_address(round_number: u32) -> Result<JsValue, JsValue> {
+    let program_id = &id();
+
+    let relay_round_pubkey = get_associated_relay_round_address(program_id, round_number);
+
+    return serde_wasm_bindgen::to_value(&relay_round_pubkey).handle_error();
+}
 
 #[wasm_bindgen(js_name = "initialize")]
 pub fn initialize_ix(
