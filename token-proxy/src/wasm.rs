@@ -938,8 +938,8 @@ pub struct WasmTokenSettings {
 #[derive(Serialize, Deserialize)]
 pub struct WasmWithdrawalMultiTokenEver {
     pub is_initialized: bool,
-    pub account_kind: AccountKind,
     pub is_executed: bool,
+    pub account_kind: AccountKind,
     pub author: Pubkey,
     pub round_number: u32,
     pub required_votes: u32,
@@ -952,8 +952,8 @@ pub struct WasmWithdrawalMultiTokenEver {
 #[derive(Serialize, Deserialize)]
 pub struct WasmWithdrawalMultiTokenSol {
     pub is_initialized: bool,
-    pub account_kind: AccountKind,
     pub is_executed: bool,
+    pub account_kind: AccountKind,
     pub author: Pubkey,
     pub round_number: u32,
     pub required_votes: u32,

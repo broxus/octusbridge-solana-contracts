@@ -76,8 +76,8 @@ impl IsInitialized for RelayRound {
 #[bridge_pack(length = 3414)]
 pub struct RelayRoundProposal {
     pub is_initialized: bool,
-    pub account_kind: AccountKind,
     pub is_executed: bool,
+    pub account_kind: AccountKind,
     pub author: Pubkey,
     pub round_number: u32,
     pub required_votes: u32,

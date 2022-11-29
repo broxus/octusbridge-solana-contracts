@@ -287,8 +287,8 @@ pub struct WasmRelayRound {
 #[derive(Serialize, Deserialize)]
 pub struct WasmRelayRoundProposal {
     pub is_initialized: bool,
-    pub account_kind: AccountKind,
     pub is_executed: bool,
+    pub account_kind: AccountKind,
     pub round_number: u32,
     pub required_votes: u32,
     pub pda: PDA,
