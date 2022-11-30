@@ -482,6 +482,11 @@ impl Processor {
             &mut deposit_account_info.data.borrow_mut(),
         )?;
 
+        TokenSettings::pack(
+            token_settings_account_data,
+            &mut token_settings_account_info.data.borrow_mut(),
+        )?;
+
         // Send SOL amount to multi vault
         invoke(
             &system_instruction::transfer(
@@ -821,6 +826,11 @@ impl Processor {
         DepositMultiTokenSol::pack(
             deposit_account_data,
             &mut deposit_account_info.data.borrow_mut(),
+        )?;
+
+        TokenSettings::pack(
+            token_settings_account_data,
+            &mut token_settings_account_info.data.borrow_mut(),
         )?;
 
         Ok(())
