@@ -838,6 +838,9 @@ pub fn unpack_token_settings(data: Vec<u8>) -> Result<JsValue, JsValue> {
         withdrawal_daily_amount: token_settings.withdrawal_daily_amount.to_string(),
         withdrawal_epoch: token_settings.withdrawal_epoch.to_string(),
         emergency: token_settings.emergency,
+        name: token_settings.name,
+        symbol: token_settings.symbol,
+        fee_info: token_settings.fee_info,
     };
 
     return serde_wasm_bindgen::to_value(&s).handle_error();
@@ -933,6 +936,9 @@ pub struct WasmTokenSettings {
     pub withdrawal_daily_amount: String,
     pub withdrawal_epoch: String,
     pub emergency: bool,
+    pub name: String,
+    pub symbol: String,
+    pub fee_info: FeeInfo,
 }
 
 #[derive(Serialize, Deserialize)]
