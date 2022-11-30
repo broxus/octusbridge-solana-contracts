@@ -213,7 +213,10 @@ async fn test_deposit_ever() {
         withdrawal_daily_amount: 0,
         withdrawal_epoch: 0,
         emergency: false,
+        fee_info: Default::default(),
     };
+
+    let fee_info = token_settings_account_data.fee_info.clone();
 
     let mut token_settings_packed = vec![0; TokenSettings::LEN];
     TokenSettings::pack(token_settings_account_data, &mut token_settings_packed).unwrap();
@@ -330,7 +333,7 @@ async fn test_deposit_ever() {
     let mint_data = spl_token::state::Mint::unpack(mint_info.data()).expect("mint unpack");
     assert_eq!(mint_data.supply, 100 - amount);
 
-    // Check Sender Valance
+    // Check Sender Balance
     let sender_info = banks_client
         .get_account(sender_associated_token_address)
         .await
@@ -363,11 +366,22 @@ async fn test_deposit_ever() {
     );
 
     assert_eq!(deposit_data.event.data.token, token);
-    assert_eq!(deposit_data.event.data.amount, amount as u128);
     assert_eq!(deposit_data.event.data.recipient, recipient);
     assert_eq!(deposit_data.event.data.payload, payload);
 
     assert_eq!(deposit_data.meta.data.seed, deposit_seed);
+
+    let fee = 1.max(
+        (amount)
+            .checked_div(fee_info.divisor)
+            .unwrap()
+            .checked_mul(fee_info.multiplier)
+            .unwrap(),
+    );
+
+    let transfer_amount = amount - fee;
+
+    assert_eq!(deposit_data.event.data.amount, transfer_amount as u128);
 }
 
 #[tokio::test]
@@ -443,6 +457,8 @@ async fn test_deposit_ever_for_18_decimals() {
     );
 
     // Add Token Settings Account
+    let symbol = "USDT".to_string();
+    let name = "USDT Solana Octusbridge".to_string();
     let deposit_limit = 10_000_000;
     let withdrawal_limit = 10_000;
     let withdrawal_daily_limit = 1_000;
@@ -459,13 +475,18 @@ async fn test_deposit_ever_for_18_decimals() {
             token,
             decimals,
         },
+        name,
+        symbol,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
         withdrawal_daily_amount: 0,
         withdrawal_epoch: 0,
         emergency: false,
+        fee_info: Default::default(),
     };
+
+    let fee_info = token_settings_account_data.fee_info.clone();
 
     let mut token_settings_packed = vec![0; TokenSettings::LEN];
     TokenSettings::pack(token_settings_account_data, &mut token_settings_packed).unwrap();
@@ -615,14 +636,25 @@ async fn test_deposit_ever_for_18_decimals() {
     );
 
     assert_eq!(deposit_data.event.data.token, token);
-    assert_eq!(
-        deposit_data.event.data.amount,
-        (amount * 1_000_000_000) as u128
-    );
     assert_eq!(deposit_data.event.data.recipient, recipient);
     assert_eq!(deposit_data.event.data.payload, payload);
 
     assert_eq!(deposit_data.meta.data.seed, deposit_seed);
+
+    let fee = 1.max(
+        (amount)
+            .checked_div(fee_info.divisor)
+            .unwrap()
+            .checked_mul(fee_info.multiplier)
+            .unwrap(),
+    );
+
+    let transfer_amount = amount - fee;
+
+    assert_eq!(
+        deposit_data.event.data.amount,
+        (transfer_amount * 1_000_000_000) as u128
+    );
 
     // Check Deposit Account to unpack
     let raw_deposit_data =
@@ -884,12 +916,24 @@ async fn test_deposit_sol() {
     assert_eq!(deposit_data.event.data.name, name);
     assert_eq!(deposit_data.event.data.symbol, symbol);
     assert_eq!(deposit_data.event.data.decimals, decimals);
-    assert_eq!(deposit_data.event.data.amount, amount as u128);
     assert_eq!(deposit_data.event.data.sol_amount, sol_amount);
     assert_eq!(deposit_data.event.data.recipient, recipient);
     assert_eq!(deposit_data.event.data.payload, payload);
 
     assert_eq!(deposit_data.meta.data.seed, deposit_seed);
+
+    let fee_info = &token_settings_data.fee_info;
+    let fee = 1.max(
+        (amount)
+            .checked_div(fee_info.divisor)
+            .unwrap()
+            .checked_mul(fee_info.multiplier)
+            .unwrap(),
+    );
+
+    let transfer_amount = amount - fee;
+
+    assert_eq!(deposit_data.event.data.amount, transfer_amount as u128);
 
     // Check Deposit Account to unpack
     let raw_deposit_data =
@@ -1250,6 +1294,8 @@ async fn test_withdraw_sol_request() {
     );
 
     // Add Token Settings Account
+    let symbol = "USDT".to_string();
+    let name = "USDT Solana Octusbridge".to_string();
     let deposit_limit = 10_000_000;
     let withdrawal_limit = 10_000;
     let withdrawal_daily_limit = 1_000;
@@ -1268,12 +1314,15 @@ async fn test_withdraw_sol_request() {
             mint: mint_address,
             vault: vault_address,
         },
+        name,
+        symbol,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
         withdrawal_daily_amount: 0,
         withdrawal_epoch: 0,
         emergency: false,
+        fee_info: Default::default(),
     };
 
     let mut token_settings_packed = vec![0; TokenSettings::LEN];
@@ -1760,6 +1809,58 @@ async fn test_withdrawal_ever() {
         .await
         .expect("process_transaction");
 
+    // Check Token Settings Account
+    let token_settings_address = get_token_settings_ever_address(&token);
+    let token_settings_info = banks_client
+        .get_account(token_settings_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let token_settings_data =
+        TokenSettings::unpack(token_settings_info.data()).expect("deposit token unpack");
+
+    assert_eq!(token_settings_data.is_initialized, true);
+    assert_eq!(token_settings_data.deposit_limit, u64::MAX);
+    assert_eq!(token_settings_data.withdrawal_limit, u64::MAX);
+    assert_eq!(token_settings_data.withdrawal_daily_limit, u64::MAX);
+    assert_eq!(token_settings_data.emergency, false);
+
+    assert_eq!(
+        token_settings_data.kind,
+        TokenKind::Ever {
+            mint,
+            token,
+            decimals,
+        }
+    );
+
+    let token_hash = hash(&token.try_to_vec().unwrap());
+
+    let (_, token_settings_nonce) =
+        Pubkey::find_program_address(&[br"settings", token_hash.as_ref()], &token_proxy::id());
+    let (_, mint_nonce) =
+        Pubkey::find_program_address(&[br"mint", token_hash.as_ref()], &token_proxy::id());
+
+    assert_eq!(
+        token_settings_data.account_kind,
+        AccountKind::TokenSettings(token_settings_nonce, mint_nonce)
+    );
+
+    let fee_info = &token_settings_data.fee_info;
+
+    let fee = 1.max(
+        (amount as u64)
+            .checked_div(fee_info.divisor)
+            .unwrap()
+            .checked_mul(fee_info.multiplier)
+            .unwrap(),
+    );
+
+    let transfer_amount = amount as u64 - fee;
+
+    assert_eq!(token_settings_data.withdrawal_daily_amount, transfer_amount);
+
     // Check Mint Supply
     let mint_info = banks_client
         .get_account(mint)
@@ -1768,7 +1869,7 @@ async fn test_withdrawal_ever() {
         .expect("account");
 
     let mint_data = spl_token::state::Mint::unpack(mint_info.data()).expect("mint unpack");
-    assert_eq!(mint_data.supply, amount as u64);
+    assert_eq!(mint_data.supply, transfer_amount);
 
     // Check Recipient Balance
     let recipient_info = banks_client
@@ -1779,7 +1880,7 @@ async fn test_withdrawal_ever() {
 
     let recipient_data =
         spl_token::state::Account::unpack(recipient_info.data()).expect("recipient token unpack");
-    assert_eq!(recipient_data.amount, amount as u64);
+    assert_eq!(recipient_data.amount, transfer_amount);
 
     // Check Withdrawal Account
     let withdrawal_info = banks_client
@@ -1917,6 +2018,8 @@ async fn test_withdrawal_sol() {
     );
 
     // Add Token Settings Account
+    let symbol = "USDT".to_string();
+    let name = "USDT Solana Octusbridge".to_string();
     let deposit_limit = u64::MAX;
     let withdrawal_limit = u64::MAX;
     let withdrawal_daily_limit = u64::MAX;
@@ -1935,13 +2038,18 @@ async fn test_withdrawal_sol() {
             mint: mint_address,
             vault: vault_address,
         },
+        name,
+        symbol,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
         withdrawal_daily_amount: 0,
         withdrawal_epoch: 0,
         emergency: false,
+        fee_info: Default::default(),
     };
+
+    let fee_info = token_settings_account_data.fee_info.clone();
 
     let mut token_settings_packed = vec![0; TokenSettings::LEN];
     TokenSettings::pack(token_settings_account_data, &mut token_settings_packed).unwrap();
@@ -2050,7 +2158,18 @@ async fn test_withdrawal_sol() {
         .expect("account");
 
     let vault_data = spl_token::state::Account::unpack(vault_info.data()).expect("vault unpack");
-    assert_eq!(vault_data.amount, 100 - amount as u64);
+
+    let fee = 1.max(
+        (amount as u64)
+            .checked_div(fee_info.divisor)
+            .unwrap()
+            .checked_mul(fee_info.multiplier)
+            .unwrap(),
+    );
+
+    let transfer_amount = amount as u64 - fee;
+
+    assert_eq!(vault_data.amount, 100 - transfer_amount);
 
     // Check Recipient Balance
     let recipient_info = banks_client
@@ -2061,7 +2180,7 @@ async fn test_withdrawal_sol() {
 
     let recipient_data =
         spl_token::state::Account::unpack(recipient_info.data()).expect("recipient token unpack");
-    assert_eq!(recipient_data.amount, amount as u64);
+    assert_eq!(recipient_data.amount, transfer_amount);
 
     // Check Withdrawal Account
     let withdrawal_info = banks_client
@@ -2427,6 +2546,8 @@ async fn test_change_deposit_limit() {
     );
 
     // Add Token Settings Account
+    let symbol = "USDT".to_string();
+    let name = "USDT Solana Octusbridge".to_string();
     let deposit_limit = u64::MAX;
     let withdrawal_limit = u64::MAX;
     let withdrawal_daily_limit = u64::MAX;
@@ -2443,12 +2564,15 @@ async fn test_change_deposit_limit() {
             token,
             decimals,
         },
+        name,
+        symbol,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
         withdrawal_daily_amount: 0,
         withdrawal_epoch: 0,
         emergency: false,
+        fee_info: Default::default(),
     };
 
     let mut token_settings_packed = vec![0; TokenSettings::LEN];
@@ -2564,6 +2688,8 @@ async fn test_change_withdrawal_limits() {
     );
 
     // Add Token Settings Account
+    let symbol = "USDT".to_string();
+    let name = "USDT Solana Octusbridge".to_string();
     let deposit_limit = u64::MAX;
     let withdrawal_limit = u64::MAX;
     let withdrawal_daily_limit = u64::MAX;
@@ -2580,12 +2706,15 @@ async fn test_change_withdrawal_limits() {
             token,
             decimals,
         },
+        name,
+        symbol,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
         withdrawal_daily_amount: 0,
         withdrawal_epoch: 0,
         emergency: false,
+        fee_info: Default::default(),
     };
 
     let mut token_settings_packed = vec![0; TokenSettings::LEN];
@@ -2984,6 +3113,8 @@ async fn test_approve_withdrawal_ever() {
     );
 
     // Add Token Settings Account
+    let symbol = "USDT".to_string();
+    let name = "USDT Solana Octusbridge".to_string();
     let deposit_limit = u64::MAX;
     let withdrawal_limit = u64::MAX;
     let withdrawal_daily_limit = u64::MAX;
@@ -3000,12 +3131,15 @@ async fn test_approve_withdrawal_ever() {
             token,
             decimals,
         },
+        name,
+        symbol,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
         withdrawal_daily_amount: 0,
         withdrawal_epoch: 0,
         emergency: false,
+        fee_info: Default::default(),
     };
 
     let mut token_settings_packed = vec![0; TokenSettings::LEN];
@@ -3270,6 +3404,8 @@ async fn test_approve_withdrawal_sol() {
     );
 
     // Add Token Settings Account
+    let symbol = "USDT".to_string();
+    let name = "USDT Solana Octusbridge".to_string();
     let deposit_limit = u64::MAX;
     let withdrawal_limit = u64::MAX;
     let withdrawal_daily_limit = u64::MAX;
@@ -3288,12 +3424,15 @@ async fn test_approve_withdrawal_sol() {
             mint: mint_address,
             vault: vault_address,
         },
+        name,
+        symbol,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,
         withdrawal_daily_amount: 0,
         withdrawal_epoch: 0,
         emergency: false,
+        fee_info: Default::default(),
     };
 
     let mut token_settings_packed = vec![0; TokenSettings::LEN];

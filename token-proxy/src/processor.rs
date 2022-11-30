@@ -444,11 +444,13 @@ impl Processor {
         // Init Deposit Account
         let fee_info = &mut token_settings_account_data.fee_info;
 
-        let fee = amount
-            .checked_div(fee_info.divisor)
-            .ok_or(SolanaBridgeError::Overflow)?
-            .checked_mul(fee_info.multiplier)
-            .ok_or(SolanaBridgeError::Overflow)?;
+        let fee = 1.max(
+            amount
+                .checked_div(fee_info.divisor)
+                .ok_or(SolanaBridgeError::Overflow)?
+                .checked_mul(fee_info.multiplier)
+                .ok_or(SolanaBridgeError::Overflow)?,
+        );
 
         // Increase fee supply
         fee_info.supply = fee_info
@@ -780,11 +782,13 @@ impl Processor {
         // Init Deposit Account
         let fee_info = &mut token_settings_account_data.fee_info;
 
-        let fee = amount
-            .checked_div(fee_info.divisor)
-            .ok_or(SolanaBridgeError::Overflow)?
-            .checked_mul(fee_info.multiplier)
-            .ok_or(SolanaBridgeError::Overflow)?;
+        let fee = 1.max(
+            amount
+                .checked_div(fee_info.divisor)
+                .ok_or(SolanaBridgeError::Overflow)?
+                .checked_mul(fee_info.multiplier)
+                .ok_or(SolanaBridgeError::Overflow)?,
+        );
 
         // Increase fee supply
         fee_info.supply = fee_info
@@ -1538,11 +1542,13 @@ impl Processor {
 
             let fee_info = &mut token_settings_account_data.fee_info;
 
-            let fee = withdrawal_amount
-                .checked_div(fee_info.divisor)
-                .ok_or(SolanaBridgeError::Overflow)?
-                .checked_mul(fee_info.multiplier)
-                .ok_or(SolanaBridgeError::Overflow)?;
+            let fee = 1.max(
+                withdrawal_amount
+                    .checked_div(fee_info.divisor)
+                    .ok_or(SolanaBridgeError::Overflow)?
+                    .checked_mul(fee_info.multiplier)
+                    .ok_or(SolanaBridgeError::Overflow)?,
+            );
 
             // Increase fee supply
             fee_info.supply = fee_info
@@ -1705,11 +1711,13 @@ impl Processor {
 
             let fee_info = &mut token_settings_account_data.fee_info;
 
-            let fee = withdrawal_amount
-                .checked_div(fee_info.divisor)
-                .ok_or(SolanaBridgeError::Overflow)?
-                .checked_mul(fee_info.multiplier)
-                .ok_or(SolanaBridgeError::Overflow)?;
+            let fee = 1.max(
+                withdrawal_amount
+                    .checked_div(fee_info.divisor)
+                    .ok_or(SolanaBridgeError::Overflow)?
+                    .checked_mul(fee_info.multiplier)
+                    .ok_or(SolanaBridgeError::Overflow)?,
+            );
 
             // Amount without fee
             let transfer_withdrawal_amount = withdrawal_amount
