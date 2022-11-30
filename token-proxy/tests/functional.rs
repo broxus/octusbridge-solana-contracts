@@ -187,6 +187,8 @@ async fn test_deposit_ever() {
     );
 
     // Add Token Settings Account
+    let symbol = "USDT".to_string();
+    let name = "USDT Solana Octusbridge".to_string();
     let deposit_limit = 10000000;
     let withdrawal_limit = 10000;
     let withdrawal_daily_limit = 1000;
@@ -203,6 +205,8 @@ async fn test_deposit_ever() {
             token,
             decimals,
         },
+        name,
+        symbol,
         deposit_limit,
         withdrawal_limit,
         withdrawal_daily_limit,

@@ -359,7 +359,7 @@ impl Processor {
         }
 
         // Validate Token Settings Account
-        let token_settings_account_data =
+        let mut token_settings_account_data =
             TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
 
         let (_, token, ever_decimals) = token_settings_account_data
@@ -442,13 +442,35 @@ impl Processor {
         )?;
 
         // Init Deposit Account
-        let amount = get_deposit_amount(amount, ever_decimals, solana_decimals);
+        let fee_info = &mut token_settings_account_data.fee_info;
+
+        let fee = amount
+            .checked_div(fee_info.divisor)
+            .ok_or(SolanaBridgeError::Overflow)?
+            .checked_mul(fee_info.multiplier)
+            .ok_or(SolanaBridgeError::Overflow)?;
+
+        // Increase fee supply
+        fee_info.supply = fee_info
+            .supply
+            .checked_add(fee)
+            .ok_or(SolanaBridgeError::Overflow)?;
+
+        // Amount without fee
+        let pure_amount = amount.checked_sub(fee).ok_or(SolanaBridgeError::Overflow)?;
+
+        // Amount in Ever decimals
+        let transfer_amount = get_deposit_amount(pure_amount, ever_decimals, solana_decimals);
 
         let deposit_account_data = DepositMultiTokenEver {
             is_initialized: true,
             account_kind: AccountKind::Deposit(deposit_nonce),
             event: DepositMultiTokenEverEventWithLen::new(
-                token, amount, sol_amount, recipient, payload,
+                token,
+                transfer_amount,
+                sol_amount,
+                recipient,
+                payload,
             ),
             meta: DepositTokenMetaWithLen::new(deposit_seed),
         };
@@ -621,12 +643,15 @@ impl Processor {
                     mint: *mint_account_info.key,
                     vault: *vault_account_info.key,
                 },
+                name: name.clone(),
+                symbol: symbol.clone(),
                 withdrawal_epoch: 0,
                 deposit_limit: u64::MAX,
                 withdrawal_limit: u64::MAX,
                 withdrawal_daily_limit: u64::MAX,
                 withdrawal_daily_amount: 0,
                 emergency: false,
+                fee_info: Default::default(),
             };
 
             TokenSettings::pack(
@@ -636,7 +661,7 @@ impl Processor {
         }
 
         // Validate Token Settings Account
-        let token_settings_account_data =
+        let mut token_settings_account_data =
             TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
 
         let (mint, vault) = token_settings_account_data
@@ -753,7 +778,25 @@ impl Processor {
         )?;
 
         // Init Deposit Account
-        let amount = amount as u128;
+        let fee_info = &mut token_settings_account_data.fee_info;
+
+        let fee = amount
+            .checked_div(fee_info.divisor)
+            .ok_or(SolanaBridgeError::Overflow)?
+            .checked_mul(fee_info.multiplier)
+            .ok_or(SolanaBridgeError::Overflow)?;
+
+        // Increase fee supply
+        fee_info.supply = fee_info
+            .supply
+            .checked_add(fee)
+            .ok_or(SolanaBridgeError::Overflow)?;
+
+        // Amount without fee
+        let pure_amount = amount.checked_sub(fee).ok_or(SolanaBridgeError::Overflow)?;
+
+        // Amount in Ever decimals
+        let transfer_amount = pure_amount as u128;
 
         let deposit_account_data = DepositMultiTokenSol {
             is_initialized: true,
@@ -763,7 +806,7 @@ impl Processor {
                 name,
                 symbol,
                 decimals,
-                amount,
+                transfer_amount,
                 sol_amount,
                 recipient,
                 payload,
@@ -1400,12 +1443,15 @@ impl Processor {
                     decimals: ever_decimals,
                     token: withdrawal_account_data.event.data.token,
                 },
+                name: withdrawal_account_data.event.data.name.clone(),
+                symbol: withdrawal_account_data.event.data.symbol.clone(),
                 withdrawal_epoch: 0,
                 deposit_limit: u64::MAX,
                 withdrawal_limit: u64::MAX,
                 withdrawal_daily_limit: u64::MAX,
                 withdrawal_daily_amount: 0,
                 emergency: false,
+                fee_info: Default::default(),
             };
 
             TokenSettings::pack(
@@ -1483,19 +1529,39 @@ impl Processor {
                 token_settings_account_data.withdrawal_daily_amount = Default::default();
             }
 
+            // Calculate amount
             let withdrawal_amount = get_withdrawal_amount(
                 withdrawal_account_data.event.data.amount,
                 ever_decimals,
                 solana_decimals,
             );
 
+            let fee_info = &mut token_settings_account_data.fee_info;
+
+            let fee = withdrawal_amount
+                .checked_div(fee_info.divisor)
+                .ok_or(SolanaBridgeError::Overflow)?
+                .checked_mul(fee_info.multiplier)
+                .ok_or(SolanaBridgeError::Overflow)?;
+
+            // Increase fee supply
+            fee_info.supply = fee_info
+                .supply
+                .checked_add(fee)
+                .ok_or(SolanaBridgeError::Overflow)?;
+
+            // Amount without fee
+            let transfer_withdrawal_amount = withdrawal_amount
+                .checked_sub(fee)
+                .ok_or(SolanaBridgeError::Overflow)?;
+
             // Increase withdrawal daily amount
             token_settings_account_data.withdrawal_daily_amount = token_settings_account_data
                 .withdrawal_daily_amount
-                .checked_add(withdrawal_amount)
+                .checked_add(transfer_withdrawal_amount)
                 .ok_or(SolanaBridgeError::Overflow)?;
 
-            if withdrawal_amount > token_settings_account_data.withdrawal_limit
+            if transfer_withdrawal_amount > token_settings_account_data.withdrawal_limit
                 || token_settings_account_data.withdrawal_daily_amount
                     > token_settings_account_data.withdrawal_daily_limit
             {
@@ -1507,7 +1573,7 @@ impl Processor {
                     recipient_token_account_info,
                     &token_settings_account_data,
                     &mut withdrawal_account_data,
-                    withdrawal_amount,
+                    transfer_withdrawal_amount,
                 )?;
             }
 
@@ -1637,6 +1703,19 @@ impl Processor {
         if sig_count == withdrawal_account_data.required_votes {
             let withdrawal_amount = withdrawal_account_data.event.data.amount as u64;
 
+            let fee_info = &mut token_settings_account_data.fee_info;
+
+            let fee = withdrawal_amount
+                .checked_div(fee_info.divisor)
+                .ok_or(SolanaBridgeError::Overflow)?
+                .checked_mul(fee_info.multiplier)
+                .ok_or(SolanaBridgeError::Overflow)?;
+
+            // Amount without fee
+            let transfer_withdrawal_amount = withdrawal_amount
+                .checked_sub(fee)
+                .ok_or(SolanaBridgeError::Overflow)?;
+
             match withdrawal_status {
                 WithdrawalTokenStatus::New => {
                     let current_epoch = clock.unix_timestamp / SECONDS_PER_DAY as i64;
@@ -1651,10 +1730,16 @@ impl Processor {
                     token_settings_account_data.withdrawal_daily_amount =
                         token_settings_account_data
                             .withdrawal_daily_amount
-                            .checked_add(withdrawal_amount)
+                            .checked_add(transfer_withdrawal_amount)
                             .ok_or(SolanaBridgeError::Overflow)?;
 
-                    if withdrawal_amount > token_settings_account_data.withdrawal_limit
+                    // Increase fee supply
+                    fee_info.supply = fee_info
+                        .supply
+                        .checked_add(fee)
+                        .ok_or(SolanaBridgeError::Overflow)?;
+
+                    if transfer_withdrawal_amount > token_settings_account_data.withdrawal_limit
                         || token_settings_account_data.withdrawal_daily_amount
                             > token_settings_account_data.withdrawal_daily_limit
                     {
@@ -1667,7 +1752,7 @@ impl Processor {
                             recipient_token_account_info,
                             &token_settings_account_data,
                             &mut withdrawal_account_data,
-                            withdrawal_amount,
+                            transfer_withdrawal_amount,
                         )?;
                     }
 
@@ -1684,7 +1769,7 @@ impl Processor {
                     recipient_token_account_info,
                     &token_settings_account_data,
                     &mut withdrawal_account_data,
-                    withdrawal_amount,
+                    transfer_withdrawal_amount,
                 )?,
                 _ => (),
             }

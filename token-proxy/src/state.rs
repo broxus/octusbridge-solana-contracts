@@ -49,6 +49,9 @@ const DEPOSIT_MULTI_TOKEN_EVER_EVENT_LEN: usize =
 const DEPOSIT_TOKEN_META_LEN: usize = 16    // seed
 ;
 
+const DEFAULT_MULTIPLIER: u64 = 5;
+const DEFAULT_DIVISOR: u64 = 10_000;
+
 #[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
 #[bridge_pack(length = 1000)]
 pub struct Settings {
@@ -89,13 +92,15 @@ pub struct TokenSettings {
     pub is_initialized: bool,
     pub account_kind: AccountKind,
     pub kind: TokenKind,
+    pub name: String,
+    pub symbol: String,
     pub deposit_limit: u64,
     pub withdrawal_limit: u64,
     pub withdrawal_daily_limit: u64,
     pub withdrawal_daily_amount: u64,
     pub withdrawal_epoch: i64,
     pub emergency: bool,
-    // TODO: fee/amount
+    pub fee_info: FeeInfo,
 }
 
 impl Sealed for TokenSettings {}
@@ -451,4 +456,23 @@ pub enum WithdrawalTokenStatus {
     Cancelled,
     Pending,
     WaitingForApprove,
+}
+
+#[derive(
+    Copy, BorshSerialize, BorshDeserialize, Serialize, Deserialize, Debug, Clone, Eq, PartialEq,
+)]
+pub struct FeeInfo {
+    pub multiplier: u64,
+    pub divisor: u64,
+    pub supply: u64,
+}
+
+impl Default for FeeInfo {
+    fn default() -> Self {
+        FeeInfo {
+            multiplier: DEFAULT_MULTIPLIER,
+            divisor: DEFAULT_DIVISOR,
+            supply: Default::default(),
+        }
+    }
 }
