@@ -462,7 +462,7 @@ impl Processor {
         let pure_amount = amount.checked_sub(fee).ok_or(SolanaBridgeError::Overflow)?;
 
         // Amount in Ever decimals
-        let transfer_amount = get_deposit_amount(pure_amount, ever_decimals, solana_decimals);
+        let transfer_amount = get_deposit_amount(pure_amount, ever_decimals, solana_decimals)?;
 
         let deposit_account_data = DepositMultiTokenEver {
             is_initialized: true,
@@ -1548,7 +1548,7 @@ impl Processor {
                 withdrawal_account_data.event.data.amount,
                 ever_decimals,
                 solana_decimals,
-            );
+            )?;
 
             let fee_info = &mut token_settings_account_data.fee_info;
 
@@ -2425,7 +2425,7 @@ impl Processor {
             withdrawal_account_data.event.data.amount,
             ever_decimals,
             solana_decimals,
-        );
+        )?;
 
         make_multi_token_ever_transfer(
             mint_account_info,
@@ -2744,24 +2744,42 @@ fn make_multi_token_ever_transfer<'a>(
     Ok(())
 }
 
-pub fn get_withdrawal_amount(amount: u128, ever_decimals: u8, solana_decimals: u8) -> u64 {
-    if ever_decimals > solana_decimals {
+pub fn get_withdrawal_amount(
+    amount: u128,
+    ever_decimals: u8,
+    solana_decimals: u8,
+) -> Result<u64, ProgramError> {
+    let amount = if ever_decimals > solana_decimals {
         let trunc_divisor = 10u128.pow((ever_decimals - solana_decimals) as u32);
-        (amount / trunc_divisor) as u64
+        amount
+            .checked_div(trunc_divisor)
+            .ok_or(SolanaBridgeError::Overflow)?
     } else {
-        let trunc_divisor = 10u128.pow((solana_decimals - ever_decimals) as u32);
-        (amount * trunc_divisor) as u64
-    }
+        let trunc_multiplier = 10u128.pow((solana_decimals - ever_decimals) as u32);
+        amount
+            .checked_mul(trunc_multiplier)
+            .ok_or(SolanaBridgeError::Overflow)?
+    } as u64;
+
+    Ok(amount)
 }
 
-pub fn get_deposit_amount(amount: u64, ever_decimals: u8, solana_decimals: u8) -> u128 {
-    let mut amount = amount as u128;
-    if ever_decimals > solana_decimals {
-        let trunc_divisor = 10u128.pow((ever_decimals - solana_decimals) as u32);
-        amount *= trunc_divisor;
+pub fn get_deposit_amount(
+    amount: u64,
+    ever_decimals: u8,
+    solana_decimals: u8,
+) -> Result<u128, ProgramError> {
+    let amount = if ever_decimals > solana_decimals {
+        let trunc_multiplier = 10u128.pow((ever_decimals - solana_decimals) as u32);
+        (amount as u128)
+            .checked_mul(trunc_multiplier)
+            .ok_or(SolanaBridgeError::Overflow)?
     } else {
         let trunc_divisor = 10u128.pow((solana_decimals - ever_decimals) as u32);
-        amount /= trunc_divisor;
-    }
-    amount
+        (amount as u128)
+            .checked_div(trunc_divisor)
+            .ok_or(SolanaBridgeError::Overflow)?
+    };
+
+    Ok(amount)
 }
