@@ -831,12 +831,12 @@ pub fn unpack_token_settings(data: Vec<u8>) -> Result<JsValue, JsValue> {
     let s = WasmTokenSettings {
         is_initialized: token_settings.is_initialized,
         account_kind: token_settings.account_kind,
-        kind: token_settings.kind,
-        deposit_limit: token_settings.deposit_limit,
-        withdrawal_limit: token_settings.withdrawal_limit,
-        withdrawal_daily_limit: token_settings.withdrawal_daily_limit,
-        withdrawal_daily_amount: token_settings.withdrawal_daily_amount,
-        withdrawal_epoch: token_settings.withdrawal_epoch,
+        kind: token_settings.kind.into(),
+        deposit_limit: token_settings.deposit_limit.to_string(),
+        withdrawal_limit: token_settings.withdrawal_limit.to_string(),
+        withdrawal_daily_limit: token_settings.withdrawal_daily_limit.to_string(),
+        withdrawal_daily_amount: token_settings.withdrawal_daily_amount.to_string(),
+        withdrawal_epoch: token_settings.withdrawal_epoch.to_string(),
         emergency: token_settings.emergency,
     };
 
@@ -926,12 +926,12 @@ pub struct WasmSettings {
 pub struct WasmTokenSettings {
     pub is_initialized: bool,
     pub account_kind: AccountKind,
-    pub kind: TokenKind,
-    pub deposit_limit: u64,
-    pub withdrawal_limit: u64,
-    pub withdrawal_daily_limit: u64,
-    pub withdrawal_daily_amount: u64,
-    pub withdrawal_epoch: i64,
+    pub kind: WasmTokenKind,
+    pub deposit_limit: String,
+    pub withdrawal_limit: String,
+    pub withdrawal_daily_limit: String,
+    pub withdrawal_daily_amount: String,
+    pub withdrawal_epoch: String,
     pub emergency: bool,
 }
 
@@ -982,6 +982,39 @@ pub struct WasmDepositMultiTokenSol {
 #[derive(Serialize, Deserialize)]
 pub struct WasmDepositTokenMeta {
     pub seed: String,
+}
+
+#[derive(Serialize, Deserialize)]
+pub enum WasmTokenKind {
+    Ever {
+        mint: String,
+        token: String,
+        decimals: u8,
+    },
+    Solana {
+        mint: String,
+        vault: String,
+    },
+}
+
+impl From<TokenKind> for WasmTokenKind {
+    fn from(t: TokenKind) -> Self {
+        match t {
+            TokenKind::Ever {
+                mint,
+                token,
+                decimals,
+            } => WasmTokenKind::Ever {
+                mint: mint.to_string(),
+                token: token.to_string(),
+                decimals,
+            },
+            TokenKind::Solana { mint, vault } => WasmTokenKind::Solana {
+                mint: mint.to_string(),
+                vault: vault.to_string(),
+            },
+        }
+    }
 }
 
 impl<T, E> HandleError for Result<T, E>
