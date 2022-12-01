@@ -98,8 +98,6 @@ pub fn withdrawal_multi_token_ever_request_ix(
 
     let amount = u128::from_str(&amount).handle_error()?;
 
-    let token_settings_pubkey = get_token_settings_ever_address(&token);
-
     let relay_round_pubkey = get_associated_relay_round_address(&round_loader::id(), round_number);
 
     let withdrawal_pubkey = get_withdrawal_ever_address(
@@ -138,7 +136,6 @@ pub fn withdrawal_multi_token_ever_request_ix(
             AccountMeta::new(funder_pubkey, true),
             AccountMeta::new(author_pubkey, true),
             AccountMeta::new(withdrawal_pubkey, false),
-            AccountMeta::new_readonly(token_settings_pubkey, false),
             AccountMeta::new_readonly(rl_settings_pubkey, false),
             AccountMeta::new_readonly(relay_round_pubkey, false),
             AccountMeta::new_readonly(system_program::id(), false),
