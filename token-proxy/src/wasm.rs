@@ -18,6 +18,20 @@ use bridge_utils::helper::get_associated_relay_round_address;
 
 use crate::*;
 
+#[wasm_bindgen(js_name = "getMintAddress")]
+pub fn get_mint_address_request(token: String) -> Result<JsValue, JsValue> {
+    let token = EverAddress::from_str(&token).handle_error()?;
+    let mint_pubkey = get_mint_address(&token);
+    return serde_wasm_bindgen::to_value(&mint_pubkey).handle_error();
+}
+
+#[wasm_bindgen(js_name = "getTokenSettingsAddress")]
+pub fn get_token_settings_request(token: String) -> Result<JsValue, JsValue> {
+    let token = EverAddress::from_str(&token).handle_error()?;
+    let token_settings_pubkey = get_token_settings_ever_address(&token);
+    return serde_wasm_bindgen::to_value(&token_settings_pubkey).handle_error();
+}
+
 #[wasm_bindgen(js_name = "initializeSettings")]
 pub fn initialize_settings_ix(
     funder_pubkey: String,
