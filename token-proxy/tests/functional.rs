@@ -1646,7 +1646,7 @@ async fn test_vote_for_withdrawal_request() {
 }
 
 #[tokio::test]
-async fn test_withdrawal_ever() {
+async fn test_create_token_ever() {
     let mut program_test = ProgramTest::new(
         "token_proxy",
         token_proxy::id(),
@@ -1685,34 +1685,24 @@ async fn test_withdrawal_ever() {
         },
     );
 
-    // Add Recipient Token Account
-    let token = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
-    let mint = get_mint_address(&token);
-
-    let recipient = Pubkey::new_unique();
-
-    let token_wallet =
-        spl_associated_token_account::get_associated_token_address(&recipient, &mint);
-
-    let token_wallet_account_data = spl_token::state::Account {
-        mint,
-        owner: recipient,
-        state: AccountState::Initialized,
-        ..Default::default()
-    };
-
-    let mut token_wallet_packed = vec![0; spl_token::state::Account::LEN];
-    spl_token::state::Account::pack(token_wallet_account_data, &mut token_wallet_packed).unwrap();
+    // Add Recipient Account
+    let recipient = Keypair::new();
     program_test.add_account(
-        token_wallet,
+        recipient.pubkey(),
         Account {
-            lamports: Rent::default().minimum_balance(spl_token::state::Account::LEN),
-            data: token_wallet_packed,
-            owner: spl_token::id(),
+            lamports: 100000000,
+            data: vec![],
+            owner: solana_program::system_program::id(),
             executable: false,
             rent_epoch: 0,
         },
     );
+
+    let token = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
+    let mint = get_mint_address(&token);
+
+    let token_wallet =
+        spl_associated_token_account::get_associated_token_address(&recipient.pubkey(), &mint);
 
     // Add Withdrawal Account
     let round_number = 7;
@@ -1736,12 +1726,18 @@ async fn test_withdrawal_ever() {
         name.clone(),
         symbol.clone(),
         decimals,
-        recipient,
+        recipient.pubkey(),
         amount,
     );
 
-    let event =
-        WithdrawalMultiTokenEverEventWithLen::new(token, name, symbol, decimals, amount, recipient);
+    let event = WithdrawalMultiTokenEverEventWithLen::new(
+        token,
+        name,
+        symbol,
+        decimals,
+        amount,
+        recipient.pubkey(),
+    );
     let event_data = hash(&event.data.try_to_vec().expect("pack")).to_bytes();
 
     let (_, withdrawal_nonce) = Pubkey::find_program_address(
@@ -1794,15 +1790,15 @@ async fn test_withdrawal_ever() {
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
     let mut transaction = Transaction::new_with_payer(
-        &[withdrawal_ever_ix(
-            funder.pubkey(),
+        &[create_ever_token_ix(
+            recipient.pubkey(),
             withdrawal_address,
             token_wallet,
             token,
         )],
         Some(&funder.pubkey()),
     );
-    transaction.sign(&[&funder], recent_blockhash);
+    transaction.sign(&[&funder, &recipient], recent_blockhash);
 
     banks_client
         .process_transaction(transaction)
@@ -1871,7 +1867,7 @@ async fn test_withdrawal_ever() {
     let mint_data = spl_token::state::Mint::unpack(mint_info.data()).expect("mint unpack");
     assert_eq!(mint_data.supply, transfer_amount);
 
-    // Check Recipient Balance
+    // Check Recipient Account
     let recipient_info = banks_client
         .get_account(token_wallet)
         .await
@@ -2137,7 +2133,6 @@ async fn test_withdrawal_sol() {
 
     let mut transaction = Transaction::new_with_payer(
         &[withdrawal_sol_ix(
-            funder.pubkey(),
             withdrawal_address,
             token_wallet,
             mint_address,

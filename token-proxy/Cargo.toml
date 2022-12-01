@@ -7,7 +7,7 @@ edition = "2021"
 [features]
 no-entrypoint = []
 test-bpf = ["bindings"]
-bindings = ["no-entrypoint", "spl-associated-token-account", "uuid", "getrandom"]
+bindings = ["no-entrypoint", "uuid", "getrandom"]
 wasm = ["no-entrypoint", "bindings", "wasm-bindgen", "js-sys"]
 
 [dependencies]
@@ -21,7 +21,7 @@ spl-token = {version = "3.2", features = ["no-entrypoint"]}
 
 getrandom = { version = "0.2", features = ["js"], optional = true }
 js-sys = { version = "0.3", optional = true }
-spl-associated-token-account = {version = "1", features = ["no-entrypoint"], optional = true }
+spl-associated-token-account = {version = "1", features = ["no-entrypoint"] }
 wasm-bindgen = { version = "0.2.83", features = ["serde-serialize"], optional = true }
 serde-wasm-bindgen = "*"
 uuid = { version = "0.8", features = ["v4", "serde"], optional = true }

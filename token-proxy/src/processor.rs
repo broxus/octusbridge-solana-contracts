@@ -855,7 +855,6 @@ impl Processor {
         let funder_account_info = next_account_info(account_info_iter)?;
         let author_account_info = next_account_info(account_info_iter)?;
         let withdrawal_account_info = next_account_info(account_info_iter)?;
-        let token_settings_account_info = next_account_info(account_info_iter)?;
         let rl_settings_account_info = next_account_info(account_info_iter)?;
         let relay_round_account_info = next_account_info(account_info_iter)?;
         let system_program_info = next_account_info(account_info_iter)?;
@@ -880,13 +879,9 @@ impl Processor {
             return Err(SolanaBridgeError::TokenSymbolLenLimit.into());
         }
 
-        msg!("Withdraw multi token EVER request 1");
-
         // Validate Round Loader Settings Account
         let rl_settings_account_data =
             round_loader::Settings::unpack(&rl_settings_account_info.data.borrow())?;
-
-        msg!("Withdraw multi token EVER request 2");
 
         let rl_settings_nonce = rl_settings_account_data
             .account_kind
@@ -899,12 +894,8 @@ impl Processor {
             rl_settings_account_info,
         )?;
 
-        msg!("Withdraw multi token EVER request 3");
-
         // Validate Relay Round Account
         let relay_round_account_data = RelayRound::unpack(&relay_round_account_info.data.borrow())?;
-
-        msg!("Withdraw multi token EVER request 4");
 
         let relay_round_nonce = relay_round_account_data
             .account_kind
@@ -930,8 +921,6 @@ impl Processor {
         }
 
         let epoch = clock.unix_timestamp / SECONDS_PER_DAY as i64;
-
-        msg!("Withdraw multi token EVER request 5");
 
         // Create Withdraw Account
         let event = WithdrawalMultiTokenEverEventWithLen::new(
@@ -965,8 +954,6 @@ impl Processor {
             return Err(ProgramError::InvalidArgument);
         }
 
-        msg!("Withdraw multi token EVER request 6");
-
         invoke_signed(
             &system_instruction::create_account(
                 funder_account_info.key,
@@ -982,8 +969,6 @@ impl Processor {
             ],
             &[withdrawal_account_signer_seeds],
         )?;
-
-        msg!("Withdraw multi token EVER request 7");
 
         let withdrawal_account_data = WithdrawalMultiTokenEver {
             is_initialized: true,
@@ -1007,24 +992,14 @@ impl Processor {
             &mut withdrawal_account_info.data.borrow_mut(),
         )?;
 
-        msg!("Withdraw multi token EVER request 8");
-
         // Send voting reparation for Relay to withdrawal account
         let relays_lamports = RELAY_REPARATION * relay_round_account_data.relays.len() as u64;
-        let token_settings_lamports = if token_settings_account_info.lamports() == 0 {
-            1.max(rent.minimum_balance(spl_token::state::Mint::LEN))
-                + 1.max(rent.minimum_balance(TokenSettings::LEN))
-        } else {
-            0
-        };
-
-        msg!("Withdraw multi token EVER request 9");
 
         invoke(
             &system_instruction::transfer(
                 funder_account_info.key,
                 withdrawal_account_info.key,
-                relays_lamports + token_settings_lamports,
+                relays_lamports,
             ),
             &[
                 funder_account_info.clone(),
@@ -1324,7 +1299,6 @@ impl Processor {
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
-        let funder_account_info = next_account_info(account_info_iter)?;
         let withdrawal_account_info = next_account_info(account_info_iter)?;
         let mint_account_info = next_account_info(account_info_iter)?;
         let recipient_token_account_info = next_account_info(account_info_iter)?;
@@ -1391,6 +1365,12 @@ impl Processor {
 
         // If token settings account is not created
         if token_settings_account_info.lamports() == 0 {
+            let funder_account_info = match next_account_info(account_info_iter) {
+                Ok(funder_account_info) => funder_account_info,
+                Err(_) => return Ok(()),
+            };
+            let associated_token_program_info = next_account_info(account_info_iter)?;
+
             // Create Mint Account
             let ever_decimals = withdrawal_account_data.event.data.decimals;
             let solana_decimals = if ever_decimals > spl_token::native_mint::DECIMALS {
@@ -1439,6 +1419,23 @@ impl Processor {
                     rent_sysvar_info.clone(),
                 ],
                 &[mint_account_signer_seeds],
+            )?;
+
+            // Create Token Account
+            invoke(
+                &spl_associated_token_account::create_associated_token_account(
+                    funder_account_info.key,
+                    funder_account_info.key,
+                    mint_account_info.key,
+                ),
+                &[
+                    funder_account_info.clone(),
+                    recipient_token_account_info.clone(),
+                    mint_account_info.clone(),
+                    system_program_info.clone(),
+                    associated_token_program_info.clone(),
+                    rent_sysvar_info.clone(),
+                ],
             )?;
 
             // Create Token Settings Account
@@ -1491,20 +1488,6 @@ impl Processor {
                 token_settings_account_data,
                 &mut token_settings_account_info.data.borrow_mut(),
             )?;
-
-            // Get back reparation for creating accounts to funder
-            let reparation = 1.max(rent.minimum_balance(TokenSettings::LEN))
-                + 1.max(rent.minimum_balance(spl_token::state::Mint::LEN));
-
-            let withdrawal_starting_lamports = withdrawal_account_info.lamports();
-            **withdrawal_account_info.lamports.borrow_mut() = withdrawal_starting_lamports
-                .checked_sub(reparation)
-                .ok_or(SolanaBridgeError::Overflow)?;
-
-            let relay_starting_lamports = funder_account_info.lamports();
-            **funder_account_info.lamports.borrow_mut() = relay_starting_lamports
-                .checked_add(reparation)
-                .ok_or(SolanaBridgeError::Overflow)?;
         }
 
         // Validate Token Setting Account
@@ -1634,7 +1617,6 @@ impl Processor {
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
-        let _funder_account_info = next_account_info(account_info_iter)?;
         let withdrawal_account_info = next_account_info(account_info_iter)?;
         let vault_account_info = next_account_info(account_info_iter)?;
         let recipient_token_account_info = next_account_info(account_info_iter)?;

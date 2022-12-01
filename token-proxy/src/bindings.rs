@@ -273,8 +273,6 @@ pub fn withdrawal_multi_token_ever_request_ix(
         recipient,
         amount,
     );
-    let token_settings_pubkey = get_token_settings_ever_address(&token);
-
     let rl_settings_pubkey =
         bridge_utils::helper::get_associated_settings_address(&round_loader::id());
     let relay_round_pubkey =
@@ -300,7 +298,6 @@ pub fn withdrawal_multi_token_ever_request_ix(
             AccountMeta::new(funder_pubkey, true),
             AccountMeta::new(author_pubkey, true),
             AccountMeta::new(withdrawal_pubkey, false),
-            AccountMeta::new_readonly(token_settings_pubkey, false),
             AccountMeta::new_readonly(rl_settings_pubkey, false),
             AccountMeta::new_readonly(relay_round_pubkey, false),
             AccountMeta::new_readonly(system_program::id(), false),
@@ -392,6 +389,36 @@ pub fn vote_for_withdrawal_request_ix(
 }
 
 pub fn withdrawal_ever_ix(
+    withdrawal_pubkey: Pubkey,
+    recipient_token_pubkey: Pubkey,
+    token: EverAddress,
+) -> Instruction {
+    let settings_pubkey = get_settings_address();
+    let mint_pubkey = get_mint_address(&token);
+    let token_settings_pubkey = get_token_settings_ever_address(&token);
+
+    let data = TokenProxyInstruction::WithdrawMultiTokenEver
+        .try_to_vec()
+        .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(withdrawal_pubkey, false),
+            AccountMeta::new(mint_pubkey, false),
+            AccountMeta::new(recipient_token_pubkey, false),
+            AccountMeta::new(token_settings_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+            AccountMeta::new_readonly(spl_token::id(), false),
+            AccountMeta::new_readonly(sysvar::rent::id(), false),
+            AccountMeta::new_readonly(sysvar::clock::id(), false),
+        ],
+        data,
+    }
+}
+
+pub fn create_ever_token_ix(
     funder_pubkey: Pubkey,
     withdrawal_pubkey: Pubkey,
     recipient_token_pubkey: Pubkey,
@@ -408,7 +435,6 @@ pub fn withdrawal_ever_ix(
     Instruction {
         program_id: id(),
         accounts: vec![
-            AccountMeta::new(funder_pubkey, true),
             AccountMeta::new(withdrawal_pubkey, false),
             AccountMeta::new(mint_pubkey, false),
             AccountMeta::new(recipient_token_pubkey, false),
@@ -418,13 +444,14 @@ pub fn withdrawal_ever_ix(
             AccountMeta::new_readonly(spl_token::id(), false),
             AccountMeta::new_readonly(sysvar::rent::id(), false),
             AccountMeta::new_readonly(sysvar::clock::id(), false),
+            AccountMeta::new(funder_pubkey, true),
+            AccountMeta::new_readonly(spl_associated_token_account::id(), false),
         ],
         data,
     }
 }
 
 pub fn withdrawal_sol_ix(
-    funder_pubkey: Pubkey,
     withdrawal_pubkey: Pubkey,
     recipient_token_pubkey: Pubkey,
     mint: Pubkey,
@@ -440,7 +467,6 @@ pub fn withdrawal_sol_ix(
     Instruction {
         program_id: id(),
         accounts: vec![
-            AccountMeta::new(funder_pubkey, true),
             AccountMeta::new(withdrawal_pubkey, false),
             AccountMeta::new(vault_pubkey, false),
             AccountMeta::new(recipient_token_pubkey, false),
