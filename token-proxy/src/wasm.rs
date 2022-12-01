@@ -259,10 +259,12 @@ pub fn withdrawal_multi_token_ever_ix(
 
 #[wasm_bindgen(js_name = "withdrawalMultiTokenSol")]
 pub fn withdrawal_multi_token_sol_ix(
+    funder_pubkey: String,
     withdrawal_pubkey: String,
     recipient_token_pubkey: String,
     mint: String,
 ) -> Result<JsValue, JsValue> {
+    let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
     let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).handle_error()?;
     let mint = Pubkey::from_str(mint.as_str()).handle_error()?;
     let recipient_token_pubkey =
@@ -279,6 +281,7 @@ pub fn withdrawal_multi_token_sol_ix(
     let ix = Instruction {
         program_id: id(),
         accounts: vec![
+            AccountMeta::new(funder_pubkey, true),
             AccountMeta::new(withdrawal_pubkey, false),
             AccountMeta::new(vault_pubkey, false),
             AccountMeta::new(recipient_token_pubkey, false),
