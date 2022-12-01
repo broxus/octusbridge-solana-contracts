@@ -880,9 +880,13 @@ impl Processor {
             return Err(SolanaBridgeError::TokenSymbolLenLimit.into());
         }
 
+        msg!("Withdraw multi token EVER request 1");
+
         // Validate Round Loader Settings Account
         let rl_settings_account_data =
             round_loader::Settings::unpack(&rl_settings_account_info.data.borrow())?;
+
+        msg!("Withdraw multi token EVER request 2");
 
         let rl_settings_nonce = rl_settings_account_data
             .account_kind
@@ -895,8 +899,13 @@ impl Processor {
             rl_settings_account_info,
         )?;
 
+        msg!("Withdraw multi token EVER request 3");
+
         // Validate Relay Round Account
         let relay_round_account_data = RelayRound::unpack(&relay_round_account_info.data.borrow())?;
+
+        msg!("Withdraw multi token EVER request 4");
+
         let relay_round_nonce = relay_round_account_data
             .account_kind
             .into_relay_round()
@@ -921,6 +930,8 @@ impl Processor {
         }
 
         let epoch = clock.unix_timestamp / SECONDS_PER_DAY as i64;
+
+        msg!("Withdraw multi token EVER request 5");
 
         // Create Withdraw Account
         let event = WithdrawalMultiTokenEverEventWithLen::new(
@@ -954,6 +965,8 @@ impl Processor {
             return Err(ProgramError::InvalidArgument);
         }
 
+        msg!("Withdraw multi token EVER request 6");
+
         invoke_signed(
             &system_instruction::create_account(
                 funder_account_info.key,
@@ -969,6 +982,8 @@ impl Processor {
             ],
             &[withdrawal_account_signer_seeds],
         )?;
+
+        msg!("Withdraw multi token EVER request 7");
 
         let withdrawal_account_data = WithdrawalMultiTokenEver {
             is_initialized: true,
@@ -992,6 +1007,8 @@ impl Processor {
             &mut withdrawal_account_info.data.borrow_mut(),
         )?;
 
+        msg!("Withdraw multi token EVER request 8");
+
         // Send voting reparation for Relay to withdrawal account
         let relays_lamports = RELAY_REPARATION * relay_round_account_data.relays.len() as u64;
         let token_settings_lamports = if token_settings_account_info.lamports() == 0 {
@@ -1000,6 +1017,8 @@ impl Processor {
         } else {
             0
         };
+
+        msg!("Withdraw multi token EVER request 9");
 
         invoke(
             &system_instruction::transfer(
