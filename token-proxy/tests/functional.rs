@@ -2137,6 +2137,7 @@ async fn test_withdrawal_sol() {
 
     let mut transaction = Transaction::new_with_payer(
         &[withdrawal_sol_ix(
+            funder.pubkey(),
             withdrawal_address,
             token_wallet,
             mint_address,

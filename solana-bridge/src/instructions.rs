@@ -46,12 +46,14 @@ pub fn vote_for_proposal_ix(
 pub fn execute_proposal_ix(
     program_id: Pubkey,
     instruction: u8,
+    funder_pubkey: Pubkey,
     proposal_pubkey: Pubkey,
     accounts: Vec<(Pubkey, bool, bool)>,
 ) -> Instruction {
     let data = ExecuteProposal { instruction }.try_to_vec().expect("pack");
 
     let mut accounts_with_meta = Vec::with_capacity(accounts.len() + 1);
+    accounts_with_meta.push((funder_pubkey, false, true));
     accounts_with_meta.push((proposal_pubkey, false, false));
     accounts_with_meta.extend(accounts);
 

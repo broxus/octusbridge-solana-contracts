@@ -424,6 +424,7 @@ pub fn withdrawal_ever_ix(
 }
 
 pub fn withdrawal_sol_ix(
+    funder_pubkey: Pubkey,
     withdrawal_pubkey: Pubkey,
     recipient_token_pubkey: Pubkey,
     mint: Pubkey,
@@ -439,6 +440,7 @@ pub fn withdrawal_sol_ix(
     Instruction {
         program_id: id(),
         accounts: vec![
+            AccountMeta::new(funder_pubkey, true),
             AccountMeta::new(withdrawal_pubkey, false),
             AccountMeta::new(vault_pubkey, false),
             AccountMeta::new(recipient_token_pubkey, false),
