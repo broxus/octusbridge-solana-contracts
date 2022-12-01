@@ -240,7 +240,6 @@ pub fn withdrawal_multi_token_ever_ix(
     let ix = Instruction {
         program_id: id(),
         accounts: vec![
-            AccountMeta::new(funder_pubkey, true),
             AccountMeta::new(withdrawal_pubkey, false),
             AccountMeta::new(mint_pubkey, false),
             AccountMeta::new(recipient_token_pubkey, false),
@@ -250,6 +249,8 @@ pub fn withdrawal_multi_token_ever_ix(
             AccountMeta::new_readonly(spl_token::id(), false),
             AccountMeta::new_readonly(sysvar::rent::id(), false),
             AccountMeta::new_readonly(sysvar::clock::id(), false),
+            AccountMeta::new(funder_pubkey, true),
+            AccountMeta::new_readonly(spl_associated_token_account::id(), false),
         ],
         data,
     };
