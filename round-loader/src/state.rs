@@ -36,7 +36,7 @@ const RELAY_ROUND_PROPOSAL_META_LEN: usize = 0  // empty
 ;
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
-#[bridge_pack(length = 1000)] // 46 + reserve
+#[bridge_pack(length = 100)] // 46 + reserve // TODO: increase later
 pub struct Settings {
     pub is_initialized: bool,
     pub account_kind: AccountKind,
