@@ -196,6 +196,39 @@ impl Processor {
                 msg!("Instruction: Approve Withdraw Multi Token SOL");
                 Self::process_approve_withdraw_sol(program_id, accounts)?;
             }
+            TokenProxyInstruction::UpdateFee {
+                multiplier,
+                divisor,
+            } => {
+                msg!("Instruction: Update Fee");
+                Self::process_update_fee(program_id, accounts, multiplier, divisor)?;
+            }
+            TokenProxyInstruction::WithdrawEverFee { amount } => {
+                msg!("Instruction: Withdraw EVER Fee");
+                Self::process_withdraw_ever_fee(program_id, accounts, amount)?;
+            }
+            TokenProxyInstruction::WithdrawSolFee { amount } => {
+                msg!("Instruction: Withdraw SOL Fee");
+                Self::process_withdraw_sol_fee(program_id, accounts, amount)?;
+            }
+            TokenProxyInstruction::ChangeBountyForWithdrawSol { bounty } => {
+                msg!("Instruction: Withdraw SOL Fee");
+                Self::process_change_bounty_for_withdraw_sol(program_id, accounts, bounty)?;
+            }
+            TokenProxyInstruction::CancelWithdrawSol {
+                deposit_seed,
+                recipient,
+            } => {
+                msg!("Instruction: Cancel Withdraw SOL");
+                Self::process_cancel_withdraw_sol(program_id, accounts, deposit_seed, recipient)?;
+            }
+            TokenProxyInstruction::FillWithdrawSol {
+                deposit_seed,
+                recipient,
+            } => {
+                msg!("Instruction: Fill Withdraw SOL");
+                Self::process_fill_withdraw_sol(program_id, accounts, deposit_seed, recipient)?;
+            }
         };
 
         Ok(())
@@ -1958,21 +1991,40 @@ impl Processor {
         let account_info_iter = &mut accounts.iter();
 
         let authority_account_info = next_account_info(account_info_iter)?;
+        let settings_account_info = next_account_info(account_info_iter)?;
         let token_settings_account_info = next_account_info(account_info_iter)?;
-        let programdata_account_info = next_account_info(account_info_iter)?;
-
-        // Validate Initializer Account
-        bridge_utils::helper::validate_programdata_account(
-            program_id,
-            programdata_account_info.key,
-        )?;
-        bridge_utils::helper::validate_initializer_account(
-            authority_account_info.key,
-            programdata_account_info,
-        )?;
 
         if !authority_account_info.is_signer {
             return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        // Validate Settings Account
+        let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+
+        let settings_nonce = settings_account_data
+            .account_kind
+            .into_settings()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
+
+        bridge_utils::helper::validate_settings_account(
+            program_id,
+            settings_nonce,
+            settings_account_info,
+        )?;
+
+        // Validate Manager Account
+        if *authority_account_info.key != settings_account_data.manager {
+            let programdata_account_info = next_account_info(account_info_iter)?;
+
+            // Validate Initializer Account
+            bridge_utils::helper::validate_programdata_account(
+                program_id,
+                programdata_account_info.key,
+            )?;
+            bridge_utils::helper::validate_initializer_account(
+                authority_account_info.key,
+                programdata_account_info,
+            )?;
         }
 
         // Validate Token Settings Account
@@ -2014,21 +2066,40 @@ impl Processor {
         let account_info_iter = &mut accounts.iter();
 
         let authority_account_info = next_account_info(account_info_iter)?;
+        let settings_account_info = next_account_info(account_info_iter)?;
         let token_settings_account_info = next_account_info(account_info_iter)?;
-        let programdata_account_info = next_account_info(account_info_iter)?;
-
-        // Validate Initializer Account
-        bridge_utils::helper::validate_programdata_account(
-            program_id,
-            programdata_account_info.key,
-        )?;
-        bridge_utils::helper::validate_initializer_account(
-            authority_account_info.key,
-            programdata_account_info,
-        )?;
 
         if !authority_account_info.is_signer {
             return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        // Validate Settings Account
+        let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+
+        let settings_nonce = settings_account_data
+            .account_kind
+            .into_settings()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
+
+        bridge_utils::helper::validate_settings_account(
+            program_id,
+            settings_nonce,
+            settings_account_info,
+        )?;
+
+        // Validate Manager Account
+        if *authority_account_info.key != settings_account_data.manager {
+            let programdata_account_info = next_account_info(account_info_iter)?;
+
+            // Validate Initializer Account
+            bridge_utils::helper::validate_programdata_account(
+                program_id,
+                programdata_account_info.key,
+            )?;
+            bridge_utils::helper::validate_initializer_account(
+                authority_account_info.key,
+                programdata_account_info,
+            )?;
         }
 
         // Validate Token Settings Account
@@ -2614,6 +2685,848 @@ impl Processor {
         WithdrawalMultiTokenSol::pack(
             withdrawal_account_data,
             &mut withdrawal_account_info.data.borrow_mut(),
+        )?;
+
+        Ok(())
+    }
+
+    fn process_update_fee(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        multiplier: u64,
+        divisor: u64,
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+
+        let authority_account_info = next_account_info(account_info_iter)?;
+        let settings_account_info = next_account_info(account_info_iter)?;
+        let token_settings_account_info = next_account_info(account_info_iter)?;
+
+        if !authority_account_info.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        // Validate Settings Account
+        let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+
+        let settings_nonce = settings_account_data
+            .account_kind
+            .into_settings()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
+
+        bridge_utils::helper::validate_settings_account(
+            program_id,
+            settings_nonce,
+            settings_account_info,
+        )?;
+
+        // Validate Manager Account
+        if *authority_account_info.key != settings_account_data.manager {
+            let programdata_account_info = next_account_info(account_info_iter)?;
+
+            // Validate Initializer Account
+            bridge_utils::helper::validate_programdata_account(
+                program_id,
+                programdata_account_info.key,
+            )?;
+            bridge_utils::helper::validate_initializer_account(
+                authority_account_info.key,
+                programdata_account_info,
+            )?;
+        }
+
+        // Validate Token Settings Account
+        let mut token_settings_account_data =
+            TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
+
+        let (_, token, _) = token_settings_account_data
+            .kind
+            .into_ever()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
+        let (token_settings_nonce, _) = token_settings_account_data
+            .account_kind
+            .into_token_settings()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
+
+        validate_token_settings_ever_account(
+            program_id,
+            &token,
+            token_settings_nonce,
+            token_settings_account_info,
+        )?;
+
+        token_settings_account_data.fee_info.multiplier = multiplier;
+        token_settings_account_data.fee_info.divisor = divisor;
+
+        TokenSettings::pack(
+            token_settings_account_data,
+            &mut token_settings_account_info.data.borrow_mut(),
+        )?;
+
+        Ok(())
+    }
+
+    fn process_withdraw_ever_fee(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        amount: u64,
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+
+        let authority_account_info = next_account_info(account_info_iter)?;
+        let mint_account_info = next_account_info(account_info_iter)?;
+        let recipient_token_account_info = next_account_info(account_info_iter)?;
+        let token_settings_account_info = next_account_info(account_info_iter)?;
+        let settings_account_info = next_account_info(account_info_iter)?;
+        let token_program_info = next_account_info(account_info_iter)?;
+
+        if !authority_account_info.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        // Validate Settings Account
+        let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+
+        let settings_nonce = settings_account_data
+            .account_kind
+            .into_settings()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
+
+        bridge_utils::helper::validate_settings_account(
+            program_id,
+            settings_nonce,
+            settings_account_info,
+        )?;
+
+        // Validate Manager Account
+        if *authority_account_info.key != settings_account_data.manager {
+            let programdata_account_info = next_account_info(account_info_iter)?;
+
+            // Validate Initializer Account
+            bridge_utils::helper::validate_programdata_account(
+                program_id,
+                programdata_account_info.key,
+            )?;
+            bridge_utils::helper::validate_initializer_account(
+                authority_account_info.key,
+                programdata_account_info,
+            )?;
+        }
+
+        // Validate Token Setting Account
+        let mut token_settings_account_data =
+            TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
+
+        let (token_settings_nonce, mint_nonce) = token_settings_account_data
+            .account_kind
+            .into_token_settings()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
+
+        let (_, token, _) = token_settings_account_data
+            .kind
+            .into_ever()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
+
+        validate_token_settings_ever_account(
+            program_id,
+            &token,
+            token_settings_nonce,
+            token_settings_account_info,
+        )?;
+
+        // Validate Mint Account
+        validate_mint_account(program_id, &token, mint_nonce, mint_account_info)?;
+
+        if mint_account_info.owner != &spl_token::id() {
+            return Err(ProgramError::InvalidArgument);
+        }
+
+        // Validate Recipient Account
+        if recipient_token_account_info.owner != &spl_token::id() {
+            return Err(ProgramError::InvalidArgument);
+        }
+
+        if amount > token_settings_account_data.fee_info.supply {
+            return Err(SolanaBridgeError::InsufficientBalance.into());
+        }
+
+        let token_hash = hash(&token.try_to_vec()?);
+        let mint_account_signer_seeds: &[&[_]] = &[br"mint", token_hash.as_ref(), &[mint_nonce]];
+
+        invoke_signed(
+            &spl_token::instruction::mint_to(
+                &spl_token::id(),
+                mint_account_info.key,
+                recipient_token_account_info.key,
+                mint_account_info.key,
+                &[mint_account_info.key],
+                amount,
+            )?,
+            &[
+                token_program_info.clone(),
+                mint_account_info.clone(),
+                recipient_token_account_info.clone(),
+            ],
+            &[mint_account_signer_seeds],
+        )?;
+
+        // Decrease fee supply
+        token_settings_account_data.fee_info.supply = token_settings_account_data
+            .fee_info
+            .supply
+            .checked_sub(amount)
+            .ok_or(SolanaBridgeError::Overflow)?;
+
+        TokenSettings::pack(
+            token_settings_account_data,
+            &mut token_settings_account_info.data.borrow_mut(),
+        )?;
+
+        Ok(())
+    }
+
+    fn process_withdraw_sol_fee(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        amount: u64,
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+
+        let authority_account_info = next_account_info(account_info_iter)?;
+        let vault_account_info = next_account_info(account_info_iter)?;
+        let token_settings_account_info = next_account_info(account_info_iter)?;
+        let recipient_token_account_info = next_account_info(account_info_iter)?;
+        let settings_account_info = next_account_info(account_info_iter)?;
+        let token_program_info = next_account_info(account_info_iter)?;
+
+        if !authority_account_info.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        // Validate Settings Account
+        let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+
+        let settings_nonce = settings_account_data
+            .account_kind
+            .into_settings()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
+
+        bridge_utils::helper::validate_settings_account(
+            program_id,
+            settings_nonce,
+            settings_account_info,
+        )?;
+
+        // Validate Manager Account
+        if *authority_account_info.key != settings_account_data.manager {
+            let programdata_account_info = next_account_info(account_info_iter)?;
+
+            // Validate Initializer Account
+            bridge_utils::helper::validate_programdata_account(
+                program_id,
+                programdata_account_info.key,
+            )?;
+            bridge_utils::helper::validate_initializer_account(
+                authority_account_info.key,
+                programdata_account_info,
+            )?;
+        }
+
+        // Validate Token Settings Account
+        let mut token_settings_account_data =
+            TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
+
+        let (mint, _) = token_settings_account_data
+            .kind
+            .into_solana()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
+        let (token_settings_nonce, vault_nonce) = token_settings_account_data
+            .account_kind
+            .into_token_settings()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
+
+        validate_token_settings_sol_account(
+            program_id,
+            &mint,
+            token_settings_nonce,
+            token_settings_account_info,
+        )?;
+
+        // Validate Vault Account
+        validate_vault_account(program_id, &mint, vault_nonce, vault_account_info)?;
+
+        if vault_account_info.owner != &spl_token::id() {
+            return Err(ProgramError::InvalidArgument);
+        }
+
+        // Validate Recipient Account
+        if recipient_token_account_info.owner != &spl_token::id() {
+            return Err(ProgramError::InvalidArgument);
+        }
+
+        if amount > token_settings_account_data.fee_info.supply {
+            return Err(SolanaBridgeError::InsufficientBalance.into());
+        }
+
+        let vault_account_data =
+            spl_token::state::Account::unpack(&vault_account_info.data.borrow())?;
+
+        if amount > vault_account_data.amount {
+            return Err(SolanaBridgeError::InsufficientVaultBalance.into());
+        }
+
+        let vault_account_signer_seeds: &[&[_]] = &[br"vault", &mint.to_bytes(), &[vault_nonce]];
+
+        invoke_signed(
+            &spl_token::instruction::transfer(
+                &spl_token::id(),
+                vault_account_info.key,
+                recipient_token_account_info.key,
+                vault_account_info.key,
+                &[vault_account_info.key],
+                amount,
+            )?,
+            &[
+                token_program_info.clone(),
+                vault_account_info.clone(),
+                recipient_token_account_info.clone(),
+            ],
+            &[vault_account_signer_seeds],
+        )?;
+
+        // Decrease fee supply
+        token_settings_account_data.fee_info.supply = token_settings_account_data
+            .fee_info
+            .supply
+            .checked_sub(amount)
+            .ok_or(SolanaBridgeError::Overflow)?;
+
+        TokenSettings::pack(
+            token_settings_account_data,
+            &mut token_settings_account_info.data.borrow_mut(),
+        )?;
+
+        Ok(())
+    }
+
+    fn process_change_bounty_for_withdraw_sol(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        bounty: u64,
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+
+        let author_account_info = next_account_info(account_info_iter)?;
+        let withdrawal_account_info = next_account_info(account_info_iter)?;
+
+        if !author_account_info.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        // Validate Withdrawal Account
+        let mut withdrawal_account_data =
+            WithdrawalMultiTokenSol::unpack(&withdrawal_account_info.data.borrow())?;
+        let round_number = withdrawal_account_data.round_number;
+        let event_timestamp = withdrawal_account_data.pda.event_timestamp;
+        let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
+        let event_configuration = withdrawal_account_data.pda.event_configuration;
+        let event_data = hash(&withdrawal_account_data.event.data.try_to_vec()?);
+
+        let (_, withdrawal_nonce) = Pubkey::find_program_address(
+            &[
+                br"proposal",
+                &round_number.to_le_bytes(),
+                &event_timestamp.to_le_bytes(),
+                &event_transaction_lt.to_le_bytes(),
+                &event_configuration.to_bytes(),
+                &event_data.to_bytes(),
+            ],
+            program_id,
+        );
+
+        bridge_utils::helper::validate_proposal_account(
+            program_id,
+            round_number,
+            event_timestamp,
+            event_transaction_lt,
+            &event_configuration,
+            &event_data,
+            withdrawal_nonce,
+            withdrawal_account_info,
+        )?;
+
+        if withdrawal_account_data.meta.data.status != WithdrawalTokenStatus::Pending {
+            return Err(SolanaBridgeError::InvalidWithdrawalStatus.into());
+        }
+
+        if withdrawal_account_data.author != *author_account_info.key {
+            return Err(ProgramError::IllegalOwner);
+        }
+
+        withdrawal_account_data.meta.data.bounty = bounty;
+
+        WithdrawalMultiTokenSol::pack(
+            withdrawal_account_data,
+            &mut withdrawal_account_info.data.borrow_mut(),
+        )?;
+
+        Ok(())
+    }
+
+    fn process_cancel_withdraw_sol(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        deposit_seed: u128,
+        recipient: EverAddress,
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+
+        let funder_account_info = next_account_info(account_info_iter)?;
+        let author_account_info = next_account_info(account_info_iter)?;
+        let mint_account_info = next_account_info(account_info_iter)?;
+        let withdrawal_account_info = next_account_info(account_info_iter)?;
+        let deposit_account_info = next_account_info(account_info_iter)?;
+        let token_settings_account_info = next_account_info(account_info_iter)?;
+        let settings_account_info = next_account_info(account_info_iter)?;
+        let system_program_info = next_account_info(account_info_iter)?;
+        let rent_sysvar_info = next_account_info(account_info_iter)?;
+        let rent = &Rent::from_account_info(rent_sysvar_info)?;
+
+        if !author_account_info.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        // Validate Settings Account
+        let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+
+        let settings_nonce = settings_account_data
+            .account_kind
+            .into_settings()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
+
+        bridge_utils::helper::validate_settings_account(
+            program_id,
+            settings_nonce,
+            settings_account_info,
+        )?;
+
+        if settings_account_data.emergency {
+            return Err(SolanaBridgeError::EmergencyEnabled.into());
+        }
+
+        // Validate Withdrawal Account
+        let mut withdrawal_account_data =
+            WithdrawalMultiTokenSol::unpack(&withdrawal_account_info.data.borrow())?;
+        let round_number = withdrawal_account_data.round_number;
+        let event_timestamp = withdrawal_account_data.pda.event_timestamp;
+        let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
+        let event_configuration = withdrawal_account_data.pda.event_configuration;
+        let event_data = hash(&withdrawal_account_data.event.data.try_to_vec()?);
+
+        let (_, withdrawal_nonce) = Pubkey::find_program_address(
+            &[
+                br"proposal",
+                &round_number.to_le_bytes(),
+                &event_timestamp.to_le_bytes(),
+                &event_transaction_lt.to_le_bytes(),
+                &event_configuration.to_bytes(),
+                &event_data.to_bytes(),
+            ],
+            program_id,
+        );
+
+        bridge_utils::helper::validate_proposal_account(
+            program_id,
+            round_number,
+            event_timestamp,
+            event_transaction_lt,
+            &event_configuration,
+            &event_data,
+            withdrawal_nonce,
+            withdrawal_account_info,
+        )?;
+
+        if withdrawal_account_data.author != *author_account_info.key {
+            return Err(ProgramError::IllegalOwner);
+        }
+
+        if withdrawal_account_data.meta.data.status != WithdrawalTokenStatus::Pending {
+            return Err(SolanaBridgeError::InvalidWithdrawalStatus.into());
+        }
+
+        // Validate Token Setting Account
+        let mut token_settings_account_data =
+            TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
+
+        let (token_settings_nonce, _) = token_settings_account_data
+            .account_kind
+            .into_token_settings()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
+
+        let (mint, _) = token_settings_account_data
+            .kind
+            .into_solana()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
+
+        validate_token_settings_sol_account(
+            program_id,
+            &mint,
+            token_settings_nonce,
+            token_settings_account_info,
+        )?;
+
+        if token_settings_account_data.emergency {
+            return Err(SolanaBridgeError::EmergencyEnabled.into());
+        }
+
+        // Validate Mint Account
+        if *mint_account_info.key != mint && mint_account_info.owner != &spl_token::id() {
+            return Err(ProgramError::InvalidArgument);
+        }
+
+        let mint_account_data = spl_token::state::Mint::unpack(&mint_account_info.data.borrow())?;
+        let decimals = mint_account_data.decimals;
+
+        // Create Deposit Account
+        let (deposit_pubkey, deposit_nonce) =
+            Pubkey::find_program_address(&[br"deposit", &deposit_seed.to_le_bytes()], program_id);
+        let deposit_account_signer_seeds: &[&[_]] =
+            &[br"deposit", &deposit_seed.to_le_bytes(), &[deposit_nonce]];
+
+        if deposit_pubkey != *deposit_account_info.key {
+            return Err(ProgramError::InvalidArgument);
+        }
+
+        invoke_signed(
+            &system_instruction::create_account(
+                funder_account_info.key,
+                deposit_account_info.key,
+                1.max(rent.minimum_balance(DepositMultiTokenSol::LEN)),
+                DepositMultiTokenSol::LEN as u64,
+                program_id,
+            ),
+            &[
+                funder_account_info.clone(),
+                deposit_account_info.clone(),
+                system_program_info.clone(),
+            ],
+            &[deposit_account_signer_seeds],
+        )?;
+
+        // Init Deposit Account
+        let amount: u64 = withdrawal_account_data
+            .event
+            .data
+            .amount
+            .try_into()
+            .map_err(|_| SolanaBridgeError::Overflow)?;
+        let fee_info = &mut token_settings_account_data.fee_info;
+
+        let fee = 1.max(
+            amount
+                .checked_div(fee_info.divisor)
+                .ok_or(SolanaBridgeError::Overflow)?
+                .checked_mul(fee_info.multiplier)
+                .ok_or(SolanaBridgeError::Overflow)?,
+        );
+
+        // Increase fee supply
+        fee_info.supply = fee_info
+            .supply
+            .checked_add(fee)
+            .ok_or(SolanaBridgeError::Overflow)?;
+
+        // Amount without fee
+        let pure_amount = amount.checked_sub(fee).ok_or(SolanaBridgeError::Overflow)?;
+
+        // Amount in Ever decimals
+        let transfer_amount: u128 = pure_amount
+            .try_into()
+            .map_err(|_| SolanaBridgeError::Overflow)?;
+
+        let sol_amount = 0;
+        let payload: Vec<u8> = vec![];
+        let name = token_settings_account_data.name.clone();
+        let symbol = token_settings_account_data.symbol.clone();
+
+        let deposit_account_data = DepositMultiTokenSol {
+            is_initialized: true,
+            account_kind: AccountKind::Deposit(deposit_nonce),
+            event: DepositMultiTokenSolEventWithLen::new(
+                mint,
+                name,
+                symbol,
+                decimals,
+                transfer_amount,
+                sol_amount,
+                recipient,
+                payload,
+            ),
+            meta: DepositTokenMetaWithLen::new(deposit_seed),
+        };
+
+        DepositMultiTokenSol::pack(
+            deposit_account_data,
+            &mut deposit_account_info.data.borrow_mut(),
+        )?;
+
+        withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Cancelled;
+
+        WithdrawalMultiTokenSol::pack(
+            withdrawal_account_data,
+            &mut withdrawal_account_info.data.borrow_mut(),
+        )?;
+
+        TokenSettings::pack(
+            token_settings_account_data,
+            &mut token_settings_account_info.data.borrow_mut(),
+        )?;
+
+        Ok(())
+    }
+
+    fn process_fill_withdraw_sol(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        deposit_seed: u128,
+        recipient: EverAddress,
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+
+        let funder_account_info = next_account_info(account_info_iter)?;
+        let author_account_info = next_account_info(account_info_iter)?;
+        let author_token_account_info = next_account_info(account_info_iter)?;
+        let mint_account_info = next_account_info(account_info_iter)?;
+        let withdrawal_account_info = next_account_info(account_info_iter)?;
+        let recipient_token_account_info = next_account_info(account_info_iter)?;
+        let deposit_account_info = next_account_info(account_info_iter)?;
+        let token_settings_account_info = next_account_info(account_info_iter)?;
+        let settings_account_info = next_account_info(account_info_iter)?;
+        let system_program_info = next_account_info(account_info_iter)?;
+        let token_program_info = next_account_info(account_info_iter)?;
+        let rent_sysvar_info = next_account_info(account_info_iter)?;
+        let rent = &Rent::from_account_info(rent_sysvar_info)?;
+
+        if !author_account_info.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        // Validate Settings Account
+        let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+
+        let settings_nonce = settings_account_data
+            .account_kind
+            .into_settings()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
+
+        bridge_utils::helper::validate_settings_account(
+            program_id,
+            settings_nonce,
+            settings_account_info,
+        )?;
+
+        if settings_account_data.emergency {
+            return Err(SolanaBridgeError::EmergencyEnabled.into());
+        }
+
+        // Validate Withdrawal Account
+        let mut withdrawal_account_data =
+            WithdrawalMultiTokenSol::unpack(&withdrawal_account_info.data.borrow())?;
+        let round_number = withdrawal_account_data.round_number;
+        let event_timestamp = withdrawal_account_data.pda.event_timestamp;
+        let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
+        let event_configuration = withdrawal_account_data.pda.event_configuration;
+        let event_data = hash(&withdrawal_account_data.event.data.try_to_vec()?);
+
+        let (_, withdrawal_nonce) = Pubkey::find_program_address(
+            &[
+                br"proposal",
+                &round_number.to_le_bytes(),
+                &event_timestamp.to_le_bytes(),
+                &event_transaction_lt.to_le_bytes(),
+                &event_configuration.to_bytes(),
+                &event_data.to_bytes(),
+            ],
+            program_id,
+        );
+
+        bridge_utils::helper::validate_proposal_account(
+            program_id,
+            round_number,
+            event_timestamp,
+            event_transaction_lt,
+            &event_configuration,
+            &event_data,
+            withdrawal_nonce,
+            withdrawal_account_info,
+        )?;
+
+        if withdrawal_account_data.meta.data.status != WithdrawalTokenStatus::Pending {
+            return Err(SolanaBridgeError::InvalidWithdrawalStatus.into());
+        }
+
+        // Validate Token Setting Account
+        let mut token_settings_account_data =
+            TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
+
+        let (token_settings_nonce, _) = token_settings_account_data
+            .account_kind
+            .into_token_settings()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
+
+        let (mint, _) = token_settings_account_data
+            .kind
+            .into_solana()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
+
+        validate_token_settings_sol_account(
+            program_id,
+            &mint,
+            token_settings_nonce,
+            token_settings_account_info,
+        )?;
+
+        if token_settings_account_data.emergency {
+            return Err(SolanaBridgeError::EmergencyEnabled.into());
+        }
+
+        // Validate Mint Account
+        if *mint_account_info.key != mint && mint_account_info.owner != &spl_token::id() {
+            return Err(ProgramError::InvalidArgument);
+        }
+
+        let mint_account_data = spl_token::state::Mint::unpack(&mint_account_info.data.borrow())?;
+        let decimals = mint_account_data.decimals;
+
+        // Validate Recipient account
+        let recipient_token_account_data =
+            spl_token::state::Account::unpack(&recipient_token_account_info.data.borrow())?;
+
+        if recipient_token_account_data.owner != withdrawal_account_data.event.data.recipient {
+            return Err(ProgramError::InvalidArgument);
+        }
+
+        if recipient_token_account_info.owner != &spl_token::id() {
+            return Err(ProgramError::InvalidArgument);
+        }
+
+        let withdrawal_amount: u64 = withdrawal_account_data
+            .event
+            .data
+            .amount
+            .try_into()
+            .map_err(|_| SolanaBridgeError::Overflow)?;
+
+        let amount = withdrawal_amount
+            .checked_sub(withdrawal_account_data.meta.data.bounty)
+            .ok_or(SolanaBridgeError::Overflow)?;
+
+        // Transfer SOL tokens
+        invoke(
+            &spl_token::instruction::transfer(
+                &spl_token::id(),
+                author_token_account_info.key,
+                recipient_token_account_info.key,
+                author_account_info.key,
+                &[author_account_info.key],
+                amount,
+            )?,
+            &[
+                token_program_info.clone(),
+                author_account_info.clone(),
+                author_token_account_info.clone(),
+                recipient_token_account_info.clone(),
+            ],
+        )?;
+
+        // Create Deposit Account
+        let (deposit_pubkey, deposit_nonce) =
+            Pubkey::find_program_address(&[br"deposit", &deposit_seed.to_le_bytes()], program_id);
+        let deposit_account_signer_seeds: &[&[_]] =
+            &[br"deposit", &deposit_seed.to_le_bytes(), &[deposit_nonce]];
+
+        if deposit_pubkey != *deposit_account_info.key {
+            return Err(ProgramError::InvalidArgument);
+        }
+
+        invoke_signed(
+            &system_instruction::create_account(
+                funder_account_info.key,
+                deposit_account_info.key,
+                1.max(rent.minimum_balance(DepositMultiTokenSol::LEN)),
+                DepositMultiTokenSol::LEN as u64,
+                program_id,
+            ),
+            &[
+                funder_account_info.clone(),
+                deposit_account_info.clone(),
+                system_program_info.clone(),
+            ],
+            &[deposit_account_signer_seeds],
+        )?;
+
+        // Init Deposit Account
+        let fee_info = &mut token_settings_account_data.fee_info;
+
+        let fee = 1.max(
+            withdrawal_amount
+                .checked_div(fee_info.divisor)
+                .ok_or(SolanaBridgeError::Overflow)?
+                .checked_mul(fee_info.multiplier)
+                .ok_or(SolanaBridgeError::Overflow)?,
+        );
+
+        // Increase fee supply
+        fee_info.supply = fee_info
+            .supply
+            .checked_add(fee)
+            .ok_or(SolanaBridgeError::Overflow)?;
+
+        // Amount without fee
+        let pure_amount = withdrawal_amount
+            .checked_sub(fee)
+            .ok_or(SolanaBridgeError::Overflow)?;
+
+        let transfer_amount: u128 = pure_amount
+            .try_into()
+            .map_err(|_| SolanaBridgeError::Overflow)?;
+
+        let sol_amount = 0;
+        let payload: Vec<u8> = vec![];
+        let name = token_settings_account_data.name.clone();
+        let symbol = token_settings_account_data.symbol.clone();
+
+        let deposit_account_data = DepositMultiTokenSol {
+            is_initialized: true,
+            account_kind: AccountKind::Deposit(deposit_nonce),
+            event: DepositMultiTokenSolEventWithLen::new(
+                mint,
+                name,
+                symbol,
+                decimals,
+                transfer_amount,
+                sol_amount,
+                recipient,
+                payload,
+            ),
+            meta: DepositTokenMetaWithLen::new(deposit_seed),
+        };
+
+        DepositMultiTokenSol::pack(
+            deposit_account_data,
+            &mut deposit_account_info.data.borrow_mut(),
+        )?;
+
+        withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Processed;
+
+        WithdrawalMultiTokenSol::pack(
+            withdrawal_account_data,
+            &mut withdrawal_account_info.data.borrow_mut(),
+        )?;
+
+        TokenSettings::pack(
+            token_settings_account_data,
+            &mut token_settings_account_info.data.borrow_mut(),
         )?;
 
         Ok(())

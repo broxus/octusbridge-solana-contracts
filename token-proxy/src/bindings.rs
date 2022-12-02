@@ -539,10 +539,59 @@ pub fn change_withdrawal_manager_ix(owner: Pubkey, new_withdrawal_manager: Pubke
 }
 
 pub fn change_deposit_limit_ix(
+    manager_pubkey: Pubkey,
+    token_settings_pubkey: Pubkey,
+    new_deposit_limit: u64,
+) -> Instruction {
+    let settings_pubkey = get_settings_address();
+
+    let data = TokenProxyInstruction::ChangeDepositLimit { new_deposit_limit }
+        .try_to_vec()
+        .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(manager_pubkey, true),
+            AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new(token_settings_pubkey, false),
+        ],
+        data,
+    }
+}
+
+pub fn change_withdrawal_limits_ix(
+    manager_pubkey: Pubkey,
+    token_settings_pubkey: Pubkey,
+    new_withdrawal_limit: Option<u64>,
+    new_withdrawal_daily_limit: Option<u64>,
+) -> Instruction {
+    let settings_pubkey = get_settings_address();
+
+    let data = TokenProxyInstruction::ChangeWithdrawalLimits {
+        new_withdrawal_limit,
+        new_withdrawal_daily_limit,
+    }
+    .try_to_vec()
+    .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(manager_pubkey, true),
+            AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new(token_settings_pubkey, false),
+        ],
+        data,
+    }
+}
+
+pub fn change_deposit_limit_by_owner_ix(
     owner_pubkey: Pubkey,
     token_settings_pubkey: Pubkey,
     new_deposit_limit: u64,
 ) -> Instruction {
+    let settings_pubkey = get_settings_address();
     let program_data_pubkey = get_programdata_address();
 
     let data = TokenProxyInstruction::ChangeDepositLimit { new_deposit_limit }
@@ -553,6 +602,7 @@ pub fn change_deposit_limit_ix(
         program_id: id(),
         accounts: vec![
             AccountMeta::new(owner_pubkey, true),
+            AccountMeta::new(settings_pubkey, false),
             AccountMeta::new(token_settings_pubkey, false),
             AccountMeta::new_readonly(program_data_pubkey, false),
         ],
@@ -560,12 +610,13 @@ pub fn change_deposit_limit_ix(
     }
 }
 
-pub fn change_withdrawal_limits_ix(
+pub fn change_withdrawal_limits_by_owner_ix(
     owner_pubkey: Pubkey,
     token_settings_pubkey: Pubkey,
     new_withdrawal_limit: Option<u64>,
     new_withdrawal_daily_limit: Option<u64>,
 ) -> Instruction {
+    let settings_pubkey = get_settings_address();
     let program_data_pubkey = get_programdata_address();
 
     let data = TokenProxyInstruction::ChangeWithdrawalLimits {
@@ -579,6 +630,7 @@ pub fn change_withdrawal_limits_ix(
         program_id: id(),
         accounts: vec![
             AccountMeta::new(owner_pubkey, true),
+            AccountMeta::new(settings_pubkey, false),
             AccountMeta::new(token_settings_pubkey, false),
             AccountMeta::new_readonly(program_data_pubkey, false),
         ],

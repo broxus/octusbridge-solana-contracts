@@ -2483,26 +2483,33 @@ async fn test_change_deposit_limit() {
     );
 
     // Setup environment
-    let owner = Keypair::new();
 
-    // Add Program Data Account
-    let programdata_address =
-        Pubkey::find_program_address(&[token_proxy::id().as_ref()], &bpf_loader_upgradeable::id())
-            .0;
+    // Add Settings Account
+    let manager = Keypair::new();
 
-    let programdata_data = UpgradeableLoaderState::ProgramData {
-        slot: 0,
-        upgrade_authority_address: Some(owner.pubkey()),
+    let guardian = Pubkey::new_unique();
+    let withdrawal_manager = Pubkey::new_unique();
+
+    let (_, settings_nonce) = Pubkey::find_program_address(&[br"settings"], &token_proxy::id());
+
+    let settings_address = get_settings_address();
+
+    let settings_account_data = Settings {
+        is_initialized: true,
+        account_kind: AccountKind::Settings(settings_nonce),
+        emergency: false,
+        manager: manager.pubkey(),
+        guardian,
+        withdrawal_manager,
     };
 
-    let programdata_data_serialized =
-        bincode::serialize::<UpgradeableLoaderState>(&programdata_data).unwrap();
-
+    let mut settings_packed = vec![0; Settings::LEN];
+    Settings::pack(settings_account_data, &mut settings_packed).unwrap();
     program_test.add_account(
-        programdata_address,
+        settings_address,
         Account {
-            lamports: Rent::default().minimum_balance(programdata_data_serialized.len()),
-            data: programdata_data_serialized,
+            lamports: Rent::default().minimum_balance(Settings::LEN),
+            data: settings_packed,
             owner: token_proxy::id(),
             executable: false,
             rent_epoch: 0,
@@ -2591,13 +2598,13 @@ async fn test_change_deposit_limit() {
 
     let mut transaction = Transaction::new_with_payer(
         &[change_deposit_limit_ix(
-            owner.pubkey(),
+            manager.pubkey(),
             token_settings_address,
             new_deposit_limit,
         )],
         Some(&funder.pubkey()),
     );
-    transaction.sign(&[&funder, &owner], recent_blockhash);
+    transaction.sign(&[&funder, &manager], recent_blockhash);
 
     banks_client
         .process_transaction(transaction)
@@ -2645,6 +2652,37 @@ async fn test_change_withdrawal_limits() {
         Account {
             lamports: Rent::default().minimum_balance(programdata_data_serialized.len()),
             data: programdata_data_serialized,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Settings Account
+    let manager = Pubkey::new_unique();
+    let guardian = Pubkey::new_unique();
+    let withdrawal_manager = Pubkey::new_unique();
+
+    let (_, settings_nonce) = Pubkey::find_program_address(&[br"settings"], &token_proxy::id());
+
+    let settings_address = get_settings_address();
+
+    let settings_account_data = Settings {
+        is_initialized: true,
+        account_kind: AccountKind::Settings(settings_nonce),
+        emergency: false,
+        manager,
+        guardian,
+        withdrawal_manager,
+    };
+
+    let mut settings_packed = vec![0; Settings::LEN];
+    Settings::pack(settings_account_data, &mut settings_packed).unwrap();
+    program_test.add_account(
+        settings_address,
+        Account {
+            lamports: Rent::default().minimum_balance(Settings::LEN),
+            data: settings_packed,
             owner: token_proxy::id(),
             executable: false,
             rent_epoch: 0,
@@ -2733,7 +2771,7 @@ async fn test_change_withdrawal_limits() {
     let new_withdrawal_daily_limit = 12345;
 
     let mut transaction = Transaction::new_with_payer(
-        &[change_withdrawal_limits_ix(
+        &[change_withdrawal_limits_by_owner_ix(
             owner.pubkey(),
             token_settings_address,
             Some(new_withdrawal_limit),

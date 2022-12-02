@@ -18,6 +18,8 @@ pub enum SolanaBridgeError {
     EmergencyEnabled,
     #[error("Invalid withdrawal status")]
     InvalidWithdrawalStatus,
+    #[error("Insufficient balance")]
+    InsufficientBalance,
     #[error("Insufficient vault balance")]
     InsufficientVaultBalance,
     #[error("Relay already voted")]

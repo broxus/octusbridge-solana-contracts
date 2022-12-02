@@ -201,4 +201,64 @@ pub enum TokenProxyInstruction {
     /// # Account references
     /// ...
     ApproveWithdrawSol,
+
+    /// Update fee
+    ///
+    /// # Account references
+    /// ...
+    UpdateFee {
+        // Fee multiplier
+        multiplier: u64,
+        // Fee divisor
+        divisor: u64,
+    },
+
+    /// Withdraw EVER fee
+    ///
+    /// # Account references
+    /// ...
+    WithdrawEverFee {
+        // Amount to withdraw
+        amount: u64,
+    },
+
+    /// Withdraw SOL fee
+    ///
+    /// # Account references
+    /// ...
+    WithdrawSolFee {
+        // Amount to withdraw
+        amount: u64,
+    },
+
+    /// Change Bounty for Withdraw SOL
+    ///
+    /// # Account references
+    /// ...
+    ChangeBountyForWithdrawSol {
+        // New bounty value
+        bounty: u64,
+    },
+
+    /// Cancel Withdraw SOL
+    ///
+    /// # Account references
+    /// ...
+    CancelWithdrawSol {
+        // Deposit seed
+        deposit_seed: u128,
+        // Recipient address
+        recipient: EverAddress,
+    },
+
+    /// Fill Withdraw SOL
+    ///
+    /// # Account references
+    /// ...
+    FillWithdrawSol {
+        // Deposit seed
+        deposit_seed: u128,
+        // Recipient address
+        recipient: EverAddress,
+    },
 }
