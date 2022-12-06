@@ -26,9 +26,14 @@ pub fn get_mint_address_request(token: String) -> Result<JsValue, JsValue> {
 }
 
 #[wasm_bindgen(js_name = "getTokenSettingsAddress")]
-pub fn get_token_settings_request(token: String) -> Result<JsValue, JsValue> {
-    let token = EverAddress::from_str(&token).handle_error()?;
-    let token_settings_pubkey = get_token_settings_ever_address(&token);
+pub fn get_token_settings_request(token: String, is_sol: bool) -> Result<JsValue, JsValue> {
+    let token_settings_pubkey = if is_sol {
+        let mint = Pubkey::from_str(token.as_str()).handle_error()?;
+        get_token_settings_sol_address(&mint)
+    } else {
+        let token = EverAddress::from_str(&token).handle_error()?;
+        get_token_settings_ever_address(&token)
+    };
     return serde_wasm_bindgen::to_value(&token_settings_pubkey).handle_error();
 }
 
@@ -449,7 +454,7 @@ pub fn vote_for_withdraw_request_ix(
     return serde_wasm_bindgen::to_value(&ix).handle_error();
 }
 
-/*#[wasm_bindgen(js_name = "changeGuardian")]
+#[wasm_bindgen(js_name = "changeGuardian")]
 pub fn change_guardian_ix(
     authority_pubkey: String,
     new_guardian: String,
@@ -511,10 +516,17 @@ pub fn change_withdrawal_manager_ix(
 #[wasm_bindgen(js_name = "changeDepositLimit")]
 pub fn change_deposit_limit_ix(
     authority_pubkey: String,
-    name: String,
+    token: String,
+    token_is_sol: bool,
     new_deposit_limit: u64,
 ) -> Result<JsValue, JsValue> {
-    let token_settings_pubkey = get_token_settings_address(&name);
+    let token_settings_pubkey = if token_is_sol {
+        let mint = Pubkey::from_str(token.as_str()).handle_error()?;
+        get_token_settings_sol_address(&mint)
+    } else {
+        let token = EverAddress::from_str(&token).handle_error()?;
+        get_token_settings_ever_address(&token)
+    };
     let program_data_pubkey = get_programdata_address();
 
     let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
@@ -539,11 +551,18 @@ pub fn change_deposit_limit_ix(
 #[wasm_bindgen(js_name = "changeWithdrawalLimits")]
 pub fn change_withdrawal_limits_ix(
     authority_pubkey: String,
-    name: String,
+    token: String,
+    token_is_sol: bool,
     new_withdrawal_limit: Option<u64>,
     new_withdrawal_daily_limit: Option<u64>,
 ) -> Result<JsValue, JsValue> {
-    let token_settings_pubkey = get_token_settings_address(&name);
+    let token_settings_pubkey = if token_is_sol {
+        let mint = Pubkey::from_str(token.as_str()).handle_error()?;
+        get_token_settings_sol_address(&mint)
+    } else {
+        let token = EverAddress::from_str(&token).handle_error()?;
+        get_token_settings_ever_address(&token)
+    };
     let program_data_pubkey = get_programdata_address();
 
     let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
@@ -641,10 +660,17 @@ pub fn disable_emergency_ix(authority_pubkey: String) -> Result<JsValue, JsValue
 #[wasm_bindgen(js_name = "enableTokenEmergency")]
 pub fn enable_token_emergency_ix(
     authority_pubkey: String,
-    token_name: String,
+    token: String,
+    token_is_sol: bool,
 ) -> Result<JsValue, JsValue> {
     let settings_pubkey = get_settings_address();
-    let token_settings_pubkey = get_token_settings_address(&token_name);
+    let token_settings_pubkey = if token_is_sol {
+        let mint = Pubkey::from_str(token.as_str()).handle_error()?;
+        get_token_settings_sol_address(&mint)
+    } else {
+        let token = EverAddress::from_str(&token).handle_error()?;
+        get_token_settings_ever_address(&token)
+    };
 
     let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
 
@@ -668,10 +694,17 @@ pub fn enable_token_emergency_ix(
 #[wasm_bindgen(js_name = "enableTokenEmergencyByOwner")]
 pub fn enable_token_emergency_by_owner_ix(
     authority_pubkey: String,
-    token_name: String,
+    token: String,
+    token_is_sol: bool,
 ) -> Result<JsValue, JsValue> {
     let settings_pubkey = get_settings_address();
-    let token_settings_pubkey = get_token_settings_address(&token_name);
+    let token_settings_pubkey = if token_is_sol {
+        let mint = Pubkey::from_str(token.as_str()).handle_error()?;
+        get_token_settings_sol_address(&mint)
+    } else {
+        let token = EverAddress::from_str(&token).handle_error()?;
+        get_token_settings_ever_address(&token)
+    };
     let program_data_pubkey = get_programdata_address();
 
     let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
@@ -697,9 +730,16 @@ pub fn enable_token_emergency_by_owner_ix(
 #[wasm_bindgen(js_name = "disableTokenEmergency")]
 pub fn disable_token_emergency_ix(
     authority_pubkey: String,
-    token_name: String,
+    token: String,
+    token_is_sol: bool,
 ) -> Result<JsValue, JsValue> {
-    let token_settings_pubkey = get_token_settings_address(&token_name);
+    let token_settings_pubkey = if token_is_sol {
+        let mint = Pubkey::from_str(token.as_str()).handle_error()?;
+        get_token_settings_sol_address(&mint)
+    } else {
+        let token = EverAddress::from_str(&token).handle_error()?;
+        get_token_settings_ever_address(&token)
+    };
     let program_data_pubkey = get_programdata_address();
 
     let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
@@ -729,111 +769,74 @@ pub fn unpack_settings(data: Vec<u8>) -> Result<JsValue, JsValue> {
         emergency: settings.emergency,
         guardian: settings.guardian,
         withdrawal_manager: settings.withdrawal_manager,
+        manager: settings.manager,
     };
 
     return serde_wasm_bindgen::to_value(&s).handle_error();
 }
 
-#[wasm_bindgen(js_name = "unpackTokenSettings")]
-pub fn unpack_token_settings(data: Vec<u8>) -> Result<JsValue, JsValue> {
-    let token_settings = TokenSettings::unpack(&data).handle_error()?;
-
-    let s = WasmTokenSettings {
-        is_initialized: token_settings.is_initialized,
-        account_kind: token_settings.account_kind,
-        name: token_settings.name,
-        ever_decimals: token_settings.ever_decimals,
-        solana_decimals: token_settings.solana_decimals,
-        kind: token_settings.kind,
-        deposit_limit: token_settings.deposit_limit,
-        withdrawal_limit: token_settings.withdrawal_limit,
-        withdrawal_daily_limit: token_settings.withdrawal_daily_limit,
-        withdrawal_daily_amount: token_settings.withdrawal_daily_amount,
-        withdrawal_epoch: token_settings.withdrawal_epoch,
-        emergency: token_settings.emergency,
-    };
-
-    return serde_wasm_bindgen::to_value(&s).handle_error();
-}
-
-#[wasm_bindgen(js_name = "unpackWithdrawal")]
-pub fn unpack_withdrawal(data: Vec<u8>) -> Result<JsValue, JsValue> {
-    let withdrawal = WithdrawalToken::unpack(&data).handle_error()?;
-
-    let w = WasmWithdrawalToken {
-        is_initialized: withdrawal.is_initialized,
-        account_kind: withdrawal.account_kind,
-        is_executed: withdrawal.is_executed,
-        round_number: withdrawal.round_number,
-        required_votes: withdrawal.required_votes,
-        pda: withdrawal.pda,
-        event: withdrawal.event,
-        meta: withdrawal.meta,
-        signers: withdrawal.signers,
-    };
-
-    return serde_wasm_bindgen::to_value(&w).handle_error();
-}
-
-#[wasm_bindgen(js_name = "unpackDeposit")]
-pub fn unpack_deposit(data: Vec<u8>) -> Result<JsValue, JsValue> {
-    let deposit = DepositToken::unpack(&data).handle_error()?;
-
-    let d = WasmDepositToken {
-        is_initialized: deposit.is_initialized,
-        account_kind: deposit.account_kind,
-        event: deposit.event,
-        meta: WasmDepositTokenMeta {
-            seed: deposit.meta.data.seed.to_string(),
-        },
-    };
-
-    return serde_wasm_bindgen::to_value(&d).handle_error();
-}
-
-#[wasm_bindgen(js_name = "getProposalAddress")]
-pub fn get_proposal_address(
-    token_settings: String,
+#[wasm_bindgen(js_name = "getProposalSolAddress")]
+pub fn get_proposal_sol_address(
     round_number: u32,
     event_timestamp: u32,
     event_transaction_lt: u64,
     event_configuration: String,
-    sender_address: String,
+    mint_address: String,
     recipient_address: String,
     amount: String,
 ) -> Result<JsValue, JsValue> {
-    let token_settings_pubkey = Pubkey::from_str(token_settings.as_str()).handle_error()?;
     let recipient_address = Pubkey::from_str(recipient_address.as_str()).handle_error()?;
     let event_configuration = Pubkey::from_str(event_configuration.as_str()).handle_error()?;
     let amount = u128::from_str(&amount).handle_error()?;
 
-    let sender_address = EverAddress::from_str(&sender_address).handle_error()?;
+    let mint_address = Pubkey::from_str(mint_address.as_str()).handle_error()?;
 
-    let withdrawal_pubkey = get_withdrawal_address(
-        &token_settings_pubkey,
+    let withdrawal_pubkey = get_withdrawal_sol_address(
         round_number,
         event_timestamp,
         event_transaction_lt,
         &event_configuration,
-        sender_address,
+        mint_address,
         recipient_address,
         amount,
     );
 
     return serde_wasm_bindgen::to_value(&withdrawal_pubkey).handle_error();
-}*/
+}
 
-#[wasm_bindgen(js_name = "unpackSettings")]
-pub fn unpack_settings(data: Vec<u8>) -> Result<JsValue, JsValue> {
-    let settings = Settings::unpack(&data).handle_error()?;
+#[wasm_bindgen(js_name = "getProposalEverAddress")]
+pub fn get_proposal_ever_address(
+    round_number: u32,
+    event_timestamp: u32,
+    event_transaction_lt: u64,
+    event_configuration: String,
+    token_address: String,
+    recipient_address: String,
+    amount: String,
+    name: String,
+    symbol: String,
+    decimals: u8,
+) -> Result<JsValue, JsValue> {
+    let recipient_address = Pubkey::from_str(recipient_address.as_str()).handle_error()?;
+    let event_configuration = Pubkey::from_str(event_configuration.as_str()).handle_error()?;
+    let amount = u128::from_str(&amount).handle_error()?;
 
-    let s = WasmSettings {
-        emergency: settings.emergency,
-        guardian: settings.guardian,
-        withdrawal_manager: settings.withdrawal_manager,
-    };
+    let token = EverAddress::from_str(&token_address).handle_error()?;
 
-    return serde_wasm_bindgen::to_value(&s).handle_error();
+    let withdrawal_pubkey = get_withdrawal_ever_address(
+        round_number,
+        event_timestamp,
+        event_transaction_lt,
+        &event_configuration,
+        token,
+        name,
+        symbol,
+        decimals,
+        recipient_address,
+        amount,
+    );
+
+    return serde_wasm_bindgen::to_value(&withdrawal_pubkey).handle_error();
 }
 
 #[wasm_bindgen(js_name = "unpackTokenSettings")]
@@ -935,6 +938,7 @@ pub struct WasmSettings {
     pub emergency: bool,
     pub guardian: Pubkey,
     pub withdrawal_manager: Pubkey,
+    pub manager: Pubkey,
 }
 
 #[derive(Serialize, Deserialize)]
