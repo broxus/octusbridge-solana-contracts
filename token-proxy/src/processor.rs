@@ -2699,8 +2699,8 @@ impl Processor {
         let account_info_iter = &mut accounts.iter();
 
         let authority_account_info = next_account_info(account_info_iter)?;
-        let settings_account_info = next_account_info(account_info_iter)?;
         let token_settings_account_info = next_account_info(account_info_iter)?;
+        let settings_account_info = next_account_info(account_info_iter)?;
 
         if !authority_account_info.is_signer {
             return Err(ProgramError::MissingRequiredSignature);
@@ -2722,6 +2722,8 @@ impl Processor {
 
         // Validate Manager Account
         if *authority_account_info.key != settings_account_data.manager {
+            msg!("Validate Manager Account");
+
             let programdata_account_info = next_account_info(account_info_iter)?;
 
             // Validate Initializer Account
@@ -2739,21 +2741,29 @@ impl Processor {
         let mut token_settings_account_data =
             TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
 
-        let (_, token, _) = token_settings_account_data
-            .kind
-            .into_ever()
-            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
         let (token_settings_nonce, _) = token_settings_account_data
             .account_kind
             .into_token_settings()
             .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
 
-        validate_token_settings_ever_account(
-            program_id,
-            &token,
-            token_settings_nonce,
-            token_settings_account_info,
-        )?;
+        let _ = match token_settings_account_data.kind {
+            TokenKind::Ever { token, .. } => {
+                validate_token_settings_ever_account(
+                    program_id,
+                    &token,
+                    token_settings_nonce,
+                    token_settings_account_info,
+                )?;
+            }
+            TokenKind::Solana { mint, .. } => {
+                validate_token_settings_sol_account(
+                    program_id,
+                    &mint,
+                    token_settings_nonce,
+                    token_settings_account_info,
+                )?;
+            }
+        };
 
         token_settings_account_data.fee_info.multiplier = multiplier;
         token_settings_account_data.fee_info.divisor = divisor;
@@ -3086,8 +3096,8 @@ impl Processor {
         let mint_account_info = next_account_info(account_info_iter)?;
         let withdrawal_account_info = next_account_info(account_info_iter)?;
         let deposit_account_info = next_account_info(account_info_iter)?;
-        let token_settings_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
+        let token_settings_account_info = next_account_info(account_info_iter)?;
         let system_program_info = next_account_info(account_info_iter)?;
         let rent_sysvar_info = next_account_info(account_info_iter)?;
         let rent = &Rent::from_account_info(rent_sysvar_info)?;
@@ -3155,7 +3165,7 @@ impl Processor {
         }
 
         // Validate Token Setting Account
-        let mut token_settings_account_data =
+        let token_settings_account_data =
             TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
 
         let (token_settings_nonce, _) = token_settings_account_data
@@ -3187,6 +3197,11 @@ impl Processor {
         let mint_account_data = spl_token::state::Mint::unpack(&mint_account_info.data.borrow())?;
         let decimals = mint_account_data.decimals;
 
+        // Check connection between token and proposal
+        if mint != withdrawal_account_data.event.data.mint {
+            return Err(ProgramError::InvalidArgument);
+        }
+
         // Create Deposit Account
         let (deposit_pubkey, deposit_nonce) =
             Pubkey::find_program_address(&[br"deposit", &deposit_seed.to_le_bytes()], program_id);
@@ -3214,53 +3229,17 @@ impl Processor {
         )?;
 
         // Init Deposit Account
-        let amount: u64 = withdrawal_account_data
-            .event
-            .data
-            .amount
-            .try_into()
-            .map_err(|_| SolanaBridgeError::Overflow)?;
-        let fee_info = &mut token_settings_account_data.fee_info;
-
-        let fee = 1.max(
-            amount
-                .checked_div(fee_info.divisor)
-                .ok_or(SolanaBridgeError::Overflow)?
-                .checked_mul(fee_info.multiplier)
-                .ok_or(SolanaBridgeError::Overflow)?,
-        );
-
-        // Increase fee supply
-        fee_info.supply = fee_info
-            .supply
-            .checked_add(fee)
-            .ok_or(SolanaBridgeError::Overflow)?;
-
-        // Amount without fee
-        let pure_amount = amount.checked_sub(fee).ok_or(SolanaBridgeError::Overflow)?;
-
-        // Amount in Ever decimals
-        let transfer_amount: u128 = pure_amount
-            .try_into()
-            .map_err(|_| SolanaBridgeError::Overflow)?;
-
         let sol_amount = 0;
         let payload: Vec<u8> = vec![];
         let name = token_settings_account_data.name.clone();
         let symbol = token_settings_account_data.symbol.clone();
+        let amount = withdrawal_account_data.event.data.amount;
 
         let deposit_account_data = DepositMultiTokenSol {
             is_initialized: true,
             account_kind: AccountKind::Deposit(deposit_nonce),
             event: DepositMultiTokenSolEventWithLen::new(
-                mint,
-                name,
-                symbol,
-                decimals,
-                transfer_amount,
-                sol_amount,
-                recipient,
-                payload,
+                mint, name, symbol, decimals, amount, sol_amount, recipient, payload,
             ),
             meta: DepositTokenMetaWithLen::new(deposit_seed),
         };
@@ -3300,8 +3279,8 @@ impl Processor {
         let withdrawal_account_info = next_account_info(account_info_iter)?;
         let recipient_token_account_info = next_account_info(account_info_iter)?;
         let deposit_account_info = next_account_info(account_info_iter)?;
-        let token_settings_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
+        let token_settings_account_info = next_account_info(account_info_iter)?;
         let system_program_info = next_account_info(account_info_iter)?;
         let token_program_info = next_account_info(account_info_iter)?;
         let rent_sysvar_info = next_account_info(account_info_iter)?;
@@ -3366,7 +3345,7 @@ impl Processor {
         }
 
         // Validate Token Setting Account
-        let mut token_settings_account_data =
+        let token_settings_account_data =
             TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
 
         let (token_settings_nonce, _) = token_settings_account_data
@@ -3397,6 +3376,11 @@ impl Processor {
 
         let mint_account_data = spl_token::state::Mint::unpack(&mint_account_info.data.borrow())?;
         let decimals = mint_account_data.decimals;
+
+        // Check connection between token and proposal
+        if mint != withdrawal_account_data.event.data.mint {
+            return Err(ProgramError::InvalidArgument);
+        }
 
         // Validate Recipient account
         let recipient_token_account_data =
@@ -3466,28 +3450,7 @@ impl Processor {
         )?;
 
         // Init Deposit Account
-        let fee_info = &mut token_settings_account_data.fee_info;
-
-        let fee = 1.max(
-            withdrawal_amount
-                .checked_div(fee_info.divisor)
-                .ok_or(SolanaBridgeError::Overflow)?
-                .checked_mul(fee_info.multiplier)
-                .ok_or(SolanaBridgeError::Overflow)?,
-        );
-
-        // Increase fee supply
-        fee_info.supply = fee_info
-            .supply
-            .checked_add(fee)
-            .ok_or(SolanaBridgeError::Overflow)?;
-
-        // Amount without fee
-        let pure_amount = withdrawal_amount
-            .checked_sub(fee)
-            .ok_or(SolanaBridgeError::Overflow)?;
-
-        let transfer_amount: u128 = pure_amount
+        let amount: u128 = withdrawal_amount
             .try_into()
             .map_err(|_| SolanaBridgeError::Overflow)?;
 
@@ -3500,14 +3463,7 @@ impl Processor {
             is_initialized: true,
             account_kind: AccountKind::Deposit(deposit_nonce),
             event: DepositMultiTokenSolEventWithLen::new(
-                mint,
-                name,
-                symbol,
-                decimals,
-                transfer_amount,
-                sol_amount,
-                recipient,
-                payload,
+                mint, name, symbol, decimals, amount, sol_amount, recipient, payload,
             ),
             meta: DepositTokenMetaWithLen::new(deposit_seed),
         };

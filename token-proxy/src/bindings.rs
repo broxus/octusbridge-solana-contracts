@@ -807,3 +807,185 @@ pub fn approve_withdrawal_sol_ix(
         data,
     }
 }
+
+pub fn update_fee_ix(
+    authority_pubkey: Pubkey,
+    token_settings_pubkey: Pubkey,
+    multiplier: u64,
+    divisor: u64,
+) -> Instruction {
+    let settings_pubkey = get_settings_address();
+
+    let data = TokenProxyInstruction::UpdateFee {
+        multiplier,
+        divisor,
+    }
+    .try_to_vec()
+    .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(authority_pubkey, true),
+            AccountMeta::new(token_settings_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
+        ],
+        data,
+    }
+}
+
+pub fn withdrawal_ever_fee_ix(
+    authority_pubkey: Pubkey,
+    mint_pubkey: Pubkey,
+    recipient_token_pubkey: Pubkey,
+    token: &EverAddress,
+    amount: u64,
+) -> Instruction {
+    let settings_pubkey = get_settings_address();
+    let token_settings_pubkey = get_token_settings_ever_address(token);
+
+    let data = TokenProxyInstruction::WithdrawEverFee { amount }
+        .try_to_vec()
+        .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(authority_pubkey, true),
+            AccountMeta::new(mint_pubkey, false),
+            AccountMeta::new(recipient_token_pubkey, false),
+            AccountMeta::new(token_settings_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new_readonly(spl_token::id(), false),
+        ],
+        data,
+    }
+}
+
+pub fn withdrawal_sol_fee_ix(
+    authority_pubkey: Pubkey,
+    recipient_token_pubkey: Pubkey,
+    mint_pubkey: Pubkey,
+    amount: u64,
+) -> Instruction {
+    let settings_pubkey = get_settings_address();
+    let vault_pubkey = get_vault_address(&mint_pubkey);
+    let token_settings_pubkey = get_token_settings_sol_address(&mint_pubkey);
+
+    let data = TokenProxyInstruction::WithdrawSolFee { amount }
+        .try_to_vec()
+        .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(authority_pubkey, true),
+            AccountMeta::new(vault_pubkey, false),
+            AccountMeta::new(token_settings_pubkey, false),
+            AccountMeta::new(recipient_token_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new_readonly(spl_token::id(), false),
+        ],
+        data,
+    }
+}
+
+pub fn change_bounty_for_withdrawal_sol_ix(
+    author_pubkey: &Pubkey,
+    withdrawal_pubkey: &Pubkey,
+    bounty: u64,
+) -> Instruction {
+    let data = TokenProxyInstruction::ChangeBountyForWithdrawSol { bounty }
+        .try_to_vec()
+        .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(*author_pubkey, true),
+            AccountMeta::new(*withdrawal_pubkey, false),
+        ],
+        data,
+    }
+}
+
+pub fn cancel_withdrawal_sol_ix(
+    funder_pubkey: Pubkey,
+    author_pubkey: Pubkey,
+    withdrawal_pubkey: Pubkey,
+    mint_pubkey: Pubkey,
+    deposit_seed: u128,
+    recipient: EverAddress,
+) -> Instruction {
+    let settings_pubkey = get_settings_address();
+    let deposit_pubkey = get_deposit_address(deposit_seed);
+    let token_settings_pubkey = get_token_settings_sol_address(&mint_pubkey);
+
+    let data = TokenProxyInstruction::CancelWithdrawSol {
+        deposit_seed,
+        recipient,
+    }
+    .try_to_vec()
+    .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(funder_pubkey, true),
+            AccountMeta::new(author_pubkey, true),
+            AccountMeta::new(mint_pubkey, false),
+            AccountMeta::new(withdrawal_pubkey, false),
+            AccountMeta::new(deposit_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new_readonly(token_settings_pubkey, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+            AccountMeta::new_readonly(sysvar::rent::id(), false),
+        ],
+        data,
+    }
+}
+
+pub fn fill_withdrawal_sol_ix(
+    funder_pubkey: Pubkey,
+    author_pubkey: Pubkey,
+    to_pubkey: Pubkey,
+    mint_pubkey: Pubkey,
+    withdrawal_pubkey: Pubkey,
+    deposit_seed: u128,
+    recipient: EverAddress,
+) -> Instruction {
+    let author_token_pubkey =
+        spl_associated_token_account::get_associated_token_address(&author_pubkey, &mint_pubkey);
+    let recipient_token_pubkey =
+        spl_associated_token_account::get_associated_token_address(&to_pubkey, &mint_pubkey);
+
+    let settings_pubkey = get_settings_address();
+    let deposit_pubkey = get_deposit_address(deposit_seed);
+    let token_settings_pubkey = get_token_settings_sol_address(&mint_pubkey);
+
+    let data = TokenProxyInstruction::FillWithdrawSol {
+        deposit_seed,
+        recipient,
+    }
+    .try_to_vec()
+    .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(funder_pubkey, true),
+            AccountMeta::new(author_pubkey, true),
+            AccountMeta::new(author_token_pubkey, false),
+            AccountMeta::new(mint_pubkey, false),
+            AccountMeta::new(withdrawal_pubkey, false),
+            AccountMeta::new(recipient_token_pubkey, false),
+            AccountMeta::new(deposit_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new_readonly(token_settings_pubkey, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+            AccountMeta::new_readonly(spl_token::id(), false),
+            AccountMeta::new_readonly(sysvar::rent::id(), false),
+        ],
+        data,
+    }
+}
