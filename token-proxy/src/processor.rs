@@ -2722,8 +2722,6 @@ impl Processor {
 
         // Validate Manager Account
         if *authority_account_info.key != settings_account_data.manager {
-            msg!("Validate Manager Account");
-
             let programdata_account_info = next_account_info(account_info_iter)?;
 
             // Validate Initializer Account
