@@ -693,7 +693,10 @@ pub fn disable_emergency_ix(owner_pubkey: Pubkey) -> Instruction {
     }
 }
 
-pub fn enable_emergency_token_ix(guardian_pubkey: Pubkey) -> Instruction {
+pub fn enable_emergency_token_ix(
+    guardian_pubkey: Pubkey,
+    token_settings_pubkey: Pubkey,
+) -> Instruction {
     let settings_pubkey = get_settings_address();
 
     let data = TokenProxyInstruction::EnableTokenEmergencyMode
@@ -704,13 +707,17 @@ pub fn enable_emergency_token_ix(guardian_pubkey: Pubkey) -> Instruction {
         program_id: id(),
         accounts: vec![
             AccountMeta::new(guardian_pubkey, true),
-            AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new(token_settings_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
         ],
         data,
     }
 }
 
-pub fn enable_emergency_token_by_owner_ix(owner_pubkey: Pubkey) -> Instruction {
+pub fn enable_emergency_token_by_owner_ix(
+    owner_pubkey: Pubkey,
+    token_settings_pubkey: Pubkey,
+) -> Instruction {
     let settings_pubkey = get_settings_address();
     let program_data_pubkey = get_programdata_address();
 
@@ -722,14 +729,18 @@ pub fn enable_emergency_token_by_owner_ix(owner_pubkey: Pubkey) -> Instruction {
         program_id: id(),
         accounts: vec![
             AccountMeta::new(owner_pubkey, true),
-            AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new(token_settings_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
             AccountMeta::new_readonly(program_data_pubkey, false),
         ],
         data,
     }
 }
 
-pub fn disable_emergency_token_ix(owner_pubkey: Pubkey) -> Instruction {
+pub fn disable_emergency_token_ix(
+    owner_pubkey: Pubkey,
+    token_settings_pubkey: Pubkey,
+) -> Instruction {
     let settings_pubkey = get_settings_address();
     let program_data_pubkey = get_programdata_address();
 
@@ -741,7 +752,8 @@ pub fn disable_emergency_token_ix(owner_pubkey: Pubkey) -> Instruction {
         program_id: id(),
         accounts: vec![
             AccountMeta::new(owner_pubkey, true),
-            AccountMeta::new(settings_pubkey, false),
+            AccountMeta::new(token_settings_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
             AccountMeta::new_readonly(program_data_pubkey, false),
         ],
         data,

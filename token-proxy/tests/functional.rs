@@ -27,9 +27,8 @@ async fn test_init_settings() {
     // Setup environment
     let initializer = Keypair::new();
 
-    let programdata_address =
-        Pubkey::find_program_address(&[token_proxy::id().as_ref()], &bpf_loader_upgradeable::id())
-            .0;
+    let (programdata_address, programdata_nonce) =
+        Pubkey::find_program_address(&[token_proxy::id().as_ref()], &bpf_loader_upgradeable::id());
 
     let programdata_data = UpgradeableLoaderState::ProgramData {
         slot: 0,
@@ -93,7 +92,7 @@ async fn test_init_settings() {
     let (_, settings_nonce) = Pubkey::find_program_address(&[br"settings"], &token_proxy::id());
     assert_eq!(
         settings_data.account_kind,
-        AccountKind::Settings(settings_nonce)
+        AccountKind::Settings(settings_nonce, programdata_nonce)
     );
 
     // Check MultiVault Account
@@ -134,7 +133,7 @@ async fn test_deposit_ever() {
 
     let settings_account_data = Settings {
         is_initialized: true,
-        account_kind: AccountKind::Settings(settings_nonce),
+        account_kind: AccountKind::Settings(settings_nonce, 0),
         emergency: false,
         guardian,
         manager,
@@ -404,7 +403,7 @@ async fn test_deposit_ever_for_18_decimals() {
 
     let settings_account_data = Settings {
         is_initialized: true,
-        account_kind: AccountKind::Settings(settings_nonce),
+        account_kind: AccountKind::Settings(settings_nonce, 0),
         emergency: false,
         guardian,
         manager,
@@ -690,7 +689,7 @@ async fn test_deposit_sol() {
 
     let settings_account_data = Settings {
         is_initialized: true,
-        account_kind: AccountKind::Settings(settings_nonce),
+        account_kind: AccountKind::Settings(settings_nonce, 0),
         emergency: false,
         guardian,
         manager,
@@ -969,7 +968,7 @@ async fn test_withdraw_ever_request() {
     let round_ttl = 1209600;
     let rl_settings_account_data = round_loader::Settings {
         is_initialized: true,
-        account_kind: AccountKind::Settings(rl_settings_nonce),
+        account_kind: AccountKind::Settings(rl_settings_nonce, 0),
         current_round_number: round_number,
         round_submitter: Pubkey::new_unique(),
         min_required_votes: 1,
@@ -1183,7 +1182,7 @@ async fn test_withdraw_sol_request() {
     let round_ttl = 1209600;
     let rl_settings_account_data = round_loader::Settings {
         is_initialized: true,
-        account_kind: AccountKind::Settings(rl_settings_nonce),
+        account_kind: AccountKind::Settings(rl_settings_nonce, 0),
         current_round_number: round_number,
         round_submitter: Pubkey::new_unique(),
         min_required_votes: 1,
@@ -1457,6 +1456,7 @@ async fn test_withdraw_sol_request() {
         withdrawal_data.meta.data.try_to_vec().unwrap()
     );
 }
+
 #[tokio::test]
 async fn test_vote_for_withdrawal_request() {
     let mut program_test = ProgramTest::new(
@@ -1665,7 +1665,7 @@ async fn test_create_token_ever() {
 
     let settings_account_data = Settings {
         is_initialized: true,
-        account_kind: AccountKind::Settings(settings_nonce),
+        account_kind: AccountKind::Settings(settings_nonce, 0),
         emergency: false,
         guardian,
         manager,
@@ -1915,7 +1915,7 @@ async fn test_withdrawal_sol() {
 
     let settings_account_data = Settings {
         is_initialized: true,
-        account_kind: AccountKind::Settings(settings_nonce),
+        account_kind: AccountKind::Settings(settings_nonce, 0),
         emergency: false,
         guardian,
         manager,
@@ -2207,9 +2207,8 @@ async fn test_change_guardian() {
     let owner = Keypair::new();
 
     // Add Program Data Account
-    let programdata_address =
-        Pubkey::find_program_address(&[token_proxy::id().as_ref()], &bpf_loader_upgradeable::id())
-            .0;
+    let (programdata_address, programdata_nonce) =
+        Pubkey::find_program_address(&[token_proxy::id().as_ref()], &bpf_loader_upgradeable::id());
 
     let programdata_data = UpgradeableLoaderState::ProgramData {
         slot: 0,
@@ -2240,7 +2239,7 @@ async fn test_change_guardian() {
 
     let settings_account_data = Settings {
         is_initialized: true,
-        account_kind: AccountKind::Settings(settings_nonce),
+        account_kind: AccountKind::Settings(settings_nonce, programdata_nonce),
         emergency: false,
         guardian,
         manager,
@@ -2299,9 +2298,8 @@ async fn test_change_manager() {
     let owner = Keypair::new();
 
     // Add Program Data Account
-    let programdata_address =
-        Pubkey::find_program_address(&[token_proxy::id().as_ref()], &bpf_loader_upgradeable::id())
-            .0;
+    let (programdata_address, programdata_nonce) =
+        Pubkey::find_program_address(&[token_proxy::id().as_ref()], &bpf_loader_upgradeable::id());
 
     let programdata_data = UpgradeableLoaderState::ProgramData {
         slot: 0,
@@ -2332,7 +2330,7 @@ async fn test_change_manager() {
 
     let settings_account_data = Settings {
         is_initialized: true,
-        account_kind: AccountKind::Settings(settings_nonce),
+        account_kind: AccountKind::Settings(settings_nonce, programdata_nonce),
         emergency: false,
         guardian,
         manager,
@@ -2391,9 +2389,8 @@ async fn test_change_withdrawal_manager() {
     let owner = Keypair::new();
 
     // Add Program Data Account
-    let programdata_address =
-        Pubkey::find_program_address(&[token_proxy::id().as_ref()], &bpf_loader_upgradeable::id())
-            .0;
+    let (programdata_address, programdata_nonce) =
+        Pubkey::find_program_address(&[token_proxy::id().as_ref()], &bpf_loader_upgradeable::id());
 
     let programdata_data = UpgradeableLoaderState::ProgramData {
         slot: 0,
@@ -2424,7 +2421,7 @@ async fn test_change_withdrawal_manager() {
 
     let settings_account_data = Settings {
         is_initialized: true,
-        account_kind: AccountKind::Settings(settings_nonce),
+        account_kind: AccountKind::Settings(settings_nonce, programdata_nonce),
         emergency: false,
         guardian,
         manager,
@@ -2496,7 +2493,7 @@ async fn test_change_deposit_limit() {
 
     let settings_account_data = Settings {
         is_initialized: true,
-        account_kind: AccountKind::Settings(settings_nonce),
+        account_kind: AccountKind::Settings(settings_nonce, 0),
         emergency: false,
         manager: manager.pubkey(),
         guardian,
@@ -2635,9 +2632,8 @@ async fn test_change_withdrawal_limits() {
     let owner = Keypair::new();
 
     // Add Program Data Account
-    let programdata_address =
-        Pubkey::find_program_address(&[token_proxy::id().as_ref()], &bpf_loader_upgradeable::id())
-            .0;
+    let (programdata_address, programdata_nonce) =
+        Pubkey::find_program_address(&[token_proxy::id().as_ref()], &bpf_loader_upgradeable::id());
 
     let programdata_data = UpgradeableLoaderState::ProgramData {
         slot: 0,
@@ -2669,7 +2665,7 @@ async fn test_change_withdrawal_limits() {
 
     let settings_account_data = Settings {
         is_initialized: true,
-        account_kind: AccountKind::Settings(settings_nonce),
+        account_kind: AccountKind::Settings(settings_nonce, programdata_nonce),
         emergency: false,
         manager,
         guardian,
@@ -2823,7 +2819,7 @@ async fn test_enable_emergency() {
 
     let settings_account_data = Settings {
         is_initialized: true,
-        account_kind: AccountKind::Settings(settings_nonce),
+        account_kind: AccountKind::Settings(settings_nonce, 0),
         emergency: false,
         guardian: guardian.pubkey(),
         manager,
@@ -2880,9 +2876,8 @@ async fn test_enable_emergency_by_owner() {
     let owner = Keypair::new();
 
     // Add Program Data Account
-    let programdata_address =
-        Pubkey::find_program_address(&[token_proxy::id().as_ref()], &bpf_loader_upgradeable::id())
-            .0;
+    let (programdata_address, programdata_nonce) =
+        Pubkey::find_program_address(&[token_proxy::id().as_ref()], &bpf_loader_upgradeable::id());
 
     let programdata_data = UpgradeableLoaderState::ProgramData {
         slot: 0,
@@ -2913,7 +2908,7 @@ async fn test_enable_emergency_by_owner() {
 
     let settings_account_data = Settings {
         is_initialized: true,
-        account_kind: AccountKind::Settings(settings_nonce),
+        account_kind: AccountKind::Settings(settings_nonce, programdata_nonce),
         emergency: false,
         guardian,
         manager,
@@ -2970,9 +2965,8 @@ async fn test_disable_emergency() {
     let owner = Keypair::new();
 
     // Add Program Data Account
-    let programdata_address =
-        Pubkey::find_program_address(&[token_proxy::id().as_ref()], &bpf_loader_upgradeable::id())
-            .0;
+    let (programdata_address, programdata_nonce) =
+        Pubkey::find_program_address(&[token_proxy::id().as_ref()], &bpf_loader_upgradeable::id());
 
     let programdata_data = UpgradeableLoaderState::ProgramData {
         slot: 0,
@@ -3003,7 +2997,7 @@ async fn test_disable_emergency() {
 
     let settings_account_data = Settings {
         is_initialized: true,
-        account_kind: AccountKind::Settings(settings_nonce),
+        account_kind: AccountKind::Settings(settings_nonce, programdata_nonce),
         emergency: true,
         guardian,
         manager,
@@ -3049,6 +3043,251 @@ async fn test_disable_emergency() {
 }
 
 #[tokio::test]
+async fn test_enable_token_emergency() {
+    let mut program_test = ProgramTest::new(
+        "token_proxy",
+        token_proxy::id(),
+        processor!(Processor::process),
+    );
+
+    // Setup environment
+
+    // Add Settings Account
+    let guardian = Keypair::new();
+    let manager = Pubkey::new_unique();
+
+    let withdrawal_manager = Pubkey::new_unique();
+    let (_, settings_nonce) = Pubkey::find_program_address(&[br"settings"], &token_proxy::id());
+
+    let settings_address = get_settings_address();
+
+    let settings_account_data = Settings {
+        is_initialized: true,
+        account_kind: AccountKind::Settings(settings_nonce, 0),
+        emergency: false,
+        guardian: guardian.pubkey(),
+        manager,
+        withdrawal_manager,
+    };
+
+    let mut settings_packed = vec![0; Settings::LEN];
+    Settings::pack(settings_account_data, &mut settings_packed).unwrap();
+    program_test.add_account(
+        settings_address,
+        Account {
+            lamports: Rent::default().minimum_balance(Settings::LEN),
+            data: settings_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Token Settings Account
+    let mint = Pubkey::new_unique();
+    let vault = Pubkey::new_unique();
+    let symbol = "USDT".to_string();
+    let name = "USDT Solana Octusbridge".to_string();
+    let deposit_limit = u64::MAX;
+    let withdrawal_limit = u64::MAX;
+    let withdrawal_daily_limit = u64::MAX;
+    let (_, token_settings_nonce) =
+        Pubkey::find_program_address(&[br"settings", &mint.to_bytes()], &token_proxy::id());
+
+    let token_settings_address = get_token_settings_sol_address(&mint);
+
+    let token_settings_account_data = TokenSettings {
+        is_initialized: true,
+        account_kind: AccountKind::TokenSettings(token_settings_nonce, 0),
+        kind: TokenKind::Solana { mint, vault },
+        name,
+        symbol,
+        deposit_limit,
+        withdrawal_limit,
+        withdrawal_daily_limit,
+        withdrawal_daily_amount: 0,
+        withdrawal_epoch: 0,
+        emergency: false,
+        fee_info: Default::default(),
+    };
+
+    let mut token_settings_packed = vec![0; TokenSettings::LEN];
+    TokenSettings::pack(token_settings_account_data, &mut token_settings_packed).unwrap();
+    program_test.add_account(
+        token_settings_address,
+        Account {
+            lamports: Rent::default().minimum_balance(TokenSettings::LEN),
+            data: token_settings_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Start Program Test
+    let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
+
+    let mut transaction = Transaction::new_with_payer(
+        &[enable_emergency_token_ix(
+            guardian.pubkey(),
+            token_settings_address,
+        )],
+        Some(&funder.pubkey()),
+    );
+    transaction.sign(&[&funder, &guardian], recent_blockhash);
+
+    banks_client
+        .process_transaction(transaction)
+        .await
+        .expect("process_transaction");
+
+    let token_settings_info = banks_client
+        .get_account(token_settings_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let token_settings_data =
+        TokenSettings::unpack(token_settings_info.data()).expect("token settings unpack");
+
+    assert_eq!(token_settings_data.emergency, true);
+}
+
+#[tokio::test]
+async fn test_disable_token_emergency() {
+    let mut program_test = ProgramTest::new(
+        "token_proxy",
+        token_proxy::id(),
+        processor!(Processor::process),
+    );
+
+    // Setup environment
+    let owner = Keypair::new();
+
+    // Add Program Data Account
+    let (programdata_address, programdata_nonce) =
+        Pubkey::find_program_address(&[token_proxy::id().as_ref()], &bpf_loader_upgradeable::id());
+
+    let programdata_data = UpgradeableLoaderState::ProgramData {
+        slot: 0,
+        upgrade_authority_address: Some(owner.pubkey()),
+    };
+
+    let programdata_data_serialized =
+        bincode::serialize::<UpgradeableLoaderState>(&programdata_data).unwrap();
+
+    program_test.add_account(
+        programdata_address,
+        Account {
+            lamports: Rent::default().minimum_balance(programdata_data_serialized.len()),
+            data: programdata_data_serialized,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Settings Account
+    let guardian = Pubkey::new_unique();
+    let manager = Pubkey::new_unique();
+    let withdrawal_manager = Pubkey::new_unique();
+    let (_, settings_nonce) = Pubkey::find_program_address(&[br"settings"], &token_proxy::id());
+
+    let settings_address = get_settings_address();
+
+    let settings_account_data = Settings {
+        is_initialized: true,
+        account_kind: AccountKind::Settings(settings_nonce, programdata_nonce),
+        emergency: true,
+        guardian,
+        manager,
+        withdrawal_manager,
+    };
+
+    let mut settings_packed = vec![0; Settings::LEN];
+    Settings::pack(settings_account_data, &mut settings_packed).unwrap();
+    program_test.add_account(
+        settings_address,
+        Account {
+            lamports: Rent::default().minimum_balance(Settings::LEN),
+            data: settings_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Token Settings Account
+    let mint = Pubkey::new_unique();
+    let vault = Pubkey::new_unique();
+    let symbol = "USDT".to_string();
+    let name = "USDT Solana Octusbridge".to_string();
+    let deposit_limit = u64::MAX;
+    let withdrawal_limit = u64::MAX;
+    let withdrawal_daily_limit = u64::MAX;
+    let (_, token_settings_nonce) =
+        Pubkey::find_program_address(&[br"settings", &mint.to_bytes()], &token_proxy::id());
+
+    let token_settings_address = get_token_settings_sol_address(&mint);
+
+    let token_settings_account_data = TokenSettings {
+        is_initialized: true,
+        account_kind: AccountKind::TokenSettings(token_settings_nonce, programdata_nonce),
+        kind: TokenKind::Solana { mint, vault },
+        name,
+        symbol,
+        deposit_limit,
+        withdrawal_limit,
+        withdrawal_daily_limit,
+        withdrawal_daily_amount: 0,
+        withdrawal_epoch: 0,
+        emergency: true,
+        fee_info: Default::default(),
+    };
+
+    let mut token_settings_packed = vec![0; TokenSettings::LEN];
+    TokenSettings::pack(token_settings_account_data, &mut token_settings_packed).unwrap();
+    program_test.add_account(
+        token_settings_address,
+        Account {
+            lamports: Rent::default().minimum_balance(TokenSettings::LEN),
+            data: token_settings_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Start Program Test
+    let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
+
+    let mut transaction = Transaction::new_with_payer(
+        &[disable_emergency_token_ix(
+            owner.pubkey(),
+            token_settings_address,
+        )],
+        Some(&funder.pubkey()),
+    );
+    transaction.sign(&[&funder, &owner], recent_blockhash);
+
+    banks_client
+        .process_transaction(transaction)
+        .await
+        .expect("process_transaction");
+
+    let token_settings_info = banks_client
+        .get_account(token_settings_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let token_settings_data =
+        TokenSettings::unpack(token_settings_info.data()).expect("token settings unpack");
+
+    assert_eq!(token_settings_data.emergency, false);
+}
+
+#[tokio::test]
 async fn test_approve_withdrawal_ever() {
     let mut program_test = ProgramTest::new(
         "token_proxy",
@@ -3069,7 +3308,7 @@ async fn test_approve_withdrawal_ever() {
 
     let settings_account_data = Settings {
         is_initialized: true,
-        account_kind: AccountKind::Settings(settings_nonce),
+        account_kind: AccountKind::Settings(settings_nonce, 0),
         emergency: false,
         guardian,
         manager,
@@ -3339,7 +3578,7 @@ async fn test_approve_withdrawal_sol() {
 
     let settings_account_data = Settings {
         is_initialized: true,
-        account_kind: AccountKind::Settings(settings_nonce),
+        account_kind: AccountKind::Settings(settings_nonce, 0),
         emergency: false,
         guardian,
         manager,
@@ -3623,7 +3862,7 @@ async fn test_update_fee() {
 
     let settings_account_data = Settings {
         is_initialized: true,
-        account_kind: AccountKind::Settings(settings_nonce),
+        account_kind: AccountKind::Settings(settings_nonce, 0),
         emergency: false,
         guardian,
         withdrawal_manager,
@@ -3750,7 +3989,7 @@ async fn test_withdrawal_ever_fee() {
 
     let settings_account_data = Settings {
         is_initialized: true,
-        account_kind: AccountKind::Settings(settings_nonce),
+        account_kind: AccountKind::Settings(settings_nonce, 0),
         emergency: false,
         guardian,
         withdrawal_manager,
@@ -3948,7 +4187,7 @@ async fn test_withdrawal_sol_fee() {
 
     let settings_account_data = Settings {
         is_initialized: true,
-        account_kind: AccountKind::Settings(settings_nonce),
+        account_kind: AccountKind::Settings(settings_nonce, 0),
         emergency: false,
         guardian,
         withdrawal_manager,
@@ -4279,7 +4518,7 @@ async fn test_cancel_withdrawal_sol() {
 
     let settings_account_data = Settings {
         is_initialized: true,
-        account_kind: AccountKind::Settings(settings_nonce),
+        account_kind: AccountKind::Settings(settings_nonce, 0),
         emergency: false,
         manager,
         guardian,
@@ -4546,7 +4785,7 @@ async fn test_fill_withdrawal_sol() {
 
     let settings_account_data = Settings {
         is_initialized: true,
-        account_kind: AccountKind::Settings(settings_nonce),
+        account_kind: AccountKind::Settings(settings_nonce, 0),
         emergency: false,
         manager,
         guardian,

@@ -41,16 +41,21 @@ pub fn get_associated_proposal_address(
 
 pub fn validate_programdata_account(
     program_id: &Pubkey,
+    nonce: u8,
     programdata_account: &Pubkey,
-) -> Result<u8, ProgramError> {
-    let (pda, nonce) =
+) -> Result<(), ProgramError> {
+    let (pda, expected_nonce) =
         Pubkey::find_program_address(&[program_id.as_ref()], &bpf_loader_upgradeable::id());
 
     if pda != *programdata_account {
         return Err(ProgramError::InvalidSeeds);
     }
 
-    Ok(nonce)
+    if expected_nonce != nonce {
+        return Err(ProgramError::InvalidArgument);
+    }
+
+    Ok(())
 }
 
 pub fn validate_initializer_account(

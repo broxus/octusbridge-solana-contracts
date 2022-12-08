@@ -37,11 +37,10 @@ async fn test_init_relay_loader() {
         },
     );
 
-    let programdata_address = Pubkey::find_program_address(
+    let (programdata_address, programdata_nonce) = Pubkey::find_program_address(
         &[round_loader::id().as_ref()],
         &bpf_loader_upgradeable::id(),
-    )
-    .0;
+    );
 
     let programdata_data = UpgradeableLoaderState::ProgramData {
         slot: 0,
@@ -123,7 +122,7 @@ async fn test_init_relay_loader() {
     let (_, settings_nonce) = Pubkey::find_program_address(&[br"settings"], &round_loader::id());
     assert_eq!(
         settings_data.account_kind,
-        AccountKind::Settings(settings_nonce)
+        AccountKind::Settings(settings_nonce, programdata_nonce)
     );
 
     // Check Relay Round Account
@@ -237,7 +236,7 @@ async fn test_create_proposal() {
     let settings_address = get_settings_address();
     let settings_account_data = Settings {
         is_initialized: true,
-        account_kind: AccountKind::Settings(settings_nonce),
+        account_kind: AccountKind::Settings(settings_nonce, 0),
         current_round_number: round_number,
         round_submitter: Pubkey::new_unique(),
         min_required_votes: 1,
@@ -543,7 +542,7 @@ async fn test_create_proposal_and_execute_by_admin() {
     let settings_address = get_settings_address();
     let settings_account_data = Settings {
         is_initialized: true,
-        account_kind: AccountKind::Settings(settings_nonce),
+        account_kind: AccountKind::Settings(settings_nonce, 0),
         current_round_number: round_number,
         round_submitter: round_submitter.pubkey(),
         min_required_votes: 1,

@@ -54,7 +54,7 @@ pub struct PDA {
     Eq,
 )]
 pub enum AccountKind {
-    Settings(u8),
+    Settings(u8, u8),
     Deposit(u8),
     Proposal(u8),
     RelayRound(u8),
@@ -65,7 +65,7 @@ pub enum AccountKind {
 impl AccountKind {
     pub fn to_value(&self) -> u8 {
         match self {
-            AccountKind::Settings(_) => 0,
+            AccountKind::Settings(_, _) => 0,
             AccountKind::Deposit(_) => 1,
             AccountKind::Proposal(_) => 2,
             AccountKind::RelayRound(_) => 3,

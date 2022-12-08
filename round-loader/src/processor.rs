@@ -12,7 +12,7 @@ use solana_program::program_pack::Pack;
 use solana_program::pubkey::Pubkey;
 use solana_program::rent::Rent;
 use solana_program::sysvar::Sysvar;
-use solana_program::{msg, system_instruction};
+use solana_program::{bpf_loader_upgradeable, msg, system_instruction};
 
 use crate::*;
 
@@ -137,10 +137,14 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        bridge_utils::helper::validate_programdata_account(
-            program_id,
-            programdata_account_info.key,
-        )?;
+        // Validate Initializer Account
+        let (programdata_pubkey, programdata_nonce) =
+            Pubkey::find_program_address(&[program_id.as_ref()], &bpf_loader_upgradeable::id());
+
+        if programdata_pubkey != *programdata_account_info.key {
+            return Err(ProgramError::InvalidArgument);
+        }
+
         bridge_utils::helper::validate_initializer_account(
             initializer_account_info.key,
             programdata_account_info,
@@ -174,7 +178,7 @@ impl Processor {
         // Init Settings Account
         let settings_account_data = Settings {
             is_initialized: true,
-            account_kind: AccountKind::Settings(settings_nonce),
+            account_kind: AccountKind::Settings(settings_nonce, programdata_nonce),
             current_round_number: genesis_round_number,
             round_submitter,
             min_required_votes,
@@ -207,19 +211,10 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
-        bridge_utils::helper::validate_programdata_account(
-            program_id,
-            programdata_account_info.key,
-        )?;
-        bridge_utils::helper::validate_initializer_account(
-            author_account_info.key,
-            programdata_account_info,
-        )?;
-
         // Validate Settings Account
         let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
 
-        let settings_nonce = settings_account_data
+        let (settings_nonce, programdata_nonce) = settings_account_data
             .account_kind
             .into_settings()
             .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
@@ -233,6 +228,17 @@ impl Processor {
         if settings_account_info.owner != program_id {
             return Err(ProgramError::InvalidArgument);
         }
+
+        // Validate Initializer Account
+        bridge_utils::helper::validate_programdata_account(
+            program_id,
+            programdata_nonce,
+            programdata_account_info.key,
+        )?;
+        bridge_utils::helper::validate_initializer_account(
+            author_account_info.key,
+            programdata_account_info,
+        )?;
 
         if let Some(current_round_number) = current_round_number {
             settings_account_data.current_round_number = current_round_number;
@@ -282,7 +288,7 @@ impl Processor {
         // Validate Settings Account
         let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
 
-        let settings_nonce = settings_account_data
+        let (settings_nonce, _) = settings_account_data
             .account_kind
             .into_settings()
             .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
@@ -492,7 +498,7 @@ impl Processor {
         // Validate Settings Account
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
 
-        let settings_nonce = settings_account_data
+        let (settings_nonce, _) = settings_account_data
             .account_kind
             .into_settings()
             .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
@@ -709,7 +715,7 @@ impl Processor {
         // Validate Settings Account
         let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
 
-        let settings_nonce = settings_account_data
+        let (settings_nonce, _) = settings_account_data
             .account_kind
             .into_settings()
             .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
@@ -853,7 +859,7 @@ impl Processor {
         // Validate Settings Account
         let mut settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
 
-        let settings_nonce = settings_account_data
+        let (settings_nonce, _) = settings_account_data
             .account_kind
             .into_settings()
             .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
