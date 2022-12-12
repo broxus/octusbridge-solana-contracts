@@ -36,6 +36,8 @@ pub enum SolanaBridgeError {
     VotesOverflow,
     #[error("Invalid token settings name")]
     InvalidTokenSettingsName,
+    #[error("Failed to deserialize payload")]
+    DeserializePayload,
 }
 
 impl From<SolanaBridgeError> for ProgramError {

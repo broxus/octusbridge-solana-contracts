@@ -18,6 +18,12 @@ pub struct ExecuteProposal {
     pub instruction: u8,
 }
 
+#[derive(BorshSerialize, BorshDeserialize, Debug)]
+pub struct ExecutePayload {
+    // Instruction number
+    pub instruction: u8,
+}
+
 pub fn vote_for_proposal_ix(
     program_id: Pubkey,
     instruction: u8,
@@ -50,6 +56,36 @@ pub fn execute_proposal_ix(
     accounts: Vec<(Pubkey, bool, bool)>,
 ) -> Instruction {
     let data = ExecuteProposal { instruction }.try_to_vec().expect("pack");
+
+    let mut accounts_with_meta = Vec::with_capacity(accounts.len() + 1);
+    accounts_with_meta.push((proposal_pubkey, false, false));
+    accounts_with_meta.extend(accounts);
+
+    let accounts = accounts_with_meta
+        .into_iter()
+        .map(|(account, read_only, is_signer)| {
+            if !read_only {
+                AccountMeta::new(account, is_signer)
+            } else {
+                AccountMeta::new_readonly(account, is_signer)
+            }
+        })
+        .collect();
+
+    Instruction {
+        program_id,
+        accounts,
+        data,
+    }
+}
+
+pub fn execute_payload_ix(
+    program_id: Pubkey,
+    instruction: u8,
+    proposal_pubkey: Pubkey,
+    accounts: Vec<(Pubkey, bool, bool)>,
+) -> Instruction {
+    let data = ExecutePayload { instruction }.try_to_vec().expect("pack");
 
     let mut accounts_with_meta = Vec::with_capacity(accounts.len() + 1);
     accounts_with_meta.push((proposal_pubkey, false, false));

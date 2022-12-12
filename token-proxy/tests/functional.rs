@@ -1056,6 +1056,9 @@ async fn test_withdraw_ever_request() {
     let recipient = Pubkey::new_unique();
     let amount = 32;
 
+    let payload: Vec<u8> = vec![];
+    let attached_amount = 0;
+
     let mut transaction = Transaction::new_with_payer(
         &[withdrawal_multi_token_ever_request_ix(
             funder.pubkey(),
@@ -1070,6 +1073,8 @@ async fn test_withdraw_ever_request() {
             decimals,
             recipient,
             amount,
+            payload.clone(),
+            attached_amount,
         )],
         Some(&funder.pubkey()),
     );
@@ -1092,6 +1097,7 @@ async fn test_withdraw_ever_request() {
         decimals,
         recipient,
         amount,
+        payload,
     );
     let withdrawal_info = banks_client
         .get_account(withdrawal_address)
@@ -1145,7 +1151,7 @@ async fn test_withdraw_ever_request() {
     );
     assert_eq!(
         withdrawal_data.account_kind,
-        AccountKind::Proposal(withdrawal_nonce)
+        AccountKind::Proposal(withdrawal_nonce, None)
     );
 
     // Check Proposal Account to unpack
@@ -1360,6 +1366,9 @@ async fn test_withdraw_sol_request() {
     let recipient = Pubkey::new_unique();
     let amount = 32;
 
+    let payload: Vec<u8> = vec![];
+    let attached_amount = 0;
+
     let mut transaction = Transaction::new_with_payer(
         &[withdrawal_multi_token_sol_request_ix(
             funder.pubkey(),
@@ -1371,6 +1380,8 @@ async fn test_withdraw_sol_request() {
             round_number,
             recipient,
             amount,
+            payload.clone(),
+            attached_amount,
         )],
         Some(&funder.pubkey()),
     );
@@ -1390,6 +1401,7 @@ async fn test_withdraw_sol_request() {
         mint_address,
         recipient,
         amount,
+        payload,
     );
     let withdrawal_info = banks_client
         .get_account(withdrawal_address)
@@ -1440,7 +1452,7 @@ async fn test_withdraw_sol_request() {
     );
     assert_eq!(
         withdrawal_data.account_kind,
-        AccountKind::Proposal(withdrawal_nonce)
+        AccountKind::Proposal(withdrawal_nonce, None)
     );
 
     // Check Proposal Account to unpack
@@ -1552,6 +1564,8 @@ async fn test_vote_for_withdrawal_request() {
     let recipient = Pubkey::new_unique();
     let amount = 32;
 
+    let payload: Vec<u8> = vec![];
+
     let withdrawal_address = get_withdrawal_sol_address(
         round_number,
         event_timestamp,
@@ -1560,9 +1574,10 @@ async fn test_vote_for_withdrawal_request() {
         mint,
         recipient,
         amount,
+        payload.clone(),
     );
 
-    let event = WithdrawalMultiTokenSolEventWithLen::new(mint, amount, recipient);
+    let event = WithdrawalMultiTokenSolEventWithLen::new(mint, amount, recipient, payload);
     let event_data = hash(&event.data.try_to_vec().expect("pack")).to_bytes();
 
     let (_, withdrawal_nonce) = Pubkey::find_program_address(
@@ -1579,7 +1594,7 @@ async fn test_vote_for_withdrawal_request() {
 
     let withdrawal_account_data = WithdrawalMultiTokenSol {
         is_initialized: true,
-        account_kind: AccountKind::Proposal(withdrawal_nonce),
+        account_kind: AccountKind::Proposal(withdrawal_nonce, None),
         is_executed: false,
         author: author.pubkey(),
         round_number,
@@ -1717,6 +1732,8 @@ async fn test_create_token_ever() {
 
     let amount = 32;
 
+    let payload: Vec<u8> = vec![];
+
     let withdrawal_address = get_withdrawal_ever_address(
         round_number,
         event_timestamp,
@@ -1728,6 +1745,7 @@ async fn test_create_token_ever() {
         decimals,
         recipient.pubkey(),
         amount,
+        payload.clone(),
     );
 
     let event = WithdrawalMultiTokenEverEventWithLen::new(
@@ -1737,6 +1755,7 @@ async fn test_create_token_ever() {
         decimals,
         amount,
         recipient.pubkey(),
+        payload,
     );
     let event_data = hash(&event.data.try_to_vec().expect("pack")).to_bytes();
 
@@ -1756,7 +1775,7 @@ async fn test_create_token_ever() {
 
     let withdrawal_account_data = WithdrawalMultiTokenEver {
         is_initialized: true,
-        account_kind: AccountKind::Proposal(withdrawal_nonce),
+        account_kind: AccountKind::Proposal(withdrawal_nonce, None),
         is_executed: false,
         author: Pubkey::new_unique(),
         round_number,
@@ -2069,6 +2088,8 @@ async fn test_withdrawal_sol() {
 
     let amount = 32;
 
+    let payload: Vec<u8> = vec![];
+
     let withdrawal_address = get_withdrawal_sol_address(
         round_number,
         event_timestamp,
@@ -2077,9 +2098,10 @@ async fn test_withdrawal_sol() {
         mint_address,
         recipient,
         amount,
+        payload.clone(),
     );
 
-    let event = WithdrawalMultiTokenSolEventWithLen::new(mint_address, amount, recipient);
+    let event = WithdrawalMultiTokenSolEventWithLen::new(mint_address, amount, recipient, payload);
     let event_data = hash(&event.data.try_to_vec().expect("pack")).to_bytes();
 
     let (_, withdrawal_nonce) = Pubkey::find_program_address(
@@ -2098,7 +2120,7 @@ async fn test_withdrawal_sol() {
 
     let withdrawal_account_data = WithdrawalMultiTokenSol {
         is_initialized: true,
-        account_kind: AccountKind::Proposal(withdrawal_nonce),
+        account_kind: AccountKind::Proposal(withdrawal_nonce, None),
         is_executed: false,
         author: Pubkey::new_unique(),
         round_number,
@@ -3441,6 +3463,8 @@ async fn test_approve_withdrawal_ever() {
 
     let amount = 32;
 
+    let payload: Vec<u8> = vec![];
+
     let withdrawal_address = get_withdrawal_ever_address(
         round_number,
         event_timestamp,
@@ -3452,10 +3476,12 @@ async fn test_approve_withdrawal_ever() {
         decimals,
         recipient,
         amount,
+        payload.clone(),
     );
 
-    let event =
-        WithdrawalMultiTokenEverEventWithLen::new(token, name, symbol, decimals, amount, recipient);
+    let event = WithdrawalMultiTokenEverEventWithLen::new(
+        token, name, symbol, decimals, amount, recipient, payload,
+    );
     let event_data = hash(&event.data.try_to_vec().expect("pack")).to_bytes();
 
     let (_, withdrawal_nonce) = Pubkey::find_program_address(
@@ -3474,7 +3500,7 @@ async fn test_approve_withdrawal_ever() {
 
     let withdrawal_account_data = WithdrawalMultiTokenEver {
         is_initialized: true,
-        account_kind: AccountKind::Proposal(withdrawal_nonce),
+        account_kind: AccountKind::Proposal(withdrawal_nonce, None),
         is_executed: false,
         author: Pubkey::new_unique(),
         round_number,
@@ -3730,6 +3756,8 @@ async fn test_approve_withdrawal_sol() {
 
     let amount = 32;
 
+    let payload: Vec<u8> = vec![];
+
     let withdrawal_address = get_withdrawal_sol_address(
         round_number,
         event_timestamp,
@@ -3738,9 +3766,10 @@ async fn test_approve_withdrawal_sol() {
         mint_address,
         recipient,
         amount,
+        payload.clone(),
     );
 
-    let event = WithdrawalMultiTokenSolEventWithLen::new(mint_address, amount, recipient);
+    let event = WithdrawalMultiTokenSolEventWithLen::new(mint_address, amount, recipient, payload);
     let event_data = hash(&event.data.try_to_vec().expect("pack")).to_bytes();
 
     let (_, withdrawal_nonce) = Pubkey::find_program_address(
@@ -3759,7 +3788,7 @@ async fn test_approve_withdrawal_sol() {
 
     let withdrawal_account_data = WithdrawalMultiTokenSol {
         is_initialized: true,
-        account_kind: AccountKind::Proposal(withdrawal_nonce),
+        account_kind: AccountKind::Proposal(withdrawal_nonce, None),
         is_executed: false,
         author: Pubkey::new_unique(),
         round_number,
@@ -4412,6 +4441,8 @@ async fn test_change_bounty_for_withdrawal_sol() {
     let recipient = Pubkey::new_unique();
     let amount = 32;
 
+    let payload: Vec<u8> = vec![];
+
     let withdrawal_address = get_withdrawal_sol_address(
         round_number,
         event_timestamp,
@@ -4420,9 +4451,10 @@ async fn test_change_bounty_for_withdrawal_sol() {
         mint,
         recipient,
         amount,
+        payload.clone(),
     );
 
-    let event = WithdrawalMultiTokenSolEventWithLen::new(mint, amount, recipient);
+    let event = WithdrawalMultiTokenSolEventWithLen::new(mint, amount, recipient, payload);
     let event_data = hash(&event.data.try_to_vec().expect("pack")).to_bytes();
 
     let (_, withdrawal_nonce) = Pubkey::find_program_address(
@@ -4439,7 +4471,7 @@ async fn test_change_bounty_for_withdrawal_sol() {
 
     let withdrawal_account_data = WithdrawalMultiTokenSol {
         is_initialized: true,
-        account_kind: AccountKind::Proposal(withdrawal_nonce),
+        account_kind: AccountKind::Proposal(withdrawal_nonce, None),
         is_executed: false,
         author: author.pubkey(),
         round_number,
@@ -4656,6 +4688,8 @@ async fn test_cancel_withdrawal_sol() {
     let recipient = Pubkey::new_unique();
     let amount = 32;
 
+    let payload: Vec<u8> = vec![];
+
     let withdrawal_address = get_withdrawal_sol_address(
         round_number,
         event_timestamp,
@@ -4664,9 +4698,10 @@ async fn test_cancel_withdrawal_sol() {
         mint_address,
         recipient,
         amount,
+        payload.clone(),
     );
 
-    let event = WithdrawalMultiTokenSolEventWithLen::new(mint_address, amount, recipient);
+    let event = WithdrawalMultiTokenSolEventWithLen::new(mint_address, amount, recipient, payload);
     let event_data = hash(&event.data.try_to_vec().expect("pack")).to_bytes();
 
     let (_, withdrawal_nonce) = Pubkey::find_program_address(
@@ -4683,7 +4718,7 @@ async fn test_cancel_withdrawal_sol() {
 
     let withdrawal_account_data = WithdrawalMultiTokenSol {
         is_initialized: true,
-        account_kind: AccountKind::Proposal(withdrawal_nonce),
+        account_kind: AccountKind::Proposal(withdrawal_nonce, None),
         is_executed: false,
         author: author.pubkey(),
         round_number,
@@ -4955,6 +4990,8 @@ async fn test_fill_withdrawal_sol() {
     let amount = 32;
     let bounty = 2;
 
+    let payload: Vec<u8> = vec![];
+
     let withdrawal_address = get_withdrawal_sol_address(
         round_number,
         event_timestamp,
@@ -4963,9 +5000,11 @@ async fn test_fill_withdrawal_sol() {
         mint_address,
         recipient_address,
         amount,
+        payload.clone(),
     );
 
-    let event = WithdrawalMultiTokenSolEventWithLen::new(mint_address, amount, recipient_address);
+    let event =
+        WithdrawalMultiTokenSolEventWithLen::new(mint_address, amount, recipient_address, payload);
     let event_data = hash(&event.data.try_to_vec().expect("pack")).to_bytes();
 
     let (_, withdrawal_nonce) = Pubkey::find_program_address(
@@ -4982,7 +5021,7 @@ async fn test_fill_withdrawal_sol() {
 
     let withdrawal_account_data = WithdrawalMultiTokenSol {
         is_initialized: true,
-        account_kind: AccountKind::Proposal(withdrawal_nonce),
+        account_kind: AccountKind::Proposal(withdrawal_nonce, None),
         is_executed: false,
         author: author.pubkey(),
         round_number,

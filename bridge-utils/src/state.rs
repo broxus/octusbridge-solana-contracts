@@ -56,10 +56,10 @@ pub struct PDA {
 pub enum AccountKind {
     Settings(u8, u8),
     Deposit(u8),
-    Proposal(u8),
+    Proposal(u8, Option<u8>), // Proposal nonce and proxy nonce
     RelayRound(u8),
     MultiVault(u8),
-    TokenSettings(u8, u8),
+    TokenSettings(u8, u8), // Token settings nonce and mint/vault nonce
 }
 
 impl AccountKind {
@@ -67,7 +67,7 @@ impl AccountKind {
         match self {
             AccountKind::Settings(_, _) => 0,
             AccountKind::Deposit(_) => 1,
-            AccountKind::Proposal(_) => 2,
+            AccountKind::Proposal(_, _) => 2,
             AccountKind::RelayRound(_) => 3,
             AccountKind::MultiVault(_) => 4,
             AccountKind::TokenSettings(_, _) => 5,

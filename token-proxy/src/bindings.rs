@@ -60,14 +60,20 @@ pub fn get_withdrawal_ever_address(
     decimals: u8,
     recipient: Pubkey,
     amount: u128,
+    payload: Vec<u8>,
 ) -> Pubkey {
     let program_id = &id();
 
     let event_data = hash(
-        &WithdrawalMultiTokenEverEventWithLen::new(
-            token, name, symbol, decimals, amount, recipient,
-        )
-        .data
+        &WithdrawalMultiTokenEverEvent {
+            token,
+            name,
+            symbol,
+            decimals,
+            amount,
+            recipient,
+            payload,
+        }
         .try_to_vec()
         .expect("pack"),
     )
@@ -91,14 +97,19 @@ pub fn get_withdrawal_sol_address(
     mint: Pubkey,
     recipient: Pubkey,
     amount: u128,
+    payload: Vec<u8>,
 ) -> Pubkey {
     let program_id = &id();
 
     let event_data = hash(
-        &WithdrawalMultiTokenSolEventWithLen::new(mint, amount, recipient)
-            .data
-            .try_to_vec()
-            .expect("pack"),
+        &WithdrawalMultiTokenSolEvent {
+            mint,
+            amount,
+            recipient,
+            payload,
+        }
+        .try_to_vec()
+        .expect("pack"),
     )
     .to_bytes();
 
@@ -260,6 +271,8 @@ pub fn withdrawal_multi_token_ever_request_ix(
     decimals: u8,
     recipient: Pubkey,
     amount: u128,
+    payload: Vec<u8>,
+    attached_amount: u64,
 ) -> Instruction {
     let withdrawal_pubkey = get_withdrawal_ever_address(
         round_number,
@@ -272,6 +285,7 @@ pub fn withdrawal_multi_token_ever_request_ix(
         decimals,
         recipient,
         amount,
+        payload.clone(),
     );
     let rl_settings_pubkey =
         bridge_utils::helper::get_associated_settings_address(&round_loader::id());
@@ -288,6 +302,8 @@ pub fn withdrawal_multi_token_ever_request_ix(
         decimals,
         recipient,
         amount,
+        payload,
+        attached_amount,
     }
     .try_to_vec()
     .expect("pack");
@@ -319,6 +335,8 @@ pub fn withdrawal_multi_token_sol_request_ix(
     round_number: u32,
     recipient: Pubkey,
     amount: u128,
+    payload: Vec<u8>,
+    attached_amount: u64,
 ) -> Instruction {
     let withdrawal_pubkey = get_withdrawal_sol_address(
         round_number,
@@ -328,6 +346,7 @@ pub fn withdrawal_multi_token_sol_request_ix(
         mint,
         recipient,
         amount,
+        payload.clone(),
     );
 
     let token_settings_pubkey = get_token_settings_sol_address(&mint);
@@ -343,6 +362,8 @@ pub fn withdrawal_multi_token_sol_request_ix(
         event_configuration,
         recipient,
         amount,
+        payload,
+        attached_amount,
     }
     .try_to_vec()
     .expect("pack");

@@ -129,7 +129,7 @@ impl Processor {
         let initializer_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
         let programdata_account_info = next_account_info(account_info_iter)?;
-        let system_program_info = next_account_info(account_info_iter)?;
+        let _system_program_info = next_account_info(account_info_iter)?;
         let rent_sysvar_info = next_account_info(account_info_iter)?;
         let rent = &Rent::from_account_info(rent_sysvar_info)?;
 
@@ -167,11 +167,7 @@ impl Processor {
                 Settings::LEN as u64,
                 program_id,
             ),
-            &[
-                funder_account_info.clone(),
-                settings_account_info.clone(),
-                system_program_info.clone(),
-            ],
+            accounts,
             &[settings_account_signer_seeds],
         )?;
 
@@ -277,7 +273,7 @@ impl Processor {
         let creator_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
         let relay_round_account_info = next_account_info(account_info_iter)?;
-        let system_program_info = next_account_info(account_info_iter)?;
+        let _system_program_info = next_account_info(account_info_iter)?;
         let rent_sysvar_info = next_account_info(account_info_iter)?;
         let rent = &Rent::from_account_info(rent_sysvar_info)?;
 
@@ -332,11 +328,7 @@ impl Processor {
                 RelayRound::LEN as u64,
                 program_id,
             ),
-            &[
-                funder_account_info.clone(),
-                relay_round_account_info.clone(),
-                system_program_info.clone(),
-            ],
+            accounts,
             &[relay_round_account_signer_seeds],
         )?;
 
@@ -381,7 +373,7 @@ impl Processor {
         let funder_account_info = next_account_info(account_info_iter)?;
         let creator_account_info = next_account_info(account_info_iter)?;
         let proposal_account_info = next_account_info(account_info_iter)?;
-        let system_program_info = next_account_info(account_info_iter)?;
+        let _system_program_info = next_account_info(account_info_iter)?;
 
         let rent_sysvar_info = next_account_info(account_info_iter)?;
         let rent = &Rent::from_account_info(rent_sysvar_info)?;
@@ -424,17 +416,13 @@ impl Processor {
                 RelayRoundProposal::LEN as u64,
                 program_id,
             ),
-            &[
-                funder_account_info.clone(),
-                proposal_account_info.clone(),
-                system_program_info.clone(),
-            ],
+            accounts,
             &[proposal_account_signer_seeds],
         )?;
 
         // Init Proposal Account
         let proposal_account_data = RelayRoundProposal {
-            account_kind: AccountKind::Proposal(proposal_nonce),
+            account_kind: AccountKind::Proposal(proposal_nonce, None),
             author: *creator_account_info.key,
             round_number,
             required_votes: 0,
@@ -493,7 +481,7 @@ impl Processor {
         let proposal_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
         let relay_round_account_info = next_account_info(account_info_iter)?;
-        let system_program_info = next_account_info(account_info_iter)?;
+        let _system_program_info = next_account_info(account_info_iter)?;
 
         // Validate Settings Account
         let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
@@ -585,11 +573,7 @@ impl Processor {
                 proposal_account_info.key,
                 RELAY_REPARATION * relay_round_account_data.relays.len() as u64,
             ),
-            &[
-                funder_account_info.clone(),
-                proposal_account_info.clone(),
-                system_program_info.clone(),
-            ],
+            accounts,
         )?;
 
         Ok(())
@@ -708,7 +692,7 @@ impl Processor {
         let settings_account_info = next_account_info(account_info_iter)?;
         let proposal_account_info = next_account_info(account_info_iter)?;
         let relay_round_account_info = next_account_info(account_info_iter)?;
-        let system_program_info = next_account_info(account_info_iter)?;
+        let _system_program_info = next_account_info(account_info_iter)?;
         let rent_sysvar_info = next_account_info(account_info_iter)?;
         let rent = &Rent::from_account_info(rent_sysvar_info)?;
 
@@ -792,11 +776,7 @@ impl Processor {
                     RelayRound::LEN as u64,
                     program_id,
                 ),
-                &[
-                    funder_account_info.clone(),
-                    relay_round_account_info.clone(),
-                    system_program_info.clone(),
-                ],
+                accounts,
                 &[relay_round_account_signer_seeds],
             )?;
 
@@ -848,7 +828,7 @@ impl Processor {
         let settings_account_info = next_account_info(account_info_iter)?;
         let proposal_account_info = next_account_info(account_info_iter)?;
         let relay_round_account_info = next_account_info(account_info_iter)?;
-        let system_program_info = next_account_info(account_info_iter)?;
+        let _system_program_info = next_account_info(account_info_iter)?;
         let rent_sysvar_info = next_account_info(account_info_iter)?;
         let rent = &Rent::from_account_info(rent_sysvar_info)?;
 
@@ -901,11 +881,7 @@ impl Processor {
                 RelayRound::LEN as u64,
                 program_id,
             ),
-            &[
-                funder_account_info.clone(),
-                relay_round_account_info.clone(),
-                system_program_info.clone(),
-            ],
+            accounts,
             &[relay_round_account_signer_seeds],
         )?;
 

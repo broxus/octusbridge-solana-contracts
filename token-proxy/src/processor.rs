@@ -92,6 +92,8 @@ impl Processor {
                 decimals,
                 recipient,
                 amount,
+                payload,
+                attached_amount,
             } => {
                 msg!("Instruction: Withdraw Multi token EVER request");
                 Self::process_withdraw_multi_token_ever_request(
@@ -106,6 +108,8 @@ impl Processor {
                     decimals,
                     recipient,
                     amount,
+                    payload,
+                    attached_amount,
                 )?;
             }
             TokenProxyInstruction::WithdrawMultiTokenSolRequest {
@@ -114,6 +118,8 @@ impl Processor {
                 event_configuration,
                 recipient,
                 amount,
+                payload,
+                attached_amount,
             } => {
                 msg!("Instruction: Withdraw multi token SOL request");
                 Self::process_withdraw_multi_token_sol_request(
@@ -124,6 +130,8 @@ impl Processor {
                     event_configuration,
                     recipient,
                     amount,
+                    payload,
+                    attached_amount,
                 )?;
             }
             TokenProxyInstruction::VoteForWithdrawRequest { vote } => {
@@ -229,6 +237,14 @@ impl Processor {
                 msg!("Instruction: Fill Withdraw SOL");
                 Self::process_fill_withdraw_sol(program_id, accounts, deposit_seed, recipient)?;
             }
+            TokenProxyInstruction::ExecutePayloadEver => {
+                msg!("Instruction: Execute Payload EVER");
+                Self::process_execute_payload_ever(program_id, accounts)?;
+            }
+            TokenProxyInstruction::ExecutePayloadSol => {
+                msg!("Instruction: Execute Payload SOL");
+                Self::process_execute_payload_sol(program_id, accounts)?;
+            }
         };
 
         Ok(())
@@ -248,7 +264,7 @@ impl Processor {
         let settings_account_info = next_account_info(account_info_iter)?;
         let multi_vault_account_info = next_account_info(account_info_iter)?;
         let programdata_account_info = next_account_info(account_info_iter)?;
-        let system_program_info = next_account_info(account_info_iter)?;
+        let _system_program_info = next_account_info(account_info_iter)?;
         let rent_sysvar_info = next_account_info(account_info_iter)?;
         let rent = &Rent::from_account_info(rent_sysvar_info)?;
 
@@ -286,11 +302,7 @@ impl Processor {
                 Settings::LEN as u64,
                 program_id,
             ),
-            &[
-                funder_account_info.clone(),
-                settings_account_info.clone(),
-                system_program_info.clone(),
-            ],
+            accounts,
             &[settings_account_signer_seeds],
         )?;
 
@@ -326,11 +338,7 @@ impl Processor {
                 MultiVault::LEN as u64,
                 program_id,
             ),
-            &[
-                funder_account_info.clone(),
-                multi_vault_account_info.clone(),
-                system_program_info.clone(),
-            ],
+            accounts,
             &[multi_vault_account_signer_seeds],
         )?;
 
@@ -367,8 +375,8 @@ impl Processor {
         let multi_vault_account_info = next_account_info(account_info_iter)?;
         let token_settings_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
-        let system_program_info = next_account_info(account_info_iter)?;
-        let token_program_info = next_account_info(account_info_iter)?;
+        let _system_program_info = next_account_info(account_info_iter)?;
+        let _token_program_info = next_account_info(account_info_iter)?;
         let rent_sysvar_info = next_account_info(account_info_iter)?;
         let rent = &Rent::from_account_info(rent_sysvar_info)?;
 
@@ -443,12 +451,7 @@ impl Processor {
                 &[creator_account_info.key],
                 amount,
             )?,
-            &[
-                token_program_info.clone(),
-                creator_account_info.clone(),
-                creator_token_account_info.clone(),
-                mint_account_info.clone(),
-            ],
+            accounts,
         )?;
 
         // Create Deposit Account
@@ -469,11 +472,7 @@ impl Processor {
                 DepositMultiTokenEver::LEN as u64,
                 program_id,
             ),
-            &[
-                funder_account_info.clone(),
-                deposit_account_info.clone(),
-                system_program_info.clone(),
-            ],
+            accounts,
             &[deposit_account_signer_seeds],
         )?;
 
@@ -530,11 +529,7 @@ impl Processor {
                 multi_vault_account_info.key,
                 sol_amount,
             ),
-            &[
-                funder_account_info.clone(),
-                multi_vault_account_info.clone(),
-                system_program_info.clone(),
-            ],
+            accounts,
         )?;
 
         Ok(())
@@ -563,8 +558,8 @@ impl Processor {
         let multi_vault_account_info = next_account_info(account_info_iter)?;
         let token_settings_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
-        let system_program_info = next_account_info(account_info_iter)?;
-        let token_program_info = next_account_info(account_info_iter)?;
+        let _system_program_info = next_account_info(account_info_iter)?;
+        let _token_program_info = next_account_info(account_info_iter)?;
         let rent_sysvar_info = next_account_info(account_info_iter)?;
         let rent = &Rent::from_account_info(rent_sysvar_info)?;
 
@@ -622,11 +617,7 @@ impl Processor {
                     spl_token::state::Account::LEN as u64,
                     &spl_token::id(),
                 ),
-                &[
-                    funder_account_info.clone(),
-                    vault_account_info.clone(),
-                    system_program_info.clone(),
-                ],
+                accounts,
                 &[vault_account_signer_seeds],
             )?;
 
@@ -638,12 +629,7 @@ impl Processor {
                     mint_account_info.key,
                     vault_account_info.key,
                 )?,
-                &[
-                    vault_account_info.clone(),
-                    token_program_info.clone(),
-                    rent_sysvar_info.clone(),
-                    mint_account_info.clone(),
-                ],
+                accounts,
                 &[vault_account_signer_seeds],
             )?;
 
@@ -670,11 +656,7 @@ impl Processor {
                     TokenSettings::LEN as u64,
                     program_id,
                 ),
-                &[
-                    funder_account_info.clone(),
-                    token_settings_account_info.clone(),
-                    system_program_info.clone(),
-                ],
+                accounts,
                 &[token_settings_account_signer_seeds],
             )?;
 
@@ -772,12 +754,7 @@ impl Processor {
                 &[creator_account_info.key],
                 amount,
             )?,
-            &[
-                token_program_info.clone(),
-                creator_account_info.clone(),
-                creator_token_account_info.clone(),
-                vault_account_info.clone(),
-            ],
+            accounts,
         )?;
 
         // Send sol amount to multi vault
@@ -787,11 +764,7 @@ impl Processor {
                 multi_vault_account_info.key,
                 sol_amount,
             ),
-            &[
-                funder_account_info.clone(),
-                multi_vault_account_info.clone(),
-                system_program_info.clone(),
-            ],
+            accounts,
         )?;
 
         // Create Deposit Account
@@ -812,11 +785,7 @@ impl Processor {
                 DepositMultiTokenSol::LEN as u64,
                 program_id,
             ),
-            &[
-                funder_account_info.clone(),
-                deposit_account_info.clone(),
-                system_program_info.clone(),
-            ],
+            accounts,
             &[deposit_account_signer_seeds],
         )?;
 
@@ -885,6 +854,8 @@ impl Processor {
         decimals: u8,
         recipient: Pubkey,
         amount: u128,
+        payload: Vec<u8>,
+        attached_amount: u64,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -893,7 +864,7 @@ impl Processor {
         let withdrawal_account_info = next_account_info(account_info_iter)?;
         let rl_settings_account_info = next_account_info(account_info_iter)?;
         let relay_round_account_info = next_account_info(account_info_iter)?;
-        let system_program_info = next_account_info(account_info_iter)?;
+        let _system_program_info = next_account_info(account_info_iter)?;
 
         let rent_sysvar_info = next_account_info(account_info_iter)?;
         let rent = &Rent::from_account_info(rent_sysvar_info)?;
@@ -958,9 +929,71 @@ impl Processor {
 
         let epoch = clock.unix_timestamp / SECONDS_PER_DAY as i64;
 
+        // Create Proxy Account
+        let mut proxy_nonce = None;
+
+        if !payload.is_empty() {
+            let proxy_account_info = next_account_info(account_info_iter)?;
+            let mint_account_info = next_account_info(account_info_iter)?;
+
+            let (proxy_pubkey, nonce) = Pubkey::find_program_address(
+                &[br"proxy", &withdrawal_account_info.key.to_bytes()],
+                program_id,
+            );
+
+            let proxy_signer_seeds: &[&[_]] =
+                &[br"proxy", &withdrawal_account_info.key.to_bytes(), &[nonce]];
+
+            if proxy_pubkey != *proxy_account_info.key {
+                return Err(ProgramError::InvalidArgument);
+            }
+
+            invoke_signed(
+                &system_instruction::create_account(
+                    funder_account_info.key,
+                    proxy_account_info.key,
+                    1.max(rent.minimum_balance(spl_token::state::Account::LEN)),
+                    spl_token::state::Account::LEN as u64,
+                    &spl_token::id(),
+                ),
+                accounts,
+                &[proxy_signer_seeds],
+            )?;
+
+            let mint_pubkey = get_associated_mint_address(program_id, &token);
+
+            if mint_pubkey != *mint_account_info.key {
+                return Err(ProgramError::InvalidArgument);
+            }
+
+            invoke_signed(
+                &spl_token::instruction::initialize_account(
+                    &spl_token::id(),
+                    proxy_account_info.key,
+                    mint_account_info.key,
+                    proxy_account_info.key,
+                )?,
+                accounts,
+                &[proxy_signer_seeds],
+            )?;
+
+            // Attach SOL to proxy account
+            let funder_starting_lamports = funder_account_info.lamports();
+            **funder_account_info.lamports.borrow_mut() = funder_starting_lamports
+                .checked_sub(attached_amount)
+                .ok_or(SolanaBridgeError::Overflow)?;
+
+            let proxy_starting_lamports = proxy_account_info.lamports();
+            **proxy_account_info.lamports.borrow_mut() = proxy_starting_lamports
+                .checked_add(attached_amount)
+                .ok_or(SolanaBridgeError::Overflow)?;
+
+            proxy_nonce = Some(nonce);
+        }
+
         // Create Withdraw Account
         let event = WithdrawalMultiTokenEverEventWithLen::new(
-            token, name, symbol, decimals, amount, recipient,
+            token, name, symbol, decimals, amount, recipient, payload,
         );
 
         let event_data = hash(&event.data.try_to_vec()?);
@@ -998,17 +1031,13 @@ impl Processor {
                 WithdrawalMultiTokenEver::LEN as u64,
                 program_id,
             ),
-            &[
-                funder_account_info.clone(),
-                withdrawal_account_info.clone(),
-                system_program_info.clone(),
-            ],
+            accounts,
             &[withdrawal_account_signer_seeds],
         )?;
 
         let withdrawal_account_data = WithdrawalMultiTokenEver {
             is_initialized: true,
-            account_kind: AccountKind::Proposal(withdrawal_nonce),
+            account_kind: AccountKind::Proposal(withdrawal_nonce, proxy_nonce),
             is_executed: false,
             author: *author_account_info.key,
             round_number,
@@ -1037,11 +1066,7 @@ impl Processor {
                 withdrawal_account_info.key,
                 relays_lamports,
             ),
-            &[
-                funder_account_info.clone(),
-                withdrawal_account_info.clone(),
-                system_program_info.clone(),
-            ],
+            accounts,
         )?;
 
         Ok(())
@@ -1055,6 +1080,8 @@ impl Processor {
         event_configuration: Pubkey,
         recipient: Pubkey,
         amount: u128,
+        payload: Vec<u8>,
+        attached_amount: u64,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -1064,7 +1091,7 @@ impl Processor {
         let token_settings_account_info = next_account_info(account_info_iter)?;
         let rl_settings_account_info = next_account_info(account_info_iter)?;
         let relay_round_account_info = next_account_info(account_info_iter)?;
-        let system_program_info = next_account_info(account_info_iter)?;
+        let _system_program_info = next_account_info(account_info_iter)?;
 
         let rent_sysvar_info = next_account_info(account_info_iter)?;
         let rent = &Rent::from_account_info(rent_sysvar_info)?;
@@ -1139,8 +1166,68 @@ impl Processor {
 
         let epoch = clock.unix_timestamp / SECONDS_PER_DAY as i64;
 
+        // Create Proxy Account
+        let mut proxy_nonce = None;
+
+        if !payload.is_empty() {
+            let proxy_account_info = next_account_info(account_info_iter)?;
+            let mint_account_info = next_account_info(account_info_iter)?;
+
+            let (proxy_pubkey, nonce) = Pubkey::find_program_address(
+                &[br"proxy", &withdrawal_account_info.key.to_bytes()],
+                program_id,
+            );
+
+            let proxy_signer_seeds: &[&[_]] =
+                &[br"proxy", &withdrawal_account_info.key.to_bytes(), &[nonce]];
+
+            if proxy_pubkey != *proxy_account_info.key {
+                return Err(ProgramError::InvalidArgument);
+            }
+
+            invoke_signed(
+                &system_instruction::create_account(
+                    funder_account_info.key,
+                    proxy_account_info.key,
+                    1.max(rent.minimum_balance(spl_token::state::Account::LEN)),
+                    spl_token::state::Account::LEN as u64,
+                    &spl_token::id(),
+                ),
+                accounts,
+                &[proxy_signer_seeds],
+            )?;
+
+            if mint != *mint_account_info.key {
+                return Err(ProgramError::InvalidArgument);
+            }
+
+            invoke_signed(
+                &spl_token::instruction::initialize_account(
+                    &spl_token::id(),
+                    proxy_account_info.key,
+                    mint_account_info.key,
+                    proxy_account_info.key,
+                )?,
+                accounts,
+                &[proxy_signer_seeds],
+            )?;
+
+            // Attach SOL to proxy account
+            let funder_starting_lamports = funder_account_info.lamports();
+            **funder_account_info.lamports.borrow_mut() = funder_starting_lamports
+                .checked_sub(attached_amount)
+                .ok_or(SolanaBridgeError::Overflow)?;
+
+            let proxy_starting_lamports = proxy_account_info.lamports();
+            **proxy_account_info.lamports.borrow_mut() = proxy_starting_lamports
+                .checked_add(attached_amount)
+                .ok_or(SolanaBridgeError::Overflow)?;
+
+            proxy_nonce = Some(nonce);
+        }
+
         // Create Withdraw Account
-        let event = WithdrawalMultiTokenSolEventWithLen::new(mint, amount, recipient);
+        let event = WithdrawalMultiTokenSolEventWithLen::new(mint, amount, recipient, payload);
 
         let event_data = hash(&event.data.try_to_vec()?);
 
@@ -1177,17 +1264,13 @@ impl Processor {
                 WithdrawalMultiTokenSol::LEN as u64,
                 program_id,
             ),
-            &[
-                funder_account_info.clone(),
-                withdrawal_account_info.clone(),
-                system_program_info.clone(),
-            ],
+            accounts,
             &[withdrawal_account_signer_seeds],
         )?;
 
         let withdrawal_account_data = WithdrawalMultiTokenSol {
             is_initialized: true,
-            account_kind: AccountKind::Proposal(withdrawal_nonce),
+            account_kind: AccountKind::Proposal(withdrawal_nonce, proxy_nonce),
             is_executed: false,
             author: *author_account_info.key,
             round_number,
@@ -1214,11 +1297,7 @@ impl Processor {
                 withdrawal_account_info.key,
                 RELAY_REPARATION * relay_round_account_data.relays.len() as u64,
             ),
-            &[
-                funder_account_info.clone(),
-                withdrawal_account_info.clone(),
-                system_program_info.clone(),
-            ],
+            accounts,
         )?;
 
         Ok(())
@@ -1337,11 +1416,11 @@ impl Processor {
 
         let withdrawal_account_info = next_account_info(account_info_iter)?;
         let mint_account_info = next_account_info(account_info_iter)?;
-        let recipient_token_account_info = next_account_info(account_info_iter)?;
+        let recipient_account_info = next_account_info(account_info_iter)?;
         let token_settings_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
-        let token_program_info = next_account_info(account_info_iter)?;
-        let system_program_info = next_account_info(account_info_iter)?;
+        let _token_program_info = next_account_info(account_info_iter)?;
+        let _system_program_info = next_account_info(account_info_iter)?;
 
         let rent_sysvar_info = next_account_info(account_info_iter)?;
         let rent = &Rent::from_account_info(rent_sysvar_info)?;
@@ -1405,7 +1484,7 @@ impl Processor {
                 Ok(funder_account_info) => funder_account_info,
                 Err(_) => return Ok(()),
             };
-            let associated_token_program_info = next_account_info(account_info_iter)?;
+            let _associated_token_program_info = next_account_info(account_info_iter)?;
 
             // Create Mint Account
             let ever_decimals = withdrawal_account_data.event.data.decimals;
@@ -1432,11 +1511,7 @@ impl Processor {
                     spl_token::state::Mint::LEN as u64,
                     &spl_token::id(),
                 ),
-                &[
-                    funder_account_info.clone(),
-                    mint_account_info.clone(),
-                    system_program_info.clone(),
-                ],
+                accounts,
                 &[mint_account_signer_seeds],
             )?;
 
@@ -1449,11 +1524,7 @@ impl Processor {
                     None,
                     solana_decimals,
                 )?,
-                &[
-                    mint_account_info.clone(),
-                    token_program_info.clone(),
-                    rent_sysvar_info.clone(),
-                ],
+                accounts,
                 &[mint_account_signer_seeds],
             )?;
 
@@ -1464,14 +1535,7 @@ impl Processor {
                     funder_account_info.key,
                     mint_account_info.key,
                 ),
-                &[
-                    funder_account_info.clone(),
-                    recipient_token_account_info.clone(),
-                    mint_account_info.clone(),
-                    system_program_info.clone(),
-                    associated_token_program_info.clone(),
-                    rent_sysvar_info.clone(),
-                ],
+                accounts,
             )?;
 
             // Create Token Settings Account
@@ -1492,11 +1556,7 @@ impl Processor {
                     TokenSettings::LEN as u64,
                     program_id,
                 ),
-                &[
-                    funder_account_info.clone(),
-                    token_settings_account_info.clone(),
-                    system_program_info.clone(),
-                ],
+                accounts,
                 &[token_settings_account_signer_seeds],
             )?;
 
@@ -1621,14 +1681,57 @@ impl Processor {
             {
                 withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::WaitingForApprove;
             } else {
-                make_multi_token_ever_transfer(
-                    mint_account_info,
-                    token_program_info,
-                    recipient_token_account_info,
-                    &token_settings_account_data,
-                    &mut withdrawal_account_data,
-                    transfer_withdrawal_amount,
-                )?;
+                match withdrawal_account_data.event.data.payload.is_empty() {
+                    true => {
+                        // Validate Recipient Account
+                        let recipient_account_data = spl_token::state::Account::unpack(
+                            &recipient_account_info.data.borrow(),
+                        )?;
+
+                        if recipient_account_data.owner
+                            != withdrawal_account_data.event.data.recipient
+                        {
+                            return Err(ProgramError::InvalidArgument);
+                        }
+
+                        make_ever_transfer(
+                            mint_account_info,
+                            recipient_account_info,
+                            &token_settings_account_data,
+                            accounts,
+                            transfer_withdrawal_amount,
+                        )?;
+
+                        withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Processed;
+                    }
+                    false => {
+                        // Validate Proxy Account
+                        let proxy_nonce = withdrawal_account_data
+                            .account_kind
+                            .into_proposal()
+                            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?
+                            .1
+                            .ok_or(SolanaBridgeError::InvalidTokenKind)?;
+
+                        validate_proxy_account(
+                            program_id,
+                            withdrawal_account_info.key,
+                            proxy_nonce,
+                            recipient_account_info,
+                        )?;
+
+                        make_ever_transfer(
+                            mint_account_info,
+                            recipient_account_info,
+                            &token_settings_account_data,
+                            accounts,
+                            transfer_withdrawal_amount,
+                        )?;
+
+                        withdrawal_account_data.meta.data.status =
+                            WithdrawalTokenStatus::WaitingForExecute;
+                    }
+                }
             }
 
             TokenSettings::pack(
@@ -1655,10 +1758,10 @@ impl Processor {
 
         let withdrawal_account_info = next_account_info(account_info_iter)?;
         let vault_account_info = next_account_info(account_info_iter)?;
-        let recipient_token_account_info = next_account_info(account_info_iter)?;
+        let recipient_account_info = next_account_info(account_info_iter)?;
         let token_settings_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
-        let token_program_info = next_account_info(account_info_iter)?;
+        let _token_program_info = next_account_info(account_info_iter)?;
         let clock_info = next_account_info(account_info_iter)?;
         let clock = Clock::from_account_info(clock_info)?;
 
@@ -1802,14 +1905,60 @@ impl Processor {
                         withdrawal_account_data.meta.data.status =
                             WithdrawalTokenStatus::WaitingForApprove;
                     } else {
-                        make_multi_token_sol_transfer(
-                            vault_account_info,
-                            token_program_info,
-                            recipient_token_account_info,
-                            &token_settings_account_data,
-                            &mut withdrawal_account_data,
-                            transfer_withdrawal_amount,
-                        )?;
+                        match withdrawal_account_data.event.data.payload.is_empty() {
+                            true => {
+                                // Validate Recipient Account
+                                let recipient_account_data = spl_token::state::Account::unpack(
+                                    &recipient_account_info.data.borrow(),
+                                )?;
+
+                                if recipient_account_data.owner
+                                    != withdrawal_account_data.event.data.recipient
+                                {
+                                    return Err(ProgramError::InvalidArgument);
+                                }
+
+                                make_sol_transfer(
+                                    vault_account_info,
+                                    recipient_account_info,
+                                    &token_settings_account_data,
+                                    &mut withdrawal_account_data,
+                                    accounts,
+                                    transfer_withdrawal_amount,
+                                )?;
+
+                                withdrawal_account_data.meta.data.status =
+                                    WithdrawalTokenStatus::Processed;
+                            }
+                            false => {
+                                // Validate Proxy Account
+                                let proxy_nonce = withdrawal_account_data
+                                    .account_kind
+                                    .into_proposal()
+                                    .map_err(|_| SolanaBridgeError::InvalidTokenKind)?
+                                    .1
+                                    .ok_or(SolanaBridgeError::InvalidTokenKind)?;
+
+                                validate_proxy_account(
+                                    program_id,
+                                    withdrawal_account_info.key,
+                                    proxy_nonce,
+                                    recipient_account_info,
+                                )?;
+
+                                make_sol_transfer(
+                                    vault_account_info,
+                                    recipient_account_info,
+                                    &token_settings_account_data,
+                                    &mut withdrawal_account_data,
+                                    accounts,
+                                    transfer_withdrawal_amount,
+                                )?;
+
+                                withdrawal_account_data.meta.data.status =
+                                    WithdrawalTokenStatus::WaitingForExecute;
+                            }
+                        }
                     }
 
                     TokenSettings::pack(
@@ -1819,14 +1968,62 @@ impl Processor {
 
                     withdrawal_account_data.is_executed = true
                 }
-                WithdrawalTokenStatus::Pending => make_multi_token_sol_transfer(
-                    vault_account_info,
-                    token_program_info,
-                    recipient_token_account_info,
-                    &token_settings_account_data,
-                    &mut withdrawal_account_data,
-                    transfer_withdrawal_amount,
-                )?,
+                WithdrawalTokenStatus::Pending => {
+                    match withdrawal_account_data.event.data.payload.is_empty() {
+                        true => {
+                            // Validate Recipient Account
+                            let recipient_account_data = spl_token::state::Account::unpack(
+                                &recipient_account_info.data.borrow(),
+                            )?;
+
+                            if recipient_account_data.owner
+                                != withdrawal_account_data.event.data.recipient
+                            {
+                                return Err(ProgramError::InvalidArgument);
+                            }
+
+                            make_sol_transfer(
+                                vault_account_info,
+                                recipient_account_info,
+                                &token_settings_account_data,
+                                &mut withdrawal_account_data,
+                                accounts,
+                                transfer_withdrawal_amount,
+                            )?;
+
+                            withdrawal_account_data.meta.data.status =
+                                WithdrawalTokenStatus::Processed;
+                        }
+                        false => {
+                            // Validate Proxy Account
+                            let proxy_nonce = withdrawal_account_data
+                                .account_kind
+                                .into_proposal()
+                                .map_err(|_| SolanaBridgeError::InvalidTokenKind)?
+                                .1
+                                .ok_or(SolanaBridgeError::InvalidTokenKind)?;
+
+                            validate_proxy_account(
+                                program_id,
+                                withdrawal_account_info.key,
+                                proxy_nonce,
+                                recipient_account_info,
+                            )?;
+
+                            make_sol_transfer(
+                                vault_account_info,
+                                recipient_account_info,
+                                &token_settings_account_data,
+                                &mut withdrawal_account_data,
+                                accounts,
+                                transfer_withdrawal_amount,
+                            )?;
+
+                            withdrawal_account_data.meta.data.status =
+                                WithdrawalTokenStatus::WaitingForExecute;
+                        }
+                    }
+                }
                 _ => (),
             }
         }
@@ -1835,6 +2032,75 @@ impl Processor {
             withdrawal_account_data,
             &mut withdrawal_account_info.data.borrow_mut(),
         )?;
+
+        Ok(())
+    }
+
+    fn process_execute_payload_ever(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+
+        let withdrawal_account_info = next_account_info(account_info_iter)?;
+
+        let mut withdrawal_account_data =
+            WithdrawalMultiTokenEver::unpack(&withdrawal_account_info.data.borrow())?;
+
+        if withdrawal_account_data.meta.data.status != WithdrawalTokenStatus::WaitingForExecute {
+            return Err(SolanaBridgeError::InvalidWithdrawalStatus.into());
+        }
+
+        let (_, nonce) = Pubkey::find_program_address(
+            &[br"proxy", &withdrawal_account_info.key.to_bytes()],
+            program_id,
+        );
+
+        let proxy_signer_seeds: &[&[_]] =
+            &[br"proxy", &withdrawal_account_info.key.to_bytes(), &[nonce]];
+
+        let ixs: Vec<solana_program::instruction::Instruction> =
+            bincode::deserialize(&withdrawal_account_data.event.data.payload)
+                .map_err(|_| SolanaBridgeError::DeserializePayload)?;
+
+        for ix in ixs {
+            invoke_signed(&ix, accounts, &[proxy_signer_seeds])?;
+        }
+
+        withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Processed;
+
+        Ok(())
+    }
+
+    fn process_execute_payload_sol(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+
+        let withdrawal_account_info = next_account_info(account_info_iter)?;
+
+        let mut withdrawal_account_data =
+            WithdrawalMultiTokenSol::unpack(&withdrawal_account_info.data.borrow())?;
+
+        if withdrawal_account_data.meta.data.status != WithdrawalTokenStatus::WaitingForExecute {
+            return Err(SolanaBridgeError::InvalidWithdrawalStatus.into());
+        }
+
+        let (_, nonce) = Pubkey::find_program_address(
+            &[br"proxy", &withdrawal_account_info.key.to_bytes()],
+            program_id,
+        );
+
+        let proxy_signer_seeds: &[&[_]] =
+            &[br"proxy", &withdrawal_account_info.key.to_bytes(), &[nonce]];
+
+        let ixs: Vec<solana_program::instruction::Instruction> =
+            bincode::deserialize(&withdrawal_account_data.event.data.payload)
+                .map_err(|_| SolanaBridgeError::DeserializePayload)?;
+
+        for ix in ixs {
+            invoke_signed(&ix, accounts, &[proxy_signer_seeds])?;
+        }
+
+        withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Processed;
 
         Ok(())
     }
@@ -2421,10 +2687,10 @@ impl Processor {
         let authority_account_info = next_account_info(account_info_iter)?;
         let mint_account_info = next_account_info(account_info_iter)?;
         let withdrawal_account_info = next_account_info(account_info_iter)?;
-        let recipient_token_account_info = next_account_info(account_info_iter)?;
+        let recipient_account_info = next_account_info(account_info_iter)?;
         let token_settings_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
-        let token_program_info = next_account_info(account_info_iter)?;
+        let _token_program_info = next_account_info(account_info_iter)?;
         let clock_info = next_account_info(account_info_iter)?;
         let clock = Clock::from_account_info(clock_info)?;
 
@@ -2544,14 +2810,53 @@ impl Processor {
             solana_decimals,
         )?;
 
-        make_multi_token_ever_transfer(
-            mint_account_info,
-            token_program_info,
-            recipient_token_account_info,
-            &token_settings_account_data,
-            &mut withdrawal_account_data,
-            withdrawal_amount,
-        )?;
+        match withdrawal_account_data.event.data.payload.is_empty() {
+            true => {
+                // Validate Recipient Account
+                let recipient_account_data =
+                    spl_token::state::Account::unpack(&recipient_account_info.data.borrow())?;
+
+                if recipient_account_data.owner != withdrawal_account_data.event.data.recipient {
+                    return Err(ProgramError::InvalidArgument);
+                }
+
+                make_ever_transfer(
+                    mint_account_info,
+                    recipient_account_info,
+                    &token_settings_account_data,
+                    accounts,
+                    withdrawal_amount,
+                )?;
+
+                withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Processed;
+            }
+            false => {
+                // Validate Proxy Account
+                let proxy_nonce = withdrawal_account_data
+                    .account_kind
+                    .into_proposal()
+                    .map_err(|_| SolanaBridgeError::InvalidTokenKind)?
+                    .1
+                    .ok_or(SolanaBridgeError::InvalidTokenKind)?;
+
+                validate_proxy_account(
+                    program_id,
+                    withdrawal_account_info.key,
+                    proxy_nonce,
+                    recipient_account_info,
+                )?;
+
+                make_ever_transfer(
+                    mint_account_info,
+                    recipient_account_info,
+                    &token_settings_account_data,
+                    accounts,
+                    withdrawal_amount,
+                )?;
+
+                withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::WaitingForExecute;
+            }
+        }
 
         let current_epoch = clock.unix_timestamp / SECONDS_PER_DAY as i64;
 
@@ -2586,11 +2891,11 @@ impl Processor {
         let authority_account_info = next_account_info(account_info_iter)?;
         let vault_account_info = next_account_info(account_info_iter)?;
         let withdrawal_account_info = next_account_info(account_info_iter)?;
-        let recipient_token_account_info = next_account_info(account_info_iter)?;
+        let recipient_account_info = next_account_info(account_info_iter)?;
         let token_settings_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
 
-        let token_program_info = next_account_info(account_info_iter)?;
+        let _token_program_info = next_account_info(account_info_iter)?;
         let clock_info = next_account_info(account_info_iter)?;
         let clock = Clock::from_account_info(clock_info)?;
 
@@ -2702,14 +3007,55 @@ impl Processor {
 
         let withdrawal_amount = withdrawal_account_data.event.data.amount as u64;
 
-        make_multi_token_sol_transfer(
-            vault_account_info,
-            token_program_info,
-            recipient_token_account_info,
-            &token_settings_account_data,
-            &mut withdrawal_account_data,
-            withdrawal_amount,
-        )?;
+        match withdrawal_account_data.event.data.payload.is_empty() {
+            true => {
+                // Validate Recipient Account
+                let recipient_account_data =
+                    spl_token::state::Account::unpack(&recipient_account_info.data.borrow())?;
+
+                if recipient_account_data.owner != withdrawal_account_data.event.data.recipient {
+                    return Err(ProgramError::InvalidArgument);
+                }
+
+                make_sol_transfer(
+                    vault_account_info,
+                    recipient_account_info,
+                    &token_settings_account_data,
+                    &mut withdrawal_account_data,
+                    accounts,
+                    withdrawal_amount,
+                )?;
+
+                withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Processed;
+            }
+            false => {
+                // Validate Proxy Account
+                let proxy_nonce = withdrawal_account_data
+                    .account_kind
+                    .into_proposal()
+                    .map_err(|_| SolanaBridgeError::InvalidTokenKind)?
+                    .1
+                    .ok_or(SolanaBridgeError::InvalidTokenKind)?;
+
+                validate_proxy_account(
+                    program_id,
+                    withdrawal_account_info.key,
+                    proxy_nonce,
+                    recipient_account_info,
+                )?;
+
+                make_sol_transfer(
+                    vault_account_info,
+                    recipient_account_info,
+                    &token_settings_account_data,
+                    &mut withdrawal_account_data,
+                    accounts,
+                    withdrawal_amount,
+                )?;
+
+                withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::WaitingForExecute;
+            }
+        };
 
         let current_epoch = clock.unix_timestamp / SECONDS_PER_DAY as i64;
 
@@ -2832,7 +3178,7 @@ impl Processor {
         let recipient_token_account_info = next_account_info(account_info_iter)?;
         let token_settings_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
-        let token_program_info = next_account_info(account_info_iter)?;
+        let _token_program_info = next_account_info(account_info_iter)?;
 
         if !authority_account_info.is_signer {
             return Err(ProgramError::MissingRequiredSignature);
@@ -2917,11 +3263,7 @@ impl Processor {
                 &[mint_account_info.key],
                 amount,
             )?,
-            &[
-                token_program_info.clone(),
-                mint_account_info.clone(),
-                recipient_token_account_info.clone(),
-            ],
+            accounts,
             &[mint_account_signer_seeds],
         )?;
 
@@ -2952,7 +3294,7 @@ impl Processor {
         let token_settings_account_info = next_account_info(account_info_iter)?;
         let recipient_token_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
-        let token_program_info = next_account_info(account_info_iter)?;
+        let _token_program_info = next_account_info(account_info_iter)?;
 
         if !authority_account_info.is_signer {
             return Err(ProgramError::MissingRequiredSignature);
@@ -3042,11 +3384,7 @@ impl Processor {
                 &[vault_account_info.key],
                 amount,
             )?,
-            &[
-                token_program_info.clone(),
-                vault_account_info.clone(),
-                recipient_token_account_info.clone(),
-            ],
+            accounts,
             &[vault_account_signer_seeds],
         )?;
 
@@ -3144,7 +3482,7 @@ impl Processor {
         let deposit_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
         let token_settings_account_info = next_account_info(account_info_iter)?;
-        let system_program_info = next_account_info(account_info_iter)?;
+        let _system_program_info = next_account_info(account_info_iter)?;
         let rent_sysvar_info = next_account_info(account_info_iter)?;
         let rent = &Rent::from_account_info(rent_sysvar_info)?;
 
@@ -3266,11 +3604,7 @@ impl Processor {
                 DepositMultiTokenSol::LEN as u64,
                 program_id,
             ),
-            &[
-                funder_account_info.clone(),
-                deposit_account_info.clone(),
-                system_program_info.clone(),
-            ],
+            accounts,
             &[deposit_account_signer_seeds],
         )?;
 
@@ -3327,8 +3661,8 @@ impl Processor {
         let deposit_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
         let token_settings_account_info = next_account_info(account_info_iter)?;
-        let system_program_info = next_account_info(account_info_iter)?;
-        let token_program_info = next_account_info(account_info_iter)?;
+        let _system_program_info = next_account_info(account_info_iter)?;
+        let _token_program_info = next_account_info(account_info_iter)?;
         let rent_sysvar_info = next_account_info(account_info_iter)?;
         let rent = &Rent::from_account_info(rent_sysvar_info)?;
 
@@ -3461,12 +3795,7 @@ impl Processor {
                 &[author_account_info.key],
                 amount,
             )?,
-            &[
-                token_program_info.clone(),
-                author_account_info.clone(),
-                author_token_account_info.clone(),
-                recipient_token_account_info.clone(),
-            ],
+            accounts,
         )?;
 
         // Create Deposit Account
@@ -3487,11 +3816,7 @@ impl Processor {
                 DepositMultiTokenSol::LEN as u64,
                 program_id,
             ),
-            &[
-                funder_account_info.clone(),
-                deposit_account_info.clone(),
-                system_program_info.clone(),
-            ],
+            accounts,
             &[deposit_account_signer_seeds],
         )?;
 
@@ -3535,26 +3860,50 @@ impl Processor {
     }
 }
 
-fn make_multi_token_sol_transfer<'a>(
-    vault_account_info: &AccountInfo<'a>,
-    token_program_info: &AccountInfo<'a>,
-    recipient_token_account_info: &AccountInfo<'a>,
+fn make_ever_transfer<'a>(
+    mint_account_info: &AccountInfo<'a>,
+    recipient_account_info: &AccountInfo<'a>,
     settings_account_data: &TokenSettings,
-    withdrawal_account_data: &mut WithdrawalMultiTokenSol,
+    accounts: &[AccountInfo],
     withdrawal_amount: u64,
 ) -> ProgramResult {
-    // Validate Recipient Account
-    if recipient_token_account_info.owner != &spl_token::id() {
-        return Err(ProgramError::InvalidArgument);
-    }
+    // Mint EVER tokens to Proxy Account
+    let (_, token, _) = settings_account_data
+        .kind
+        .into_ever()
+        .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
+    let (_, mint_nonce) = settings_account_data
+        .account_kind
+        .into_token_settings()
+        .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
 
-    let recipient_token_account_data =
-        spl_token::state::Account::unpack(&recipient_token_account_info.data.borrow())?;
+    let token_hash = hash(&token.try_to_vec()?);
+    let mint_account_signer_seeds: &[&[_]] = &[br"mint", token_hash.as_ref(), &[mint_nonce]];
 
-    if recipient_token_account_data.owner != withdrawal_account_data.event.data.recipient {
-        return Err(ProgramError::InvalidArgument);
-    }
+    invoke_signed(
+        &spl_token::instruction::mint_to(
+            &spl_token::id(),
+            mint_account_info.key,
+            recipient_account_info.key,
+            mint_account_info.key,
+            &[mint_account_info.key],
+            withdrawal_amount,
+        )?,
+        accounts,
+        &[mint_account_signer_seeds],
+    )?;
 
+    Ok(())
+}
+
+fn make_sol_transfer<'a>(
+    vault_account_info: &AccountInfo<'a>,
+    recipient_account_info: &AccountInfo<'a>,
+    settings_account_data: &TokenSettings,
+    withdrawal_account_data: &mut WithdrawalMultiTokenSol,
+    accounts: &[AccountInfo],
+    withdrawal_amount: u64,
+) -> ProgramResult {
     // Transfer tokens from Vault Account to Recipient Account
     let (mint, _) = settings_account_data
         .kind
@@ -3568,10 +3917,6 @@ fn make_multi_token_sol_transfer<'a>(
 
     let vault_account_signer_seeds: &[&[_]] = &[br"vault", &mint.to_bytes(), &[vault_nonce]];
 
-    if vault_account_info.owner != &spl_token::id() {
-        return Err(ProgramError::InvalidArgument);
-    }
-
     let vault_account_data = spl_token::state::Account::unpack(&vault_account_info.data.borrow())?;
 
     // If vault balance is not enough
@@ -3584,79 +3929,14 @@ fn make_multi_token_sol_transfer<'a>(
         &spl_token::instruction::transfer(
             &spl_token::id(),
             vault_account_info.key,
-            recipient_token_account_info.key,
+            recipient_account_info.key,
             vault_account_info.key,
             &[vault_account_info.key],
             withdrawal_amount,
         )?,
-        &[
-            token_program_info.clone(),
-            vault_account_info.clone(),
-            recipient_token_account_info.clone(),
-        ],
+        accounts,
         &[vault_account_signer_seeds],
     )?;
-
-    withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Processed;
-
-    Ok(())
-}
-
-fn make_multi_token_ever_transfer<'a>(
-    mint_account_info: &AccountInfo<'a>,
-    token_program_info: &AccountInfo<'a>,
-    recipient_token_account_info: &AccountInfo<'a>,
-    settings_account_data: &TokenSettings,
-    withdrawal_account_data: &mut WithdrawalMultiTokenEver,
-    withdrawal_amount: u64,
-) -> ProgramResult {
-    // Validate Recipient Account
-    if recipient_token_account_info.owner != &spl_token::id() {
-        return Err(ProgramError::InvalidArgument);
-    }
-
-    let recipient_token_account_data =
-        spl_token::state::Account::unpack(&recipient_token_account_info.data.borrow())?;
-
-    if recipient_token_account_data.owner != withdrawal_account_data.event.data.recipient {
-        return Err(ProgramError::InvalidArgument);
-    }
-
-    // Mint EVER tokens to Recipient Account
-    let (_, token, _) = settings_account_data
-        .kind
-        .into_ever()
-        .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
-    let (_, mint_nonce) = settings_account_data
-        .account_kind
-        .into_token_settings()
-        .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
-
-    let token_hash = hash(&token.try_to_vec()?);
-    let mint_account_signer_seeds: &[&[_]] = &[br"mint", token_hash.as_ref(), &[mint_nonce]];
-
-    if mint_account_info.owner != &spl_token::id() {
-        return Err(ProgramError::InvalidArgument);
-    }
-
-    invoke_signed(
-        &spl_token::instruction::mint_to(
-            &spl_token::id(),
-            mint_account_info.key,
-            recipient_token_account_info.key,
-            mint_account_info.key,
-            &[mint_account_info.key],
-            withdrawal_amount,
-        )?,
-        &[
-            token_program_info.clone(),
-            mint_account_info.clone(),
-            recipient_token_account_info.clone(),
-        ],
-        &[mint_account_signer_seeds],
-    )?;
-
-    withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Processed;
 
     Ok(())
 }

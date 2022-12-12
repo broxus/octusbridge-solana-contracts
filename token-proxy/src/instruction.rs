@@ -26,6 +26,18 @@ pub enum TokenProxyInstruction {
     /// ...
     WithdrawMultiTokenSol,
 
+    /// Execute Payload EVER
+    ///
+    /// # Account references
+    /// ...
+    ExecutePayloadEver,
+
+    /// Execute Payload SOL
+    ///
+    /// # Account references
+    /// ...
+    ExecutePayloadSol,
+
     /// Initialize Token Proxy
     ///
     /// # Account references
@@ -100,6 +112,10 @@ pub enum TokenProxyInstruction {
         recipient: Pubkey,
         // Withdrawal amount
         amount: u128,
+        // Random payload to transfer to sol
+        payload: Vec<u8>,
+        // Attached SOL amount to proxy account
+        attached_amount: u64,
     },
 
     /// Withdraw multi token SOL request
@@ -117,6 +133,10 @@ pub enum TokenProxyInstruction {
         recipient: Pubkey,
         // Withdrawal amount
         amount: u128,
+        // Random payload to transfer to sol
+        payload: Vec<u8>,
+        // Attached SOL amount to proxy account
+        attached_amount: u64,
     },
 
     /// Change Guardian Role

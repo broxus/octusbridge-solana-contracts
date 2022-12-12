@@ -15,7 +15,7 @@ pub const MIN_RELAYS: usize = 3;
 pub const MAX_RELAYS: usize = 100;
 
 pub const LOAD_DATA_BEGIN_OFFSET: usize = 1 // is_executed
-    + 2                                     // account_kind
+    + 3                                     // account_kind
     + 1                                     // is_executed
     + PUBKEY_BYTES                          // author
     + 4                                     // round_number
@@ -73,7 +73,7 @@ impl IsInitialized for RelayRound {
 }
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
-#[bridge_pack(length = 3414)]
+#[bridge_pack(length = 3415)]
 pub struct RelayRoundProposal {
     pub is_initialized: bool,
     pub is_executed: bool,

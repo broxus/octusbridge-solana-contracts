@@ -409,7 +409,7 @@ async fn test_create_proposal() {
 
     assert_eq!(
         proposal_data.account_kind,
-        AccountKind::Proposal(proposal_nonce)
+        AccountKind::Proposal(proposal_nonce, None)
     );
 
     // Vote for Proposal
@@ -714,7 +714,7 @@ async fn test_create_proposal_and_execute_by_admin() {
 
     assert_eq!(
         proposal_data.account_kind,
-        AccountKind::Proposal(proposal_nonce)
+        AccountKind::Proposal(proposal_nonce, None)
     );
 
     // Execute Proposal by admin

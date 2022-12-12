@@ -313,6 +313,7 @@ pub struct WithdrawalMultiTokenEverEvent {
     pub decimals: u8,
     pub amount: u128,
     pub recipient: Pubkey,
+    pub payload: Vec<u8>,
 }
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
@@ -329,13 +330,16 @@ impl WithdrawalMultiTokenEverEventWithLen {
         decimals: u8,
         amount: u128,
         recipient: Pubkey,
+        payload: Vec<u8>,
     ) -> Self {
         Self {
             len: WITHDRAWAL_MULTI_TOKEN_EVER_EVENT_LEN as u32
                 + 4
                 + name.as_bytes().len() as u32
                 + 4
-                + symbol.as_bytes().len() as u32,
+                + symbol.as_bytes().len() as u32
+                + 4
+                + (payload.len() as u32),
             data: WithdrawalMultiTokenEverEvent {
                 token,
                 name,
@@ -343,6 +347,7 @@ impl WithdrawalMultiTokenEverEventWithLen {
                 decimals,
                 amount,
                 recipient,
+                payload,
             },
         }
     }
@@ -376,6 +381,7 @@ pub struct WithdrawalMultiTokenSolEvent {
     pub mint: Pubkey,
     pub amount: u128,
     pub recipient: Pubkey,
+    pub payload: Vec<u8>,
 }
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
@@ -385,13 +391,14 @@ pub struct WithdrawalMultiTokenSolEventWithLen {
 }
 
 impl WithdrawalMultiTokenSolEventWithLen {
-    pub fn new(mint: Pubkey, amount: u128, recipient: Pubkey) -> Self {
+    pub fn new(mint: Pubkey, amount: u128, recipient: Pubkey, payload: Vec<u8>) -> Self {
         Self {
-            len: WITHDRAWAL_MULTI_TOKEN_SOL_EVENT_LEN as u32,
+            len: WITHDRAWAL_MULTI_TOKEN_SOL_EVENT_LEN as u32 + 4 + (payload.len() as u32),
             data: WithdrawalMultiTokenSolEvent {
                 mint,
                 amount,
                 recipient,
+                payload,
             },
         }
     }
@@ -456,6 +463,7 @@ pub enum WithdrawalTokenStatus {
     Cancelled,
     Pending,
     WaitingForApprove,
+    WaitingForExecute,
 }
 
 #[derive(

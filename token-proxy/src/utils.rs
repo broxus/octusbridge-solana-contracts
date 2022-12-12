@@ -139,3 +139,23 @@ pub fn validate_multi_vault_account(
 
     Ok(())
 }
+
+pub fn validate_proxy_account(
+    program_id: &Pubkey,
+    withdrawal_pubkey: &Pubkey,
+    nonce: u8,
+    account_info: &AccountInfo,
+) -> Result<(), ProgramError> {
+    let (account, expected_nonce) =
+        Pubkey::find_program_address(&[br"proxy", &withdrawal_pubkey.to_bytes()], program_id);
+
+    if account != *account_info.key {
+        return Err(ProgramError::InvalidArgument);
+    }
+
+    if expected_nonce != nonce {
+        return Err(ProgramError::InvalidArgument);
+    }
+
+    Ok(())
+}
