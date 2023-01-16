@@ -24,7 +24,7 @@ js-sys = { version = "0.3", optional = true }
 spl-associated-token-account = {version = "1", features = ["no-entrypoint"] }
 wasm-bindgen = { version = "0.2.83", features = ["serde-serialize"], optional = true }
 serde-wasm-bindgen = "*"
-uuid = { version = "0.8", features = ["v4", "serde"], optional = true }
+uuid = { version = "1.2", features = ["v4", "serde"], optional = true }
 
 bridge-derive = { path = "../bridge-derive" }
 bridge-utils = { path = "../bridge-utils" }
@@ -32,8 +32,8 @@ round-loader = { path = "../round-loader", features = ["no-entrypoint"] }
 
 [dev-dependencies]
 chrono = "0.4.19"
-solana-program-test = "1.9"
-solana-sdk = "1.9"
+solana-program-test = "1.14"
+solana-sdk = "1.14"
 
 [lib]
 crate-type = ["cdylib", "lib"]

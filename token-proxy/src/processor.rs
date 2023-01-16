@@ -1496,10 +1496,11 @@ impl Processor {
 
             // Create Token Account
             invoke(
-                &spl_associated_token_account::create_associated_token_account(
+                &spl_associated_token_account::instruction::create_associated_token_account(
                     funder_account_info.key,
                     funder_account_info.key,
                     mint_account_info.key,
+                    &spl_associated_token_account::id(),
                 ),
                 accounts,
             )?;
