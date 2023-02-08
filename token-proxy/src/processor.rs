@@ -1385,8 +1385,8 @@ impl Processor {
         let recipient_account_info = next_account_info(account_info_iter)?;
         let token_settings_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
-        let _token_program_info = next_account_info(account_info_iter)?;
         let _system_program_info = next_account_info(account_info_iter)?;
+        let _token_program_info = next_account_info(account_info_iter)?;
 
         let rent_sysvar_info = next_account_info(account_info_iter)?;
         let rent = &Rent::from_account_info(rent_sysvar_info)?;
@@ -1450,7 +1450,7 @@ impl Processor {
                 Ok(funder_account_info) => funder_account_info,
                 Err(_) => return Ok(()),
             };
-            let _associated_token_program_info = next_account_info(account_info_iter)?;
+            let _spl_associated_token_program_info = next_account_info(account_info_iter)?;
 
             // Create Mint Account
             let ever_decimals = withdrawal_account_data.event.data.decimals;
@@ -1500,7 +1500,7 @@ impl Processor {
                     funder_account_info.key,
                     funder_account_info.key,
                     mint_account_info.key,
-                    &spl_associated_token_account::id(),
+                    &spl_token::id(),
                 ),
                 accounts,
             )?;

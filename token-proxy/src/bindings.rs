@@ -484,6 +484,7 @@ pub fn create_ever_token_ix(
             AccountMeta::new_readonly(spl_token::id(), false),
             AccountMeta::new_readonly(sysvar::rent::id(), false),
             AccountMeta::new_readonly(sysvar::clock::id(), false),
+            // If token settings account is not created
             AccountMeta::new(funder_pubkey, true),
             AccountMeta::new_readonly(spl_associated_token_account::id(), false),
         ],

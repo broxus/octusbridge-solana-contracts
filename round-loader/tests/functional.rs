@@ -200,7 +200,7 @@ async fn test_create_proposal() {
     program_test.add_account(
         proposal_creator.pubkey(),
         Account {
-            lamports: 100000000,
+            lamports: 1_000_000_000,
             data: vec![],
             owner: solana_program::system_program::id(),
             executable: false,
@@ -216,12 +216,11 @@ async fn test_create_proposal() {
         relays.push(Keypair::new());
     }
 
-    let relay_init_lamports = 100000;
     for relay in &relays {
         program_test.add_account(
             relay.pubkey(),
             Account {
-                lamports: relay_init_lamports,
+                lamports: 1_000_000_000,
                 data: vec![],
                 owner: solana_program::system_program::id(),
                 executable: false,
@@ -493,7 +492,7 @@ async fn test_create_proposal_and_execute_by_admin() {
     program_test.add_account(
         proposal_creator.pubkey(),
         Account {
-            lamports: 100000000,
+            lamports: 1_000_000_000,
             data: vec![],
             owner: solana_program::system_program::id(),
             executable: false,
@@ -509,12 +508,11 @@ async fn test_create_proposal_and_execute_by_admin() {
         relays.push(Keypair::new());
     }
 
-    let relay_init_lamports = 100000;
     for relay in &relays {
         program_test.add_account(
             relay.pubkey(),
             Account {
-                lamports: relay_init_lamports,
+                lamports: 1_000_000_000,
                 data: vec![],
                 owner: solana_program::system_program::id(),
                 executable: false,
