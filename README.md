@@ -4,14 +4,14 @@
 
 #### Build
 ```bash
-cargo build-bpf --manifest-path=./token-proxy/Cargo.toml --bpf-out-dir=dist/program
-cargo build-bpf --manifest-path=./round-loader/Cargo.toml --bpf-out-dir=dist/program
+cargo-build-bpf --manifest-path=./token-proxy/Cargo.toml --bpf-out-dir=dist/program
+cargo-build-bpf --manifest-path=./round-loader/Cargo.toml --bpf-out-dir=dist/program
 ```
 
 #### Run tests
 ```bash
-cargo test-bpf --manifest-path=./token-proxy/Cargo.toml
-cargo test-bpf --manifest-path=./round-loader/Cargo.toml
+cargo-test-bpf --manifest-path=./token-proxy/Cargo.toml
+cargo-test-bpf --manifest-path=./round-loader/Cargo.toml
 ```
 
 #### Build WASM bindings
