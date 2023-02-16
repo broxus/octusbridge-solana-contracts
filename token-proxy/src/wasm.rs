@@ -1,11 +1,10 @@
 use std::str::FromStr;
 
-use borsh::{BorshDeserialize, BorshSerialize};
+use borsh::BorshSerialize;
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::{JsCast, JsValue};
 
-use bridge_derive::BridgePack;
 use solana_program::instruction::{AccountMeta, Instruction};
 use solana_program::program_pack::Pack;
 use solana_program::pubkey::Pubkey;
@@ -13,8 +12,6 @@ use solana_program::{system_program, sysvar};
 
 use bridge_utils::state::*;
 use bridge_utils::types::*;
-
-use bridge_utils::helper::get_associated_relay_round_address;
 
 use crate::*;
 
@@ -94,6 +91,8 @@ pub fn withdrawal_multi_token_ever_request_ix(
     recipient_address: String,
     amount: String,
     round_number: u32,
+    payload: Vec<u8>,
+    attached_amount: u64,
 ) -> Result<JsValue, JsValue> {
     let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
     let author_pubkey = Pubkey::from_str(author_pubkey.as_str()).handle_error()?;
@@ -103,7 +102,8 @@ pub fn withdrawal_multi_token_ever_request_ix(
 
     let amount = u128::from_str(&amount).handle_error()?;
 
-    let relay_round_pubkey = get_associated_relay_round_address(&round_loader::id(), round_number);
+    let relay_round_pubkey =
+        bridge_utils::helper::get_associated_relay_round_address(&round_loader::id(), round_number);
 
     let withdrawal_pubkey = get_withdrawal_ever_address(
         round_number,
@@ -116,6 +116,7 @@ pub fn withdrawal_multi_token_ever_request_ix(
         decimals,
         recipient,
         amount,
+        payload.clone(),
     );
 
     let rl_settings_pubkey =
@@ -131,6 +132,8 @@ pub fn withdrawal_multi_token_ever_request_ix(
         decimals,
         recipient,
         amount,
+        payload,
+        attached_amount,
     }
     .try_to_vec()
     .handle_error()?;
@@ -164,6 +167,8 @@ pub fn withdrawal_multi_token_sol_request_ix(
     recipient_address: String,
     amount: String,
     round_number: u32,
+    payload: Vec<u8>,
+    attached_amount: u64,
 ) -> Result<JsValue, JsValue> {
     let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
     let author_pubkey = Pubkey::from_str(author_pubkey.as_str()).handle_error()?;
@@ -174,7 +179,8 @@ pub fn withdrawal_multi_token_sol_request_ix(
 
     let amount = u128::from_str(&amount).handle_error()?;
 
-    let relay_round_pubkey = get_associated_relay_round_address(&round_loader::id(), round_number);
+    let relay_round_pubkey =
+        bridge_utils::helper::get_associated_relay_round_address(&round_loader::id(), round_number);
 
     let withdrawal_pubkey = get_withdrawal_sol_address(
         round_number,
@@ -184,6 +190,7 @@ pub fn withdrawal_multi_token_sol_request_ix(
         mint,
         recipient,
         amount,
+        payload.clone(),
     );
 
     let rl_settings_pubkey =
@@ -195,6 +202,8 @@ pub fn withdrawal_multi_token_sol_request_ix(
         event_configuration,
         recipient,
         amount,
+        payload,
+        attached_amount,
     }
     .try_to_vec()
     .handle_error()?;
@@ -433,7 +442,8 @@ pub fn vote_for_withdraw_request_ix(
     let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
     let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).handle_error()?;
 
-    let relay_round_pubkey = get_associated_relay_round_address(&round_loader::id(), round_number);
+    let relay_round_pubkey =
+        bridge_utils::helper::get_associated_relay_round_address(&round_loader::id(), round_number);
 
     let data = TokenProxyInstruction::VoteForWithdrawRequest {
         vote: Vote::Confirm,
@@ -784,6 +794,7 @@ pub fn get_proposal_sol_address(
     mint_address: String,
     recipient_address: String,
     amount: String,
+    payload: Vec<u8>,
 ) -> Result<JsValue, JsValue> {
     let recipient_address = Pubkey::from_str(recipient_address.as_str()).handle_error()?;
     let event_configuration = Pubkey::from_str(event_configuration.as_str()).handle_error()?;
@@ -799,6 +810,7 @@ pub fn get_proposal_sol_address(
         mint_address,
         recipient_address,
         amount,
+        payload,
     );
 
     return serde_wasm_bindgen::to_value(&withdrawal_pubkey).handle_error();
@@ -816,6 +828,7 @@ pub fn get_proposal_ever_address(
     name: String,
     symbol: String,
     decimals: u8,
+    payload: Vec<u8>,
 ) -> Result<JsValue, JsValue> {
     let recipient_address = Pubkey::from_str(recipient_address.as_str()).handle_error()?;
     let event_configuration = Pubkey::from_str(event_configuration.as_str()).handle_error()?;
@@ -834,6 +847,7 @@ pub fn get_proposal_ever_address(
         decimals,
         recipient_address,
         amount,
+        payload,
     );
 
     return serde_wasm_bindgen::to_value(&withdrawal_pubkey).handle_error();

@@ -10,8 +10,6 @@ use solana_program::program_pack::Pack;
 use solana_program::pubkey::Pubkey;
 use solana_program::{system_program, sysvar};
 
-use bridge_utils::helper::{get_associated_relay_round_address, get_programdata_address};
-
 use bridge_utils::state::*;
 use bridge_utils::types::*;
 
@@ -19,9 +17,8 @@ use crate::*;
 
 #[wasm_bindgen(js_name = "getRelayRoundAddress")]
 pub fn get_relay_round_address_request(round_number: u32) -> Result<JsValue, JsValue> {
-    let program_id = &id();
-
-    let relay_round_pubkey = get_associated_relay_round_address(program_id, round_number);
+    let relay_round_pubkey =
+        bridge_utils::helper::get_associated_relay_round_address(&id(), round_number);
 
     return serde_wasm_bindgen::to_value(&relay_round_pubkey).handle_error();
 }
@@ -42,7 +39,7 @@ pub fn initialize_ix(
     let round_submitter = Pubkey::from_str(round_submitter.as_str()).handle_error()?;
 
     let setting_pubkey = bridge_utils::helper::get_associated_settings_address(program_id);
-    let program_data_pubkey = get_programdata_address(program_id);
+    let program_data_pubkey = bridge_utils::helper::get_programdata_address(program_id);
 
     let data = RoundLoaderInstruction::Initialize {
         genesis_round_number,
@@ -82,7 +79,7 @@ pub fn update_settings_ix(
     let author_pubkey = Pubkey::from_str(author_pubkey.as_str()).handle_error()?;
 
     let setting_pubkey = bridge_utils::helper::get_associated_settings_address(program_id);
-    let program_data_pubkey = get_programdata_address(program_id);
+    let program_data_pubkey = bridge_utils::helper::get_programdata_address(program_id);
 
     let round_submitter = round_submitter
         .map(|value| Pubkey::from_str(value.as_str()))
@@ -234,6 +231,7 @@ pub fn unpack_settings(data: Vec<u8>) -> Result<JsValue, JsValue> {
 
     let s = WasmSettings {
         is_initialized: settings.is_initialized,
+        account_kind: settings.account_kind,
         current_round_number: settings.current_round_number,
         round_submitter: settings.round_submitter,
         min_required_votes: settings.min_required_votes,
@@ -249,6 +247,7 @@ pub fn unpack_relay_round(data: Vec<u8>) -> Result<JsValue, JsValue> {
 
     let rr = WasmRelayRound {
         is_initialized: relay_round.is_initialized,
+        account_kind: relay_round.account_kind,
         round_number: relay_round.round_number,
         round_end: relay_round.round_end,
         relays: relay_round.relays,
@@ -264,6 +263,7 @@ pub fn unpack_relay_round_proposal(data: Vec<u8>) -> Result<JsValue, JsValue> {
     let rrp = WasmRelayRoundProposal {
         is_initialized: relay_round_proposal.is_initialized,
         account_kind: relay_round_proposal.account_kind,
+        author: relay_round_proposal.author,
         is_executed: relay_round_proposal.is_executed,
         round_number: relay_round_proposal.round_number,
         required_votes: relay_round_proposal.required_votes,
@@ -279,6 +279,7 @@ pub fn unpack_relay_round_proposal(data: Vec<u8>) -> Result<JsValue, JsValue> {
 #[derive(Serialize, Deserialize)]
 pub struct WasmSettings {
     pub is_initialized: bool,
+    pub account_kind: AccountKind,
     pub current_round_number: u32,
     pub round_submitter: Pubkey,
     pub min_required_votes: u32,
@@ -288,6 +289,7 @@ pub struct WasmSettings {
 #[derive(Serialize, Deserialize)]
 pub struct WasmRelayRound {
     pub is_initialized: bool,
+    pub account_kind: AccountKind,
     pub round_number: u32,
     pub round_end: u32,
     pub relays: Vec<Pubkey>,
@@ -298,6 +300,7 @@ pub struct WasmRelayRoundProposal {
     pub is_initialized: bool,
     pub is_executed: bool,
     pub account_kind: AccountKind,
+    pub author: Pubkey,
     pub round_number: u32,
     pub required_votes: u32,
     pub pda: PDA,
