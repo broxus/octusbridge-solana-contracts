@@ -1,5 +1,5 @@
 use borsh::BorshSerialize;
-use bridge_utils::types::{EverAddress, Vote};
+use bridge_utils::types::{EverAddress, UInt256, Vote};
 
 use solana_program::hash::hash;
 use solana_program::instruction::{AccountMeta, Instruction};
@@ -48,9 +48,9 @@ pub fn get_deposit_address(seed: u128) -> Pubkey {
     get_associated_deposit_address(program_id, seed)
 }
 
-pub fn get_proxy_address(withdrawal_pubkey: &Pubkey) -> Pubkey {
+pub fn get_proxy_address(mint: &Pubkey, recipient: &Pubkey) -> Pubkey {
     let program_id = &id();
-    get_associated_proxy_address(program_id, withdrawal_pubkey)
+    get_associated_proxy_address(program_id, mint, recipient)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -169,9 +169,10 @@ pub fn deposit_multi_token_ever_ix(
     author_token_pubkey: Pubkey,
     token: &EverAddress,
     deposit_seed: u128,
-    recipient: EverAddress,
     amount: u64,
-    sol_amount: u64,
+    recipient: EverAddress,
+    value: u64,
+    expected_evers: UInt256,
     payload: Vec<u8>,
 ) -> Instruction {
     let mint_pubkey = get_mint_address(token);
@@ -182,9 +183,10 @@ pub fn deposit_multi_token_ever_ix(
 
     let data = TokenProxyInstruction::DepositMultiTokenEver {
         deposit_seed,
-        recipient,
         amount,
-        sol_amount,
+        recipient,
+        value,
+        expected_evers,
         payload,
     }
     .try_to_vec()
@@ -216,11 +218,12 @@ pub fn deposit_multi_token_sol_ix(
     author_token_pubkey: Pubkey,
     mint_pubkey: Pubkey,
     deposit_seed: u128,
-    recipient: EverAddress,
-    amount: u64,
     name: String,
     symbol: String,
-    sol_amount: u64,
+    amount: u64,
+    recipient: EverAddress,
+    value: u64,
+    expected_evers: UInt256,
     payload: Vec<u8>,
 ) -> Instruction {
     let vault_pubkey = get_vault_address(&mint_pubkey);
@@ -232,11 +235,12 @@ pub fn deposit_multi_token_sol_ix(
 
     let data = TokenProxyInstruction::DepositMultiTokenSol {
         deposit_seed,
-        recipient,
-        amount,
         name,
         symbol,
-        sol_amount,
+        amount,
+        recipient,
+        value,
+        expected_evers,
         payload,
     }
     .try_to_vec()
@@ -309,7 +313,9 @@ pub fn withdrawal_multi_token_ever_request_ix(
     ];
 
     if !payload.is_empty() {
-        let proxy_pubkey = get_proxy_address(&withdrawal_pubkey);
+        let mint = get_mint_address(&token);
+
+        let proxy_pubkey = get_proxy_address(&mint, &recipient);
         accounts.push(AccountMeta::new(proxy_pubkey, false));
     }
 
@@ -381,7 +387,7 @@ pub fn withdrawal_multi_token_sol_request_ix(
     ];
 
     if !payload.is_empty() {
-        let proxy_pubkey = get_proxy_address(&withdrawal_pubkey);
+        let proxy_pubkey = get_proxy_address(&mint, &recipient);
         accounts.push(AccountMeta::new(proxy_pubkey, false));
     }
 
@@ -495,11 +501,11 @@ pub fn create_ever_token_ix(
 pub fn withdrawal_sol_ix(
     withdrawal_pubkey: Pubkey,
     recipient_token_pubkey: Pubkey,
-    mint: Pubkey,
+    mint_pubkey: Pubkey,
 ) -> Instruction {
     let settings_pubkey = get_settings_address();
-    let vault_pubkey = get_vault_address(&mint);
-    let token_settings_pubkey = get_token_settings_sol_address(&mint);
+    let vault_pubkey = get_vault_address(&mint_pubkey);
+    let token_settings_pubkey = get_token_settings_sol_address(&mint_pubkey);
 
     let data = TokenProxyInstruction::WithdrawMultiTokenSol
         .try_to_vec()
@@ -512,6 +518,38 @@ pub fn withdrawal_sol_ix(
             AccountMeta::new(vault_pubkey, false),
             AccountMeta::new(recipient_token_pubkey, false),
             AccountMeta::new(token_settings_pubkey, false),
+            AccountMeta::new_readonly(mint_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new_readonly(spl_token::id(), false),
+            AccountMeta::new_readonly(sysvar::clock::id(), false),
+        ],
+        data,
+    }
+}
+
+pub fn withdrawal_sol_with_payload_ix(
+    withdrawal_pubkey: Pubkey,
+    recipient_pubkey: Pubkey,
+    mint_pubkey: Pubkey,
+) -> Instruction {
+    let settings_pubkey = get_settings_address();
+    let vault_pubkey = get_vault_address(&mint_pubkey);
+    let token_settings_pubkey = get_token_settings_sol_address(&mint_pubkey);
+
+    let proxy_pubkey = get_proxy_address(&mint_pubkey, &recipient_pubkey);
+
+    let data = TokenProxyInstruction::WithdrawMultiTokenSol
+        .try_to_vec()
+        .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(withdrawal_pubkey, false),
+            AccountMeta::new(vault_pubkey, false),
+            AccountMeta::new(proxy_pubkey, false),
+            AccountMeta::new(token_settings_pubkey, false),
+            AccountMeta::new_readonly(mint_pubkey, false),
             AccountMeta::new_readonly(settings_pubkey, false),
             AccountMeta::new_readonly(spl_token::id(), false),
             AccountMeta::new_readonly(sysvar::clock::id(), false),

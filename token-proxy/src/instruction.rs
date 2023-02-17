@@ -1,5 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use bridge_utils::types::{EverAddress, Vote};
+use bridge_utils::types::{EverAddress, UInt256, Vote};
 
 use solana_program::pubkey::Pubkey;
 
@@ -58,12 +58,14 @@ pub enum TokenProxyInstruction {
     DepositMultiTokenEver {
         // Deposit seed
         deposit_seed: u128,
-        // Ever recipient address
-        recipient: EverAddress,
         // Deposit amount
         amount: u64,
+        // Ever recipient address
+        recipient: EverAddress,
         // Sol amount to transfer to ever
-        sol_amount: u64,
+        value: u64,
+        // Expected SOL amount in EVER
+        expected_evers: UInt256,
         // Random payload to transfer to ever
         payload: Vec<u8>,
     },
@@ -79,12 +81,14 @@ pub enum TokenProxyInstruction {
         name: String,
         // Mint symbol
         symbol: String,
-        // Ever recipient address
-        recipient: EverAddress,
         // Deposit amount
         amount: u64,
+        // Ever recipient address
+        recipient: EverAddress,
         // Sol amount to transfer to ever
-        sol_amount: u64,
+        value: u64,
+        // Expected SOL amount in EVER
+        expected_evers: UInt256,
         // Random payload to transfer to ever
         payload: Vec<u8>,
     },

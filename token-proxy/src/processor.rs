@@ -1,7 +1,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use bridge_utils::errors::SolanaBridgeError;
 use bridge_utils::state::{AccountKind, Proposal, PDA};
-use bridge_utils::types::{EverAddress, Vote, RELAY_REPARATION};
+use bridge_utils::types::{EverAddress, UInt256, Vote, RELAY_REPARATION};
 use round_loader::RelayRound;
 
 use solana_program::account_info::{next_account_info, AccountInfo};
@@ -44,9 +44,10 @@ impl Processor {
             }
             TokenProxyInstruction::DepositMultiTokenEver {
                 deposit_seed,
-                recipient,
                 amount,
-                sol_amount,
+                recipient,
+                value,
+                expected_evers,
                 payload,
             } => {
                 msg!("Instruction: Deposit MULTI TOKEN EVER");
@@ -54,19 +55,21 @@ impl Processor {
                     program_id,
                     accounts,
                     deposit_seed,
-                    recipient,
                     amount,
-                    sol_amount,
+                    recipient,
+                    value,
+                    expected_evers,
                     payload,
                 )?;
             }
             TokenProxyInstruction::DepositMultiTokenSol {
                 deposit_seed,
-                recipient,
-                amount,
                 name,
                 symbol,
-                sol_amount,
+                amount,
+                recipient,
+                value,
+                expected_evers,
                 payload,
             } => {
                 msg!("Instruction: Deposit MULTI TOKEN SOL");
@@ -76,9 +79,10 @@ impl Processor {
                     deposit_seed,
                     name,
                     symbol,
-                    recipient,
                     amount,
-                    sol_amount,
+                    recipient,
+                    value,
+                    expected_evers,
                     payload,
                 )?;
             }
@@ -360,9 +364,10 @@ impl Processor {
         program_id: &Pubkey,
         accounts: &[AccountInfo],
         deposit_seed: u128,
-        recipient: EverAddress,
         amount: u64,
-        sol_amount: u64,
+        recipient: EverAddress,
+        value: u64,
+        expected_evers: UInt256,
         payload: Vec<u8>,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
@@ -505,8 +510,9 @@ impl Processor {
             event: DepositMultiTokenEverEventWithLen::new(
                 token,
                 transfer_amount,
-                sol_amount,
                 recipient,
+                value,
+                expected_evers,
                 payload,
             ),
             meta: DepositTokenMetaWithLen::new(deposit_seed),
@@ -527,7 +533,7 @@ impl Processor {
             &system_instruction::transfer(
                 funder_account_info.key,
                 multi_vault_account_info.key,
-                sol_amount,
+                value,
             ),
             accounts,
         )?;
@@ -542,9 +548,10 @@ impl Processor {
         deposit_seed: u128,
         name: String,
         symbol: String,
-        recipient: EverAddress,
         amount: u64,
-        sol_amount: u64,
+        recipient: EverAddress,
+        value: u64,
+        expected_evers: UInt256,
         payload: Vec<u8>,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
@@ -623,7 +630,7 @@ impl Processor {
 
             // Init Vault Account
             invoke_signed(
-                &spl_token::instruction::initialize_account(
+                &spl_token::instruction::initialize_account3(
                     &spl_token::id(),
                     vault_account_info.key,
                     mint_account_info.key,
@@ -762,7 +769,7 @@ impl Processor {
             &system_instruction::transfer(
                 funder_account_info.key,
                 multi_vault_account_info.key,
-                sol_amount,
+                value,
             ),
             accounts,
         )?;
@@ -821,8 +828,9 @@ impl Processor {
                 symbol,
                 decimals,
                 transfer_amount,
-                sol_amount,
                 recipient,
+                value,
+                expected_evers,
                 payload,
             ),
             meta: DepositTokenMetaWithLen::new(deposit_seed),
@@ -930,48 +938,54 @@ impl Processor {
         let epoch = clock.unix_timestamp / SECONDS_PER_DAY as i64;
 
         // Create Proxy Account
-        let mut proxy_nonce = None;
+        let proxy_nonce = match payload.is_empty() {
+            true => None,
+            false => {
+                let mint = get_associated_mint(program_id, &token);
 
-        if !payload.is_empty() {
-            let proxy_account_info = next_account_info(account_info_iter)?;
+                let (proxy_pubkey, nonce) = Pubkey::find_program_address(
+                    &[br"proxy", &mint.to_bytes(), &recipient.to_bytes()],
+                    program_id,
+                );
 
-            let (proxy_pubkey, nonce) = Pubkey::find_program_address(
-                &[br"proxy", &withdrawal_account_info.key.to_bytes()],
-                program_id,
-            );
+                let proxy_account_info = next_account_info(account_info_iter)?;
 
-            let proxy_signer_seeds: &[&[_]] =
-                &[br"proxy", &withdrawal_account_info.key.to_bytes(), &[nonce]];
+                if proxy_pubkey != *proxy_account_info.key {
+                    return Err(ProgramError::InvalidArgument);
+                }
 
-            if proxy_pubkey != *proxy_account_info.key {
-                return Err(ProgramError::InvalidArgument);
+                // Create proxy account if not exist
+                if proxy_account_info.lamports() == 0 {
+                    let proxy_signer_seeds: &[&[_]] =
+                        &[br"proxy", &mint.to_bytes(), &recipient.to_bytes(), &[nonce]];
+
+                    invoke_signed(
+                        &system_instruction::create_account(
+                            funder_account_info.key,
+                            proxy_account_info.key,
+                            1.max(rent.minimum_balance(spl_token::state::Account::LEN)),
+                            spl_token::state::Account::LEN as u64,
+                            &spl_token::id(),
+                        ),
+                        accounts,
+                        &[proxy_signer_seeds],
+                    )?;
+                }
+
+                // Attach SOL to proxy account
+                let funder_starting_lamports = funder_account_info.lamports();
+                **funder_account_info.lamports.borrow_mut() = funder_starting_lamports
+                    .checked_sub(attached_amount)
+                    .ok_or(SolanaBridgeError::Overflow)?;
+
+                let proxy_starting_lamports = proxy_account_info.lamports();
+                **proxy_account_info.lamports.borrow_mut() = proxy_starting_lamports
+                    .checked_add(attached_amount)
+                    .ok_or(SolanaBridgeError::Overflow)?;
+
+                Some(nonce)
             }
-
-            invoke_signed(
-                &system_instruction::create_account(
-                    funder_account_info.key,
-                    proxy_account_info.key,
-                    1.max(rent.minimum_balance(spl_token::state::Account::LEN)),
-                    spl_token::state::Account::LEN as u64,
-                    &spl_token::id(),
-                ),
-                accounts,
-                &[proxy_signer_seeds],
-            )?;
-
-            // Attach SOL to proxy account
-            let funder_starting_lamports = funder_account_info.lamports();
-            **funder_account_info.lamports.borrow_mut() = funder_starting_lamports
-                .checked_sub(attached_amount)
-                .ok_or(SolanaBridgeError::Overflow)?;
-
-            let proxy_starting_lamports = proxy_account_info.lamports();
-            **proxy_account_info.lamports.borrow_mut() = proxy_starting_lamports
-                .checked_add(attached_amount)
-                .ok_or(SolanaBridgeError::Overflow)?;
-
-            proxy_nonce = Some(nonce);
-        }
+        };
 
         // Create Withdraw Account
         let event = WithdrawalMultiTokenEverEventWithLen::new(
@@ -1149,48 +1163,49 @@ impl Processor {
         let epoch = clock.unix_timestamp / SECONDS_PER_DAY as i64;
 
         // Create Proxy Account
-        let mut proxy_nonce = None;
+        let proxy_nonce = match payload.is_empty() {
+            true => None,
+            false => {
+                let proxy_account_info = next_account_info(account_info_iter)?;
 
-        if !payload.is_empty() {
-            let proxy_account_info = next_account_info(account_info_iter)?;
+                let (proxy_pubkey, nonce) = Pubkey::find_program_address(
+                    &[br"proxy", &mint.to_bytes(), &recipient.to_bytes()],
+                    program_id,
+                );
 
-            let (proxy_pubkey, nonce) = Pubkey::find_program_address(
-                &[br"proxy", &withdrawal_account_info.key.to_bytes()],
-                program_id,
-            );
+                let proxy_signer_seeds: &[&[_]] =
+                    &[br"proxy", &mint.to_bytes(), &recipient.to_bytes(), &[nonce]];
 
-            let proxy_signer_seeds: &[&[_]] =
-                &[br"proxy", &withdrawal_account_info.key.to_bytes(), &[nonce]];
+                if proxy_pubkey != *proxy_account_info.key {
+                    return Err(ProgramError::InvalidArgument);
+                }
 
-            if proxy_pubkey != *proxy_account_info.key {
-                return Err(ProgramError::InvalidArgument);
+                invoke_signed(
+                    &system_instruction::create_account(
+                        funder_account_info.key,
+                        proxy_account_info.key,
+                        1.max(rent.minimum_balance(spl_token::state::Account::LEN)),
+                        spl_token::state::Account::LEN as u64,
+                        &spl_token::id(),
+                    ),
+                    accounts,
+                    &[proxy_signer_seeds],
+                )?;
+
+                // Attach SOL to proxy account
+                let funder_starting_lamports = funder_account_info.lamports();
+                **funder_account_info.lamports.borrow_mut() = funder_starting_lamports
+                    .checked_sub(attached_amount)
+                    .ok_or(SolanaBridgeError::Overflow)?;
+
+                let proxy_starting_lamports = proxy_account_info.lamports();
+                **proxy_account_info.lamports.borrow_mut() = proxy_starting_lamports
+                    .checked_add(attached_amount)
+                    .ok_or(SolanaBridgeError::Overflow)?;
+
+                Some(nonce)
             }
-
-            invoke_signed(
-                &system_instruction::create_account(
-                    funder_account_info.key,
-                    proxy_account_info.key,
-                    1.max(rent.minimum_balance(spl_token::state::Account::LEN)),
-                    spl_token::state::Account::LEN as u64,
-                    &spl_token::id(),
-                ),
-                accounts,
-                &[proxy_signer_seeds],
-            )?;
-
-            // Attach SOL to proxy account
-            let funder_starting_lamports = funder_account_info.lamports();
-            **funder_account_info.lamports.borrow_mut() = funder_starting_lamports
-                .checked_sub(attached_amount)
-                .ok_or(SolanaBridgeError::Overflow)?;
-
-            let proxy_starting_lamports = proxy_account_info.lamports();
-            **proxy_account_info.lamports.borrow_mut() = proxy_starting_lamports
-                .checked_add(attached_amount)
-                .ok_or(SolanaBridgeError::Overflow)?;
-
-            proxy_nonce = Some(nonce);
-        }
+        };
 
         // Create Withdraw Account
         let event = WithdrawalMultiTokenSolEventWithLen::new(mint, amount, recipient, payload);
@@ -1682,7 +1697,8 @@ impl Processor {
 
                         validate_proxy_account(
                             program_id,
-                            withdrawal_account_info.key,
+                            mint_account_info.key,
+                            &withdrawal_account_data.event.data.recipient,
                             proxy_nonce,
                             recipient_account_info,
                         )?;
@@ -1690,12 +1706,13 @@ impl Processor {
                         // Init Proxy Account
                         let proxy_signer_seeds: &[&[_]] = &[
                             br"proxy",
-                            &withdrawal_account_info.key.to_bytes(),
+                            &mint_account_info.key.to_bytes(),
+                            &withdrawal_account_data.event.data.recipient.to_bytes(),
                             &[proxy_nonce],
                         ];
 
                         invoke_signed(
-                            &spl_token::instruction::initialize_account(
+                            &spl_token::instruction::initialize_account3(
                                 &spl_token::id(),
                                 recipient_account_info.key,
                                 mint_account_info.key,
@@ -1746,6 +1763,7 @@ impl Processor {
         let vault_account_info = next_account_info(account_info_iter)?;
         let recipient_account_info = next_account_info(account_info_iter)?;
         let token_settings_account_info = next_account_info(account_info_iter)?;
+        let mint_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
         let _token_program_info = next_account_info(account_info_iter)?;
         let clock_info = next_account_info(account_info_iter)?;
@@ -1927,26 +1945,26 @@ impl Processor {
 
                                 validate_proxy_account(
                                     program_id,
-                                    withdrawal_account_info.key,
+                                    mint_account_info.key,
+                                    &withdrawal_account_data.event.data.recipient,
                                     proxy_nonce,
                                     recipient_account_info,
                                 )?;
 
                                 // Init Proxy Account
-                                let mint_account_info = next_account_info(account_info_iter)?;
-
                                 if mint != *mint_account_info.key {
                                     return Err(ProgramError::InvalidArgument);
                                 }
 
                                 let proxy_signer_seeds: &[&[_]] = &[
                                     br"proxy",
-                                    &withdrawal_account_info.key.to_bytes(),
+                                    &mint_account_info.key.to_bytes(),
+                                    &withdrawal_account_data.event.data.recipient.to_bytes(),
                                     &[proxy_nonce],
                                 ];
 
                                 invoke_signed(
-                                    &spl_token::instruction::initialize_account(
+                                    &spl_token::instruction::initialize_account3(
                                         &spl_token::id(),
                                         recipient_account_info.key,
                                         mint_account_info.key,
@@ -2016,7 +2034,8 @@ impl Processor {
 
                             validate_proxy_account(
                                 program_id,
-                                withdrawal_account_info.key,
+                                mint_account_info.key,
+                                &withdrawal_account_data.event.data.recipient,
                                 proxy_nonce,
                                 recipient_account_info,
                             )?;
@@ -2062,13 +2081,16 @@ impl Processor {
             return Err(SolanaBridgeError::InvalidWithdrawalStatus.into());
         }
 
+        let mint = get_associated_mint(program_id, &withdrawal_account_data.event.data.token);
+        let recipient = withdrawal_account_data.event.data.recipient;
+
         let (_, nonce) = Pubkey::find_program_address(
-            &[br"proxy", &withdrawal_account_info.key.to_bytes()],
+            &[br"proxy", &mint.to_bytes(), &recipient.to_bytes()],
             program_id,
         );
 
         let proxy_signer_seeds: &[&[_]] =
-            &[br"proxy", &withdrawal_account_info.key.to_bytes(), &[nonce]];
+            &[br"proxy", &mint.to_bytes(), &recipient.to_bytes(), &[nonce]];
 
         let ixs: Vec<solana_program::instruction::Instruction> =
             bincode::deserialize(&withdrawal_account_data.event.data.payload)
@@ -2095,13 +2117,16 @@ impl Processor {
             return Err(SolanaBridgeError::InvalidWithdrawalStatus.into());
         }
 
+        let mint = withdrawal_account_data.event.data.mint;
+        let recipient = withdrawal_account_data.event.data.recipient;
+
         let (_, nonce) = Pubkey::find_program_address(
-            &[br"proxy", &withdrawal_account_info.key.to_bytes()],
+            &[br"proxy", &mint.to_bytes(), &recipient.to_bytes()],
             program_id,
         );
 
         let proxy_signer_seeds: &[&[_]] =
-            &[br"proxy", &withdrawal_account_info.key.to_bytes(), &[nonce]];
+            &[br"proxy", &mint.to_bytes(), &recipient.to_bytes(), &[nonce]];
 
         let ixs: Vec<solana_program::instruction::Instruction> =
             bincode::deserialize(&withdrawal_account_data.event.data.payload)
@@ -2852,7 +2877,8 @@ impl Processor {
 
                 validate_proxy_account(
                     program_id,
-                    withdrawal_account_info.key,
+                    mint_account_info.key,
+                    &withdrawal_account_data.event.data.recipient,
                     proxy_nonce,
                     recipient_account_info,
                 )?;
@@ -3050,7 +3076,8 @@ impl Processor {
 
                 validate_proxy_account(
                     program_id,
-                    withdrawal_account_info.key,
+                    &mint,
+                    &withdrawal_account_data.event.data.recipient,
                     proxy_nonce,
                     recipient_account_info,
                 )?;
@@ -3620,8 +3647,9 @@ impl Processor {
         )?;
 
         // Init Deposit Account
-        let sol_amount = 0;
-        let payload: Vec<u8> = vec![];
+        let value = u64::default();
+        let payload: Vec<u8> = Vec::default();
+        let expected_evers = UInt256::default();
         let name = token_settings_account_data.name.clone();
         let symbol = token_settings_account_data.symbol.clone();
         let amount = withdrawal_account_data.event.data.amount;
@@ -3630,7 +3658,15 @@ impl Processor {
             is_initialized: true,
             account_kind: AccountKind::Deposit(deposit_nonce),
             event: DepositMultiTokenSolEventWithLen::new(
-                mint, name, symbol, decimals, amount, sol_amount, recipient, payload,
+                mint,
+                name,
+                symbol,
+                decimals,
+                amount,
+                recipient,
+                value,
+                expected_evers,
+                payload,
             ),
             meta: DepositTokenMetaWithLen::new(deposit_seed),
         };
@@ -3836,8 +3872,9 @@ impl Processor {
             .try_into()
             .map_err(|_| SolanaBridgeError::Overflow)?;
 
-        let sol_amount = 0;
-        let payload: Vec<u8> = vec![];
+        let value = u64::default();
+        let payload: Vec<u8> = Vec::default();
+        let expected_evers = UInt256::default();
         let name = token_settings_account_data.name.clone();
         let symbol = token_settings_account_data.symbol.clone();
 
@@ -3845,7 +3882,15 @@ impl Processor {
             is_initialized: true,
             account_kind: AccountKind::Deposit(deposit_nonce),
             event: DepositMultiTokenSolEventWithLen::new(
-                mint, name, symbol, decimals, amount, sol_amount, recipient, payload,
+                mint,
+                name,
+                symbol,
+                decimals,
+                amount,
+                recipient,
+                value,
+                expected_evers,
+                payload,
             ),
             meta: DepositTokenMetaWithLen::new(deposit_seed),
         };

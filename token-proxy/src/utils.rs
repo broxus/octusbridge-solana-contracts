@@ -38,8 +38,21 @@ pub fn get_associated_deposit_address(program_id: &Pubkey, seed: u128) -> Pubkey
     Pubkey::find_program_address(&[br"deposit", &seed.to_le_bytes()], program_id).0
 }
 
-pub fn get_associated_proxy_address(program_id: &Pubkey, withdrawal_pubkey: &Pubkey) -> Pubkey {
-    Pubkey::find_program_address(&[br"proxy", &withdrawal_pubkey.to_bytes()], program_id).0
+pub fn get_associated_proxy_address(
+    program_id: &Pubkey,
+    mint: &Pubkey,
+    recipient: &Pubkey,
+) -> Pubkey {
+    Pubkey::find_program_address(
+        &[br"proxy", &mint.to_bytes(), &recipient.to_bytes()],
+        program_id,
+    )
+    .0
+}
+
+pub fn get_associated_mint(program_id: &Pubkey, token: &EverAddress) -> Pubkey {
+    let token_hash = hash(&token.try_to_vec().expect("pack"));
+    Pubkey::find_program_address(&[br"mint", token_hash.as_ref()], program_id).0
 }
 
 pub fn validate_token_settings_ever_account(
@@ -146,12 +159,15 @@ pub fn validate_multi_vault_account(
 
 pub fn validate_proxy_account(
     program_id: &Pubkey,
-    withdrawal_pubkey: &Pubkey,
+    mint: &Pubkey,
+    recipient: &Pubkey,
     nonce: u8,
     account_info: &AccountInfo,
 ) -> Result<(), ProgramError> {
-    let (account, expected_nonce) =
-        Pubkey::find_program_address(&[br"proxy", &withdrawal_pubkey.to_bytes()], program_id);
+    let (account, expected_nonce) = Pubkey::find_program_address(
+        &[br"proxy", &mint.to_bytes(), &recipient.to_bytes()],
+        program_id,
+    );
 
     if account != *account_info.key {
         return Err(ProgramError::InvalidArgument);

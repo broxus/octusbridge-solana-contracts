@@ -74,7 +74,19 @@ impl MsgAddrStd {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, BorshSerialize, BorshDeserialize)]
+#[derive(
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Debug,
+    Default,
+    Serialize,
+    Deserialize,
+    BorshSerialize,
+    BorshDeserialize,
+)]
 pub struct UInt128([u8; 16]);
 
 impl From<[u8; 16]> for UInt128 {
@@ -95,7 +107,19 @@ impl UInt128 {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, BorshSerialize, BorshDeserialize)]
+#[derive(
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Debug,
+    Default,
+    Serialize,
+    Deserialize,
+    BorshSerialize,
+    BorshDeserialize,
+)]
 pub struct UInt256([u8; 32]);
 
 impl From<[u8; 32]> for UInt256 {

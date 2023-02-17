@@ -1,7 +1,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use bridge_derive::BridgePack;
 use bridge_utils::state::{AccountKind, PDA};
-use bridge_utils::types::{EverAddress, Vote};
+use bridge_utils::types::{EverAddress, UInt256, Vote};
 use enum_as_inner::EnumAsInner;
 use serde::{Deserialize, Serialize};
 
@@ -35,14 +35,16 @@ const WITHDRAWAL_TOKEN_META_LEN: usize = 1  // status
 const DEPOSIT_MULTI_TOKEN_SOL_EVENT_LEN: usize = PUBKEY_BYTES   // solana mint address
     + 1                                                         // decimals
     + 16                                                        // amount
-    + 8                                                         // sol amount
+    + 8                                                         // value
+    + 32                                                        // expected evers
     + 1 + 1 + PUBKEY_BYTES                                      // ever recipient address
 ;
 
 const DEPOSIT_MULTI_TOKEN_EVER_EVENT_LEN: usize =
     1 + 1 + PUBKEY_BYTES                                    // ever token root address
     + 16                                                    // amount
-    + 8                                                     // sol amount
+    + 8                                                     // value
+    + 32                                                    // expected evers
     + 1 + 1 + PUBKEY_BYTES                                  // ever recipient address
 ;
 
@@ -164,8 +166,9 @@ pub struct DepositMultiTokenSolEvent {
     pub symbol: String,
     pub decimals: u8,
     pub amount: u128,
-    pub sol_amount: u64,
     pub recipient: EverAddress,
+    pub value: u64,
+    pub expected_evers: UInt256,
     pub payload: Vec<u8>,
 }
 
@@ -183,8 +186,9 @@ impl DepositMultiTokenSolEventWithLen {
         symbol: String,
         decimals: u8,
         amount: u128,
-        sol_amount: u64,
         recipient: EverAddress,
+        value: u64,
+        expected_evers: UInt256,
         payload: Vec<u8>,
     ) -> Self {
         Self {
@@ -201,8 +205,9 @@ impl DepositMultiTokenSolEventWithLen {
                 symbol,
                 decimals,
                 amount,
-                sol_amount,
                 recipient,
+                value,
+                expected_evers,
                 payload,
             },
         }
@@ -230,8 +235,9 @@ impl IsInitialized for DepositMultiTokenEver {
 pub struct DepositMultiTokenEverEvent {
     pub token: EverAddress,
     pub amount: u128,
-    pub sol_amount: u64,
     pub recipient: EverAddress,
+    pub value: u64,
+    pub expected_evers: UInt256,
     pub payload: Vec<u8>,
 }
 
@@ -245,8 +251,9 @@ impl DepositMultiTokenEverEventWithLen {
     pub fn new(
         token: EverAddress,
         amount: u128,
-        sol_amount: u64,
         recipient: EverAddress,
+        value: u64,
+        expected_evers: UInt256,
         payload: Vec<u8>,
     ) -> Self {
         Self {
@@ -254,8 +261,9 @@ impl DepositMultiTokenEverEventWithLen {
             data: DepositMultiTokenEverEvent {
                 token,
                 amount,
-                sol_amount,
                 recipient,
+                value,
+                expected_evers,
                 payload,
             },
         }
