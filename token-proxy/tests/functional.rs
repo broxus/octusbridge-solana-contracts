@@ -8,9 +8,7 @@ use solana_program::bpf_loader_upgradeable::UpgradeableLoaderState;
 use solana_program::hash::hash;
 use solana_program::instruction::{AccountMeta, Instruction};
 use solana_program::rent::Rent;
-use solana_program::{
-    bpf_loader_upgradeable, program_option, program_pack::Pack, pubkey::Pubkey, system_instruction,
-};
+use solana_program::{bpf_loader_upgradeable, program_option, program_pack::Pack, pubkey::Pubkey};
 use solana_program_test::{processor, tokio, ProgramTest};
 use solana_sdk::account::{Account, ReadableAccount};
 use solana_sdk::signature::{Keypair, Signer};
@@ -2386,14 +2384,14 @@ async fn test_create_token_ever() {
 
     let mut transaction = Transaction::new_with_payer(
         &[create_ever_token_ix(
-            recipient.pubkey(),
+            funder.pubkey(),
             withdrawal_address,
-            token_wallet,
+            recipient.pubkey(),
             token,
         )],
         Some(&funder.pubkey()),
     );
-    transaction.sign(&[&funder, &recipient], recent_blockhash);
+    transaction.sign(&[&funder], recent_blockhash);
 
     banks_client
         .process_transaction(transaction)
@@ -2463,15 +2461,15 @@ async fn test_create_token_ever() {
     assert_eq!(mint_data.supply, transfer_amount);
 
     // Check Recipient Account
-    let recipient_info = banks_client
+    let recipient_token_info = banks_client
         .get_account(token_wallet)
         .await
         .expect("get_account")
         .expect("account");
 
-    let recipient_data =
-        spl_token::state::Account::unpack(recipient_info.data()).expect("recipient token unpack");
-    assert_eq!(recipient_data.amount, transfer_amount);
+    let recipient_token_data = spl_token::state::Account::unpack(recipient_token_info.data())
+        .expect("recipient token unpack");
+    assert_eq!(recipient_token_data.amount, transfer_amount);
 
     // Check Withdrawal Account
     let withdrawal_info = banks_client
@@ -6180,7 +6178,459 @@ async fn test_withdraw_sol_with_payload() {
         data,
     };
 
+    let mut transaction = Transaction::new_with_payer(&[ix], Some(&funder.pubkey()));
+    transaction.sign(&[&funder], recent_blockhash);
+
+    banks_client
+        .process_transaction(transaction)
+        .await
+        .expect("process_transaction");
+
+    // Check Proxy Balance
+    let proxy_info = banks_client
+        .get_account(proxy_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let proxy_data = spl_token::state::Account::unpack(proxy_info.data()).expect("proxy unpack");
+    assert_eq!(proxy_data.amount, 0);
+
+    // Check Proxy Balance
+    let recipient_token_info = banks_client
+        .get_account(recipient_token_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let recipient_token_data =
+        spl_token::state::Account::unpack(recipient_token_info.data()).expect("proxy unpack");
+    assert_eq!(recipient_token_data.amount, transfer_amount);
+}
+
+#[tokio::test]
+async fn test_withdraw_ever_request_with_payload() {
+    let mut program_test = ProgramTest::new(
+        "token_proxy",
+        token_proxy::id(),
+        processor!(Processor::process),
+    );
+
+    // Setup environment
+
+    // Add Settings Account
+    let guardian = Pubkey::new_unique();
+    let manager = Pubkey::new_unique();
+    let withdrawal_manager = Pubkey::new_unique();
+    let (_, settings_nonce) = Pubkey::find_program_address(&[br"settings"], &token_proxy::id());
+
+    let settings_address = get_settings_address();
+
+    let settings_account_data = Settings {
+        is_initialized: true,
+        account_kind: AccountKind::Settings(settings_nonce, 0),
+        emergency: false,
+        guardian,
+        manager,
+        withdrawal_manager,
+    };
+
+    let mut settings_packed = vec![0; Settings::LEN];
+    Settings::pack(settings_account_data, &mut settings_packed).unwrap();
+    program_test.add_account(
+        settings_address,
+        Account {
+            lamports: Rent::default().minimum_balance(Settings::LEN),
+            data: settings_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Round Loader Settings Account
+    let round_number = 12;
+
+    let rl_settings_address = get_associated_settings_address(&round_loader::id());
+
+    let (_, rl_settings_nonce) = Pubkey::find_program_address(&[br"settings"], &round_loader::id());
+
+    let round_ttl = 1209600;
+    let rl_settings_account_data = round_loader::Settings {
+        is_initialized: true,
+        account_kind: AccountKind::Settings(rl_settings_nonce, 0),
+        current_round_number: round_number,
+        round_submitter: Pubkey::new_unique(),
+        min_required_votes: 1,
+        round_ttl: 0,
+    };
+
+    let mut rl_settings_packed = vec![0; round_loader::Settings::LEN];
+    round_loader::Settings::pack(rl_settings_account_data, &mut rl_settings_packed).unwrap();
+    program_test.add_account(
+        rl_settings_address,
+        Account {
+            lamports: Rent::default().minimum_balance(round_loader::Settings::LEN),
+            data: rl_settings_packed,
+            owner: round_loader::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Relay Accounts
+    let relays = vec![
+        Keypair::new(),
+        Keypair::new(),
+        Keypair::new(),
+        Keypair::new(),
+        Keypair::new(),
+        Keypair::new(),
+        Keypair::new(),
+        Keypair::new(),
+        Keypair::new(),
+        Keypair::new(),
+    ];
+
+    for relay in &relays {
+        program_test.add_account(
+            relay.pubkey(),
+            Account {
+                lamports: 1_000_000_000,
+                data: vec![],
+                owner: solana_program::system_program::id(),
+                executable: false,
+                rent_epoch: 0,
+            },
+        );
+    }
+
+    // Add Relay Round Account
+    let relay_round_address =
+        bridge_utils::helper::get_associated_relay_round_address(&round_loader::id(), round_number);
+
+    let (_, relay_round_nonce) = Pubkey::find_program_address(
+        &[br"relay_round", &round_number.to_le_bytes()],
+        &round_loader::id(),
+    );
+
+    let round_end = round_ttl + chrono::Utc::now().timestamp() as u32;
+
+    let relay_round_data = round_loader::RelayRound {
+        is_initialized: true,
+        account_kind: AccountKind::RelayRound(relay_round_nonce),
+        relays: relays.iter().map(|pair| pair.pubkey()).collect(),
+        round_number,
+        round_end,
+    };
+
+    let mut relay_round_packed = vec![0; round_loader::RelayRound::LEN];
+    round_loader::RelayRound::pack(relay_round_data, &mut relay_round_packed).unwrap();
+
+    program_test.add_account(
+        relay_round_address,
+        Account {
+            lamports: Rent::default().minimum_balance(round_loader::RelayRound::LEN),
+            data: relay_round_packed,
+            owner: round_loader::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Author Account
+    let author = Keypair::new();
+    program_test.add_account(
+        author.pubkey(),
+        Account {
+            lamports: 1_000_000_000,
+            data: vec![],
+            owner: solana_program::system_program::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Start Program Test
+    let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
+
+    let token = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
+
+    let event_timestamp = 1650988297;
+    let event_transaction_lt = 1650988334;
+    let event_configuration = Pubkey::new_unique();
+
+    let name = "USDC ETHEREUM OCTUSBRIDGE".to_string();
+    let symbol = "USDC".to_string();
+    let decimals = spl_token::native_mint::DECIMALS;
+
+    let mint = get_mint_address(&token);
+
+    let recipient = Pubkey::new_unique();
+    let recipient_token_address =
+        spl_associated_token_account::get_associated_token_address(&recipient, &mint);
+
+    let amount = 32;
+
+    let (proxy_address, proxy_nonce) = Pubkey::find_program_address(
+        &[br"proxy", &mint.to_bytes(), &recipient.to_bytes()],
+        &token_proxy::id(),
+    );
+
+    let payload = bincode::serialize(&vec![spl_token::instruction::transfer(
+        &spl_token::id(),
+        &proxy_address,
+        &recipient_token_address,
+        &proxy_address,
+        &[&proxy_address],
+        31,
+    )
+    .unwrap()])
+    .unwrap();
+
+    let attached_amount = 0;
+
+    let mut transaction = Transaction::new_with_payer(
+        &[withdrawal_multi_token_ever_request_ix(
+            funder.pubkey(),
+            author.pubkey(),
+            round_number,
+            event_timestamp,
+            event_transaction_lt,
+            event_configuration,
+            token,
+            name.clone(),
+            symbol.clone(),
+            decimals,
+            recipient,
+            amount,
+            payload.clone(),
+            attached_amount,
+        )],
+        Some(&funder.pubkey()),
+    );
+    transaction.sign(&[&funder, &author], recent_blockhash);
+
+    banks_client
+        .process_transaction(transaction)
+        .await
+        .expect("process_transaction");
+
+    // Check Withdrawal Account
+    let withdrawal_address = get_withdrawal_ever_address(
+        round_number,
+        event_timestamp,
+        event_transaction_lt,
+        &event_configuration,
+        token,
+        name.clone(),
+        symbol.clone(),
+        decimals,
+        recipient,
+        amount,
+        payload,
+    );
+    let withdrawal_info = banks_client
+        .get_account(withdrawal_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let withdrawal_data =
+        WithdrawalMultiTokenEver::unpack(withdrawal_info.data()).expect("withdrawal token unpack");
+
+    assert_eq!(withdrawal_data.is_initialized, true);
+    assert_eq!(withdrawal_data.is_executed, false);
+    assert_eq!(withdrawal_data.author, author.pubkey());
+    assert_eq!(withdrawal_data.round_number, round_number);
+
+    assert_eq!(
+        withdrawal_data.required_votes,
+        (relays.len() * 2 / 3 + 1) as u32
+    );
+
+    assert_eq!(withdrawal_data.pda.event_timestamp, event_timestamp);
+    assert_eq!(
+        withdrawal_data.pda.event_transaction_lt,
+        event_transaction_lt
+    );
+    assert_eq!(withdrawal_data.pda.event_configuration, event_configuration);
+
+    assert_eq!(withdrawal_data.event.data.token, token);
+    assert_eq!(withdrawal_data.event.data.name, name);
+    assert_eq!(withdrawal_data.event.data.symbol, symbol);
+    assert_eq!(withdrawal_data.event.data.decimals, decimals);
+    assert_eq!(withdrawal_data.event.data.amount, amount);
+    assert_eq!(withdrawal_data.event.data.recipient, recipient);
+
+    assert_ne!(withdrawal_data.meta.data.epoch, 0);
+    assert_eq!(withdrawal_data.meta.data.bounty, 0);
+    assert_eq!(withdrawal_data.meta.data.status, WithdrawalTokenStatus::New);
+
+    let event_data = hash(&withdrawal_data.event.data.try_to_vec().expect("pack")).to_bytes();
+
+    let (_, withdrawal_nonce) = Pubkey::find_program_address(
+        &[
+            br"proposal",
+            &round_number.to_le_bytes(),
+            &event_timestamp.to_le_bytes(),
+            &event_transaction_lt.to_le_bytes(),
+            &event_configuration.to_bytes(),
+            &event_data,
+        ],
+        &token_proxy::id(),
+    );
+
+    assert_eq!(
+        withdrawal_data.account_kind,
+        AccountKind::Proposal(withdrawal_nonce, Some(proxy_nonce))
+    );
+
+    // Check Proposal Account
+    let proposal_data =
+        Proposal::unpack_from_slice(withdrawal_info.data()).expect("withdrawal token unpack");
+
+    assert_eq!(
+        proposal_data.event,
+        withdrawal_data.event.data.try_to_vec().unwrap()
+    );
+    assert_eq!(
+        proposal_data.meta,
+        withdrawal_data.meta.data.try_to_vec().unwrap()
+    );
+
+    // Check Proxy Account
+    let proxy_address = get_proxy_address(&mint, &recipient);
+
+    let proxy_info = banks_client
+        .get_account(proxy_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    assert_eq!(proxy_info.data.len(), spl_token::state::Account::LEN);
+
+    // Vote for withdrawal request
+    for relay in &relays {
+        let mut transaction = Transaction::new_with_payer(
+            &[vote_for_withdrawal_request_ix(
+                relay.pubkey(),
+                withdrawal_address,
+                round_number,
+                Vote::Confirm,
+            )],
+            Some(&funder.pubkey()),
+        );
+        transaction.sign(&[&funder, &relay], recent_blockhash);
+
+        let _ = banks_client.process_transaction(transaction).await;
+    }
+
     // Execute withdrawal
+    let mut transaction = Transaction::new_with_payer(
+        &[create_ever_token_with_payload_ix(
+            funder.pubkey(),
+            withdrawal_address,
+            recipient,
+            token,
+        )],
+        Some(&funder.pubkey()),
+    );
+    transaction.sign(&[&funder], recent_blockhash);
+
+    banks_client
+        .process_transaction(transaction)
+        .await
+        .expect("process_transaction");
+
+    // Check Token Settings Account
+    let token_settings_address = get_token_settings_ever_address(&token);
+    let token_settings_info = banks_client
+        .get_account(token_settings_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let token_settings_data =
+        TokenSettings::unpack(token_settings_info.data()).expect("deposit token unpack");
+
+    assert_eq!(token_settings_data.is_initialized, true);
+    assert_eq!(token_settings_data.deposit_limit, u64::MAX);
+    assert_eq!(token_settings_data.withdrawal_limit, u64::MAX);
+    assert_eq!(token_settings_data.withdrawal_daily_limit, u64::MAX);
+    assert_eq!(token_settings_data.emergency, false);
+
+    assert_eq!(
+        token_settings_data.kind,
+        TokenKind::Ever {
+            mint,
+            token,
+            decimals,
+        }
+    );
+
+    let token_hash = hash(&token.try_to_vec().unwrap());
+
+    let (_, token_settings_nonce) =
+        Pubkey::find_program_address(&[br"settings", token_hash.as_ref()], &token_proxy::id());
+    let (_, mint_nonce) =
+        Pubkey::find_program_address(&[br"mint", token_hash.as_ref()], &token_proxy::id());
+
+    assert_eq!(
+        token_settings_data.account_kind,
+        AccountKind::TokenSettings(token_settings_nonce, mint_nonce)
+    );
+
+    let fee_info = &token_settings_data.fee_info;
+
+    let fee = 1.max(
+        (amount as u64)
+            .checked_div(fee_info.divisor)
+            .unwrap()
+            .checked_mul(fee_info.multiplier)
+            .unwrap(),
+    );
+
+    let transfer_amount = amount as u64 - fee;
+
+    assert_eq!(token_settings_data.withdrawal_daily_amount, transfer_amount);
+
+    // Check Mint supply
+    let mint_info = banks_client
+        .get_account(mint)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let mint_data = spl_token::state::Mint::unpack(mint_info.data()).expect("mint unpack");
+    assert_eq!(mint_data.supply, transfer_amount);
+
+    // Check Proxy Balance
+    let proxy_info = banks_client
+        .get_account(proxy_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let proxy_data = spl_token::state::Account::unpack(proxy_info.data()).expect("proxy unpack");
+    assert_eq!(proxy_data.amount, transfer_amount);
+
+    // Execute payload
+    let data = TokenProxyInstruction::ExecutePayloadEver
+        .try_to_vec()
+        .expect("pack");
+
+    let ix = Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(withdrawal_address, false),
+            AccountMeta::new(proxy_address, false),
+            AccountMeta::new(recipient_token_address, false),
+            AccountMeta::new_readonly(spl_token::id(), false),
+        ],
+        data,
+    };
+
     let mut transaction = Transaction::new_with_payer(&[ix], Some(&funder.pubkey()));
     transaction.sign(&[&funder], recent_blockhash);
 

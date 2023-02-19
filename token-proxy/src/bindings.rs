@@ -464,15 +464,50 @@ pub fn withdrawal_ever_ix(
     }
 }
 
-pub fn create_ever_token_ix(
-    funder_pubkey: Pubkey,
+pub fn withdrawal_ever_with_payload_ix(
     withdrawal_pubkey: Pubkey,
-    recipient_token_pubkey: Pubkey,
+    recipient_pubkey: Pubkey,
     token: EverAddress,
 ) -> Instruction {
     let settings_pubkey = get_settings_address();
     let mint_pubkey = get_mint_address(&token);
     let token_settings_pubkey = get_token_settings_ever_address(&token);
+
+    let proxy_pubkey = get_proxy_address(&mint_pubkey, &recipient_pubkey);
+
+    let data = TokenProxyInstruction::WithdrawMultiTokenEver
+        .try_to_vec()
+        .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(withdrawal_pubkey, false),
+            AccountMeta::new(mint_pubkey, false),
+            AccountMeta::new(proxy_pubkey, false),
+            AccountMeta::new(token_settings_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+            AccountMeta::new_readonly(spl_token::id(), false),
+            AccountMeta::new_readonly(sysvar::rent::id(), false),
+            AccountMeta::new_readonly(sysvar::clock::id(), false),
+        ],
+        data,
+    }
+}
+
+pub fn create_ever_token_ix(
+    funder_pubkey: Pubkey,
+    withdrawal_pubkey: Pubkey,
+    recipient_pubkey: Pubkey,
+    token: EverAddress,
+) -> Instruction {
+    let settings_pubkey = get_settings_address();
+    let mint_pubkey = get_mint_address(&token);
+    let token_settings_pubkey = get_token_settings_ever_address(&token);
+
+    let recipient_token_pubkey =
+        spl_associated_token_account::get_associated_token_address(&recipient_pubkey, &mint_pubkey);
 
     let data = TokenProxyInstruction::WithdrawMultiTokenEver
         .try_to_vec()
@@ -492,6 +527,48 @@ pub fn create_ever_token_ix(
             AccountMeta::new_readonly(sysvar::clock::id(), false),
             // If token settings account is not created
             AccountMeta::new(funder_pubkey, true),
+            AccountMeta::new_readonly(recipient_pubkey, false),
+            AccountMeta::new_readonly(spl_associated_token_account::id(), false),
+        ],
+        data,
+    }
+}
+
+pub fn create_ever_token_with_payload_ix(
+    funder_pubkey: Pubkey,
+    withdrawal_pubkey: Pubkey,
+    recipient_pubkey: Pubkey,
+    token: EverAddress,
+) -> Instruction {
+    let settings_pubkey = get_settings_address();
+    let mint_pubkey = get_mint_address(&token);
+    let token_settings_pubkey = get_token_settings_ever_address(&token);
+
+    let proxy_pubkey = get_proxy_address(&mint_pubkey, &recipient_pubkey);
+
+    let recipient_token_pubkey =
+        spl_associated_token_account::get_associated_token_address(&recipient_pubkey, &mint_pubkey);
+
+    let data = TokenProxyInstruction::WithdrawMultiTokenEver
+        .try_to_vec()
+        .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(withdrawal_pubkey, false),
+            AccountMeta::new(mint_pubkey, false),
+            AccountMeta::new(proxy_pubkey, false),
+            AccountMeta::new(token_settings_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+            AccountMeta::new_readonly(spl_token::id(), false),
+            AccountMeta::new_readonly(sysvar::rent::id(), false),
+            AccountMeta::new_readonly(sysvar::clock::id(), false),
+            // If token settings account is not created
+            AccountMeta::new(funder_pubkey, true),
+            AccountMeta::new(recipient_token_pubkey, false),
+            AccountMeta::new_readonly(recipient_pubkey, false),
             AccountMeta::new_readonly(spl_associated_token_account::id(), false),
         ],
         data,

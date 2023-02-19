@@ -1465,7 +1465,6 @@ impl Processor {
                 Ok(funder_account_info) => funder_account_info,
                 Err(_) => return Ok(()),
             };
-            let _spl_associated_token_program_info = next_account_info(account_info_iter)?;
 
             // Create Mint Account
             let ever_decimals = withdrawal_account_data.event.data.decimals;
@@ -1513,7 +1512,7 @@ impl Processor {
             invoke(
                 &spl_associated_token_account::instruction::create_associated_token_account(
                     funder_account_info.key,
-                    funder_account_info.key,
+                    &withdrawal_account_data.event.data.recipient,
                     mint_account_info.key,
                     &spl_token::id(),
                 ),
