@@ -1,8 +1,9 @@
-use std::fmt;
 use std::str::FromStr;
+use std::{fmt, mem};
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
+use thiserror::Error;
 
 pub const RELAY_REPARATION: u64 = 20000;
 
@@ -122,6 +123,15 @@ impl UInt128 {
 )]
 pub struct UInt256([u8; 32]);
 
+impl UInt256 {
+    pub fn new(value_vec: &[u8]) -> Self {
+        Self(
+            <[u8; 32]>::try_from(<&[u8]>::clone(&value_vec))
+                .expect("Slice must be the same length as a UInt256"),
+        )
+    }
+}
+
 impl From<[u8; 32]> for UInt256 {
     fn from(data: [u8; 32]) -> Self {
         UInt256(data)
@@ -138,4 +148,22 @@ impl UInt256 {
     pub const fn as_slice(&self) -> &[u8; 32] {
         &self.0
     }
+}
+
+impl FromStr for UInt256 {
+    type Err = ParseUInt256Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.as_bytes().len() != mem::size_of::<UInt256>() {
+            Err(ParseUInt256Error::WrongSize)
+        } else {
+            Ok(UInt256::new(&s.as_bytes()))
+        }
+    }
+}
+
+#[derive(Error, Debug, Serialize, Clone, PartialEq)]
+pub enum ParseUInt256Error {
+    #[error("String is the wrong size")]
+    WrongSize,
 }

@@ -310,11 +310,12 @@ pub fn deposit_multi_token_ever_ix(
     funder_pubkey: String,
     author_pubkey: String,
     author_token_pubkey: String,
-    deposit_seed: String,
-    recipient_address: String,
     token_address: String,
+    deposit_seed: String,
     amount: u64,
-    sol_amount: u64,
+    recipient_address: String,
+    value: u64,
+    expected_evers: String,
     payload: String,
 ) -> Result<JsValue, JsValue> {
     let deposit_seed = uuid::Uuid::from_str(&deposit_seed)
@@ -326,6 +327,7 @@ pub fn deposit_multi_token_ever_ix(
     let recipient = EverAddress::from_str(&recipient_address).handle_error()?;
     let token = EverAddress::from_str(&token_address).handle_error()?;
     let author_token_pubkey = Pubkey::from_str(author_token_pubkey.as_str()).handle_error()?;
+    let expected_evers = UInt256::from_str(expected_evers.as_str()).handle_error()?;
 
     let mint_pubkey = get_mint_address(&token);
     let settings_pubkey = get_settings_address();
@@ -337,9 +339,10 @@ pub fn deposit_multi_token_ever_ix(
 
     let data = TokenProxyInstruction::DepositMultiTokenEver {
         deposit_seed,
-        recipient,
         amount,
-        sol_amount,
+        recipient,
+        value,
+        expected_evers,
         payload,
     }
     .try_to_vec()
@@ -370,14 +373,15 @@ pub fn deposit_multi_token_ever_ix(
 pub fn deposit_multi_token_sol_ix(
     funder_pubkey: String,
     author_pubkey: String,
+    author_token_pubkey: String,
     mint_pubkey: String,
+    deposit_seed: String,
     name: String,
     symbol: String,
-    author_token_pubkey: String,
-    deposit_seed: String,
-    recipient_address: String,
     amount: u64,
-    sol_amount: u64,
+    recipient_address: String,
+    value: u64,
+    expected_evers: String,
     payload: String,
 ) -> Result<JsValue, JsValue> {
     let deposit_seed = uuid::Uuid::from_str(&deposit_seed)
@@ -389,6 +393,7 @@ pub fn deposit_multi_token_sol_ix(
     let author_pubkey = Pubkey::from_str(author_pubkey.as_str()).handle_error()?;
     let author_token_pubkey = Pubkey::from_str(author_token_pubkey.as_str()).handle_error()?;
     let recipient = EverAddress::from_str(&recipient_address).handle_error()?;
+    let expected_evers = UInt256::from_str(expected_evers.as_str()).handle_error()?;
 
     let vault_pubkey = get_vault_address(&mint_pubkey);
     let settings_pubkey = get_settings_address();
@@ -401,11 +406,12 @@ pub fn deposit_multi_token_sol_ix(
 
     let data = TokenProxyInstruction::DepositMultiTokenSol {
         deposit_seed,
-        recipient,
-        amount,
         name,
         symbol,
-        sol_amount,
+        amount,
+        recipient,
+        value,
+        expected_evers,
         payload,
     }
     .try_to_vec()
