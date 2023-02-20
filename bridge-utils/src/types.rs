@@ -154,10 +154,12 @@ impl FromStr for UInt256 {
     type Err = ParseUInt256Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.as_bytes().len() != mem::size_of::<UInt256>() {
+        let vec = hex::decode(s).map_err(|_| ParseUInt256Error::Invalid)?;
+
+        if vec.len() != mem::size_of::<UInt256>() {
             Err(ParseUInt256Error::WrongSize)
         } else {
-            Ok(UInt256::new(&s.as_bytes()))
+            Ok(UInt256::new(&vec))
         }
     }
 }
@@ -166,4 +168,6 @@ impl FromStr for UInt256 {
 pub enum ParseUInt256Error {
     #[error("String is the wrong size")]
     WrongSize,
+    #[error("Invalid Base58 string")]
+    Invalid,
 }
