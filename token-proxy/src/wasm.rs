@@ -802,13 +802,15 @@ pub fn get_proposal_sol_address(
     mint_address: String,
     recipient_address: String,
     amount: String,
-    payload: Vec<u8>,
+    payload: String,
 ) -> Result<JsValue, JsValue> {
     let recipient_address = Pubkey::from_str(recipient_address.as_str()).handle_error()?;
     let event_configuration = Pubkey::from_str(event_configuration.as_str()).handle_error()?;
     let amount = u128::from_str(&amount).handle_error()?;
 
     let mint_address = Pubkey::from_str(mint_address.as_str()).handle_error()?;
+
+    let payload = base64::decode(payload).handle_error()?;
 
     let withdrawal_pubkey = get_withdrawal_sol_address(
         round_number,
@@ -836,13 +838,15 @@ pub fn get_proposal_ever_address(
     name: String,
     symbol: String,
     decimals: u8,
-    payload: Vec<u8>,
+    payload: String,
 ) -> Result<JsValue, JsValue> {
     let recipient_address = Pubkey::from_str(recipient_address.as_str()).handle_error()?;
     let event_configuration = Pubkey::from_str(event_configuration.as_str()).handle_error()?;
     let amount = u128::from_str(&amount).handle_error()?;
 
     let token = EverAddress::from_str(&token_address).handle_error()?;
+
+    let payload = base64::decode(payload).handle_error()?;
 
     let withdrawal_pubkey = get_withdrawal_ever_address(
         round_number,
