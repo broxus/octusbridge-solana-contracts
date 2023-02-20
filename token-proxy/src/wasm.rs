@@ -91,7 +91,7 @@ pub fn withdrawal_multi_token_ever_request_ix(
     recipient_address: String,
     amount: String,
     round_number: u32,
-    payload: Vec<u8>,
+    payload: String,
     attached_amount: u64,
 ) -> Result<JsValue, JsValue> {
     let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
@@ -99,6 +99,7 @@ pub fn withdrawal_multi_token_ever_request_ix(
     let recipient = Pubkey::from_str(recipient_address.as_str()).handle_error()?;
     let event_configuration = Pubkey::from_str(event_configuration.as_str()).handle_error()?;
     let token = EverAddress::from_str(&token_address).handle_error()?;
+    let payload = base64::decode(payload).handle_error()?;
 
     let amount = u128::from_str(&amount).handle_error()?;
 
@@ -167,7 +168,7 @@ pub fn withdrawal_multi_token_sol_request_ix(
     recipient_address: String,
     amount: String,
     round_number: u32,
-    payload: Vec<u8>,
+    payload: String,
     attached_amount: u64,
 ) -> Result<JsValue, JsValue> {
     let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
@@ -176,6 +177,7 @@ pub fn withdrawal_multi_token_sol_request_ix(
     let recipient = Pubkey::from_str(recipient_address.as_str()).handle_error()?;
     let event_configuration = Pubkey::from_str(event_configuration.as_str()).handle_error()?;
     let token_settings_pubkey = get_token_settings_sol_address(&mint);
+    let payload = base64::decode(payload).handle_error()?;
 
     let amount = u128::from_str(&amount).handle_error()?;
 
