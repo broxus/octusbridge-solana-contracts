@@ -1172,24 +1172,27 @@ impl Processor {
                     program_id,
                 );
 
-                let proxy_signer_seeds: &[&[_]] =
-                    &[br"proxy", &mint.to_bytes(), &recipient.to_bytes(), &[nonce]];
-
                 if proxy_pubkey != *proxy_account_info.key {
                     return Err(ProgramError::InvalidArgument);
                 }
 
-                invoke_signed(
-                    &system_instruction::create_account(
-                        funder_account_info.key,
-                        proxy_account_info.key,
-                        1.max(rent.minimum_balance(spl_token::state::Account::LEN)),
-                        spl_token::state::Account::LEN as u64,
-                        &spl_token::id(),
-                    ),
-                    accounts,
-                    &[proxy_signer_seeds],
-                )?;
+                // Create proxy account if not exist
+                if proxy_account_info.lamports() == 0 {
+                    let proxy_signer_seeds: &[&[_]] =
+                        &[br"proxy", &mint.to_bytes(), &recipient.to_bytes(), &[nonce]];
+
+                    invoke_signed(
+                        &system_instruction::create_account(
+                            funder_account_info.key,
+                            proxy_account_info.key,
+                            1.max(rent.minimum_balance(spl_token::state::Account::LEN)),
+                            spl_token::state::Account::LEN as u64,
+                            &spl_token::id(),
+                        ),
+                        accounts,
+                        &[proxy_signer_seeds],
+                    )?;
+                }
 
                 // Attach SOL to proxy account
                 invoke(
