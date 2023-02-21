@@ -123,6 +123,24 @@ pub fn withdrawal_multi_token_ever_request_ix(
     let rl_settings_pubkey =
         bridge_utils::helper::get_associated_settings_address(&round_loader::id());
 
+    let mut accounts = vec![
+        AccountMeta::new(funder_pubkey, true),
+        AccountMeta::new(author_pubkey, true),
+        AccountMeta::new(withdrawal_pubkey, false),
+        AccountMeta::new_readonly(rl_settings_pubkey, false),
+        AccountMeta::new_readonly(relay_round_pubkey, false),
+        AccountMeta::new_readonly(system_program::id(), false),
+        AccountMeta::new_readonly(sysvar::rent::id(), false),
+        AccountMeta::new_readonly(sysvar::clock::id(), false),
+    ];
+
+    if !payload.is_empty() {
+        let mint = get_mint_address(&token);
+
+        let proxy_pubkey = get_proxy_address(&mint, &recipient);
+        accounts.push(AccountMeta::new(proxy_pubkey, false));
+    }
+
     let data = TokenProxyInstruction::WithdrawMultiTokenEverRequest {
         event_timestamp,
         event_transaction_lt,
@@ -141,16 +159,7 @@ pub fn withdrawal_multi_token_ever_request_ix(
 
     let ix = Instruction {
         program_id: id(),
-        accounts: vec![
-            AccountMeta::new(funder_pubkey, true),
-            AccountMeta::new(author_pubkey, true),
-            AccountMeta::new(withdrawal_pubkey, false),
-            AccountMeta::new_readonly(rl_settings_pubkey, false),
-            AccountMeta::new_readonly(relay_round_pubkey, false),
-            AccountMeta::new_readonly(system_program::id(), false),
-            AccountMeta::new_readonly(sysvar::rent::id(), false),
-            AccountMeta::new_readonly(sysvar::clock::id(), false),
-        ],
+        accounts,
         data,
     };
 
@@ -198,6 +207,23 @@ pub fn withdrawal_multi_token_sol_request_ix(
     let rl_settings_pubkey =
         bridge_utils::helper::get_associated_settings_address(&round_loader::id());
 
+    let mut accounts = vec![
+        AccountMeta::new(funder_pubkey, true),
+        AccountMeta::new(author_pubkey, true),
+        AccountMeta::new(withdrawal_pubkey, false),
+        AccountMeta::new_readonly(token_settings_pubkey, false),
+        AccountMeta::new_readonly(rl_settings_pubkey, false),
+        AccountMeta::new_readonly(relay_round_pubkey, false),
+        AccountMeta::new_readonly(system_program::id(), false),
+        AccountMeta::new_readonly(sysvar::rent::id(), false),
+        AccountMeta::new_readonly(sysvar::clock::id(), false),
+    ];
+
+    if !payload.is_empty() {
+        let proxy_pubkey = get_proxy_address(&mint, &recipient);
+        accounts.push(AccountMeta::new(proxy_pubkey, false));
+    }
+
     let data = TokenProxyInstruction::WithdrawMultiTokenSolRequest {
         event_timestamp,
         event_transaction_lt,
@@ -212,17 +238,7 @@ pub fn withdrawal_multi_token_sol_request_ix(
 
     let ix = Instruction {
         program_id: id(),
-        accounts: vec![
-            AccountMeta::new(funder_pubkey, true),
-            AccountMeta::new(author_pubkey, true),
-            AccountMeta::new(withdrawal_pubkey, false),
-            AccountMeta::new_readonly(token_settings_pubkey, false),
-            AccountMeta::new_readonly(rl_settings_pubkey, false),
-            AccountMeta::new_readonly(relay_round_pubkey, false),
-            AccountMeta::new_readonly(system_program::id(), false),
-            AccountMeta::new_readonly(sysvar::rent::id(), false),
-            AccountMeta::new_readonly(sysvar::clock::id(), false),
-        ],
+        accounts,
         data,
     };
 
