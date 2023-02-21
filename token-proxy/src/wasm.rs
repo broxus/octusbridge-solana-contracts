@@ -441,6 +441,70 @@ pub fn deposit_multi_token_sol_ix(
     return serde_wasm_bindgen::to_value(&ix).handle_error();
 }
 
+#[wasm_bindgen(js_name = "executePayloadSol")]
+pub fn execute_payload_sol_ix(
+    withdrawal_pubkey: String,
+    recipient_address: String,
+    mint_address: String,
+    recipient_token_pubkey: String,
+) -> Result<JsValue, JsValue> {
+    let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).handle_error()?;
+    let recipient_address = Pubkey::from_str(recipient_address.as_str()).handle_error()?;
+    let mint_address = Pubkey::from_str(mint_address.as_str()).handle_error()?;
+    let proxy_address = get_proxy_address(&mint_address, &recipient_address);
+    let recipient_token_pubkey =
+        Pubkey::from_str(recipient_token_pubkey.as_str()).handle_error()?;
+
+    let data = TokenProxyInstruction::ExecutePayloadSol
+        .try_to_vec()
+        .expect("pack");
+
+    let ix = Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(withdrawal_pubkey, false),
+            AccountMeta::new(proxy_address, false),
+            AccountMeta::new(recipient_token_pubkey, false),
+            AccountMeta::new_readonly(spl_token::id(), false),
+        ],
+        data,
+    };
+
+    return serde_wasm_bindgen::to_value(&ix).handle_error();
+}
+
+#[wasm_bindgen(js_name = "executePayloadEver")]
+pub fn execute_payload_ever_ix(
+    withdrawal_pubkey: String,
+    recipient_address: String,
+    mint_address: String,
+    recipient_token_pubkey: String,
+) -> Result<JsValue, JsValue> {
+    let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).handle_error()?;
+    let recipient_address = Pubkey::from_str(recipient_address.as_str()).handle_error()?;
+    let mint_address = Pubkey::from_str(mint_address.as_str()).handle_error()?;
+    let proxy_address = get_proxy_address(&mint_address, &recipient_address);
+    let recipient_token_pubkey =
+        Pubkey::from_str(recipient_token_pubkey.as_str()).handle_error()?;
+
+    let data = TokenProxyInstruction::ExecutePayloadEver
+        .try_to_vec()
+        .expect("pack");
+
+    let ix = Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(withdrawal_pubkey, false),
+            AccountMeta::new(proxy_address, false),
+            AccountMeta::new(recipient_token_pubkey, false),
+            AccountMeta::new_readonly(spl_token::id(), false),
+        ],
+        data,
+    };
+
+    return serde_wasm_bindgen::to_value(&ix).handle_error();
+}
+
 #[wasm_bindgen(js_name = "voteForWithdrawRequest")]
 pub fn vote_for_withdraw_request_ix(
     authority_pubkey: String,
@@ -824,6 +888,17 @@ pub fn get_proposal_sol_address(
     );
 
     return serde_wasm_bindgen::to_value(&withdrawal_pubkey).handle_error();
+}
+
+#[wasm_bindgen(js_name = "getProxyAddress")]
+pub fn get_proxy_address_payload(
+    mint_address: String,
+    recipient_address: String,
+) -> Result<JsValue, JsValue> {
+    let recipient_address = Pubkey::from_str(recipient_address.as_str()).handle_error()?;
+    let mint_address = Pubkey::from_str(mint_address.as_str()).handle_error()?;
+    let proxy_address = get_proxy_address(&mint_address, &recipient_address);
+    return serde_wasm_bindgen::to_value(&proxy_address).handle_error();
 }
 
 #[wasm_bindgen(js_name = "getProposalEverAddress")]
