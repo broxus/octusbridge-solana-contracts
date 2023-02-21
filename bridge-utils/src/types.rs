@@ -1,5 +1,5 @@
 use std::str::FromStr;
-use std::{fmt, mem};
+use std::{cmp, fmt, mem};
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
@@ -130,6 +130,14 @@ impl UInt256 {
                 .expect("Slice must be the same length as a UInt256"),
         )
     }
+
+    pub fn from_be_bytes(value: &[u8]) -> Self {
+        let mut data = [0; 32];
+        let len = cmp::min(value.len(), 32);
+        let offset = 32 - len;
+        (0..len).for_each(|i| data[i + offset] = value[i]);
+        Self(data)
+    }
 }
 
 impl From<[u8; 32]> for UInt256 {
@@ -168,6 +176,6 @@ impl FromStr for UInt256 {
 pub enum ParseUInt256Error {
     #[error("String is the wrong size")]
     WrongSize,
-    #[error("Invalid Base58 string")]
+    #[error("Invalid HEX string")]
     Invalid,
 }

@@ -317,7 +317,7 @@ pub fn deposit_multi_token_ever_ix(
     amount: u64,
     recipient_address: String,
     value: u64,
-    expected_evers: String,
+    expected_evers: u64,
     payload: String,
 ) -> Result<JsValue, JsValue> {
     let deposit_seed = uuid::Uuid::from_str(&deposit_seed)
@@ -329,7 +329,8 @@ pub fn deposit_multi_token_ever_ix(
     let recipient = EverAddress::from_str(&recipient_address).handle_error()?;
     let token = EverAddress::from_str(&token_address).handle_error()?;
     let author_token_pubkey = Pubkey::from_str(author_token_pubkey.as_str()).handle_error()?;
-    let expected_evers = UInt256::from_str(expected_evers.as_str()).handle_error()?;
+
+    let expected_evers = UInt256::from_be_bytes(expected_evers.to_be_bytes().as_slice());
 
     let mint_pubkey = get_mint_address(&token);
     let settings_pubkey = get_settings_address();
@@ -383,7 +384,7 @@ pub fn deposit_multi_token_sol_ix(
     amount: u64,
     recipient_address: String,
     value: u64,
-    expected_evers: String,
+    expected_evers: u64,
     payload: String,
 ) -> Result<JsValue, JsValue> {
     let deposit_seed = uuid::Uuid::from_str(&deposit_seed)
@@ -395,7 +396,8 @@ pub fn deposit_multi_token_sol_ix(
     let author_pubkey = Pubkey::from_str(author_pubkey.as_str()).handle_error()?;
     let author_token_pubkey = Pubkey::from_str(author_token_pubkey.as_str()).handle_error()?;
     let recipient = EverAddress::from_str(&recipient_address).handle_error()?;
-    let expected_evers = UInt256::from_str(expected_evers.as_str()).handle_error()?;
+
+    let expected_evers = UInt256::from_be_bytes(expected_evers.to_be_bytes().as_slice());
 
     let vault_pubkey = get_vault_address(&mint_pubkey);
     let settings_pubkey = get_settings_address();
