@@ -973,15 +973,14 @@ impl Processor {
                 }
 
                 // Attach SOL to proxy account
-                let funder_starting_lamports = funder_account_info.lamports();
-                **funder_account_info.lamports.borrow_mut() = funder_starting_lamports
-                    .checked_sub(attached_amount)
-                    .ok_or(SolanaBridgeError::Overflow)?;
-
-                let proxy_starting_lamports = proxy_account_info.lamports();
-                **proxy_account_info.lamports.borrow_mut() = proxy_starting_lamports
-                    .checked_add(attached_amount)
-                    .ok_or(SolanaBridgeError::Overflow)?;
+                invoke(
+                    &system_instruction::transfer(
+                        funder_account_info.key,
+                        proxy_account_info.key,
+                        attached_amount,
+                    ),
+                    accounts,
+                )?;
 
                 Some(nonce)
             }
@@ -1193,15 +1192,14 @@ impl Processor {
                 )?;
 
                 // Attach SOL to proxy account
-                let funder_starting_lamports = funder_account_info.lamports();
-                **funder_account_info.lamports.borrow_mut() = funder_starting_lamports
-                    .checked_sub(attached_amount)
-                    .ok_or(SolanaBridgeError::Overflow)?;
-
-                let proxy_starting_lamports = proxy_account_info.lamports();
-                **proxy_account_info.lamports.borrow_mut() = proxy_starting_lamports
-                    .checked_add(attached_amount)
-                    .ok_or(SolanaBridgeError::Overflow)?;
+                invoke(
+                    &system_instruction::transfer(
+                        funder_account_info.key,
+                        proxy_account_info.key,
+                        attached_amount,
+                    ),
+                    accounts,
+                )?;
 
                 Some(nonce)
             }

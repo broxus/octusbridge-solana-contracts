@@ -1289,7 +1289,7 @@ async fn test_withdraw_ever_request_with_fake_payload() {
     )])
     .unwrap();
 
-    let attached_amount = 0;
+    let attached_amount = 10;
 
     let mut transaction = Transaction::new_with_payer(
         &[withdrawal_multi_token_ever_request_ix(
@@ -1924,7 +1924,7 @@ async fn test_withdraw_sol_request_with_fake_payload() {
     )])
     .unwrap();
 
-    let attached_amount = 0;
+    let attached_amount = 5;
 
     let mut transaction = Transaction::new_with_payer(
         &[withdrawal_multi_token_sol_request_ix(
