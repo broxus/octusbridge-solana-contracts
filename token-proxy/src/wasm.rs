@@ -313,6 +313,7 @@ pub fn withdrawal_multi_token_sol_ix(
             AccountMeta::new(vault_pubkey, false),
             AccountMeta::new(recipient_token_pubkey, false),
             AccountMeta::new(token_settings_pubkey, false),
+            AccountMeta::new_readonly(mint, false),
             AccountMeta::new_readonly(settings_pubkey, false),
             AccountMeta::new_readonly(spl_token::id(), false),
             AccountMeta::new_readonly(sysvar::clock::id(), false),
