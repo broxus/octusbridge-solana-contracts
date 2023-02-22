@@ -2114,6 +2114,11 @@ impl Processor {
 
         withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Processed;
 
+        WithdrawalMultiTokenEver::pack(
+            withdrawal_account_data,
+            &mut withdrawal_account_info.data.borrow_mut(),
+        )?;
+
         Ok(())
     }
 
@@ -2149,6 +2154,11 @@ impl Processor {
         }
 
         withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Processed;
+
+        WithdrawalMultiTokenSol::pack(
+            withdrawal_account_data,
+            &mut withdrawal_account_info.data.borrow_mut(),
+        )?;
 
         Ok(())
     }

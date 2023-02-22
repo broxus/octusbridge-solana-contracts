@@ -6206,6 +6206,21 @@ async fn test_withdraw_sol_with_payload() {
     let recipient_token_data =
         spl_token::state::Account::unpack(recipient_token_info.data()).expect("proxy unpack");
     assert_eq!(recipient_token_data.amount, transfer_amount);
+
+    // Check status
+    let withdrawal_info = banks_client
+        .get_account(withdrawal_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let withdrawal_data =
+        WithdrawalMultiTokenSol::unpack(withdrawal_info.data()).expect("withdrawal token unpack");
+
+    assert_eq!(
+        withdrawal_data.meta.data.status,
+        WithdrawalTokenStatus::Processed
+    );
 }
 
 #[tokio::test]
@@ -6659,4 +6674,19 @@ async fn test_withdraw_ever_request_with_payload() {
     let recipient_token_data =
         spl_token::state::Account::unpack(recipient_token_info.data()).expect("proxy unpack");
     assert_eq!(recipient_token_data.amount, transfer_amount);
+
+    // Check status
+    let withdrawal_info = banks_client
+        .get_account(withdrawal_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let withdrawal_data =
+        WithdrawalMultiTokenEver::unpack(withdrawal_info.data()).expect("withdrawal token unpack");
+
+    assert_eq!(
+        withdrawal_data.meta.data.status,
+        WithdrawalTokenStatus::Processed
+    );
 }
