@@ -247,12 +247,10 @@ pub fn withdrawal_multi_token_sol_request_ix(
 
 #[wasm_bindgen(js_name = "withdrawalMultiTokenEver")]
 pub fn withdrawal_multi_token_ever_ix(
-    funder_pubkey: String,
     withdrawal_pubkey: String,
     recipient_token_pubkey: String,
     token: String,
 ) -> Result<JsValue, JsValue> {
-    let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
     let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).handle_error()?;
     let recipient_token_pubkey =
         Pubkey::from_str(recipient_token_pubkey.as_str()).handle_error()?;
@@ -278,7 +276,51 @@ pub fn withdrawal_multi_token_ever_ix(
             AccountMeta::new_readonly(spl_token::id(), false),
             AccountMeta::new_readonly(sysvar::rent::id(), false),
             AccountMeta::new_readonly(sysvar::clock::id(), false),
+        ],
+        data,
+    };
+
+    return serde_wasm_bindgen::to_value(&ix).handle_error();
+}
+
+#[wasm_bindgen(js_name = "createMultiTokenEver")]
+pub fn create_ever_token_ix(
+    funder_pubkey: String,
+    withdrawal_pubkey: String,
+    recipient_pubkey: String,
+    token: String,
+) -> Result<JsValue, JsValue> {
+    let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
+    let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).handle_error()?;
+    let recipient_pubkey = Pubkey::from_str(recipient_pubkey.as_str()).handle_error()?;
+    let token = EverAddress::from_str(&token).handle_error()?;
+
+    let settings_pubkey = get_settings_address();
+    let mint_pubkey = get_mint_address(&token);
+    let token_settings_pubkey = get_token_settings_ever_address(&token);
+
+    let recipient_token_pubkey =
+        spl_associated_token_account::get_associated_token_address(&recipient_pubkey, &mint_pubkey);
+
+    let data = TokenProxyInstruction::WithdrawMultiTokenEver
+        .try_to_vec()
+        .handle_error()?;
+
+    let ix = Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(withdrawal_pubkey, false),
+            AccountMeta::new(mint_pubkey, false),
+            AccountMeta::new(recipient_token_pubkey, false),
+            AccountMeta::new(token_settings_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+            AccountMeta::new_readonly(spl_token::id(), false),
+            AccountMeta::new_readonly(sysvar::rent::id(), false),
+            AccountMeta::new_readonly(sysvar::clock::id(), false),
+            // If token settings account is not created
             AccountMeta::new(funder_pubkey, true),
+            AccountMeta::new_readonly(recipient_pubkey, false),
             AccountMeta::new_readonly(spl_associated_token_account::id(), false),
         ],
         data,
