@@ -5927,15 +5927,15 @@ async fn test_withdraw_sol_with_payload() {
     );
 
     // Add Recipient Token Account
-    let recipient_address = Pubkey::new_unique();
+    let recipient = Keypair::new();
     let recipient_token_address = spl_associated_token_account::get_associated_token_address(
-        &recipient_address,
+        &recipient.pubkey(),
         &mint_address,
     );
 
     let recipient_token_account_data = spl_token::state::Account {
         mint: mint_address,
-        owner: recipient_address,
+        owner: recipient.pubkey(),
         state: AccountState::Initialized,
         ..Default::default()
     };
@@ -5981,7 +5981,7 @@ async fn test_withdraw_sol_with_payload() {
         &[
             br"proxy",
             &mint_address.to_bytes(),
-            &recipient_address.to_bytes(),
+            &recipient.pubkey().to_bytes(),
         ],
         &token_proxy::id(),
     );
@@ -5992,7 +5992,7 @@ async fn test_withdraw_sol_with_payload() {
         &recipient_token_address,
         &proxy_address,
         &[&proxy_address],
-        31,
+        16,
     )
     .unwrap()])
     .unwrap();
@@ -6008,7 +6008,7 @@ async fn test_withdraw_sol_with_payload() {
             event_configuration,
             mint_address,
             round_number,
-            recipient_address,
+            recipient.pubkey(),
             amount,
             payload.clone(),
             attached_amount,
@@ -6029,7 +6029,7 @@ async fn test_withdraw_sol_with_payload() {
         event_transaction_lt,
         &event_configuration,
         mint_address,
-        recipient_address,
+        recipient.pubkey(),
         amount,
         payload,
     );
@@ -6060,7 +6060,7 @@ async fn test_withdraw_sol_with_payload() {
     assert_eq!(withdrawal_data.pda.event_configuration, event_configuration);
 
     assert_eq!(withdrawal_data.event.data.mint, mint_address);
-    assert_eq!(withdrawal_data.event.data.recipient, recipient_address);
+    assert_eq!(withdrawal_data.event.data.recipient, recipient.pubkey());
     assert_eq!(withdrawal_data.event.data.amount, amount);
 
     assert_ne!(withdrawal_data.meta.data.epoch, 0);
@@ -6119,7 +6119,7 @@ async fn test_withdraw_sol_with_payload() {
     let mut transaction = Transaction::new_with_payer(
         &[withdrawal_sol_with_payload_ix(
             withdrawal_address,
-            recipient_address,
+            recipient.pubkey(),
             mint_address,
         )],
         Some(&funder.pubkey()),
@@ -6161,6 +6161,45 @@ async fn test_withdraw_sol_with_payload() {
 
     let proxy_data = spl_token::state::Account::unpack(proxy_info.data()).expect("proxy unpack");
     assert_eq!(proxy_data.amount, transfer_amount);
+
+    // Withdrawal token from Proxy Account
+    let mut transaction = Transaction::new_with_payer(
+        &[withdrawal_proxy_sol_ix(
+            recipient.pubkey(),
+            recipient_token_address,
+            withdrawal_address,
+            mint_address,
+            15,
+        )],
+        Some(&funder.pubkey()),
+    );
+    transaction.sign(&[&funder, &recipient], recent_blockhash);
+
+    banks_client
+        .process_transaction(transaction)
+        .await
+        .expect("process_transaction");
+
+    // Check Proxy Balance
+    let proxy_info = banks_client
+        .get_account(proxy_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let proxy_data = spl_token::state::Account::unpack(proxy_info.data()).expect("proxy unpack");
+    assert_eq!(proxy_data.amount, 16);
+
+    // Check Recipient Balance
+    let recipient_token_info = banks_client
+        .get_account(recipient_token_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let recipient_token_data =
+        spl_token::state::Account::unpack(recipient_token_info.data()).expect("proxy unpack");
+    assert_eq!(recipient_token_data.amount, 15);
 
     // Execute payload
     let data = TokenProxyInstruction::ExecutePayloadSol
@@ -6381,14 +6420,14 @@ async fn test_withdraw_ever_request_with_payload() {
 
     let mint = get_mint_address(&token);
 
-    let recipient = Pubkey::new_unique();
+    let recipient = Keypair::new();
     let recipient_token_address =
-        spl_associated_token_account::get_associated_token_address(&recipient, &mint);
+        spl_associated_token_account::get_associated_token_address(&recipient.pubkey(), &mint);
 
     let amount = 32;
 
     let (proxy_address, proxy_nonce) = Pubkey::find_program_address(
-        &[br"proxy", &mint.to_bytes(), &recipient.to_bytes()],
+        &[br"proxy", &mint.to_bytes(), &recipient.pubkey().to_bytes()],
         &token_proxy::id(),
     );
 
@@ -6398,7 +6437,7 @@ async fn test_withdraw_ever_request_with_payload() {
         &recipient_token_address,
         &proxy_address,
         &[&proxy_address],
-        31,
+        16,
     )
     .unwrap()])
     .unwrap();
@@ -6417,7 +6456,7 @@ async fn test_withdraw_ever_request_with_payload() {
             name.clone(),
             symbol.clone(),
             decimals,
-            recipient,
+            recipient.pubkey(),
             amount,
             payload.clone(),
             attached_amount,
@@ -6441,7 +6480,7 @@ async fn test_withdraw_ever_request_with_payload() {
         name.clone(),
         symbol.clone(),
         decimals,
-        recipient,
+        recipient.pubkey(),
         amount,
         payload,
     );
@@ -6476,7 +6515,7 @@ async fn test_withdraw_ever_request_with_payload() {
     assert_eq!(withdrawal_data.event.data.symbol, symbol);
     assert_eq!(withdrawal_data.event.data.decimals, decimals);
     assert_eq!(withdrawal_data.event.data.amount, amount);
-    assert_eq!(withdrawal_data.event.data.recipient, recipient);
+    assert_eq!(withdrawal_data.event.data.recipient, recipient.pubkey());
 
     assert_ne!(withdrawal_data.meta.data.epoch, 0);
     assert_eq!(withdrawal_data.meta.data.bounty, 0);
@@ -6515,7 +6554,7 @@ async fn test_withdraw_ever_request_with_payload() {
     );
 
     // Check Proxy Account
-    let proxy_address = get_proxy_address(&mint, &recipient);
+    let proxy_address = get_proxy_address(&mint, &recipient.pubkey());
 
     let proxy_info = banks_client
         .get_account(proxy_address)
@@ -6546,7 +6585,7 @@ async fn test_withdraw_ever_request_with_payload() {
         &[create_ever_token_with_payload_ix(
             funder.pubkey(),
             withdrawal_address,
-            recipient,
+            recipient.pubkey(),
             token,
         )],
         Some(&funder.pubkey()),
@@ -6630,6 +6669,45 @@ async fn test_withdraw_ever_request_with_payload() {
     let proxy_data = spl_token::state::Account::unpack(proxy_info.data()).expect("proxy unpack");
     assert_eq!(proxy_data.amount, transfer_amount);
 
+    // Withdrawal token from Proxy Account
+    let mut transaction = Transaction::new_with_payer(
+        &[withdrawal_proxy_ever_ix(
+            recipient.pubkey(),
+            recipient_token_address,
+            withdrawal_address,
+            mint,
+            15,
+        )],
+        Some(&funder.pubkey()),
+    );
+    transaction.sign(&[&funder, &recipient], recent_blockhash);
+
+    banks_client
+        .process_transaction(transaction)
+        .await
+        .expect("process_transaction");
+
+    // Check Proxy Balance
+    let proxy_info = banks_client
+        .get_account(proxy_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let proxy_data = spl_token::state::Account::unpack(proxy_info.data()).expect("proxy unpack");
+    assert_eq!(proxy_data.amount, 16);
+
+    // Check Recipient Balance
+    let recipient_token_info = banks_client
+        .get_account(recipient_token_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let recipient_token_data =
+        spl_token::state::Account::unpack(recipient_token_info.data()).expect("proxy unpack");
+    assert_eq!(recipient_token_data.amount, 15);
+
     // Execute payload
     let data = TokenProxyInstruction::ExecutePayloadEver
         .try_to_vec()
@@ -6664,7 +6742,7 @@ async fn test_withdraw_ever_request_with_payload() {
     let proxy_data = spl_token::state::Account::unpack(proxy_info.data()).expect("proxy unpack");
     assert_eq!(proxy_data.amount, 0);
 
-    // Check Proxy Balance
+    // Check Recipient Balance
     let recipient_token_info = banks_client
         .get_account(recipient_token_address)
         .await

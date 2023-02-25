@@ -1157,3 +1157,55 @@ pub fn fill_withdrawal_sol_ix(
         data,
     }
 }
+
+pub fn withdrawal_proxy_ever_ix(
+    recipient_pubkey: Pubkey,
+    recipient_token_pubkey: Pubkey,
+    withdrawal_pubkey: Pubkey,
+    mint_pubkey: Pubkey,
+    amount: u64,
+) -> Instruction {
+    let proxy_pubkey = get_proxy_address(&mint_pubkey, &recipient_pubkey);
+
+    let data = TokenProxyInstruction::WithdrawProxyEver { amount }
+        .try_to_vec()
+        .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(recipient_pubkey, true),
+            AccountMeta::new(recipient_token_pubkey, false),
+            AccountMeta::new(proxy_pubkey, false),
+            AccountMeta::new_readonly(withdrawal_pubkey, false),
+            AccountMeta::new_readonly(spl_token::id(), false),
+        ],
+        data,
+    }
+}
+
+pub fn withdrawal_proxy_sol_ix(
+    recipient_pubkey: Pubkey,
+    recipient_token_pubkey: Pubkey,
+    withdrawal_pubkey: Pubkey,
+    mint_pubkey: Pubkey,
+    amount: u64,
+) -> Instruction {
+    let proxy_pubkey = get_proxy_address(&mint_pubkey, &recipient_pubkey);
+
+    let data = TokenProxyInstruction::WithdrawProxySol { amount }
+        .try_to_vec()
+        .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(recipient_pubkey, true),
+            AccountMeta::new(recipient_token_pubkey, false),
+            AccountMeta::new(proxy_pubkey, false),
+            AccountMeta::new_readonly(withdrawal_pubkey, false),
+            AccountMeta::new_readonly(spl_token::id(), false),
+        ],
+        data,
+    }
+}

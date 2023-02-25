@@ -249,6 +249,14 @@ impl Processor {
                 msg!("Instruction: Execute Payload SOL");
                 Self::process_execute_payload_sol(program_id, accounts)?;
             }
+            TokenProxyInstruction::WithdrawProxyEver { amount } => {
+                msg!("Instruction: Withdraw Proxy EVER");
+                Self::process_withdraw_proxy_ever(program_id, accounts, amount)?;
+            }
+            TokenProxyInstruction::WithdrawProxySol { amount } => {
+                msg!("Instruction: Withdraw Proxy SOL");
+                Self::process_withdraw_proxy_sol(program_id, accounts, amount)?;
+            }
         };
 
         Ok(())
@@ -3932,6 +3940,115 @@ impl Processor {
         TokenSettings::pack(
             token_settings_account_data,
             &mut token_settings_account_info.data.borrow_mut(),
+        )?;
+
+        Ok(())
+    }
+
+    fn process_withdraw_proxy_ever(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        amount: u64,
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+
+        let recipient_account_info = next_account_info(account_info_iter)?;
+        let recipient_token_account_info = next_account_info(account_info_iter)?;
+        let proxy_account_info = next_account_info(account_info_iter)?;
+        let withdrawal_account_info = next_account_info(account_info_iter)?;
+
+        let withdrawal_account_data =
+            WithdrawalMultiTokenEver::unpack(&withdrawal_account_info.data.borrow())?;
+
+        if withdrawal_account_data.meta.data.status != WithdrawalTokenStatus::WaitingForExecute {
+            return Err(SolanaBridgeError::InvalidWithdrawalStatus.into());
+        }
+
+        let mint =
+            get_associated_mint_address(program_id, &withdrawal_account_data.event.data.token);
+        let recipient = withdrawal_account_data.event.data.recipient;
+
+        if recipient != *recipient_account_info.key {
+            return Err(ProgramError::InvalidArgument);
+        }
+
+        let (proxy, nonce) = Pubkey::find_program_address(
+            &[br"proxy", &mint.to_bytes(), &recipient.to_bytes()],
+            program_id,
+        );
+
+        if proxy != *proxy_account_info.key {
+            return Err(ProgramError::InvalidArgument);
+        }
+
+        let proxy_signer_seeds: &[&[_]] =
+            &[br"proxy", &mint.to_bytes(), &recipient.to_bytes(), &[nonce]];
+
+        invoke_signed(
+            &spl_token::instruction::transfer(
+                &spl_token::id(),
+                proxy_account_info.key,
+                recipient_token_account_info.key,
+                proxy_account_info.key,
+                &[proxy_account_info.key],
+                amount,
+            )?,
+            accounts,
+            &[proxy_signer_seeds],
+        )?;
+
+        Ok(())
+    }
+
+    fn process_withdraw_proxy_sol(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        amount: u64,
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+
+        let recipient_account_info = next_account_info(account_info_iter)?;
+        let recipient_token_account_info = next_account_info(account_info_iter)?;
+        let proxy_account_info = next_account_info(account_info_iter)?;
+        let withdrawal_account_info = next_account_info(account_info_iter)?;
+
+        let withdrawal_account_data =
+            WithdrawalMultiTokenSol::unpack(&withdrawal_account_info.data.borrow())?;
+
+        if withdrawal_account_data.meta.data.status != WithdrawalTokenStatus::WaitingForExecute {
+            return Err(SolanaBridgeError::InvalidWithdrawalStatus.into());
+        }
+
+        let mint = withdrawal_account_data.event.data.mint;
+        let recipient = withdrawal_account_data.event.data.recipient;
+
+        if recipient != *recipient_account_info.key {
+            return Err(ProgramError::InvalidArgument);
+        }
+
+        let (proxy, nonce) = Pubkey::find_program_address(
+            &[br"proxy", &mint.to_bytes(), &recipient.to_bytes()],
+            program_id,
+        );
+
+        if proxy != *proxy_account_info.key {
+            return Err(ProgramError::InvalidArgument);
+        }
+
+        let proxy_signer_seeds: &[&[_]] =
+            &[br"proxy", &mint.to_bytes(), &recipient.to_bytes(), &[nonce]];
+
+        invoke_signed(
+            &spl_token::instruction::transfer(
+                &spl_token::id(),
+                proxy_account_info.key,
+                recipient_token_account_info.key,
+                proxy_account_info.key,
+                &[proxy_account_info.key],
+                amount,
+            )?,
+            accounts,
+            &[proxy_signer_seeds],
         )?;
 
         Ok(())
