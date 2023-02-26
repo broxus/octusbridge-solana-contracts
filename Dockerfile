@@ -13,7 +13,7 @@ RUN apt update && \
     cmake ca-certificates bzip2 wget curl pkg-config
 
 # Install Rust
-RUN curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain 1.67.1 -y
+RUN curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain 1.60.0 -y
 
 ENV PATH="/root/.cargo/bin:${PATH}"
 
