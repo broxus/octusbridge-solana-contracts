@@ -6,7 +6,7 @@ edition = "2021"
 
 [dependencies]
 borsh = "0.9"
-solana-program = "1.13"
+solana-program = "1.14"
 
 bridge-utils = { path = "../bridge-utils" }
 round-loader = { path = "../round-loader", features = ["no-entrypoint", "bindings"] }

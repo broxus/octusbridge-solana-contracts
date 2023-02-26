@@ -29,7 +29,7 @@ async fn test_init_relay_loader() {
     program_test.add_account(
         initializer.pubkey(),
         Account {
-            lamports: 100000000,
+            lamports: 10_000_000_000,
             data: vec![],
             owner: solana_program::system_program::id(),
             executable: false,
@@ -200,7 +200,7 @@ async fn test_create_proposal() {
     program_test.add_account(
         proposal_creator.pubkey(),
         Account {
-            lamports: 1_000_000_000,
+            lamports: 10_000_000_000,
             data: vec![],
             owner: solana_program::system_program::id(),
             executable: false,
@@ -220,7 +220,7 @@ async fn test_create_proposal() {
         program_test.add_account(
             relay.pubkey(),
             Account {
-                lamports: 1_000_000_000,
+                lamports: 100_000_000,
                 data: vec![],
                 owner: solana_program::system_program::id(),
                 executable: false,
@@ -413,6 +413,11 @@ async fn test_create_proposal() {
 
     // Vote for Proposal
     for relay in &relays {
+        let blockhash = banks_client
+            .get_latest_blockhash()
+            .await
+            .expect("get_latest_blockhash");
+
         let mut transaction = Transaction::new_with_payer(
             &[vote_for_proposal_ix(
                 &relay.pubkey(),
@@ -420,14 +425,19 @@ async fn test_create_proposal() {
                 round_number,
                 Vote::Confirm,
             )],
-            Some(&funder.pubkey()),
+            Some(&relay.pubkey()),
         );
-        transaction.sign(&[&funder, relay], recent_blockhash);
+        transaction.sign(&[relay], blockhash);
 
         let _ = banks_client.process_transaction(transaction).await;
     }
 
     // Execute Proposal
+    let blockhash = banks_client
+        .get_latest_blockhash()
+        .await
+        .expect("get_latest_blockhash");
+
     let mut transaction = Transaction::new_with_payer(
         &[execute_proposal_ix(
             &funder.pubkey(),
@@ -436,7 +446,7 @@ async fn test_create_proposal() {
         )],
         Some(&funder.pubkey()),
     );
-    transaction.sign(&[&funder], recent_blockhash);
+    transaction.sign(&[&funder], blockhash);
 
     banks_client
         .process_transaction(transaction)
@@ -492,7 +502,7 @@ async fn test_create_proposal_and_execute_by_admin() {
     program_test.add_account(
         proposal_creator.pubkey(),
         Account {
-            lamports: 1_000_000_000,
+            lamports: 10_000_000_000,
             data: vec![],
             owner: solana_program::system_program::id(),
             executable: false,
@@ -512,7 +522,7 @@ async fn test_create_proposal_and_execute_by_admin() {
         program_test.add_account(
             relay.pubkey(),
             Account {
-                lamports: 1_000_000_000,
+                lamports: 10_000_000_000,
                 data: vec![],
                 owner: solana_program::system_program::id(),
                 executable: false,
@@ -526,7 +536,7 @@ async fn test_create_proposal_and_execute_by_admin() {
     program_test.add_account(
         round_submitter.pubkey(),
         Account {
-            lamports: 100000000,
+            lamports: 10_000_000_000,
             data: vec![],
             owner: solana_program::system_program::id(),
             executable: false,
