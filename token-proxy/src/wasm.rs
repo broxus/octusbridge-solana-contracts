@@ -906,11 +906,16 @@ pub fn disable_token_emergency_ix(
 
 #[wasm_bindgen(js_name = "withdrawalProxy")]
 pub fn withdrawal_proxy_ix(
-    recipient_pubkey: Pubkey,
-    recipient_token_pubkey: Pubkey,
-    mint_pubkey: Pubkey,
+    recipient_pubkey: String,
+    recipient_token_pubkey: String,
+    mint_pubkey: String,
     amount: u64,
 ) -> Result<JsValue, JsValue> {
+    let mint_pubkey = Pubkey::from_str(mint_pubkey.as_str()).handle_error()?;
+    let recipient_pubkey = Pubkey::from_str(recipient_pubkey.as_str()).handle_error()?;
+    let recipient_token_pubkey =
+        Pubkey::from_str(recipient_token_pubkey.as_str()).handle_error()?;
+
     let proxy_pubkey = get_proxy_address(&mint_pubkey, &recipient_pubkey);
 
     let data = TokenProxyInstruction::WithdrawProxy { amount }
