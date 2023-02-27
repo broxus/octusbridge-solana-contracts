@@ -904,6 +904,78 @@ pub fn disable_token_emergency_ix(
     return serde_wasm_bindgen::to_value(&ix).handle_error();
 }
 
+#[wasm_bindgen(js_name = "withdrawalProxyEver")]
+pub fn withdrawal_proxy_ever_ix(
+    recipient_pubkey: String,
+    recipient_token_pubkey: String,
+    withdrawal_pubkey: String,
+    token: String,
+    amount: u64,
+) -> Result<JsValue, JsValue> {
+    let recipient_pubkey = Pubkey::from_str(recipient_pubkey.as_str()).handle_error()?;
+    let recipient_token_pubkey =
+        Pubkey::from_str(recipient_token_pubkey.as_str()).handle_error()?;
+    let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).handle_error()?;
+
+    let token = EverAddress::from_str(&token).handle_error()?;
+    let mint_pubkey = get_mint_address(&token);
+
+    let proxy_pubkey = get_proxy_address(&mint_pubkey, &recipient_pubkey);
+
+    let data = TokenProxyInstruction::WithdrawProxyEver { amount }
+        .try_to_vec()
+        .expect("pack");
+
+    let ix = Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(recipient_pubkey, true),
+            AccountMeta::new(recipient_token_pubkey, false),
+            AccountMeta::new(proxy_pubkey, false),
+            AccountMeta::new_readonly(withdrawal_pubkey, false),
+            AccountMeta::new_readonly(spl_token::id(), false),
+        ],
+        data,
+    };
+
+    return serde_wasm_bindgen::to_value(&ix).handle_error();
+}
+
+#[wasm_bindgen(js_name = "withdrawalProxySol")]
+pub fn withdrawal_proxy_sol_ix(
+    recipient_pubkey: String,
+    recipient_token_pubkey: String,
+    withdrawal_pubkey: String,
+    mint_pubkey: String,
+    amount: u64,
+) -> Result<JsValue, JsValue> {
+    let recipient_pubkey = Pubkey::from_str(recipient_pubkey.as_str()).handle_error()?;
+    let recipient_token_pubkey =
+        Pubkey::from_str(recipient_token_pubkey.as_str()).handle_error()?;
+    let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).handle_error()?;
+    let mint_pubkey = Pubkey::from_str(mint_pubkey.as_str()).handle_error()?;
+
+    let proxy_pubkey = get_proxy_address(&mint_pubkey, &recipient_pubkey);
+
+    let data = TokenProxyInstruction::WithdrawProxyEver { amount }
+        .try_to_vec()
+        .expect("pack");
+
+    let ix = Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(recipient_pubkey, true),
+            AccountMeta::new(recipient_token_pubkey, false),
+            AccountMeta::new(proxy_pubkey, false),
+            AccountMeta::new_readonly(withdrawal_pubkey, false),
+            AccountMeta::new_readonly(spl_token::id(), false),
+        ],
+        data,
+    };
+
+    return serde_wasm_bindgen::to_value(&ix).handle_error();
+}
+
 #[wasm_bindgen(js_name = "unpackSettings")]
 pub fn unpack_settings(data: Vec<u8>) -> Result<JsValue, JsValue> {
     let settings = Settings::unpack(&data).handle_error()?;
