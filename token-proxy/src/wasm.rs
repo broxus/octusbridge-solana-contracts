@@ -904,7 +904,7 @@ pub fn disable_token_emergency_ix(
     return serde_wasm_bindgen::to_value(&ix).handle_error();
 }
 
-#[wasm_bindgen(js_name = "withdrawalProxyEver")]
+#[wasm_bindgen(js_name = "withdrawalProxy")]
 pub fn withdrawal_proxy_ix(
     recipient_pubkey: Pubkey,
     recipient_token_pubkey: Pubkey,
