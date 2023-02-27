@@ -6164,10 +6164,9 @@ async fn test_withdraw_sol_with_payload() {
 
     // Withdrawal token from Proxy Account
     let mut transaction = Transaction::new_with_payer(
-        &[withdrawal_proxy_sol_ix(
+        &[withdrawal_proxy_ix(
             recipient.pubkey(),
             recipient_token_address,
-            withdrawal_address,
             mint_address,
             15,
         )],
@@ -6671,10 +6670,9 @@ async fn test_withdraw_ever_request_with_payload() {
 
     // Withdrawal token from Proxy Account
     let mut transaction = Transaction::new_with_payer(
-        &[withdrawal_proxy_ever_ix(
+        &[withdrawal_proxy_ix(
             recipient.pubkey(),
             recipient_token_address,
-            withdrawal_address,
             mint,
             15,
         )],

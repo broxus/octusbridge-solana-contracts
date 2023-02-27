@@ -286,20 +286,11 @@ pub enum TokenProxyInstruction {
         recipient: EverAddress,
     },
 
-    /// Withdraw EVER tokens from Proxy Account
+    /// Withdraw tokens from Proxy Account
     ///
     /// # Account references
     /// ...
-    WithdrawProxyEver {
-        // Amount to withdraw
-        amount: u64,
-    },
-
-    /// Withdraw SOL tokens from Proxy Account
-    ///
-    /// # Account references
-    /// ...
-    WithdrawProxySol {
+    WithdrawProxy {
         // Amount to withdraw
         amount: u64,
     },
