@@ -21,8 +21,8 @@ while [[ $# -gt 0 ]]; do
       -p|--programs)
         shift # past argument
 
-        cargo-build-sbf --manifest-path=./token-proxy/Cargo.toml --sbf-out-dir=dist/program --arch bpf
-        cargo-build-sbf --manifest-path=./round-loader/Cargo.toml --sbf-out-dir=dist/program --arch bpf
+        cargo-build-sbf --manifest-path=./token-proxy/Cargo.toml --sbf-out-dir=dist/program --arch sbfv2
+        cargo-build-sbf --manifest-path=./round-loader/Cargo.toml --sbf-out-dir=dist/program --arch sbfv2
       ;;
       -w|--wasm)
         shift # past argument
@@ -39,8 +39,8 @@ while [[ $# -gt 0 ]]; do
       -t|--tests)
         shift # past argument
 
-        cargo-test-sbf --manifest-path=./token-proxy/Cargo.toml --arch bpf
-        cargo-test-sbf --manifest-path=./round-loader/Cargo.toml --arch bpf
+        cargo-test-sbf --manifest-path=./token-proxy/Cargo.toml --arch sbfv2
+        cargo-test-sbf --manifest-path=./round-loader/Cargo.toml --arch sbfv2
       ;;
       *) # unknown option
         echo 'ERROR: Unexpected'

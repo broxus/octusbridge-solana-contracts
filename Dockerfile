@@ -13,7 +13,7 @@ RUN apt update && \
     cmake ca-certificates bzip2 wget curl pkg-config
 
 # Install Rust
-RUN curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain 1.60.0 -y
+RUN curl https://sh.rustup.rs -sSf | sh -s -- --default-toolchain 1.72.1 -y
 
 ENV PATH="/root/.cargo/bin:${PATH}"
 
@@ -21,7 +21,7 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 RUN curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
 # Intall Solana tools
-ARG SOLANA_VERSION=1.14.16
+ARG SOLANA_VERSION=1.16.14
 
 RUN wget -O /opt/solana-${SOLANA_VERSION}.tar.gz https://github.com/solana-labs/solana/archive/refs/tags/v${SOLANA_VERSION}.tar.gz
 
