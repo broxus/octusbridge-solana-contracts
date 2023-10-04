@@ -3709,11 +3709,6 @@ impl Processor {
             &mut withdrawal_account_info.data.borrow_mut(),
         )?;
 
-        TokenSettings::pack(
-            token_settings_account_data,
-            &mut token_settings_account_info.data.borrow_mut(),
-        )?;
-
         Ok(())
     }
 
@@ -3931,11 +3926,6 @@ impl Processor {
         WithdrawalMultiTokenSol::pack(
             withdrawal_account_data,
             &mut withdrawal_account_info.data.borrow_mut(),
-        )?;
-
-        TokenSettings::pack(
-            token_settings_account_data,
-            &mut token_settings_account_info.data.borrow_mut(),
         )?;
 
         Ok(())
