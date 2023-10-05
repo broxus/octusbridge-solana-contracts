@@ -1,8 +1,9 @@
-/target
-/bridge-derive/target
-/bridge-utils/target
-/round-loader/target
-/token-proxy/target
+*/target/*
+target
+
+Cargo.lock
+*/Cargo.lock
+
 /.idea
 **/*.DS_Store
 /dist
