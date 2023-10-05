@@ -26,8 +26,8 @@ bridge-utils = { path = "../bridge-utils" }
 
 [dev-dependencies]
 chrono = "0.4.19"
-solana-program-test = "1.14"
-solana-sdk = "1.14"
+solana-program-test = "1.16"
+solana-sdk = "1.16"
 
 [lib]
 crate-type = ["cdylib", "lib"]
