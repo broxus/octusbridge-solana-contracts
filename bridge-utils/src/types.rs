@@ -52,7 +52,7 @@ impl fmt::Display for EverAddress {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             EverAddress::AddrStd(addr) => {
-                write!(f, "{}:{}", addr.workchain_id, hex::encode(&addr.address))
+                write!(f, "{}:{}", addr.workchain_id, hex::encode(addr.address))
             }
         }
     }

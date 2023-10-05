@@ -94,6 +94,7 @@ pub fn get_withdrawal_ever_address(
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn get_withdrawal_sol_address(
     round_number: u32,
     event_timestamp: u32,

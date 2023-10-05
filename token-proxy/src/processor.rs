@@ -364,6 +364,7 @@ impl Processor {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn process_deposit_multi_token_ever(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
@@ -1071,6 +1072,7 @@ impl Processor {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn process_withdraw_multi_token_sol_request(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
@@ -3200,7 +3202,7 @@ impl Processor {
             .into_token_settings()
             .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
 
-        let _ = match token_settings_account_data.kind {
+        match token_settings_account_data.kind {
             TokenKind::Ever { token, .. } => {
                 validate_token_settings_ever_account(
                     program_id,
