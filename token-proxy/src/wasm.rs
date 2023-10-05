@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 use base64::engine::general_purpose;
+use base64::Engine;
 use borsh::BorshSerialize;
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
@@ -398,7 +399,7 @@ pub fn deposit_multi_token_ever_ix(
     let token_settings_pubkey = get_token_settings_ever_address(&token);
     let deposit_pubkey = get_deposit_address(deposit_seed);
 
-    let payload = general_purpose::STANDARD::decode(payload).handle_error()?;
+    let payload = general_purpose::STANDARD.decode(payload).handle_error()?;
 
     let data = TokenProxyInstruction::DepositMultiTokenEver {
         deposit_seed,
@@ -466,7 +467,7 @@ pub fn deposit_multi_token_sol_ix(
 
     let deposit_pubkey = get_deposit_address(deposit_seed);
 
-    let payload = general_purpose::STANDARD::decode(payload).handle_error()?;
+    let payload = general_purpose::STANDARD.decode(payload).handle_error()?;
 
     let data = TokenProxyInstruction::DepositMultiTokenSol {
         deposit_seed,
@@ -969,7 +970,7 @@ pub fn get_proposal_sol_address(
 
     let mint_address = Pubkey::from_str(mint_address.as_str()).handle_error()?;
 
-    let payload = general_purpose::STANDARD::decode(payload).handle_error()?;
+    let payload = general_purpose::STANDARD.decode(payload).handle_error()?;
 
     let withdrawal_pubkey = get_withdrawal_sol_address(
         round_number,
@@ -1016,7 +1017,7 @@ pub fn get_proposal_ever_address(
 
     let token = EverAddress::from_str(&token_address).handle_error()?;
 
-    let payload = general_purpose::STANDARD::decode(payload).handle_error()?;
+    let payload = general_purpose::STANDARD.decode(payload).handle_error()?;
 
     let withdrawal_pubkey = get_withdrawal_ever_address(
         round_number,
