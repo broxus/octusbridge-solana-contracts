@@ -11,7 +11,7 @@ bindings = ["no-entrypoint", "uuid", "getrandom"]
 wasm = ["no-entrypoint", "bindings", "wasm-bindgen", "js-sys"]
 
 [dependencies]
-base64 = "*"
+base64 = "0.21"
 bincode = "1.3"
 borsh = "0.10"
 enum-as-inner = "0.6"
