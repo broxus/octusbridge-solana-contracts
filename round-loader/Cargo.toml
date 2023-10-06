@@ -8,7 +8,7 @@ edition = "2021"
 no-entrypoint = []
 test-bpf = ["bindings"]
 bindings = ["no-entrypoint"]
-wasm = ["no-entrypoint", "bindings", "wasm-bindgen", "js-sys", "getrandom"]
+wasm = ["no-entrypoint", "bindings", "serde-wasm-bindgen", "wasm-bindgen", "js-sys", "getrandom"]
 
 [dependencies]
 bincode = "1.3"
@@ -18,8 +18,8 @@ solana-program = "1.16"
 
 getrandom = { version = "0.2", features = ["js"], optional = true }
 js-sys = { version = "0.3", optional = true }
+serde-wasm-bindgen = {version = "0.6", optional = true }
 wasm-bindgen = { version = "0.2.84", features = ["serde-serialize"], optional = true }
-serde-wasm-bindgen = "*"
 
 bridge-derive = { path = "../bridge-derive" }
 bridge-utils = { path = "../bridge-utils" }
