@@ -3,6 +3,7 @@ use bridge_utils::types::Vote;
 
 use solana_program::instruction::{AccountMeta, Instruction};
 use solana_program::pubkey::Pubkey;
+use solana_program::{system_program, sysvar};
 
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct VoteForProposal {
@@ -101,6 +102,122 @@ pub fn execute_payload_ix(
             }
         })
         .collect();
+
+    Instruction {
+        program_id,
+        accounts,
+        data,
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn withdrawal_ever_request_ix(
+    program_id: Pubkey,
+    creator_pubkey: Pubkey,
+    withdrawal_pubkey: Pubkey,
+    round_number: u32,
+    event_timestamp: u32,
+    event_transaction_lt: u64,
+    event_configuration: Pubkey,
+    event: token_proxy::WithdrawalMultiTokenEverEvent,
+    attached_amount: u64,
+) -> Instruction {
+    let rl_settings_pubkey =
+        bridge_utils::helper::get_associated_settings_address(&round_loader::id());
+    let relay_round_pubkey =
+        bridge_utils::helper::get_associated_relay_round_address(&round_loader::id(), round_number);
+
+    let mut accounts = vec![
+        AccountMeta::new(creator_pubkey, true),
+        AccountMeta::new(creator_pubkey, true),
+        AccountMeta::new(withdrawal_pubkey, false),
+        AccountMeta::new_readonly(rl_settings_pubkey, false),
+        AccountMeta::new_readonly(relay_round_pubkey, false),
+        AccountMeta::new_readonly(system_program::id(), false),
+        AccountMeta::new_readonly(sysvar::rent::id(), false),
+        AccountMeta::new_readonly(sysvar::clock::id(), false),
+    ];
+
+    if !event.payload.is_empty() {
+        let mint = token_proxy::get_associated_mint_address(&program_id, &event.token);
+
+        let proxy_pubkey =
+            token_proxy::get_associated_proxy_address(&program_id, &mint, &event.recipient);
+        accounts.push(AccountMeta::new(proxy_pubkey, false));
+    }
+
+    let data = token_proxy::TokenProxyInstruction::WithdrawMultiTokenEverRequest {
+        attached_amount,
+        event_timestamp,
+        event_transaction_lt,
+        event_configuration,
+        token: event.token,
+        name: event.name,
+        symbol: event.symbol,
+        decimals: event.decimals,
+        recipient: event.recipient,
+        amount: event.amount,
+        payload: event.payload,
+    }
+    .try_to_vec()
+    .expect("pack");
+
+    Instruction {
+        program_id,
+        accounts,
+        data,
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn withdrawal_sol_request_ix(
+    program_id: Pubkey,
+    creator_pubkey: Pubkey,
+    withdrawal_pubkey: Pubkey,
+    round_number: u32,
+    event_timestamp: u32,
+    event_transaction_lt: u64,
+    event_configuration: Pubkey,
+    event: token_proxy::WithdrawalMultiTokenSolEvent,
+    attached_amount: u64,
+) -> Instruction {
+    let token_settings_pubkey =
+        token_proxy::get_associated_token_settings_sol_address(&program_id, &event.mint);
+
+    let rl_settings_pubkey =
+        bridge_utils::helper::get_associated_settings_address(&round_loader::id());
+    let relay_round_pubkey =
+        bridge_utils::helper::get_associated_relay_round_address(&round_loader::id(), round_number);
+
+    let mut accounts = vec![
+        AccountMeta::new(creator_pubkey, true),
+        AccountMeta::new(creator_pubkey, true),
+        AccountMeta::new(withdrawal_pubkey, false),
+        AccountMeta::new_readonly(token_settings_pubkey, false),
+        AccountMeta::new_readonly(rl_settings_pubkey, false),
+        AccountMeta::new_readonly(relay_round_pubkey, false),
+        AccountMeta::new_readonly(system_program::id(), false),
+        AccountMeta::new_readonly(sysvar::rent::id(), false),
+        AccountMeta::new_readonly(sysvar::clock::id(), false),
+    ];
+
+    if !event.payload.is_empty() {
+        let proxy_pubkey =
+            token_proxy::get_associated_proxy_address(&program_id, &event.mint, &event.recipient);
+        accounts.push(AccountMeta::new(proxy_pubkey, false));
+    }
+
+    let data = token_proxy::TokenProxyInstruction::WithdrawMultiTokenSolRequest {
+        attached_amount,
+        event_timestamp,
+        event_transaction_lt,
+        event_configuration,
+        recipient: event.recipient,
+        amount: event.amount,
+        payload: event.payload,
+    }
+    .try_to_vec()
+    .expect("pack");
 
     Instruction {
         program_id,
