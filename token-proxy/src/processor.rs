@@ -1244,51 +1244,49 @@ impl Processor {
             return Err(ProgramError::InvalidArgument);
         }
 
-        if withdrawal_account_info.lamports() == 0 {
-            invoke_signed(
-                &system_instruction::create_account(
-                    funder_account_info.key,
-                    withdrawal_account_info.key,
-                    1.max(rent.minimum_balance(WithdrawalMultiTokenSol::LEN)),
-                    WithdrawalMultiTokenSol::LEN as u64,
-                    program_id,
-                ),
-                accounts,
-                &[withdrawal_account_signer_seeds],
-            )?;
+        invoke_signed(
+            &system_instruction::create_account(
+                funder_account_info.key,
+                withdrawal_account_info.key,
+                1.max(rent.minimum_balance(WithdrawalMultiTokenSol::LEN)),
+                WithdrawalMultiTokenSol::LEN as u64,
+                program_id,
+            ),
+            accounts,
+            &[withdrawal_account_signer_seeds],
+        )?;
 
-            let withdrawal_account_data = WithdrawalMultiTokenSol {
-                is_initialized: true,
-                account_kind: AccountKind::Proposal(withdrawal_nonce, proxy_nonce),
-                is_executed: false,
-                author: *author_account_info.key,
-                round_number,
-                required_votes,
-                pda: PDA {
-                    event_timestamp,
-                    event_transaction_lt,
-                    event_configuration,
-                },
-                event,
-                meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::New, 0, epoch),
-                signers: vec![Vote::None; relay_round_account_data.relays.len()],
-            };
+        let withdrawal_account_data = WithdrawalMultiTokenSol {
+            is_initialized: true,
+            account_kind: AccountKind::Proposal(withdrawal_nonce, proxy_nonce),
+            is_executed: false,
+            author: *author_account_info.key,
+            round_number,
+            required_votes,
+            pda: PDA {
+                event_timestamp,
+                event_transaction_lt,
+                event_configuration,
+            },
+            event,
+            meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::New, 0, epoch),
+            signers: vec![Vote::None; relay_round_account_data.relays.len()],
+        };
 
-            WithdrawalMultiTokenSol::pack(
-                withdrawal_account_data,
-                &mut withdrawal_account_info.data.borrow_mut(),
-            )?;
+        WithdrawalMultiTokenSol::pack(
+            withdrawal_account_data,
+            &mut withdrawal_account_info.data.borrow_mut(),
+        )?;
 
-            // Send voting reparation for Relay to withdrawal account
-            invoke(
-                &system_instruction::transfer(
-                    funder_account_info.key,
-                    withdrawal_account_info.key,
-                    RELAY_REPARATION * relay_round_account_data.relays.len() as u64,
-                ),
-                accounts,
-            )?;
-        }
+        // Send voting reparation for Relay to withdrawal account
+        invoke(
+            &system_instruction::transfer(
+                funder_account_info.key,
+                withdrawal_account_info.key,
+                RELAY_REPARATION * relay_round_account_data.relays.len() as u64,
+            ),
+            accounts,
+        )?;
 
         Ok(())
     }
@@ -1345,6 +1343,17 @@ impl Processor {
             nonce,
             withdrawal_account_info,
         )?;
+
+        // Check number of votes
+        let sig_count = withdrawal_account_data
+            .signers
+            .iter()
+            .filter(|vote| **vote == Vote::Confirm)
+            .count() as u32;
+
+        if sig_count == withdrawal_account_data.required_votes {
+            return Err(SolanaBridgeError::VotesOverflow.into());
+        }
 
         // Validate Relay Round Account
         let relay_round_account_data = RelayRound::unpack(&relay_round_account_info.data.borrow())?;
@@ -1609,7 +1618,7 @@ impl Processor {
             .filter(|vote| **vote == Vote::Confirm)
             .count() as u32;
 
-        if sig_count >= withdrawal_account_data.required_votes
+        if sig_count == withdrawal_account_data.required_votes
             && withdrawal_account_data.meta.data.status == WithdrawalTokenStatus::New
         {
             let current_epoch = clock.unix_timestamp / SECONDS_PER_DAY as i64;
@@ -1864,7 +1873,7 @@ impl Processor {
             .filter(|vote| **vote == Vote::Confirm)
             .count() as u32;
 
-        if sig_count >= withdrawal_account_data.required_votes {
+        if sig_count == withdrawal_account_data.required_votes {
             let withdrawal_amount = withdrawal_account_data.event.data.amount as u64;
 
             let fee_info = &mut token_settings_account_data.fee_info;
