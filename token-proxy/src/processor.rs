@@ -1023,51 +1023,53 @@ impl Processor {
             return Err(ProgramError::InvalidArgument);
         }
 
-        invoke_signed(
-            &system_instruction::create_account(
-                funder_account_info.key,
-                withdrawal_account_info.key,
-                1.max(rent.minimum_balance(WithdrawalMultiTokenEver::LEN)),
-                WithdrawalMultiTokenEver::LEN as u64,
-                program_id,
-            ),
-            accounts,
-            &[withdrawal_account_signer_seeds],
-        )?;
+        if withdrawal_account_info.lamports() == 0 {
+            invoke_signed(
+                &system_instruction::create_account(
+                    funder_account_info.key,
+                    withdrawal_account_info.key,
+                    1.max(rent.minimum_balance(WithdrawalMultiTokenEver::LEN)),
+                    WithdrawalMultiTokenEver::LEN as u64,
+                    program_id,
+                ),
+                accounts,
+                &[withdrawal_account_signer_seeds],
+            )?;
 
-        let withdrawal_account_data = WithdrawalMultiTokenEver {
-            is_initialized: true,
-            account_kind: AccountKind::Proposal(withdrawal_nonce, proxy_nonce),
-            is_executed: false,
-            author: *author_account_info.key,
-            round_number,
-            required_votes,
-            event,
-            pda: PDA {
-                event_timestamp,
-                event_transaction_lt,
-                event_configuration,
-            },
-            meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::New, 0, epoch),
-            signers: vec![Vote::None; relay_round_account_data.relays.len()],
-        };
+            let withdrawal_account_data = WithdrawalMultiTokenEver {
+                is_initialized: true,
+                account_kind: AccountKind::Proposal(withdrawal_nonce, proxy_nonce),
+                is_executed: false,
+                author: *author_account_info.key,
+                round_number,
+                required_votes,
+                event,
+                pda: PDA {
+                    event_timestamp,
+                    event_transaction_lt,
+                    event_configuration,
+                },
+                meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::New, 0, epoch),
+                signers: vec![Vote::None; relay_round_account_data.relays.len()],
+            };
 
-        WithdrawalMultiTokenEver::pack(
-            withdrawal_account_data,
-            &mut withdrawal_account_info.data.borrow_mut(),
-        )?;
+            WithdrawalMultiTokenEver::pack(
+                withdrawal_account_data,
+                &mut withdrawal_account_info.data.borrow_mut(),
+            )?;
 
-        // Send voting reparation for Relay to withdrawal account
-        let relays_lamports = RELAY_REPARATION * relay_round_account_data.relays.len() as u64;
+            // Send voting reparation for Relay to withdrawal account
+            let relays_lamports = RELAY_REPARATION * relay_round_account_data.relays.len() as u64;
 
-        invoke(
-            &system_instruction::transfer(
-                funder_account_info.key,
-                withdrawal_account_info.key,
-                relays_lamports,
-            ),
-            accounts,
-        )?;
+            invoke(
+                &system_instruction::transfer(
+                    funder_account_info.key,
+                    withdrawal_account_info.key,
+                    relays_lamports,
+                ),
+                accounts,
+            )?;
+        }
 
         Ok(())
     }
@@ -1244,49 +1246,51 @@ impl Processor {
             return Err(ProgramError::InvalidArgument);
         }
 
-        invoke_signed(
-            &system_instruction::create_account(
-                funder_account_info.key,
-                withdrawal_account_info.key,
-                1.max(rent.minimum_balance(WithdrawalMultiTokenSol::LEN)),
-                WithdrawalMultiTokenSol::LEN as u64,
-                program_id,
-            ),
-            accounts,
-            &[withdrawal_account_signer_seeds],
-        )?;
+        if withdrawal_account_info.lamports() == 0 {
+            invoke_signed(
+                &system_instruction::create_account(
+                    funder_account_info.key,
+                    withdrawal_account_info.key,
+                    1.max(rent.minimum_balance(WithdrawalMultiTokenSol::LEN)),
+                    WithdrawalMultiTokenSol::LEN as u64,
+                    program_id,
+                ),
+                accounts,
+                &[withdrawal_account_signer_seeds],
+            )?;
 
-        let withdrawal_account_data = WithdrawalMultiTokenSol {
-            is_initialized: true,
-            account_kind: AccountKind::Proposal(withdrawal_nonce, proxy_nonce),
-            is_executed: false,
-            author: *author_account_info.key,
-            round_number,
-            required_votes,
-            pda: PDA {
-                event_timestamp,
-                event_transaction_lt,
-                event_configuration,
-            },
-            event,
-            meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::New, 0, epoch),
-            signers: vec![Vote::None; relay_round_account_data.relays.len()],
-        };
+            let withdrawal_account_data = WithdrawalMultiTokenSol {
+                is_initialized: true,
+                account_kind: AccountKind::Proposal(withdrawal_nonce, proxy_nonce),
+                is_executed: false,
+                author: *author_account_info.key,
+                round_number,
+                required_votes,
+                pda: PDA {
+                    event_timestamp,
+                    event_transaction_lt,
+                    event_configuration,
+                },
+                event,
+                meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::New, 0, epoch),
+                signers: vec![Vote::None; relay_round_account_data.relays.len()],
+            };
 
-        WithdrawalMultiTokenSol::pack(
-            withdrawal_account_data,
-            &mut withdrawal_account_info.data.borrow_mut(),
-        )?;
+            WithdrawalMultiTokenSol::pack(
+                withdrawal_account_data,
+                &mut withdrawal_account_info.data.borrow_mut(),
+            )?;
 
-        // Send voting reparation for Relay to withdrawal account
-        invoke(
-            &system_instruction::transfer(
-                funder_account_info.key,
-                withdrawal_account_info.key,
-                RELAY_REPARATION * relay_round_account_data.relays.len() as u64,
-            ),
-            accounts,
-        )?;
+            // Send voting reparation for Relay to withdrawal account
+            invoke(
+                &system_instruction::transfer(
+                    funder_account_info.key,
+                    withdrawal_account_info.key,
+                    RELAY_REPARATION * relay_round_account_data.relays.len() as u64,
+                ),
+                accounts,
+            )?;
+        }
 
         Ok(())
     }

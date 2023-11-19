@@ -408,40 +408,42 @@ impl Processor {
             return Err(ProgramError::InvalidArgument);
         }
 
-        invoke_signed(
-            &system_instruction::create_account(
-                funder_account_info.key,
-                proposal_account_info.key,
-                1.max(rent.minimum_balance(RelayRoundProposal::LEN)),
-                RelayRoundProposal::LEN as u64,
-                program_id,
-            ),
-            accounts,
-            &[proposal_account_signer_seeds],
-        )?;
+        if proposal_account_info.lamports() == 0 {
+            invoke_signed(
+                &system_instruction::create_account(
+                    funder_account_info.key,
+                    proposal_account_info.key,
+                    1.max(rent.minimum_balance(RelayRoundProposal::LEN)),
+                    RelayRoundProposal::LEN as u64,
+                    program_id,
+                ),
+                accounts,
+                &[proposal_account_signer_seeds],
+            )?;
 
-        // Init Proposal Account
-        let proposal_account_data = RelayRoundProposal {
-            account_kind: AccountKind::Proposal(proposal_nonce, None),
-            author: *creator_account_info.key,
-            round_number,
-            required_votes: 0,
-            pda: PDA {
-                event_timestamp,
-                event_transaction_lt,
-                event_configuration,
-            },
-            is_initialized: Default::default(),
-            is_executed: Default::default(),
-            signers: Default::default(),
-            event: Default::default(),
-            meta: Default::default(),
-        };
+            // Init Proposal Account
+            let proposal_account_data = RelayRoundProposal {
+                account_kind: AccountKind::Proposal(proposal_nonce, None),
+                author: *creator_account_info.key,
+                round_number,
+                required_votes: 0,
+                pda: PDA {
+                    event_timestamp,
+                    event_transaction_lt,
+                    event_configuration,
+                },
+                is_initialized: Default::default(),
+                is_executed: Default::default(),
+                signers: Default::default(),
+                event: Default::default(),
+                meta: Default::default(),
+            };
 
-        RelayRoundProposal::pack(
-            proposal_account_data,
-            &mut proposal_account_info.data.borrow_mut(),
-        )?;
+            RelayRoundProposal::pack(
+                proposal_account_data,
+                &mut proposal_account_info.data.borrow_mut(),
+            )?;
+        }
 
         Ok(())
     }
