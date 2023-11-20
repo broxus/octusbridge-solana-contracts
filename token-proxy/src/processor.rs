@@ -1095,6 +1095,7 @@ impl Processor {
             let event_data = event_data.to_bytes().to_vec();
 
             solana_program::log::sol_log_data(&[&WithdrawMultiTokenRequestEvent {
+                token: token.to_string(),
                 recipient,
                 amount,
                 event_timestamp,
@@ -1331,6 +1332,7 @@ impl Processor {
             let event_data = event_data.to_bytes().to_vec();
 
             solana_program::log::sol_log_data(&[&WithdrawMultiTokenRequestEvent {
+                token: mint.to_string(),
                 recipient,
                 amount,
                 event_timestamp,

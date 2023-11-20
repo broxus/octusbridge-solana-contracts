@@ -224,6 +224,7 @@ pub struct DepositMultiTokenEvent {
 
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub struct WithdrawMultiTokenRequestEvent {
+    pub token: String,
     pub recipient: Pubkey,
     pub amount: u128,
     pub event_timestamp: u32,
