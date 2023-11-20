@@ -523,6 +523,18 @@ impl Processor {
             meta: DepositTokenMetaWithLen::new(deposit_seed),
         };
 
+        let event_data = hash(&deposit_account_data.event.data.try_to_vec()?)
+            .to_bytes()
+            .to_vec();
+
+        solana_program::log::sol_log_data(&[&*DepositMultiTokenEvent {
+            recipient,
+            transfer_amount,
+            seed: deposit_seed,
+            event_data,
+        }
+        .try_to_vec()?]);
+
         DepositMultiTokenEver::pack(
             deposit_account_data,
             &mut deposit_account_info.data.borrow_mut(),
@@ -691,6 +703,16 @@ impl Processor {
                 fee_info: Default::default(),
             };
 
+            solana_program::log::sol_log_data(&[&TokenSettingsEvent {
+                symbol: token_settings_account_data.symbol.clone(),
+                name: token_settings_account_data.name.clone(),
+                mint: mint_account_info.key.clone(),
+                vault: Some(vault_account_info.key.clone()),
+                ever_decimals: None,
+                solana_decimals: None,
+            }
+            .try_to_vec()?]);
+
             TokenSettings::pack(
                 token_settings_account_data,
                 &mut token_settings_account_info.data.borrow_mut(),
@@ -840,6 +862,18 @@ impl Processor {
             ),
             meta: DepositTokenMetaWithLen::new(deposit_seed),
         };
+
+        let event_data = hash(&deposit_account_data.event.data.try_to_vec()?)
+            .to_bytes()
+            .to_vec();
+
+        solana_program::log::sol_log_data(&[&DepositMultiTokenEvent {
+            recipient,
+            transfer_amount,
+            seed: deposit_seed,
+            event_data,
+        }
+        .try_to_vec()?]);
 
         DepositMultiTokenSol::pack(
             deposit_account_data,
@@ -1057,6 +1091,19 @@ impl Processor {
                 withdrawal_account_data,
                 &mut withdrawal_account_info.data.borrow_mut(),
             )?;
+
+            let event_data = event_data.to_bytes().to_vec();
+
+            solana_program::log::sol_log_data(&[&WithdrawMultiTokenRequestEvent {
+                recipient,
+                amount,
+                event_timestamp,
+                event_transaction_lt,
+                event_configuration,
+                event_data,
+                bounty: 0,
+            }
+            .try_to_vec()?]);
 
             // Send voting reparation for Relay to withdrawal account
             let relays_lamports = RELAY_REPARATION * relay_round_account_data.relays.len() as u64;
@@ -1280,6 +1327,19 @@ impl Processor {
                 withdrawal_account_data,
                 &mut withdrawal_account_info.data.borrow_mut(),
             )?;
+
+            let event_data = event_data.to_bytes().to_vec();
+
+            solana_program::log::sol_log_data(&[&WithdrawMultiTokenRequestEvent {
+                recipient,
+                amount,
+                event_timestamp,
+                event_transaction_lt,
+                event_configuration,
+                event_data,
+                bounty: 0,
+            }
+            .try_to_vec()?]);
 
             // Send voting reparation for Relay to withdrawal account
             invoke(
@@ -1561,6 +1621,16 @@ impl Processor {
                 fee_info: Default::default(),
             };
 
+            solana_program::log::sol_log_data(&[&TokenSettingsEvent {
+                symbol: token_settings_account_data.symbol.clone(),
+                name: token_settings_account_data.name.clone(),
+                mint: mint_account_info.key.clone(),
+                vault: None,
+                ever_decimals: Some(ever_decimals),
+                solana_decimals: Some(solana_decimals),
+            }
+            .try_to_vec()?]);
+
             TokenSettings::pack(
                 token_settings_account_data,
                 &mut token_settings_account_info.data.borrow_mut(),
@@ -1748,6 +1818,11 @@ impl Processor {
             )?;
 
             withdrawal_account_data.is_executed = true;
+
+            solana_program::log::sol_log_data(&[&UpdateWithdrawalStatusEvent {
+                status: withdrawal_account_data.meta.data.status,
+            }
+            .try_to_vec()?]);
 
             WithdrawalMultiTokenEver::pack(
                 withdrawal_account_data,
@@ -2068,6 +2143,11 @@ impl Processor {
                 _ => (),
             }
         }
+
+        solana_program::log::sol_log_data(&[&UpdateWithdrawalStatusEvent {
+            status: withdrawal_account_data.meta.data.status,
+        }
+        .try_to_vec()?]);
 
         WithdrawalMultiTokenSol::pack(
             withdrawal_account_data,
@@ -2932,6 +3012,11 @@ impl Processor {
             )?;
         }
 
+        solana_program::log::sol_log_data(&[&UpdateWithdrawalStatusEvent {
+            status: withdrawal_account_data.meta.data.status,
+        }
+        .try_to_vec()?]);
+
         WithdrawalMultiTokenEver::pack(
             withdrawal_account_data,
             &mut withdrawal_account_info.data.borrow_mut(),
@@ -3518,6 +3603,8 @@ impl Processor {
 
         withdrawal_account_data.meta.data.bounty = bounty;
 
+        solana_program::log::sol_log_data(&[&UpdateWithdrawalBountyEvent { bounty }.try_to_vec()?]);
+
         WithdrawalMultiTokenSol::pack(
             withdrawal_account_data,
             &mut withdrawal_account_info.data.borrow_mut(),
@@ -3692,12 +3779,29 @@ impl Processor {
             meta: DepositTokenMetaWithLen::new(deposit_seed),
         };
 
+        let event_data = hash(&deposit_account_data.event.data.try_to_vec()?)
+            .to_bytes()
+            .to_vec();
+
+        solana_program::log::sol_log_data(&[&DepositMultiTokenEvent {
+            recipient,
+            transfer_amount: amount,
+            seed: deposit_seed,
+            event_data,
+        }
+        .try_to_vec()?]);
+
         DepositMultiTokenSol::pack(
             deposit_account_data,
             &mut deposit_account_info.data.borrow_mut(),
         )?;
 
         withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Cancelled;
+
+        solana_program::log::sol_log_data(&[&UpdateWithdrawalStatusEvent {
+            status: withdrawal_account_data.meta.data.status,
+        }
+        .try_to_vec()?]);
 
         WithdrawalMultiTokenSol::pack(
             withdrawal_account_data,
@@ -3911,12 +4015,29 @@ impl Processor {
             meta: DepositTokenMetaWithLen::new(deposit_seed),
         };
 
+        let event_data = hash(&deposit_account_data.event.data.try_to_vec()?)
+            .to_bytes()
+            .to_vec();
+
+        solana_program::log::sol_log_data(&[&DepositMultiTokenEvent {
+            recipient,
+            transfer_amount: amount,
+            seed: deposit_seed,
+            event_data,
+        }
+        .try_to_vec()?]);
+
         DepositMultiTokenSol::pack(
             deposit_account_data,
             &mut deposit_account_info.data.borrow_mut(),
         )?;
 
         withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Processed;
+
+        solana_program::log::sol_log_data(&[&UpdateWithdrawalStatusEvent {
+            status: withdrawal_account_data.meta.data.status,
+        }
+        .try_to_vec()?]);
 
         WithdrawalMultiTokenSol::pack(
             withdrawal_account_data,

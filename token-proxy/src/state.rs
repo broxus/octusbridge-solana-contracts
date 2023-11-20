@@ -214,6 +214,45 @@ impl DepositMultiTokenSolEventWithLen {
     }
 }
 
+#[derive(Debug, BorshSerialize, BorshDeserialize)]
+pub struct DepositMultiTokenEvent {
+    pub recipient: EverAddress,
+    pub transfer_amount: u128,
+    pub seed: u128,
+    pub event_data: Vec<u8>,
+}
+
+#[derive(Debug, BorshSerialize, BorshDeserialize)]
+pub struct WithdrawMultiTokenRequestEvent {
+    pub recipient: Pubkey,
+    pub amount: u128,
+    pub event_timestamp: u32,
+    pub event_transaction_lt: u64,
+    pub event_configuration: Pubkey,
+    pub event_data: Vec<u8>,
+    pub bounty: i64,
+}
+
+#[derive(Debug, BorshSerialize, BorshDeserialize)]
+pub struct TokenSettingsEvent {
+    pub symbol: String,
+    pub name: String,
+    pub mint: Pubkey,
+    pub vault: Option<Pubkey>,
+    pub ever_decimals: Option<u8>,
+    pub solana_decimals: Option<u8>,
+}
+
+#[derive(Debug, BorshSerialize, BorshDeserialize)]
+pub struct UpdateWithdrawalStatusEvent {
+    pub status: WithdrawalTokenStatus,
+}
+
+#[derive(Debug, BorshSerialize, BorshDeserialize)]
+pub struct UpdateWithdrawalBountyEvent {
+    pub bounty: u64,
+}
+
 #[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
 #[bridge_pack(length = 1000)]
 pub struct DepositMultiTokenEver {
