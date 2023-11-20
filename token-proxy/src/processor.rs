@@ -1348,17 +1348,6 @@ impl Processor {
             withdrawal_account_info,
         )?;
 
-        // Check number of votes
-        let sig_count = withdrawal_account_data
-            .signers
-            .iter()
-            .filter(|vote| **vote == Vote::Confirm)
-            .count() as u32;
-
-        if sig_count == withdrawal_account_data.required_votes {
-            return Err(SolanaBridgeError::VotesOverflow.into());
-        }
-
         // Validate Relay Round Account
         let relay_round_account_data = RelayRound::unpack(&relay_round_account_info.data.borrow())?;
         let relay_round_nonce = relay_round_account_data
@@ -1622,7 +1611,7 @@ impl Processor {
             .filter(|vote| **vote == Vote::Confirm)
             .count() as u32;
 
-        if sig_count == withdrawal_account_data.required_votes
+        if sig_count >= withdrawal_account_data.required_votes
             && withdrawal_account_data.meta.data.status == WithdrawalTokenStatus::New
         {
             let current_epoch = clock.unix_timestamp / SECONDS_PER_DAY as i64;
@@ -1877,7 +1866,7 @@ impl Processor {
             .filter(|vote| **vote == Vote::Confirm)
             .count() as u32;
 
-        if sig_count == withdrawal_account_data.required_votes {
+        if sig_count >= withdrawal_account_data.required_votes {
             let withdrawal_amount = withdrawal_account_data.event.data.amount as u64;
 
             let fee_info = &mut token_settings_account_data.fee_info;

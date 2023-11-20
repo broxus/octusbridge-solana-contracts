@@ -2229,9 +2229,9 @@ async fn test_vote_for_withdrawal_request() {
         .signers
         .iter()
         .filter(|vote| **vote == Vote::Confirm)
-        .count() as u32;
+        .count();
 
-    assert_eq!(sig_count, withdrawal_data.required_votes);
+    assert_eq!(sig_count, relays.len());
 }
 
 #[tokio::test]

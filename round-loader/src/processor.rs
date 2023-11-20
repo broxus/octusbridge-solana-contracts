@@ -633,17 +633,6 @@ impl Processor {
             proposal_account_info,
         )?;
 
-        // Check number of votes
-        let sig_count = proposal_account_data
-            .signers
-            .iter()
-            .filter(|vote| **vote == Vote::Confirm)
-            .count() as u32;
-
-        if sig_count == proposal_account_data.required_votes {
-            return Err(SolanaBridgeError::VotesOverflow.into());
-        }
-
         // Validate Relay Round Account
         let relay_round_account_data = RelayRound::unpack(&relay_round_account_info.data.borrow())?;
         let relay_round_nonce = relay_round_account_data
@@ -752,7 +741,7 @@ impl Processor {
             .filter(|vote| **vote == Vote::Confirm)
             .count() as u32;
 
-        if !proposal_account_data.is_executed && sig_count == proposal_account_data.required_votes {
+        if !proposal_account_data.is_executed && sig_count >= proposal_account_data.required_votes {
             // Create a new Relay Round Account
             let round_number = proposal_account_data.event.data.round_num;
 
