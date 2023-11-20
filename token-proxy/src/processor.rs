@@ -253,6 +253,14 @@ impl Processor {
                 msg!("Instruction: Withdraw Proxy");
                 Self::process_withdraw_proxy(program_id, accounts, amount)?;
             }
+            TokenProxyInstruction::CloseWithdrawal => {
+                msg!("Instruction: Close Withdrawal");
+                Self::process_close_withdrawal(program_id, accounts)?;
+            }
+            TokenProxyInstruction::CloseWithdrawalByManager => {
+                msg!("Instruction: Close Withdrawal by Manager");
+                Self::process_close_withdrawal_by_manager(program_id, accounts)?;
+            }
         };
 
         Ok(())
@@ -3974,6 +3982,170 @@ impl Processor {
             accounts,
             &[proxy_signer_seeds],
         )?;
+
+        Ok(())
+    }
+
+    fn process_close_withdrawal(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+
+        let authority_account_info = next_account_info(account_info_iter)?;
+        let withdrawal_account_info = next_account_info(account_info_iter)?;
+        let relay_round_account_info = next_account_info(account_info_iter)?;
+
+        let clock_info = next_account_info(account_info_iter)?;
+        let clock = Clock::from_account_info(clock_info)?;
+
+        if !authority_account_info.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        // Validate Withdrawal Account
+        let withdrawal_account_data =
+            Proposal::unpack_from_slice(&withdrawal_account_info.data.borrow())?;
+
+        let round_number = withdrawal_account_data.round_number;
+        let event_timestamp = withdrawal_account_data.pda.event_timestamp;
+        let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
+        let event_configuration = withdrawal_account_data.pda.event_configuration;
+        let event_data = hash(&withdrawal_account_data.event.try_to_vec()?[4..]);
+
+        let (_, nonce) = Pubkey::find_program_address(
+            &[
+                br"proposal",
+                &round_number.to_le_bytes(),
+                &event_timestamp.to_le_bytes(),
+                &event_transaction_lt.to_le_bytes(),
+                &event_configuration.to_bytes(),
+                &event_data.to_bytes(),
+            ],
+            program_id,
+        );
+
+        bridge_utils::helper::validate_proposal_account(
+            program_id,
+            round_number,
+            event_timestamp,
+            event_transaction_lt,
+            &event_configuration,
+            &event_data,
+            nonce,
+            withdrawal_account_info,
+        )?;
+
+        // Validate Relay Round Account
+        let relay_round_account_data = RelayRound::unpack(&relay_round_account_info.data.borrow())?;
+        let relay_round_nonce = relay_round_account_data
+            .account_kind
+            .into_relay_round()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
+
+        round_loader::validate_relay_round_account(
+            &round_loader::id(),
+            withdrawal_account_data.round_number,
+            relay_round_nonce,
+            relay_round_account_info,
+        )?;
+
+        let votes = withdrawal_account_data
+            .signers
+            .iter()
+            .filter(|vote| **vote == Vote::Confirm)
+            .count() as u32;
+
+        if withdrawal_account_data.is_initialized
+            && !withdrawal_account_data.is_executed
+            && relay_round_account_data.round_end < clock.unix_timestamp as u32
+            && votes == 0
+        {
+            let authority_starting_lamports = authority_account_info.lamports();
+            **authority_account_info.lamports.borrow_mut() = authority_starting_lamports
+                .checked_add(withdrawal_account_info.lamports())
+                .ok_or(SolanaBridgeError::Overflow)?;
+
+            **withdrawal_account_info.lamports.borrow_mut() = 0;
+
+            bridge_utils::helper::delete_account(withdrawal_account_info)?;
+        }
+
+        Ok(())
+    }
+
+    fn process_close_withdrawal_by_manager(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+
+        let authority_account_info = next_account_info(account_info_iter)?;
+        let withdrawal_account_info = next_account_info(account_info_iter)?;
+        let settings_account_info = next_account_info(account_info_iter)?;
+
+        if !authority_account_info.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        // Validate Settings Account
+        let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+
+        let (settings_nonce, _) = settings_account_data
+            .account_kind
+            .into_settings()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
+
+        bridge_utils::helper::validate_settings_account(
+            program_id,
+            settings_nonce,
+            settings_account_info,
+        )?;
+
+        if *authority_account_info.key != settings_account_data.withdrawal_manager {
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        // Validate Withdrawal Account
+        let withdrawal_account_data =
+            Proposal::unpack_from_slice(&withdrawal_account_info.data.borrow())?;
+
+        let round_number = withdrawal_account_data.round_number;
+        let event_timestamp = withdrawal_account_data.pda.event_timestamp;
+        let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
+        let event_configuration = withdrawal_account_data.pda.event_configuration;
+        let event_data = hash(&withdrawal_account_data.event.try_to_vec()?[4..]);
+
+        let (_, nonce) = Pubkey::find_program_address(
+            &[
+                br"proposal",
+                &round_number.to_le_bytes(),
+                &event_timestamp.to_le_bytes(),
+                &event_transaction_lt.to_le_bytes(),
+                &event_configuration.to_bytes(),
+                &event_data.to_bytes(),
+            ],
+            program_id,
+        );
+
+        bridge_utils::helper::validate_proposal_account(
+            program_id,
+            round_number,
+            event_timestamp,
+            event_transaction_lt,
+            &event_configuration,
+            &event_data,
+            nonce,
+            withdrawal_account_info,
+        )?;
+
+        if withdrawal_account_data.is_initialized && !withdrawal_account_data.is_executed {
+            let authority_starting_lamports = authority_account_info.lamports();
+            **authority_account_info.lamports.borrow_mut() = authority_starting_lamports
+                .checked_add(withdrawal_account_info.lamports())
+                .ok_or(SolanaBridgeError::Overflow)?;
+
+            **withdrawal_account_info.lamports.borrow_mut() = 0;
+
+            bridge_utils::helper::delete_account(withdrawal_account_info)?;
+        }
 
         Ok(())
     }

@@ -294,4 +294,16 @@ pub enum TokenProxyInstruction {
         // Amount to withdraw
         amount: u64,
     },
+
+    /// Close Withdrawal Account
+    ///
+    /// # Account references
+    /// ...
+    CloseWithdrawal,
+
+    /// Close Withdrawal Account by Withdrawal Manager
+    ///
+    /// # Account references
+    /// ...
+    CloseWithdrawalByManager,
 }
