@@ -939,6 +939,31 @@ pub fn withdrawal_proxy_ix(
     return serde_wasm_bindgen::to_value(&ix).handle_error();
 }
 
+#[wasm_bindgen(js_name = "closeWithdrawal")]
+pub fn close_withdrawal(
+    withdrawal_address: String,
+    withdrawal_author_address: String,
+) -> Result<JsValue, JsValue> {
+    let withdrawal_address = Pubkey::from_str(withdrawal_address.as_str()).handle_error()?;
+    let withdrawal_author_address =
+        Pubkey::from_str(withdrawal_author_address.as_str()).handle_error()?;
+
+    let data = TokenProxyInstruction::CloseWithdrawal
+        .try_to_vec()
+        .expect("pack");
+
+    let ix = Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(withdrawal_address, false),
+            AccountMeta::new(withdrawal_author_address, false),
+        ],
+        data,
+    };
+
+    return serde_wasm_bindgen::to_value(&ix).handle_error();
+}
+
 #[wasm_bindgen(js_name = "unpackSettings")]
 pub fn unpack_settings(data: Vec<u8>) -> Result<JsValue, JsValue> {
     let settings = Settings::unpack(&data).handle_error()?;
