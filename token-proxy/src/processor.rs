@@ -1073,7 +1073,6 @@ impl Processor {
             let withdrawal_account_data = WithdrawalMultiTokenEver {
                 is_initialized: true,
                 account_kind: AccountKind::Proposal(withdrawal_nonce, proxy_nonce),
-                is_executed: false,
                 author: *author_account_info.key,
                 round_number,
                 required_votes,
@@ -1083,7 +1082,7 @@ impl Processor {
                     event_transaction_lt,
                     event_configuration,
                 },
-                meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::New, 0, epoch),
+                meta: WithdrawalTokenMetaWithLen::new(0, epoch),
                 signers: vec![Vote::None; relay_round_account_data.relays.len()],
             };
 
@@ -1310,7 +1309,6 @@ impl Processor {
             let withdrawal_account_data = WithdrawalMultiTokenSol {
                 is_initialized: true,
                 account_kind: AccountKind::Proposal(withdrawal_nonce, proxy_nonce),
-                is_executed: false,
                 author: *author_account_info.key,
                 round_number,
                 required_votes,
@@ -1320,7 +1318,7 @@ impl Processor {
                     event_configuration,
                 },
                 event,
-                meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::New, 0, epoch),
+                meta: WithdrawalTokenMetaWithLen::new(0, epoch),
                 signers: vec![Vote::None; relay_round_account_data.relays.len()],
             };
 
@@ -1819,8 +1817,6 @@ impl Processor {
                 &mut token_settings_account_info.data.borrow_mut(),
             )?;
 
-            withdrawal_account_data.is_executed = true;
-
             solana_program::log::sol_log_data(&[&UpdateWithdrawalStatusEvent {
                 status: withdrawal_account_data.meta.data.status,
             }
@@ -2082,8 +2078,6 @@ impl Processor {
                         token_settings_account_data,
                         &mut token_settings_account_info.data.borrow_mut(),
                     )?;
-
-                    withdrawal_account_data.is_executed = true
                 }
                 WithdrawalTokenStatus::Pending => {
                     match withdrawal_account_data.event.data.payload.is_empty() {

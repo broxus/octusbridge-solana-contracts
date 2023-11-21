@@ -1116,7 +1116,6 @@ async fn test_withdraw_ever_request() {
         WithdrawalMultiTokenEver::unpack(withdrawal_info.data()).expect("withdrawal token unpack");
 
     assert_eq!(withdrawal_data.is_initialized, true);
-    assert_eq!(withdrawal_data.is_executed, false);
     assert_eq!(withdrawal_data.author, author.pubkey());
     assert_eq!(withdrawal_data.round_number, round_number);
 
@@ -1341,7 +1340,6 @@ async fn test_withdraw_ever_request_with_fake_payload() {
         WithdrawalMultiTokenEver::unpack(withdrawal_info.data()).expect("withdrawal token unpack");
 
     assert_eq!(withdrawal_data.is_initialized, true);
-    assert_eq!(withdrawal_data.is_executed, false);
     assert_eq!(withdrawal_data.author, author.pubkey());
     assert_eq!(withdrawal_data.round_number, round_number);
 
@@ -1664,7 +1662,6 @@ async fn test_withdraw_sol_request() {
         WithdrawalMultiTokenSol::unpack(withdrawal_info.data()).expect("withdrawal token unpack");
 
     assert_eq!(withdrawal_data.is_initialized, true);
-    assert_eq!(withdrawal_data.is_executed, false);
     assert_eq!(withdrawal_data.author, author.pubkey());
     assert_eq!(withdrawal_data.round_number, round_number);
 
@@ -1970,7 +1967,6 @@ async fn test_withdraw_sol_request_with_fake_payload() {
         WithdrawalMultiTokenSol::unpack(withdrawal_info.data()).expect("withdrawal token unpack");
 
     assert_eq!(withdrawal_data.is_initialized, true);
-    assert_eq!(withdrawal_data.is_executed, false);
     assert_eq!(withdrawal_data.author, author.pubkey());
     assert_eq!(withdrawal_data.round_number, round_number);
 
@@ -2169,11 +2165,10 @@ async fn test_vote_for_withdrawal_request() {
     let withdrawal_account_data = WithdrawalMultiTokenSol {
         is_initialized: true,
         account_kind: AccountKind::Proposal(withdrawal_nonce, None),
-        is_executed: false,
         author: author.pubkey(),
         round_number,
         event,
-        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::New, 0, 0),
+        meta: WithdrawalTokenMetaWithLen::default(),
         required_votes: (relays.len() * 2 / 3 + 1) as u32,
         signers: relays.iter().map(|_| Vote::None).collect(),
         pda: PDA {
@@ -2350,11 +2345,10 @@ async fn test_create_token_ever() {
     let withdrawal_account_data = WithdrawalMultiTokenEver {
         is_initialized: true,
         account_kind: AccountKind::Proposal(withdrawal_nonce, None),
-        is_executed: false,
         author: Pubkey::new_unique(),
         round_number,
         event,
-        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::New, 0, 0),
+        meta: WithdrawalTokenMetaWithLen::default(),
         required_votes: signers.len() as u32,
         signers: signers.clone(),
         pda: PDA {
@@ -2480,7 +2474,6 @@ async fn test_create_token_ever() {
 
     let withdrawal_data =
         WithdrawalMultiTokenEver::unpack(withdrawal_info.data()).expect("withdrawal token unpack");
-    assert_eq!(withdrawal_data.is_executed, true);
 
     assert_eq!(
         withdrawal_data.meta.data.status,
@@ -2695,11 +2688,10 @@ async fn test_withdrawal_sol() {
     let withdrawal_account_data = WithdrawalMultiTokenSol {
         is_initialized: true,
         account_kind: AccountKind::Proposal(withdrawal_nonce, None),
-        is_executed: false,
         author: Pubkey::new_unique(),
         round_number,
         event,
-        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::New, 0, 0),
+        meta: WithdrawalTokenMetaWithLen::default(),
         required_votes: signers.len() as u32,
         signers: signers.clone(),
         pda: PDA {
@@ -2783,7 +2775,6 @@ async fn test_withdrawal_sol() {
 
     let withdrawal_data =
         WithdrawalMultiTokenSol::unpack(withdrawal_info.data()).expect("withdrawal token unpack");
-    assert_eq!(withdrawal_data.is_executed, true);
 
     assert_eq!(
         withdrawal_data.meta.data.status,
@@ -4072,14 +4063,13 @@ async fn test_approve_withdrawal_ever() {
 
     let signers = vec![Vote::Confirm; 3];
 
-    let withdrawal_account_data = WithdrawalMultiTokenEver {
+    let mut withdrawal_account_data = WithdrawalMultiTokenEver {
         is_initialized: true,
         account_kind: AccountKind::Proposal(withdrawal_nonce, None),
-        is_executed: false,
         author: Pubkey::new_unique(),
         round_number,
         event,
-        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::WaitingForApprove, 0, 0),
+        meta: WithdrawalTokenMetaWithLen::default(),
         required_votes: signers.len() as u32,
         signers: signers.clone(),
         pda: PDA {
@@ -4088,6 +4078,7 @@ async fn test_approve_withdrawal_ever() {
             event_configuration,
         },
     };
+    withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::WaitingForApprove;
 
     let mut withdrawal_packed = vec![0; WithdrawalMultiTokenEver::LEN];
     WithdrawalMultiTokenEver::pack(withdrawal_account_data, &mut withdrawal_packed).unwrap();
@@ -4360,14 +4351,13 @@ async fn test_approve_withdrawal_sol() {
 
     let signers = vec![Vote::Confirm; 3];
 
-    let withdrawal_account_data = WithdrawalMultiTokenSol {
+    let mut withdrawal_account_data = WithdrawalMultiTokenSol {
         is_initialized: true,
         account_kind: AccountKind::Proposal(withdrawal_nonce, None),
-        is_executed: false,
         author: Pubkey::new_unique(),
         round_number,
         event,
-        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::WaitingForApprove, 0, 0),
+        meta: WithdrawalTokenMetaWithLen::default(),
         required_votes: signers.len() as u32,
         signers: signers.clone(),
         pda: PDA {
@@ -4376,6 +4366,7 @@ async fn test_approve_withdrawal_sol() {
             event_configuration,
         },
     };
+    withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::WaitingForApprove;
 
     let mut withdrawal_packed = vec![0; WithdrawalMultiTokenSol::LEN];
     WithdrawalMultiTokenSol::pack(withdrawal_account_data, &mut withdrawal_packed).unwrap();
@@ -5043,14 +5034,13 @@ async fn test_change_bounty_for_withdrawal_sol() {
         &token_proxy::id(),
     );
 
-    let withdrawal_account_data = WithdrawalMultiTokenSol {
+    let mut withdrawal_account_data = WithdrawalMultiTokenSol {
         is_initialized: true,
         account_kind: AccountKind::Proposal(withdrawal_nonce, None),
-        is_executed: false,
         author: author.pubkey(),
         round_number,
         event,
-        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::Pending, 0, 0),
+        meta: WithdrawalTokenMetaWithLen::default(),
         required_votes: 1,
         signers: vec![Vote::Confirm],
         pda: PDA {
@@ -5059,6 +5049,7 @@ async fn test_change_bounty_for_withdrawal_sol() {
             event_configuration,
         },
     };
+    withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Pending;
 
     let mut withdrawal_packed = vec![0; WithdrawalMultiTokenSol::LEN];
     WithdrawalMultiTokenSol::pack(withdrawal_account_data, &mut withdrawal_packed).unwrap();
@@ -5290,14 +5281,13 @@ async fn test_cancel_withdrawal_sol() {
         &token_proxy::id(),
     );
 
-    let withdrawal_account_data = WithdrawalMultiTokenSol {
+    let mut withdrawal_account_data = WithdrawalMultiTokenSol {
         is_initialized: true,
         account_kind: AccountKind::Proposal(withdrawal_nonce, None),
-        is_executed: false,
         author: author.pubkey(),
         round_number,
         event,
-        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::Pending, 0, 0),
+        meta: WithdrawalTokenMetaWithLen::default(),
         required_votes: 1,
         signers: vec![Vote::Confirm],
         pda: PDA {
@@ -5306,6 +5296,7 @@ async fn test_cancel_withdrawal_sol() {
             event_configuration,
         },
     };
+    withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Pending;
 
     let mut withdrawal_packed = vec![0; WithdrawalMultiTokenSol::LEN];
     WithdrawalMultiTokenSol::pack(withdrawal_account_data, &mut withdrawal_packed).unwrap();
@@ -5593,14 +5584,13 @@ async fn test_fill_withdrawal_sol() {
         &token_proxy::id(),
     );
 
-    let withdrawal_account_data = WithdrawalMultiTokenSol {
+    let mut withdrawal_account_data = WithdrawalMultiTokenSol {
         is_initialized: true,
         account_kind: AccountKind::Proposal(withdrawal_nonce, None),
-        is_executed: false,
         author: author.pubkey(),
         round_number,
         event,
-        meta: WithdrawalTokenMetaWithLen::new(WithdrawalTokenStatus::Pending, bounty, 0),
+        meta: WithdrawalTokenMetaWithLen::default(),
         required_votes: 1,
         signers: vec![Vote::Confirm],
         pda: PDA {
@@ -5609,6 +5599,8 @@ async fn test_fill_withdrawal_sol() {
             event_configuration,
         },
     };
+    withdrawal_account_data.meta.data.bounty = bounty;
+    withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Pending;
 
     let mut withdrawal_packed = vec![0; WithdrawalMultiTokenSol::LEN];
     WithdrawalMultiTokenSol::pack(withdrawal_account_data, &mut withdrawal_packed).unwrap();
@@ -6043,7 +6035,6 @@ async fn test_withdraw_sol_with_payload() {
         WithdrawalMultiTokenSol::unpack(withdrawal_info.data()).expect("withdrawal token unpack");
 
     assert_eq!(withdrawal_data.is_initialized, true);
-    assert_eq!(withdrawal_data.is_executed, false);
     assert_eq!(withdrawal_data.author, author.pubkey());
     assert_eq!(withdrawal_data.round_number, round_number);
 
@@ -6493,7 +6484,6 @@ async fn test_withdraw_ever_request_with_payload() {
         WithdrawalMultiTokenEver::unpack(withdrawal_info.data()).expect("withdrawal token unpack");
 
     assert_eq!(withdrawal_data.is_initialized, true);
-    assert_eq!(withdrawal_data.is_executed, false);
     assert_eq!(withdrawal_data.author, author.pubkey());
     assert_eq!(withdrawal_data.round_number, round_number);
 

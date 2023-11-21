@@ -10,7 +10,6 @@ use super::types::Vote;
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub struct Proposal {
     pub is_initialized: bool,
-    pub is_executed: bool,
     pub account_kind: AccountKind,
     pub author: Pubkey,
     pub round_number: u32,

@@ -377,12 +377,12 @@ async fn test_create_proposal() {
     let proposal_data = RelayRoundProposal::unpack(proposal_info.data()).expect("proposal unpack");
 
     assert_eq!(proposal_data.is_initialized, true);
-    assert_eq!(proposal_data.is_executed, false);
     assert_eq!(proposal_data.round_number, round_number);
     assert_eq!(
         proposal_data.required_votes,
         (relays.len() * 2 / 3 + 1) as u32
     );
+    assert_eq!(proposal_data.meta.data.status, ProposalStatus::New);
 
     assert_eq!(proposal_data.pda.event_timestamp, event_timestamp);
     assert_eq!(proposal_data.pda.event_transaction_lt, event_transaction_lt);
@@ -461,7 +461,7 @@ async fn test_create_proposal() {
         .expect("account");
 
     let proposal_data = RelayRoundProposal::unpack(proposal_info.data()).expect("proposal unpack");
-    assert_eq!(proposal_data.is_executed, true);
+    assert_eq!(proposal_data.meta.data.status, ProposalStatus::Executed);
 
     // Check created Relay Round
     let relay_round_address = get_relay_round_address(new_round_number);
@@ -692,7 +692,6 @@ async fn test_create_proposal_and_execute_by_admin() {
     let proposal_data = RelayRoundProposal::unpack(proposal_info.data()).expect("proposal unpack");
 
     assert_eq!(proposal_data.is_initialized, true);
-    assert_eq!(proposal_data.is_executed, false);
     assert_eq!(proposal_data.round_number, round_number);
     assert_eq!(
         proposal_data.required_votes,
@@ -706,6 +705,8 @@ async fn test_create_proposal_and_execute_by_admin() {
 
     assert_eq!(proposal_data.event.data.relays, new_relays);
     assert_eq!(proposal_data.event.data.round_end, new_round_end);
+
+    assert_eq!(proposal_data.meta.data.status, ProposalStatus::New);
 
     let event_data = hash(&serialized_write_data);
     let (_, proposal_nonce) = Pubkey::find_program_address(
@@ -750,7 +751,7 @@ async fn test_create_proposal_and_execute_by_admin() {
         .expect("account");
 
     let proposal_data = RelayRoundProposal::unpack(proposal_info.data()).expect("proposal unpack");
-    assert_eq!(proposal_data.is_executed, true);
+    assert_eq!(proposal_data.meta.data.status, ProposalStatus::Executed);
 
     // Check created Relay Round
     let relay_round_address = get_relay_round_address(new_round_number);

@@ -14,9 +14,8 @@ pub const MIN_RELAYS: usize = 3;
 /// Maximum Relays in round
 pub const MAX_RELAYS: usize = 100;
 
-pub const LOAD_DATA_BEGIN_OFFSET: usize = 1 // is_executed
+pub const LOAD_DATA_BEGIN_OFFSET: usize = 1 // is_initialized
     + 3                                     // account_kind
-    + 1                                     // is_executed
     + PUBKEY_BYTES                          // author
     + 4                                     // round_number
     + 4                                     // required_votes
@@ -32,7 +31,7 @@ pub const LOAD_DATA_END_OFFSET: usize = LOAD_DATA_BEGIN_OFFSET
     + 4                                         // round_end
 ;
 
-const RELAY_ROUND_PROPOSAL_META_LEN: usize = 0  // empty
+const RELAY_ROUND_PROPOSAL_META_LEN: usize = 1  // status
 ;
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, BridgePack)]
@@ -76,7 +75,6 @@ impl IsInitialized for RelayRound {
 #[bridge_pack(length = 3415)]
 pub struct RelayRoundProposal {
     pub is_initialized: bool,
-    pub is_executed: bool,
     pub account_kind: AccountKind,
     pub author: Pubkey,
     pub round_number: u32,
@@ -122,7 +120,9 @@ impl RelayRoundProposalEventWithLen {
 }
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
-pub struct RelayRoundProposalMeta {}
+pub struct RelayRoundProposalMeta {
+    pub status: ProposalStatus,
+}
 
 #[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
 pub struct RelayRoundProposalMetaWithLen {
@@ -134,7 +134,9 @@ impl RelayRoundProposalMetaWithLen {
     pub fn new() -> Self {
         Self {
             len: RELAY_ROUND_PROPOSAL_META_LEN as u32,
-            data: RelayRoundProposalMeta {},
+            data: RelayRoundProposalMeta {
+                status: ProposalStatus::New,
+            },
         }
     }
 }
@@ -143,4 +145,12 @@ impl Default for RelayRoundProposalMetaWithLen {
     fn default() -> Self {
         Self::new()
     }
+}
+
+#[derive(
+    Copy, BorshSerialize, BorshDeserialize, Serialize, Deserialize, Debug, Clone, Eq, PartialEq,
+)]
+pub enum ProposalStatus {
+    New,
+    Executed,
 }

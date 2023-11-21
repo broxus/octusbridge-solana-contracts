@@ -433,7 +433,6 @@ impl Processor {
                     event_configuration,
                 },
                 is_initialized: Default::default(),
-                is_executed: Default::default(),
                 signers: Default::default(),
                 event: Default::default(),
                 meta: Default::default(),
@@ -741,7 +740,9 @@ impl Processor {
             .filter(|vote| **vote == Vote::Confirm)
             .count() as u32;
 
-        if !proposal_account_data.is_executed && sig_count >= proposal_account_data.required_votes {
+        if proposal_account_data.meta.data.status == ProposalStatus::New
+            && sig_count >= proposal_account_data.required_votes
+        {
             // Create a new Relay Round Account
             let round_number = proposal_account_data.event.data.round_num;
 
@@ -796,7 +797,7 @@ impl Processor {
                 &mut settings_account_info.data.borrow_mut(),
             )?;
 
-            proposal_account_data.is_executed = true;
+            proposal_account_data.meta.data.status = ProposalStatus::Executed;
         }
 
         // Update Proposal Account
@@ -900,7 +901,7 @@ impl Processor {
             &mut settings_account_info.data.borrow_mut(),
         )?;
 
-        proposal.is_executed = true;
+        proposal.meta.data.status = ProposalStatus::Executed;
 
         // Update Proposal Account
         RelayRoundProposal::pack(proposal, &mut proposal_account_info.data.borrow_mut())?;

@@ -1065,7 +1065,6 @@ pub fn unpack_withdrawal_multitoken_ever(data: Vec<u8>) -> Result<JsValue, JsVal
     let w = WasmWithdrawalMultiTokenEver {
         is_initialized: withdrawal.is_initialized,
         account_kind: withdrawal.account_kind,
-        is_executed: withdrawal.is_executed,
         author: withdrawal.author,
         round_number: withdrawal.round_number,
         required_votes: withdrawal.required_votes,
@@ -1085,7 +1084,6 @@ pub fn unpack_withdrawal_multitoken_sol(data: Vec<u8>) -> Result<JsValue, JsValu
     let w = WasmWithdrawalMultiTokenSol {
         is_initialized: withdrawal.is_initialized,
         account_kind: withdrawal.account_kind,
-        is_executed: withdrawal.is_executed,
         author: withdrawal.author,
         round_number: withdrawal.round_number,
         required_votes: withdrawal.required_votes,
@@ -1157,7 +1155,6 @@ pub struct WasmTokenSettings {
 #[derive(Serialize, Deserialize)]
 pub struct WasmWithdrawalMultiTokenEver {
     pub is_initialized: bool,
-    pub is_executed: bool,
     pub account_kind: AccountKind,
     pub author: Pubkey,
     pub round_number: u32,
@@ -1171,7 +1168,6 @@ pub struct WasmWithdrawalMultiTokenEver {
 #[derive(Serialize, Deserialize)]
 pub struct WasmWithdrawalMultiTokenSol {
     pub is_initialized: bool,
-    pub is_executed: bool,
     pub account_kind: AccountKind,
     pub author: Pubkey,
     pub round_number: u32,

@@ -334,7 +334,6 @@ impl DepositTokenMetaWithLen {
 #[bridge_pack(length = 1000)]
 pub struct WithdrawalMultiTokenEver {
     pub is_initialized: bool,
-    pub is_executed: bool,
     pub account_kind: AccountKind,
     pub author: Pubkey,
     pub round_number: u32,
@@ -405,7 +404,6 @@ impl WithdrawalMultiTokenEverEventWithLen {
 #[bridge_pack(length = 1000)]
 pub struct WithdrawalMultiTokenSol {
     pub is_initialized: bool,
-    pub is_executed: bool,
     pub account_kind: AccountKind,
     pub author: Pubkey,
     pub round_number: u32,
@@ -466,15 +464,21 @@ pub struct WithdrawalTokenMetaWithLen {
 }
 
 impl WithdrawalTokenMetaWithLen {
-    pub fn new(status: WithdrawalTokenStatus, bounty: u64, epoch: i64) -> Self {
+    pub fn new(bounty: u64, epoch: i64) -> Self {
         Self {
             len: WITHDRAWAL_TOKEN_META_LEN as u32,
             data: WithdrawalTokenMeta {
-                status,
-                bounty,
                 epoch,
+                bounty,
+                status: WithdrawalTokenStatus::New,
             },
         }
+    }
+}
+
+impl Default for WithdrawalTokenMetaWithLen {
+    fn default() -> Self {
+        Self::new(Default::default(), Default::default())
     }
 }
 
