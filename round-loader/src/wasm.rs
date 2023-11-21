@@ -264,7 +264,6 @@ pub fn unpack_relay_round_proposal(data: Vec<u8>) -> Result<JsValue, JsValue> {
         is_initialized: relay_round_proposal.is_initialized,
         account_kind: relay_round_proposal.account_kind,
         author: relay_round_proposal.author,
-        is_executed: relay_round_proposal.is_executed,
         round_number: relay_round_proposal.round_number,
         required_votes: relay_round_proposal.required_votes,
         pda: relay_round_proposal.pda,
@@ -298,7 +297,6 @@ pub struct WasmRelayRound {
 #[derive(Serialize, Deserialize)]
 pub struct WasmRelayRoundProposal {
     pub is_initialized: bool,
-    pub is_executed: bool,
     pub account_kind: AccountKind,
     pub author: Pubkey,
     pub round_number: u32,
