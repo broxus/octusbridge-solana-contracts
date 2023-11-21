@@ -4144,7 +4144,7 @@ impl Processor {
 
         let meta = WithdrawalTokenMeta::try_from_slice(&withdrawal_account_data.meta)?;
         if meta.status != WithdrawalTokenStatus::Processed
-            || meta.status != WithdrawalTokenStatus::Cancelled
+            && meta.status != WithdrawalTokenStatus::Cancelled
         {
             return Err(SolanaBridgeError::InvalidWithdrawalStatus.into());
         }
