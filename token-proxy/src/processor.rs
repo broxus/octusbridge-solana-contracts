@@ -253,6 +253,10 @@ impl Processor {
                 msg!("Instruction: Withdraw Proxy");
                 Self::process_withdraw_proxy(program_id, accounts, amount)?;
             }
+            TokenProxyInstruction::CloseWithdrawal => {
+                msg!("Instruction: Close Withdrawal");
+                Self::process_close_withdrawal(program_id, accounts)?;
+            }
         };
 
         Ok(())
@@ -2138,17 +2142,17 @@ impl Processor {
                 }
                 _ => (),
             }
-        }
 
-        solana_program::log::sol_log_data(&[&UpdateWithdrawalStatusEvent {
-            status: withdrawal_account_data.meta.data.status,
-        }
-        .try_to_vec()?]);
+            solana_program::log::sol_log_data(&[&UpdateWithdrawalStatusEvent {
+                status: withdrawal_account_data.meta.data.status,
+            }
+            .try_to_vec()?]);
 
-        WithdrawalMultiTokenSol::pack(
-            withdrawal_account_data,
-            &mut withdrawal_account_info.data.borrow_mut(),
-        )?;
+            WithdrawalMultiTokenSol::pack(
+                withdrawal_account_data,
+                &mut withdrawal_account_info.data.borrow_mut(),
+            )?;
+        }
 
         Ok(())
     }
@@ -4094,6 +4098,61 @@ impl Processor {
 
         Ok(())
     }
+
+    fn process_close_withdrawal(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+
+        let withdrawal_account_info = next_account_info(account_info_iter)?;
+        let withdrawal_author_account_info = next_account_info(account_info_iter)?;
+
+        // Validate Withdrawal Account
+        let withdrawal_account_data =
+            Proposal::unpack_from_slice(&withdrawal_account_info.data.borrow())?;
+
+        let round_number = withdrawal_account_data.round_number;
+        let event_timestamp = withdrawal_account_data.pda.event_timestamp;
+        let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
+        let event_configuration = withdrawal_account_data.pda.event_configuration;
+        let event_data = hash(&withdrawal_account_data.event.try_to_vec()?[4..]);
+
+        let (_, nonce) = Pubkey::find_program_address(
+            &[
+                br"proposal",
+                &round_number.to_le_bytes(),
+                &event_timestamp.to_le_bytes(),
+                &event_transaction_lt.to_le_bytes(),
+                &event_configuration.to_bytes(),
+                &event_data.to_bytes(),
+            ],
+            program_id,
+        );
+
+        bridge_utils::helper::validate_proposal_account(
+            program_id,
+            round_number,
+            event_timestamp,
+            event_transaction_lt,
+            &event_configuration,
+            &event_data,
+            nonce,
+            withdrawal_account_info,
+        )?;
+
+        if *withdrawal_author_account_info.key != withdrawal_account_data.author {
+            return Err(ProgramError::InvalidArgument);
+        }
+
+        let meta = WithdrawalTokenMeta::try_from_slice(&withdrawal_account_data.meta)?;
+        if meta.status != WithdrawalTokenStatus::Processed
+            || meta.status != WithdrawalTokenStatus::Cancelled
+        {
+            return Err(SolanaBridgeError::InvalidWithdrawalStatus.into());
+        }
+
+        delete_withdrawal_account(withdrawal_account_info, withdrawal_author_account_info)?;
+
+        Ok(())
+    }
 }
 
 fn make_ever_transfer<'a>(
@@ -4177,7 +4236,7 @@ fn make_sol_transfer<'a>(
     Ok(())
 }
 
-pub fn get_withdrawal_amount(
+fn get_withdrawal_amount(
     amount: u128,
     ever_decimals: u8,
     solana_decimals: u8,
@@ -4197,7 +4256,7 @@ pub fn get_withdrawal_amount(
     Ok(amount)
 }
 
-pub fn get_deposit_amount(
+fn get_deposit_amount(
     amount: u64,
     ever_decimals: u8,
     solana_decimals: u8,
@@ -4215,4 +4274,20 @@ pub fn get_deposit_amount(
     };
 
     Ok(amount)
+}
+
+fn delete_withdrawal_account(
+    withdrawal_account_info: &AccountInfo,
+    withdrawal_author_account_info: &AccountInfo,
+) -> Result<(), ProgramError> {
+    let authority_starting_lamports = withdrawal_author_account_info.lamports();
+    **withdrawal_author_account_info.lamports.borrow_mut() = authority_starting_lamports
+        .checked_add(withdrawal_account_info.lamports())
+        .ok_or(SolanaBridgeError::Overflow)?;
+
+    **withdrawal_account_info.lamports.borrow_mut() = 0;
+
+    bridge_utils::helper::delete_account(withdrawal_account_info);
+
+    Ok(())
 }

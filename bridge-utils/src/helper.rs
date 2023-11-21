@@ -132,3 +132,10 @@ pub fn validate_proposal_account(
 
     Ok(())
 }
+
+pub fn delete_account(account_info: &AccountInfo) {
+    account_info.assign(&solana_program::system_program::id());
+    let mut account_data = account_info.data.borrow_mut();
+    let data_len = account_data.len();
+    solana_program::program_memory::sol_memset(*account_data, 0, data_len);
+}

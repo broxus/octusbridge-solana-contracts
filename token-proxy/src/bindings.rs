@@ -1183,3 +1183,21 @@ pub fn withdrawal_proxy_ix(
         data,
     }
 }
+
+pub fn close_withdrawal_ix(
+    withdrawal_pubkey: Pubkey,
+    withdrawal_author_pubkey: Pubkey,
+) -> Instruction {
+    let data = TokenProxyInstruction::CloseWithdrawal
+        .try_to_vec()
+        .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(withdrawal_pubkey, false),
+            AccountMeta::new(withdrawal_author_pubkey, false),
+        ],
+        data,
+    }
+}
