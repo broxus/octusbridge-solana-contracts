@@ -295,6 +295,12 @@ pub enum TokenProxyInstruction {
         amount: u64,
     },
 
+    /// Close Deposit Account to return SOL
+    ///
+    /// # Account references
+    /// ...
+    CloseDeposit,
+
     /// Close Withdrawal Account to return SOL
     ///
     /// # Account references

@@ -117,6 +117,7 @@ impl IsInitialized for TokenSettings {
 pub struct Deposit {
     pub is_initialized: bool,
     pub account_kind: AccountKind,
+    pub author: Pubkey,
     pub event: Vec<u8>,
     pub meta: Vec<u8>,
 }
@@ -147,6 +148,7 @@ impl IsInitialized for Deposit {
 pub struct DepositMultiTokenSol {
     pub is_initialized: bool,
     pub account_kind: AccountKind,
+    pub author: Pubkey,
     pub event: DepositMultiTokenSolEventWithLen,
     pub meta: DepositTokenMetaWithLen,
 }
@@ -259,6 +261,7 @@ pub struct UpdateWithdrawalBountyEvent {
 pub struct DepositMultiTokenEver {
     pub is_initialized: bool,
     pub account_kind: AccountKind,
+    pub author: Pubkey,
     pub event: DepositMultiTokenEverEventWithLen,
     pub meta: DepositTokenMetaWithLen,
 }

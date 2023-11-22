@@ -253,6 +253,10 @@ impl Processor {
                 msg!("Instruction: Withdraw Proxy");
                 Self::process_withdraw_proxy(program_id, accounts, amount)?;
             }
+            TokenProxyInstruction::CloseDeposit => {
+                msg!("Instruction: Close Deposit");
+                Self::process_close_deposit(program_id, accounts)?;
+            }
             TokenProxyInstruction::CloseWithdrawal => {
                 msg!("Instruction: Close Withdrawal");
                 Self::process_close_withdrawal(program_id, accounts)?;
@@ -516,6 +520,7 @@ impl Processor {
         let deposit_account_data = DepositMultiTokenEver {
             is_initialized: true,
             account_kind: AccountKind::Deposit(deposit_nonce),
+            author: *creator_account_info.key,
             event: DepositMultiTokenEverEventWithLen::new(
                 token,
                 transfer_amount,
@@ -853,6 +858,7 @@ impl Processor {
         let deposit_account_data = DepositMultiTokenSol {
             is_initialized: true,
             account_kind: AccountKind::Deposit(deposit_nonce),
+            author: *creator_account_info.key,
             event: DepositMultiTokenSolEventWithLen::new(
                 *mint_account_info.key,
                 name,
@@ -3765,6 +3771,7 @@ impl Processor {
         let deposit_account_data = DepositMultiTokenSol {
             is_initialized: true,
             account_kind: AccountKind::Deposit(deposit_nonce),
+            author: *author_account_info.key,
             event: DepositMultiTokenSolEventWithLen::new(
                 mint,
                 name,
@@ -4001,6 +4008,7 @@ impl Processor {
         let deposit_account_data = DepositMultiTokenSol {
             is_initialized: true,
             account_kind: AccountKind::Deposit(deposit_nonce),
+            author: *author_account_info.key,
             event: DepositMultiTokenSolEventWithLen::new(
                 mint,
                 name,
@@ -4099,6 +4107,40 @@ impl Processor {
         Ok(())
     }
 
+    fn process_close_deposit(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+
+        let author_account_info = next_account_info(account_info_iter)?;
+        let deposit_account_info = next_account_info(account_info_iter)?;
+
+        if !author_account_info.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        // Validate Deposit Account
+        let deposit_account_data = Deposit::unpack_from_slice(&deposit_account_info.data.borrow())?;
+
+        let meta = DepositTokenMeta::try_from_slice(&deposit_account_data.meta)?;
+
+        let (_, nonce) =
+            Pubkey::find_program_address(&[br"deposit", &meta.seed.to_le_bytes()], program_id);
+
+        bridge_utils::helper::validate_deposit_account(
+            program_id,
+            meta.seed,
+            nonce,
+            deposit_account_info,
+        )?;
+
+        if *author_account_info.key != deposit_account_data.author {
+            return Err(ProgramError::InvalidArgument);
+        }
+
+        delete_account(deposit_account_info, author_account_info)?;
+
+        Ok(())
+    }
+
     fn process_close_withdrawal(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -4149,7 +4191,7 @@ impl Processor {
             return Err(SolanaBridgeError::InvalidWithdrawalStatus.into());
         }
 
-        delete_withdrawal_account(withdrawal_account_info, withdrawal_author_account_info)?;
+        delete_account(withdrawal_account_info, withdrawal_author_account_info)?;
 
         Ok(())
     }
@@ -4276,18 +4318,18 @@ fn get_deposit_amount(
     Ok(amount)
 }
 
-fn delete_withdrawal_account(
-    withdrawal_account_info: &AccountInfo,
-    withdrawal_author_account_info: &AccountInfo,
+fn delete_account(
+    account_info: &AccountInfo,
+    author_account_info: &AccountInfo,
 ) -> Result<(), ProgramError> {
-    let authority_starting_lamports = withdrawal_author_account_info.lamports();
-    **withdrawal_author_account_info.lamports.borrow_mut() = authority_starting_lamports
-        .checked_add(withdrawal_account_info.lamports())
+    let authority_starting_lamports = author_account_info.lamports();
+    **author_account_info.lamports.borrow_mut() = authority_starting_lamports
+        .checked_add(account_info.lamports())
         .ok_or(SolanaBridgeError::Overflow)?;
 
-    **withdrawal_account_info.lamports.borrow_mut() = 0;
+    **account_info.lamports.borrow_mut() = 0;
 
-    bridge_utils::helper::delete_account(withdrawal_account_info);
+    bridge_utils::helper::delete_account(account_info);
 
     Ok(())
 }

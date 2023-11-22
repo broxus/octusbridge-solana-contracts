@@ -1184,6 +1184,21 @@ pub fn withdrawal_proxy_ix(
     }
 }
 
+pub fn close_deposit_ix(author_pubkey: Pubkey, deposit_pubkey: Pubkey) -> Instruction {
+    let data = TokenProxyInstruction::CloseDeposit
+        .try_to_vec()
+        .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(author_pubkey, true),
+            AccountMeta::new(deposit_pubkey, false),
+        ],
+        data,
+    }
+}
+
 pub fn close_withdrawal_ix(
     withdrawal_pubkey: Pubkey,
     withdrawal_author_pubkey: Pubkey,

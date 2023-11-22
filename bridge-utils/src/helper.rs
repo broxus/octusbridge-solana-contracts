@@ -133,6 +133,26 @@ pub fn validate_proposal_account(
     Ok(())
 }
 
+pub fn validate_deposit_account(
+    program_id: &Pubkey,
+    seed: u128,
+    nonce: u8,
+    deposit_account_info: &AccountInfo,
+) -> Result<(), ProgramError> {
+    let (account, expected_nonce) =
+        Pubkey::find_program_address(&[br"deposit", &seed.to_le_bytes()], program_id);
+
+    if account != *deposit_account_info.key {
+        return Err(ProgramError::InvalidArgument);
+    }
+
+    if expected_nonce != nonce {
+        return Err(ProgramError::InvalidArgument);
+    }
+
+    Ok(())
+}
+
 pub fn delete_account(account_info: &AccountInfo) {
     account_info.assign(&solana_program::system_program::id());
     let mut account_data = account_info.data.borrow_mut();
