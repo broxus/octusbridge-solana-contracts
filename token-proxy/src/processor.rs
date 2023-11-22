@@ -537,6 +537,7 @@ impl Processor {
             .to_vec();
 
         solana_program::log::sol_log_data(&[&*DepositMultiTokenEvent {
+            account: deposit_pubkey,
             recipient,
             transfer_amount,
             seed: deposit_seed,
@@ -713,6 +714,7 @@ impl Processor {
             };
 
             solana_program::log::sol_log_data(&[&TokenSettingsEvent {
+                account: token_settings_pubkey,
                 symbol: token_settings_account_data.symbol.clone(),
                 name: token_settings_account_data.name.clone(),
                 mint: mint_account_info.key.clone(),
@@ -878,6 +880,7 @@ impl Processor {
             .to_vec();
 
         solana_program::log::sol_log_data(&[&DepositMultiTokenEvent {
+            account: deposit_pubkey,
             recipient,
             transfer_amount,
             seed: deposit_seed,
@@ -1104,6 +1107,7 @@ impl Processor {
             let event_data = event_data.to_bytes().to_vec();
 
             solana_program::log::sol_log_data(&[&WithdrawMultiTokenRequestEvent {
+                account: withdrawal_pubkey,
                 token: token.to_string(),
                 recipient,
                 amount,
@@ -1340,6 +1344,7 @@ impl Processor {
             let event_data = event_data.to_bytes().to_vec();
 
             solana_program::log::sol_log_data(&[&WithdrawMultiTokenRequestEvent {
+                account: withdrawal_pubkey,
                 token: mint.to_string(),
                 recipient,
                 amount,
@@ -1506,7 +1511,7 @@ impl Processor {
         let event_configuration = withdrawal_account_data.pda.event_configuration;
         let event_data = hash(&withdrawal_account_data.event.data.try_to_vec()?);
 
-        let (_, withdrawal_nonce) = Pubkey::find_program_address(
+        let (withdrawal_pubkey, withdrawal_nonce) = Pubkey::find_program_address(
             &[
                 br"proposal",
                 &round_number.to_le_bytes(),
@@ -1632,6 +1637,7 @@ impl Processor {
             };
 
             solana_program::log::sol_log_data(&[&TokenSettingsEvent {
+                account: token_settings_pubkey,
                 symbol: token_settings_account_data.symbol.clone(),
                 name: token_settings_account_data.name.clone(),
                 mint: mint_account_info.key.clone(),
@@ -1828,6 +1834,7 @@ impl Processor {
             )?;
 
             solana_program::log::sol_log_data(&[&UpdateWithdrawalStatusEvent {
+                account: withdrawal_pubkey,
                 status: withdrawal_account_data.meta.data.status,
             }
             .try_to_vec()?]);
@@ -1884,7 +1891,7 @@ impl Processor {
         let event_configuration = withdrawal_account_data.pda.event_configuration;
         let event_data = hash(&withdrawal_account_data.event.data.try_to_vec()?);
 
-        let (_, withdrawal_nonce) = Pubkey::find_program_address(
+        let (withdrawal_pubkey, withdrawal_nonce) = Pubkey::find_program_address(
             &[
                 br"proposal",
                 &round_number.to_le_bytes(),
@@ -2150,6 +2157,7 @@ impl Processor {
             }
 
             solana_program::log::sol_log_data(&[&UpdateWithdrawalStatusEvent {
+                account: withdrawal_pubkey,
                 status: withdrawal_account_data.meta.data.status,
             }
             .try_to_vec()?]);
@@ -2868,7 +2876,7 @@ impl Processor {
         let event_configuration = withdrawal_account_data.pda.event_configuration;
         let event_data = hash(&withdrawal_account_data.event.data.try_to_vec()?);
 
-        let (_, withdrawal_nonce) = Pubkey::find_program_address(
+        let (withdrawal_pubkey, withdrawal_nonce) = Pubkey::find_program_address(
             &[
                 br"proposal",
                 &round_number.to_le_bytes(),
@@ -3019,6 +3027,7 @@ impl Processor {
         }
 
         solana_program::log::sol_log_data(&[&UpdateWithdrawalStatusEvent {
+            account: withdrawal_pubkey,
             status: withdrawal_account_data.meta.data.status,
         }
         .try_to_vec()?]);
@@ -3609,8 +3618,6 @@ impl Processor {
 
         withdrawal_account_data.meta.data.bounty = bounty;
 
-        solana_program::log::sol_log_data(&[&UpdateWithdrawalBountyEvent { bounty }.try_to_vec()?]);
-
         WithdrawalMultiTokenSol::pack(
             withdrawal_account_data,
             &mut withdrawal_account_info.data.borrow_mut(),
@@ -3669,7 +3676,7 @@ impl Processor {
         let event_configuration = withdrawal_account_data.pda.event_configuration;
         let event_data = hash(&withdrawal_account_data.event.data.try_to_vec()?);
 
-        let (_, withdrawal_nonce) = Pubkey::find_program_address(
+        let (withdrawal_pubkey, withdrawal_nonce) = Pubkey::find_program_address(
             &[
                 br"proposal",
                 &round_number.to_le_bytes(),
@@ -3791,6 +3798,7 @@ impl Processor {
             .to_vec();
 
         solana_program::log::sol_log_data(&[&DepositMultiTokenEvent {
+            account: withdrawal_pubkey,
             recipient,
             transfer_amount: amount,
             seed: deposit_seed,
@@ -3806,6 +3814,7 @@ impl Processor {
         withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Cancelled;
 
         solana_program::log::sol_log_data(&[&UpdateWithdrawalStatusEvent {
+            account: withdrawal_pubkey,
             status: withdrawal_account_data.meta.data.status,
         }
         .try_to_vec()?]);
@@ -3871,7 +3880,7 @@ impl Processor {
         let event_configuration = withdrawal_account_data.pda.event_configuration;
         let event_data = hash(&withdrawal_account_data.event.data.try_to_vec()?);
 
-        let (_, withdrawal_nonce) = Pubkey::find_program_address(
+        let (withdrawal_pubkey, withdrawal_nonce) = Pubkey::find_program_address(
             &[
                 br"proposal",
                 &round_number.to_le_bytes(),
@@ -4028,6 +4037,7 @@ impl Processor {
             .to_vec();
 
         solana_program::log::sol_log_data(&[&DepositMultiTokenEvent {
+            account: deposit_pubkey,
             recipient,
             transfer_amount: amount,
             seed: deposit_seed,
@@ -4043,6 +4053,7 @@ impl Processor {
         withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Processed;
 
         solana_program::log::sol_log_data(&[&UpdateWithdrawalStatusEvent {
+            account: withdrawal_pubkey,
             status: withdrawal_account_data.meta.data.status,
         }
         .try_to_vec()?]);
