@@ -3,6 +3,8 @@ use bridge_utils::types::{EverAddress, UInt256, Vote};
 
 use solana_program::pubkey::Pubkey;
 
+use crate::FeeType;
+
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub enum TokenProxyInstruction {
     /// Vote for withdraw EVER/SOL request
@@ -231,6 +233,8 @@ pub enum TokenProxyInstruction {
     /// # Account references
     /// ...
     UpdateFee {
+        // Fee type
+        fee_type: FeeType,
         // Fee multiplier
         multiplier: u64,
         // Fee divisor

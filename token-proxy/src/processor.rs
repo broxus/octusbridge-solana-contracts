@@ -209,11 +209,12 @@ impl Processor {
                 Self::process_approve_withdraw_sol(program_id, accounts)?;
             }
             TokenProxyInstruction::UpdateFee {
+                fee_type,
                 multiplier,
                 divisor,
             } => {
                 msg!("Instruction: Update Fee");
-                Self::process_update_fee(program_id, accounts, multiplier, divisor)?;
+                Self::process_update_fee(program_id, accounts, fee_type, multiplier, divisor)?;
             }
             TokenProxyInstruction::WithdrawEverFee { amount } => {
                 msg!("Instruction: Withdraw EVER Fee");
@@ -495,7 +496,7 @@ impl Processor {
         )?;
 
         // Init Deposit Account
-        let fee_info = &mut token_settings_account_data.fee_info;
+        let fee_info = &token_settings_account_data.fee_deposit_info;
 
         let fee = 1.max(
             amount
@@ -506,8 +507,8 @@ impl Processor {
         );
 
         // Increase fee supply
-        fee_info.supply = fee_info
-            .supply
+        token_settings_account_data.fee_supply = token_settings_account_data
+            .fee_supply
             .checked_add(fee)
             .ok_or(SolanaBridgeError::Overflow)?;
 
@@ -541,6 +542,8 @@ impl Processor {
             recipient,
             transfer_amount,
             seed: deposit_seed,
+            value,
+            expected_evers,
             event_data,
         }
         .try_to_vec()?]);
@@ -710,7 +713,9 @@ impl Processor {
                 withdrawal_daily_limit: u64::MAX,
                 withdrawal_daily_amount: 0,
                 emergency: false,
-                fee_info: Default::default(),
+                fee_supply: Default::default(),
+                fee_deposit_info: Default::default(),
+                fee_withdrawal_info: Default::default(),
             };
 
             solana_program::log::sol_log_data(&[&TokenSettingsEvent {
@@ -721,6 +726,8 @@ impl Processor {
                 vault: Some(vault_account_info.key.clone()),
                 ever_decimals: None,
                 solana_decimals: None,
+                root: None,
+                fee: Default::default(),
             }
             .try_to_vec()?]);
 
@@ -835,7 +842,7 @@ impl Processor {
         )?;
 
         // Init Deposit Account
-        let fee_info = &mut token_settings_account_data.fee_info;
+        let fee_info = &token_settings_account_data.fee_deposit_info;
 
         let fee = 1.max(
             amount
@@ -846,8 +853,8 @@ impl Processor {
         );
 
         // Increase fee supply
-        fee_info.supply = fee_info
-            .supply
+        token_settings_account_data.fee_supply = token_settings_account_data
+            .fee_supply
             .checked_add(fee)
             .ok_or(SolanaBridgeError::Overflow)?;
 
@@ -884,6 +891,8 @@ impl Processor {
             recipient,
             transfer_amount,
             seed: deposit_seed,
+            value,
+            expected_evers,
             event_data,
         }
         .try_to_vec()?]);
@@ -1399,18 +1408,10 @@ impl Processor {
         let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
         let event_configuration = withdrawal_account_data.pda.event_configuration;
         let event_data = hash(&withdrawal_account_data.event.try_to_vec()?[4..]);
-
-        let (_, nonce) = Pubkey::find_program_address(
-            &[
-                br"proposal",
-                &round_number.to_le_bytes(),
-                &event_timestamp.to_le_bytes(),
-                &event_transaction_lt.to_le_bytes(),
-                &event_configuration.to_bytes(),
-                &event_data.to_bytes(),
-            ],
-            program_id,
-        );
+        let (nonce, _) = withdrawal_account_data
+            .account_kind
+            .into_proposal()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
 
         bridge_utils::helper::validate_proposal_account(
             program_id,
@@ -1510,27 +1511,19 @@ impl Processor {
         let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
         let event_configuration = withdrawal_account_data.pda.event_configuration;
         let event_data = hash(&withdrawal_account_data.event.data.try_to_vec()?);
+        let (nonce, _) = withdrawal_account_data
+            .account_kind
+            .into_proposal()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
 
-        let (withdrawal_pubkey, withdrawal_nonce) = Pubkey::find_program_address(
-            &[
-                br"proposal",
-                &round_number.to_le_bytes(),
-                &event_timestamp.to_le_bytes(),
-                &event_transaction_lt.to_le_bytes(),
-                &event_configuration.to_bytes(),
-                &event_data.to_bytes(),
-            ],
-            program_id,
-        );
-
-        bridge_utils::helper::validate_proposal_account(
+        let withdrawal_pubkey = bridge_utils::helper::validate_proposal_account(
             program_id,
             round_number,
             event_timestamp,
             event_transaction_lt,
             &event_configuration,
             &event_data,
-            withdrawal_nonce,
+            nonce,
             withdrawal_account_info,
         )?;
 
@@ -1633,7 +1626,9 @@ impl Processor {
                 withdrawal_daily_limit: u64::MAX,
                 withdrawal_daily_amount: 0,
                 emergency: false,
-                fee_info: Default::default(),
+                fee_supply: Default::default(),
+                fee_deposit_info: Default::default(),
+                fee_withdrawal_info: Default::default(),
             };
 
             solana_program::log::sol_log_data(&[&TokenSettingsEvent {
@@ -1644,6 +1639,8 @@ impl Processor {
                 vault: None,
                 ever_decimals: Some(ever_decimals),
                 solana_decimals: Some(solana_decimals),
+                root: Some(withdrawal_account_data.event.data.token),
+                fee: Default::default(),
             }
             .try_to_vec()?]);
 
@@ -1715,7 +1712,7 @@ impl Processor {
                 solana_decimals,
             )?;
 
-            let fee_info = &mut token_settings_account_data.fee_info;
+            let fee_info = &token_settings_account_data.fee_withdrawal_info;
 
             let fee = 1.max(
                 withdrawal_amount
@@ -1726,8 +1723,8 @@ impl Processor {
             );
 
             // Increase fee supply
-            fee_info.supply = fee_info
-                .supply
+            token_settings_account_data.fee_supply = token_settings_account_data
+                .fee_supply
                 .checked_add(fee)
                 .ok_or(SolanaBridgeError::Overflow)?;
 
@@ -1890,27 +1887,19 @@ impl Processor {
         let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
         let event_configuration = withdrawal_account_data.pda.event_configuration;
         let event_data = hash(&withdrawal_account_data.event.data.try_to_vec()?);
+        let (nonce, _) = withdrawal_account_data
+            .account_kind
+            .into_proposal()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
 
-        let (withdrawal_pubkey, withdrawal_nonce) = Pubkey::find_program_address(
-            &[
-                br"proposal",
-                &round_number.to_le_bytes(),
-                &event_timestamp.to_le_bytes(),
-                &event_transaction_lt.to_le_bytes(),
-                &event_configuration.to_bytes(),
-                &event_data.to_bytes(),
-            ],
-            program_id,
-        );
-
-        bridge_utils::helper::validate_proposal_account(
+        let withdrawal_pubkey = bridge_utils::helper::validate_proposal_account(
             program_id,
             round_number,
             event_timestamp,
             event_transaction_lt,
             &event_configuration,
             &event_data,
-            withdrawal_nonce,
+            nonce,
             withdrawal_account_info,
         )?;
 
@@ -1959,7 +1948,7 @@ impl Processor {
         if sig_count >= withdrawal_account_data.required_votes {
             let withdrawal_amount = withdrawal_account_data.event.data.amount as u64;
 
-            let fee_info = &mut token_settings_account_data.fee_info;
+            let fee_info = &mut token_settings_account_data.fee_withdrawal_info;
 
             let fee = 1.max(
                 withdrawal_amount
@@ -1992,8 +1981,8 @@ impl Processor {
                             .ok_or(SolanaBridgeError::Overflow)?;
 
                     // Increase fee supply
-                    fee_info.supply = fee_info
-                        .supply
+                    token_settings_account_data.fee_supply = token_settings_account_data
+                        .fee_supply
                         .checked_add(fee)
                         .ok_or(SolanaBridgeError::Overflow)?;
 
@@ -2188,14 +2177,17 @@ impl Processor {
 
         let mint = get_associated_mint(program_id, &withdrawal_account_data.event.data.token);
         let recipient = withdrawal_account_data.event.data.recipient;
+        let (_, nonce) = withdrawal_account_data
+            .account_kind
+            .into_proposal()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
 
-        let (_, nonce) = Pubkey::find_program_address(
-            &[br"proxy", &mint.to_bytes(), &recipient.to_bytes()],
-            program_id,
-        );
-
-        let proxy_signer_seeds: &[&[_]] =
-            &[br"proxy", &mint.to_bytes(), &recipient.to_bytes(), &[nonce]];
+        let proxy_signer_seeds: &[&[_]] = &[
+            br"proxy",
+            &mint.to_bytes(),
+            &recipient.to_bytes(),
+            &[nonce.unwrap_or_default()],
+        ];
 
         let ixs: Vec<solana_program::instruction::Instruction> =
             bincode::deserialize(&withdrawal_account_data.event.data.payload)
@@ -2215,7 +2207,10 @@ impl Processor {
         Ok(())
     }
 
-    fn process_execute_payload_sol(program_id: &Pubkey, accounts: &[AccountInfo]) -> ProgramResult {
+    fn process_execute_payload_sol(
+        _program_id: &Pubkey,
+        accounts: &[AccountInfo],
+    ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
         let withdrawal_account_info = next_account_info(account_info_iter)?;
@@ -2229,14 +2224,17 @@ impl Processor {
 
         let mint = withdrawal_account_data.event.data.mint;
         let recipient = withdrawal_account_data.event.data.recipient;
+        let (_, nonce) = withdrawal_account_data
+            .account_kind
+            .into_proposal()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
 
-        let (_, nonce) = Pubkey::find_program_address(
-            &[br"proxy", &mint.to_bytes(), &recipient.to_bytes()],
-            program_id,
-        );
-
-        let proxy_signer_seeds: &[&[_]] =
-            &[br"proxy", &mint.to_bytes(), &recipient.to_bytes(), &[nonce]];
+        let proxy_signer_seeds: &[&[_]] = &[
+            br"proxy",
+            &mint.to_bytes(),
+            &recipient.to_bytes(),
+            &[nonce.unwrap_or_default()],
+        ];
 
         let ixs: Vec<solana_program::instruction::Instruction> =
             bincode::deserialize(&withdrawal_account_data.event.data.payload)
@@ -2875,27 +2873,19 @@ impl Processor {
         let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
         let event_configuration = withdrawal_account_data.pda.event_configuration;
         let event_data = hash(&withdrawal_account_data.event.data.try_to_vec()?);
+        let (nonce, _) = withdrawal_account_data
+            .account_kind
+            .into_proposal()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
 
-        let (withdrawal_pubkey, withdrawal_nonce) = Pubkey::find_program_address(
-            &[
-                br"proposal",
-                &round_number.to_le_bytes(),
-                &event_timestamp.to_le_bytes(),
-                &event_transaction_lt.to_le_bytes(),
-                &event_configuration.to_bytes(),
-                &event_data.to_bytes(),
-            ],
-            program_id,
-        );
-
-        bridge_utils::helper::validate_proposal_account(
+        let withdrawal_pubkey = bridge_utils::helper::validate_proposal_account(
             program_id,
             round_number,
             event_timestamp,
             event_transaction_lt,
             &event_configuration,
             &event_data,
-            withdrawal_nonce,
+            nonce,
             withdrawal_account_info,
         )?;
 
@@ -3087,18 +3077,10 @@ impl Processor {
         let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
         let event_configuration = withdrawal_account_data.pda.event_configuration;
         let event_data = hash(&withdrawal_account_data.event.data.try_to_vec()?);
-
-        let (_, withdrawal_nonce) = Pubkey::find_program_address(
-            &[
-                br"proposal",
-                &round_number.to_le_bytes(),
-                &event_timestamp.to_le_bytes(),
-                &event_transaction_lt.to_le_bytes(),
-                &event_configuration.to_bytes(),
-                &event_data.to_bytes(),
-            ],
-            program_id,
-        );
+        let (nonce, _) = withdrawal_account_data
+            .account_kind
+            .into_proposal()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
 
         bridge_utils::helper::validate_proposal_account(
             program_id,
@@ -3107,7 +3089,7 @@ impl Processor {
             event_transaction_lt,
             &event_configuration,
             &event_data,
-            withdrawal_nonce,
+            nonce,
             withdrawal_account_info,
         )?;
 
@@ -3243,6 +3225,7 @@ impl Processor {
     fn process_update_fee(
         program_id: &Pubkey,
         accounts: &[AccountInfo],
+        fee_type: FeeType,
         multiplier: u64,
         divisor: u64,
     ) -> ProgramResult {
@@ -3295,27 +3278,39 @@ impl Processor {
             .into_token_settings()
             .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
 
-        match token_settings_account_data.kind {
-            TokenKind::Ever { token, .. } => {
-                validate_token_settings_ever_account(
-                    program_id,
-                    &token,
-                    token_settings_nonce,
-                    token_settings_account_info,
-                )?;
-            }
-            TokenKind::Solana { mint, .. } => {
-                validate_token_settings_sol_account(
-                    program_id,
-                    &mint,
-                    token_settings_nonce,
-                    token_settings_account_info,
-                )?;
-            }
+        let token_settings_pubkey = match token_settings_account_data.kind {
+            TokenKind::Ever { token, .. } => validate_token_settings_ever_account(
+                program_id,
+                &token,
+                token_settings_nonce,
+                token_settings_account_info,
+            )?,
+            TokenKind::Solana { mint, .. } => validate_token_settings_sol_account(
+                program_id,
+                &mint,
+                token_settings_nonce,
+                token_settings_account_info,
+            )?,
         };
 
-        token_settings_account_data.fee_info.multiplier = multiplier;
-        token_settings_account_data.fee_info.divisor = divisor;
+        match fee_type {
+            FeeType::Deposit => {
+                token_settings_account_data.fee_deposit_info.multiplier = multiplier;
+                token_settings_account_data.fee_deposit_info.divisor = divisor;
+            }
+            FeeType::Withdrawal => {
+                token_settings_account_data.fee_withdrawal_info.multiplier = multiplier;
+                token_settings_account_data.fee_withdrawal_info.divisor = divisor;
+            }
+        }
+
+        solana_program::log::sol_log_data(&[&UpdateFeeEvent {
+            token_settings: token_settings_pubkey,
+            fee_type,
+            divisor,
+            multiplier,
+        }
+        .try_to_vec()?]);
 
         TokenSettings::pack(
             token_settings_account_data,
@@ -3406,7 +3401,7 @@ impl Processor {
             return Err(ProgramError::InvalidArgument);
         }
 
-        if amount > token_settings_account_data.fee_info.supply {
+        if amount > token_settings_account_data.fee_supply {
             return Err(SolanaBridgeError::InsufficientBalance.into());
         }
 
@@ -3427,9 +3422,8 @@ impl Processor {
         )?;
 
         // Decrease fee supply
-        token_settings_account_data.fee_info.supply = token_settings_account_data
-            .fee_info
-            .supply
+        token_settings_account_data.fee_supply = token_settings_account_data
+            .fee_supply
             .checked_sub(amount)
             .ok_or(SolanaBridgeError::Overflow)?;
 
@@ -3521,7 +3515,7 @@ impl Processor {
             return Err(ProgramError::InvalidArgument);
         }
 
-        if amount > token_settings_account_data.fee_info.supply {
+        if amount > token_settings_account_data.fee_supply {
             return Err(SolanaBridgeError::InsufficientBalance.into());
         }
 
@@ -3548,9 +3542,8 @@ impl Processor {
         )?;
 
         // Decrease fee supply
-        token_settings_account_data.fee_info.supply = token_settings_account_data
-            .fee_info
-            .supply
+        token_settings_account_data.fee_supply = token_settings_account_data
+            .fee_supply
             .checked_sub(amount)
             .ok_or(SolanaBridgeError::Overflow)?;
 
@@ -3584,18 +3577,10 @@ impl Processor {
         let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
         let event_configuration = withdrawal_account_data.pda.event_configuration;
         let event_data = hash(&withdrawal_account_data.event.data.try_to_vec()?);
-
-        let (_, withdrawal_nonce) = Pubkey::find_program_address(
-            &[
-                br"proposal",
-                &round_number.to_le_bytes(),
-                &event_timestamp.to_le_bytes(),
-                &event_transaction_lt.to_le_bytes(),
-                &event_configuration.to_bytes(),
-                &event_data.to_bytes(),
-            ],
-            program_id,
-        );
+        let (nonce, _) = withdrawal_account_data
+            .account_kind
+            .into_proposal()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
 
         bridge_utils::helper::validate_proposal_account(
             program_id,
@@ -3604,7 +3589,7 @@ impl Processor {
             event_transaction_lt,
             &event_configuration,
             &event_data,
-            withdrawal_nonce,
+            nonce,
             withdrawal_account_info,
         )?;
 
@@ -3675,27 +3660,19 @@ impl Processor {
         let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
         let event_configuration = withdrawal_account_data.pda.event_configuration;
         let event_data = hash(&withdrawal_account_data.event.data.try_to_vec()?);
+        let (nonce, _) = withdrawal_account_data
+            .account_kind
+            .into_proposal()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
 
-        let (withdrawal_pubkey, withdrawal_nonce) = Pubkey::find_program_address(
-            &[
-                br"proposal",
-                &round_number.to_le_bytes(),
-                &event_timestamp.to_le_bytes(),
-                &event_transaction_lt.to_le_bytes(),
-                &event_configuration.to_bytes(),
-                &event_data.to_bytes(),
-            ],
-            program_id,
-        );
-
-        bridge_utils::helper::validate_proposal_account(
+        let withdrawal_pubkey = bridge_utils::helper::validate_proposal_account(
             program_id,
             round_number,
             event_timestamp,
             event_transaction_lt,
             &event_configuration,
             &event_data,
-            withdrawal_nonce,
+            nonce,
             withdrawal_account_info,
         )?;
 
@@ -3802,6 +3779,8 @@ impl Processor {
             recipient,
             transfer_amount: amount,
             seed: deposit_seed,
+            value,
+            expected_evers,
             event_data,
         }
         .try_to_vec()?]);
@@ -3879,27 +3858,19 @@ impl Processor {
         let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
         let event_configuration = withdrawal_account_data.pda.event_configuration;
         let event_data = hash(&withdrawal_account_data.event.data.try_to_vec()?);
+        let (nonce, _) = withdrawal_account_data
+            .account_kind
+            .into_proposal()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
 
-        let (withdrawal_pubkey, withdrawal_nonce) = Pubkey::find_program_address(
-            &[
-                br"proposal",
-                &round_number.to_le_bytes(),
-                &event_timestamp.to_le_bytes(),
-                &event_transaction_lt.to_le_bytes(),
-                &event_configuration.to_bytes(),
-                &event_data.to_bytes(),
-            ],
-            program_id,
-        );
-
-        bridge_utils::helper::validate_proposal_account(
+        let withdrawal_pubkey = bridge_utils::helper::validate_proposal_account(
             program_id,
             round_number,
             event_timestamp,
             event_transaction_lt,
             &event_configuration,
             &event_data,
-            withdrawal_nonce,
+            nonce,
             withdrawal_account_info,
         )?;
 
@@ -4041,6 +4012,8 @@ impl Processor {
             recipient,
             transfer_amount: amount,
             seed: deposit_seed,
+            value,
+            expected_evers,
             event_data,
         }
         .try_to_vec()?]);
@@ -4062,6 +4035,12 @@ impl Processor {
             withdrawal_account_data,
             &mut withdrawal_account_info.data.borrow_mut(),
         )?;
+
+        solana_program::log::sol_log_data(&[&LiquidityRequestEvent {
+            deposit: deposit_pubkey,
+            withdrawal: withdrawal_pubkey,
+        }
+        .try_to_vec()?]);
 
         Ok(())
     }
@@ -4132,9 +4111,10 @@ impl Processor {
         let deposit_account_data = Deposit::unpack_from_slice(&deposit_account_info.data.borrow())?;
 
         let meta = DepositTokenMeta::try_from_slice(&deposit_account_data.meta)?;
-
-        let (_, nonce) =
-            Pubkey::find_program_address(&[br"deposit", &meta.seed.to_le_bytes()], program_id);
+        let nonce = deposit_account_data
+            .account_kind
+            .into_deposit()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
 
         bridge_utils::helper::validate_deposit_account(
             program_id,
@@ -4167,18 +4147,10 @@ impl Processor {
         let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
         let event_configuration = withdrawal_account_data.pda.event_configuration;
         let event_data = hash(&withdrawal_account_data.event.try_to_vec()?[4..]);
-
-        let (_, nonce) = Pubkey::find_program_address(
-            &[
-                br"proposal",
-                &round_number.to_le_bytes(),
-                &event_timestamp.to_le_bytes(),
-                &event_transaction_lt.to_le_bytes(),
-                &event_configuration.to_bytes(),
-                &event_data.to_bytes(),
-            ],
-            program_id,
-        );
+        let (nonce, _) = withdrawal_account_data
+            .account_kind
+            .into_proposal()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
 
         bridge_utils::helper::validate_proposal_account(
             program_id,

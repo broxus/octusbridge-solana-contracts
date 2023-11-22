@@ -102,7 +102,9 @@ pub struct TokenSettings {
     pub withdrawal_daily_amount: u64,
     pub withdrawal_epoch: i64,
     pub emergency: bool,
-    pub fee_info: FeeInfo,
+    pub fee_supply: u64,
+    pub fee_deposit_info: FeeInfo,
+    pub fee_withdrawal_info: FeeInfo,
 }
 
 impl Sealed for TokenSettings {}
@@ -487,7 +489,6 @@ pub enum WithdrawalTokenStatus {
 pub struct FeeInfo {
     pub multiplier: u64,
     pub divisor: u64,
-    pub supply: u64,
 }
 
 impl Default for FeeInfo {
@@ -495,7 +496,24 @@ impl Default for FeeInfo {
         FeeInfo {
             multiplier: DEFAULT_MULTIPLIER,
             divisor: DEFAULT_DIVISOR,
-            supply: Default::default(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, BorshSerialize, BorshDeserialize)]
+pub enum FeeType {
+    Deposit,
+    Withdrawal,
+}
+
+impl std::str::FromStr for FeeType {
+    type Err = Box<dyn std::error::Error>;
+
+    fn from_str(input: &str) -> Result<Self, Self::Err> {
+        match input {
+            "Deposit" => Ok(FeeType::Deposit),
+            "Withdrawal" => Ok(FeeType::Withdrawal),
+            _ => Err("wrong fee type".to_string().into()),
         }
     }
 }
@@ -507,6 +525,8 @@ pub struct DepositMultiTokenEvent {
     pub recipient: EverAddress,
     pub transfer_amount: u128,
     pub seed: u128,
+    pub value: u64,
+    pub expected_evers: UInt256,
     pub event_data: Vec<u8>,
 }
 
@@ -532,10 +552,26 @@ pub struct TokenSettingsEvent {
     pub vault: Option<Pubkey>,
     pub ever_decimals: Option<u8>,
     pub solana_decimals: Option<u8>,
+    pub root: Option<EverAddress>,
+    pub fee: FeeInfo,
 }
 
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub struct UpdateWithdrawalStatusEvent {
     pub account: Pubkey,
     pub status: WithdrawalTokenStatus,
+}
+
+#[derive(Debug, BorshSerialize, BorshDeserialize)]
+pub struct UpdateFeeEvent {
+    pub token_settings: Pubkey,
+    pub fee_type: FeeType,
+    pub multiplier: u64,
+    pub divisor: u64,
+}
+
+#[derive(Debug, BorshSerialize, BorshDeserialize)]
+pub struct LiquidityRequestEvent {
+    pub deposit: Pubkey,
+    pub withdrawal: Pubkey,
 }

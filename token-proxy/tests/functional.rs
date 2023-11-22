@@ -213,10 +213,12 @@ async fn test_deposit_ever() {
         withdrawal_daily_amount: 0,
         withdrawal_epoch: 0,
         emergency: false,
-        fee_info: Default::default(),
+        fee_supply: Default::default(),
+        fee_deposit_info: Default::default(),
+        fee_withdrawal_info: Default::default(),
     };
 
-    let fee_info = token_settings_account_data.fee_info.clone();
+    let fee_info = token_settings_account_data.fee_deposit_info.clone();
 
     let mut token_settings_packed = vec![0; TokenSettings::LEN];
     TokenSettings::pack(token_settings_account_data, &mut token_settings_packed).unwrap();
@@ -485,10 +487,12 @@ async fn test_deposit_ever_for_18_decimals() {
         withdrawal_daily_amount: 0,
         withdrawal_epoch: 0,
         emergency: false,
-        fee_info: Default::default(),
+        fee_supply: Default::default(),
+        fee_deposit_info: Default::default(),
+        fee_withdrawal_info: Default::default(),
     };
 
-    let fee_info = token_settings_account_data.fee_info.clone();
+    let fee_info = token_settings_account_data.fee_deposit_info.clone();
 
     let mut token_settings_packed = vec![0; TokenSettings::LEN];
     TokenSettings::pack(token_settings_account_data, &mut token_settings_packed).unwrap();
@@ -928,7 +932,7 @@ async fn test_deposit_sol() {
 
     assert_eq!(deposit_data.meta.data.seed, deposit_seed);
 
-    let fee_info = &token_settings_data.fee_info;
+    let fee_info = &token_settings_data.fee_deposit_info;
     let fee = 1.max(
         (amount)
             .checked_div(fee_info.divisor)
@@ -1576,7 +1580,9 @@ async fn test_withdraw_sol_request() {
         withdrawal_daily_amount: 0,
         withdrawal_epoch: 0,
         emergency: false,
-        fee_info: Default::default(),
+        fee_supply: Default::default(),
+        fee_deposit_info: Default::default(),
+        fee_withdrawal_info: Default::default(),
     };
 
     let mut token_settings_packed = vec![0; TokenSettings::LEN];
@@ -1876,7 +1882,9 @@ async fn test_withdraw_sol_request_with_fake_payload() {
         withdrawal_daily_amount: 0,
         withdrawal_epoch: 0,
         emergency: false,
-        fee_info: Default::default(),
+        fee_supply: Default::default(),
+        fee_deposit_info: Default::default(),
+        fee_withdrawal_info: Default::default(),
     };
 
     let mut token_settings_packed = vec![0; TokenSettings::LEN];
@@ -2430,7 +2438,7 @@ async fn test_create_token_ever() {
         AccountKind::TokenSettings(token_settings_nonce, mint_nonce)
     );
 
-    let fee_info = &token_settings_data.fee_info;
+    let fee_info = &token_settings_data.fee_withdrawal_info;
 
     let fee = 1.max(
         (amount as u64)
@@ -2628,10 +2636,12 @@ async fn test_withdrawal_sol() {
         withdrawal_daily_amount: 0,
         withdrawal_epoch: 0,
         emergency: false,
-        fee_info: Default::default(),
+        fee_supply: Default::default(),
+        fee_deposit_info: Default::default(),
+        fee_withdrawal_info: Default::default(),
     };
 
-    let fee_info = token_settings_account_data.fee_info.clone();
+    let fee_info = token_settings_account_data.fee_withdrawal_info.clone();
 
     let mut token_settings_packed = vec![0; TokenSettings::LEN];
     TokenSettings::pack(token_settings_account_data, &mut token_settings_packed).unwrap();
@@ -3159,7 +3169,9 @@ async fn test_change_deposit_limit() {
         withdrawal_daily_amount: 0,
         withdrawal_epoch: 0,
         emergency: false,
-        fee_info: Default::default(),
+        fee_supply: Default::default(),
+        fee_deposit_info: Default::default(),
+        fee_withdrawal_info: Default::default(),
     };
 
     let mut token_settings_packed = vec![0; TokenSettings::LEN];
@@ -3331,7 +3343,9 @@ async fn test_change_withdrawal_limits() {
         withdrawal_daily_amount: 0,
         withdrawal_epoch: 0,
         emergency: false,
-        fee_info: Default::default(),
+        fee_supply: Default::default(),
+        fee_deposit_info: Default::default(),
+        fee_withdrawal_info: Default::default(),
     };
 
     let mut token_settings_packed = vec![0; TokenSettings::LEN];
@@ -3695,7 +3709,9 @@ async fn test_enable_token_emergency() {
         withdrawal_daily_amount: 0,
         withdrawal_epoch: 0,
         emergency: false,
-        fee_info: Default::default(),
+        fee_supply: Default::default(),
+        fee_deposit_info: Default::default(),
+        fee_withdrawal_info: Default::default(),
     };
 
     let mut token_settings_packed = vec![0; TokenSettings::LEN];
@@ -3829,7 +3845,9 @@ async fn test_disable_token_emergency() {
         withdrawal_daily_amount: 0,
         withdrawal_epoch: 0,
         emergency: true,
-        fee_info: Default::default(),
+        fee_supply: Default::default(),
+        fee_deposit_info: Default::default(),
+        fee_withdrawal_info: Default::default(),
     };
 
     let mut token_settings_packed = vec![0; TokenSettings::LEN];
@@ -3999,7 +4017,9 @@ async fn test_approve_withdrawal_ever() {
         withdrawal_daily_amount: 0,
         withdrawal_epoch: 0,
         emergency: false,
-        fee_info: Default::default(),
+        fee_supply: Default::default(),
+        fee_deposit_info: Default::default(),
+        fee_withdrawal_info: Default::default(),
     };
 
     let mut token_settings_packed = vec![0; TokenSettings::LEN];
@@ -4296,7 +4316,9 @@ async fn test_approve_withdrawal_sol() {
         withdrawal_daily_amount: 0,
         withdrawal_epoch: 0,
         emergency: false,
-        fee_info: Default::default(),
+        fee_supply: Default::default(),
+        fee_deposit_info: Default::default(),
+        fee_withdrawal_info: Default::default(),
     };
 
     let mut token_settings_packed = vec![0; TokenSettings::LEN];
@@ -4511,7 +4533,9 @@ async fn test_update_fee() {
         withdrawal_daily_amount: 0,
         withdrawal_epoch: 0,
         emergency: false,
-        fee_info: Default::default(),
+        fee_supply: Default::default(),
+        fee_deposit_info: Default::default(),
+        fee_withdrawal_info: Default::default(),
     };
 
     let mut token_settings_packed = vec![0; TokenSettings::LEN];
@@ -4537,6 +4561,7 @@ async fn test_update_fee() {
         &[update_fee_ix(
             manager.pubkey(),
             token_settings_address,
+            FeeType::Deposit,
             multiplier,
             divisor,
         )],
@@ -4558,8 +4583,8 @@ async fn test_update_fee() {
     let token_settings_data =
         TokenSettings::unpack(token_settings_info.data()).expect("token settings unpack");
 
-    assert_eq!(token_settings_data.fee_info.multiplier, multiplier);
-    assert_eq!(token_settings_data.fee_info.divisor, divisor);
+    assert_eq!(token_settings_data.fee_deposit_info.multiplier, multiplier);
+    assert_eq!(token_settings_data.fee_deposit_info.divisor, divisor);
 }
 
 #[tokio::test]
@@ -4689,10 +4714,11 @@ async fn test_withdrawal_ever_fee() {
         withdrawal_daily_amount: 0,
         withdrawal_epoch: 0,
         emergency: false,
-        fee_info: FeeInfo {
+        fee_supply,
+        fee_deposit_info: Default::default(),
+        fee_withdrawal_info: FeeInfo {
             multiplier: 5,
             divisor: 10_000,
-            supply: fee_supply,
         },
     };
 
@@ -4757,7 +4783,7 @@ async fn test_withdrawal_ever_fee() {
     let token_settings_data =
         TokenSettings::unpack(token_settings_info.data()).expect("token settings unpack");
 
-    assert_eq!(token_settings_data.fee_info.supply, 0);
+    assert_eq!(token_settings_data.fee_supply, 0);
 }
 
 #[tokio::test]
@@ -4910,10 +4936,11 @@ async fn test_withdrawal_sol_fee() {
         withdrawal_daily_amount: 0,
         withdrawal_epoch: 0,
         emergency: false,
-        fee_info: FeeInfo {
+        fee_supply,
+        fee_deposit_info: Default::default(),
+        fee_withdrawal_info: FeeInfo {
             multiplier: 1,
             divisor: 1,
-            supply: fee_supply,
         },
     };
 
@@ -4981,7 +5008,7 @@ async fn test_withdrawal_sol_fee() {
     let token_settings_data =
         TokenSettings::unpack(token_settings_info.data()).expect("token settings unpack");
 
-    assert_eq!(token_settings_data.fee_info.supply, 0);
+    assert_eq!(token_settings_data.fee_supply, 0);
 }
 
 #[tokio::test]
@@ -5215,7 +5242,9 @@ async fn test_cancel_withdrawal_sol() {
         withdrawal_daily_amount: 0,
         withdrawal_epoch: 0,
         emergency: false,
-        fee_info: Default::default(),
+        fee_supply: Default::default(),
+        fee_deposit_info: Default::default(),
+        fee_withdrawal_info: Default::default(),
     };
 
     let mut token_settings_packed = vec![0; TokenSettings::LEN];
@@ -5530,7 +5559,9 @@ async fn test_fill_withdrawal_sol() {
         withdrawal_daily_amount: 0,
         withdrawal_epoch: 0,
         emergency: false,
-        fee_info: Default::default(),
+        fee_supply: Default::default(),
+        fee_deposit_info: Default::default(),
+        fee_withdrawal_info: Default::default(),
     };
 
     let mut token_settings_packed = vec![0; TokenSettings::LEN];
@@ -5900,10 +5931,12 @@ async fn test_withdraw_sol_with_payload() {
         withdrawal_daily_amount: 0,
         withdrawal_epoch: 0,
         emergency: false,
-        fee_info: Default::default(),
+        fee_supply: Default::default(),
+        fee_deposit_info: Default::default(),
+        fee_withdrawal_info: Default::default(),
     };
 
-    let fee_info = token_settings_account_data.fee_info.clone();
+    let fee_info = token_settings_account_data.fee_withdrawal_info.clone();
 
     let mut token_settings_packed = vec![0; TokenSettings::LEN];
     TokenSettings::pack(token_settings_account_data, &mut token_settings_packed).unwrap();
@@ -6624,7 +6657,7 @@ async fn test_withdraw_ever_request_with_payload() {
         AccountKind::TokenSettings(token_settings_nonce, mint_nonce)
     );
 
-    let fee_info = &token_settings_data.fee_info;
+    let fee_info = &token_settings_data.fee_withdrawal_info;
 
     let fee = 1.max(
         (amount as u64)
@@ -6904,10 +6937,12 @@ async fn close_withdrawal() {
         withdrawal_daily_amount: 0,
         withdrawal_epoch: 0,
         emergency: false,
-        fee_info: Default::default(),
+        fee_supply: Default::default(),
+        fee_deposit_info: Default::default(),
+        fee_withdrawal_info: Default::default(),
     };
 
-    let fee_info = token_settings_account_data.fee_info.clone();
+    let fee_info = token_settings_account_data.fee_withdrawal_info.clone();
 
     let mut token_settings_packed = vec![0; TokenSettings::LEN];
     TokenSettings::pack(token_settings_account_data, &mut token_settings_packed).unwrap();
@@ -7345,7 +7380,7 @@ async fn test_close_deposit() {
 
     assert_eq!(deposit_data.meta.data.seed, deposit_seed);
 
-    let fee_info = &token_settings_data.fee_info;
+    let fee_info = &token_settings_data.fee_deposit_info;
     let fee = 1.max(
         (amount)
             .checked_div(fee_info.divisor)

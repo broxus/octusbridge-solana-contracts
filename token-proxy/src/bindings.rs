@@ -980,12 +980,14 @@ pub fn approve_withdrawal_sol_ix(
 pub fn update_fee_ix(
     authority_pubkey: Pubkey,
     token_settings_pubkey: Pubkey,
+    fee_type: FeeType,
     multiplier: u64,
     divisor: u64,
 ) -> Instruction {
     let settings_pubkey = get_settings_address();
 
     let data = TokenProxyInstruction::UpdateFee {
+        fee_type,
         multiplier,
         divisor,
     }

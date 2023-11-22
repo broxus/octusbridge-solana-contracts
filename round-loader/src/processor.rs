@@ -506,27 +506,19 @@ impl Processor {
         let event_transaction_lt = proposal_account_data.pda.event_transaction_lt;
         let event_configuration = proposal_account_data.pda.event_configuration;
         let event_data = hash(&proposal_account_data.event.data.try_to_vec()?);
+        let (nonce, _) = proposal_account_data
+            .account_kind
+            .into_proposal()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
 
-        let (_, proposal_nonce) = Pubkey::find_program_address(
-            &[
-                br"proposal",
-                &round_number.to_le_bytes(),
-                &event_timestamp.to_le_bytes(),
-                &event_transaction_lt.to_le_bytes(),
-                &event_configuration.to_bytes(),
-                &event_data.to_bytes(),
-            ],
-            program_id,
-        );
-
-        bridge_utils::helper::validate_proposal_account(
+        let proposal_pubkey = bridge_utils::helper::validate_proposal_account(
             program_id,
             round_number,
             event_timestamp,
             event_transaction_lt,
             &event_configuration,
             &event_data,
-            proposal_nonce,
+            nonce,
             proposal_account_info,
         )?;
 
@@ -571,7 +563,7 @@ impl Processor {
         invoke(
             &system_instruction::transfer(
                 funder_account_info.key,
-                proposal_account_info.key,
+                &proposal_pubkey,
                 RELAY_REPARATION * relay_round_account_data.relays.len() as u64,
             ),
             accounts,
@@ -608,18 +600,10 @@ impl Processor {
         let event_transaction_lt = proposal_account_data.pda.event_transaction_lt;
         let event_configuration = proposal_account_data.pda.event_configuration;
         let event_data = hash(&proposal_account_data.event.data.try_to_vec()?);
-
-        let (_, proposal_nonce) = Pubkey::find_program_address(
-            &[
-                br"proposal",
-                &round_number.to_le_bytes(),
-                &event_timestamp.to_le_bytes(),
-                &event_transaction_lt.to_le_bytes(),
-                &event_configuration.to_bytes(),
-                &event_data.to_bytes(),
-            ],
-            program_id,
-        );
+        let (nonce, _) = proposal_account_data
+            .account_kind
+            .into_proposal()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
 
         bridge_utils::helper::validate_proposal_account(
             program_id,
@@ -628,7 +612,7 @@ impl Processor {
             event_transaction_lt,
             &event_configuration,
             &event_data,
-            proposal_nonce,
+            nonce,
             proposal_account_info,
         )?;
 
@@ -709,18 +693,10 @@ impl Processor {
         let event_transaction_lt = proposal_account_data.pda.event_transaction_lt;
         let event_configuration = proposal_account_data.pda.event_configuration;
         let event_data = hash(&proposal_account_data.event.data.try_to_vec()?);
-
-        let (_, proposal_nonce) = Pubkey::find_program_address(
-            &[
-                br"proposal",
-                &round_number.to_le_bytes(),
-                &event_timestamp.to_le_bytes(),
-                &event_transaction_lt.to_le_bytes(),
-                &event_configuration.to_bytes(),
-                &event_data.to_bytes(),
-            ],
-            program_id,
-        );
+        let (nonce, _) = proposal_account_data
+            .account_kind
+            .into_proposal()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
 
         bridge_utils::helper::validate_proposal_account(
             program_id,
@@ -729,7 +705,7 @@ impl Processor {
             event_transaction_lt,
             &event_configuration,
             &event_data,
-            proposal_nonce,
+            nonce,
             proposal_account_info,
         )?;
 

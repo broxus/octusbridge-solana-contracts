@@ -985,6 +985,47 @@ pub fn close_withdrawal(
     return serde_wasm_bindgen::to_value(&ix).handle_error();
 }
 
+#[wasm_bindgen(js_name = "updateFee")]
+pub fn update_fee(
+    authority_pubkey: String,
+    token: String,
+    token_is_sol: bool,
+    fee_type: String,
+    multiplier: u64,
+    divisor: u64,
+) -> Result<JsValue, JsValue> {
+    let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
+    let token_settings_pubkey = if token_is_sol {
+        let mint = Pubkey::from_str(token.as_str()).handle_error()?;
+        get_token_settings_sol_address(&mint)
+    } else {
+        let token = EverAddress::from_str(&token).handle_error()?;
+        get_token_settings_ever_address(&token)
+    };
+
+    let settings_pubkey = get_settings_address();
+
+    let data = TokenProxyInstruction::UpdateFee {
+        fee_type: FeeType::from_str(&fee_type).handle_error()?,
+        multiplier,
+        divisor,
+    }
+    .try_to_vec()
+    .expect("pack");
+
+    let ix = Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(authority_pubkey, true),
+            AccountMeta::new(token_settings_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
+        ],
+        data,
+    };
+
+    return serde_wasm_bindgen::to_value(&ix).handle_error();
+}
+
 #[wasm_bindgen(js_name = "unpackSettings")]
 pub fn unpack_settings(data: Vec<u8>) -> Result<JsValue, JsValue> {
     let settings = Settings::unpack(&data).handle_error()?;
@@ -1098,7 +1139,9 @@ pub fn unpack_token_settings(data: Vec<u8>) -> Result<JsValue, JsValue> {
         emergency: token_settings.emergency,
         name: token_settings.name,
         symbol: token_settings.symbol,
-        fee_info: token_settings.fee_info,
+        fee_supply: token_settings.fee_supply,
+        fee_deposit_info: token_settings.fee_deposit_info,
+        fee_withdrawal_info: token_settings.fee_withdrawal_info,
     };
 
     return serde_wasm_bindgen::to_value(&s).handle_error();
@@ -1195,7 +1238,9 @@ pub struct WasmTokenSettings {
     pub emergency: bool,
     pub name: String,
     pub symbol: String,
-    pub fee_info: FeeInfo,
+    pub fee_supply: u64,
+    pub fee_deposit_info: FeeInfo,
+    pub fee_withdrawal_info: FeeInfo,
 }
 
 #[derive(Serialize, Deserialize)]

@@ -60,7 +60,7 @@ pub fn validate_token_settings_ever_account(
     token: &EverAddress,
     nonce: u8,
     account_info: &AccountInfo,
-) -> Result<(), ProgramError> {
+) -> Result<Pubkey, ProgramError> {
     let token_hash = hash(&token.try_to_vec().expect("pack"));
 
     let (account, expected_nonce) =
@@ -74,7 +74,7 @@ pub fn validate_token_settings_ever_account(
         return Err(ProgramError::InvalidArgument);
     }
 
-    Ok(())
+    Ok(account)
 }
 
 pub fn validate_token_settings_sol_account(
@@ -82,7 +82,7 @@ pub fn validate_token_settings_sol_account(
     mint: &Pubkey,
     nonce: u8,
     account_info: &AccountInfo,
-) -> Result<(), ProgramError> {
+) -> Result<Pubkey, ProgramError> {
     let (account, expected_nonce) =
         Pubkey::find_program_address(&[br"settings", &mint.to_bytes()], program_id);
 
@@ -94,7 +94,7 @@ pub fn validate_token_settings_sol_account(
         return Err(ProgramError::InvalidArgument);
     }
 
-    Ok(())
+    Ok(account)
 }
 
 pub fn validate_mint_account(

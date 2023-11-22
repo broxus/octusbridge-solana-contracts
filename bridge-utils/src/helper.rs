@@ -109,7 +109,7 @@ pub fn validate_proposal_account(
     event_data: &Hash,
     nonce: u8,
     proposal_account_info: &AccountInfo,
-) -> Result<(), ProgramError> {
+) -> Result<Pubkey, ProgramError> {
     let (account, expected_nonce) = Pubkey::find_program_address(
         &[
             br"proposal",
@@ -130,7 +130,7 @@ pub fn validate_proposal_account(
         return Err(ProgramError::InvalidArgument);
     }
 
-    Ok(())
+    Ok(account)
 }
 
 pub fn validate_deposit_account(
