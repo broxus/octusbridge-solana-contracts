@@ -939,6 +939,27 @@ pub fn withdrawal_proxy_ix(
     return serde_wasm_bindgen::to_value(&ix).handle_error();
 }
 
+#[wasm_bindgen(js_name = "closeDeposit")]
+pub fn close_deposit(author_address: String, deposit_address: String) -> Result<JsValue, JsValue> {
+    let author_address = Pubkey::from_str(author_address.as_str()).handle_error()?;
+    let deposit_address = Pubkey::from_str(deposit_address.as_str()).handle_error()?;
+
+    let data = TokenProxyInstruction::CloseDeposit
+        .try_to_vec()
+        .expect("pack");
+
+    let ix = Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(author_address, true),
+            AccountMeta::new(deposit_address, false),
+        ],
+        data,
+    };
+
+    return serde_wasm_bindgen::to_value(&ix).handle_error();
+}
+
 #[wasm_bindgen(js_name = "closeWithdrawal")]
 pub fn close_withdrawal(
     withdrawal_address: String,
