@@ -21,7 +21,7 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 RUN curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
 # Intall Solana tools
-ARG SOLANA_VERSION=1.16.14
+ARG SOLANA_VERSION=1.16.20
 
 RUN wget -O /opt/solana-${SOLANA_VERSION}.tar.gz https://github.com/solana-labs/solana/archive/refs/tags/v${SOLANA_VERSION}.tar.gz
 
