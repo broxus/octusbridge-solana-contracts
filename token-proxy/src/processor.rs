@@ -2412,8 +2412,8 @@ impl Processor {
         let account_info_iter = &mut accounts.iter();
 
         let authority_account_info = next_account_info(account_info_iter)?;
-        let settings_account_info = next_account_info(account_info_iter)?;
         let token_settings_account_info = next_account_info(account_info_iter)?;
+        let settings_account_info = next_account_info(account_info_iter)?;
 
         if !authority_account_info.is_signer {
             return Err(ProgramError::MissingRequiredSignature);
@@ -2453,21 +2453,29 @@ impl Processor {
         let mut token_settings_account_data =
             TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
 
-        let (_, token, _) = token_settings_account_data
-            .kind
-            .into_ever()
-            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
         let (token_settings_nonce, _) = token_settings_account_data
             .account_kind
             .into_token_settings()
             .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
 
-        validate_token_settings_ever_account(
-            program_id,
-            &token,
-            token_settings_nonce,
-            token_settings_account_info,
-        )?;
+        match token_settings_account_data.kind {
+            TokenKind::Ever { token, .. } => {
+                validate_token_settings_ever_account(
+                    program_id,
+                    &token,
+                    token_settings_nonce,
+                    token_settings_account_info,
+                )?;
+            }
+            TokenKind::Solana { mint, .. } => {
+                validate_token_settings_sol_account(
+                    program_id,
+                    &mint,
+                    token_settings_nonce,
+                    token_settings_account_info,
+                )?;
+            }
+        }
 
         token_settings_account_data.deposit_limit = new_deposit_limit;
 
@@ -2488,8 +2496,8 @@ impl Processor {
         let account_info_iter = &mut accounts.iter();
 
         let authority_account_info = next_account_info(account_info_iter)?;
-        let settings_account_info = next_account_info(account_info_iter)?;
         let token_settings_account_info = next_account_info(account_info_iter)?;
+        let settings_account_info = next_account_info(account_info_iter)?;
 
         if !authority_account_info.is_signer {
             return Err(ProgramError::MissingRequiredSignature);
@@ -2529,21 +2537,29 @@ impl Processor {
         let mut token_settings_account_data =
             TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
 
-        let (_, token, _) = token_settings_account_data
-            .kind
-            .into_ever()
-            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
         let (token_settings_nonce, _) = token_settings_account_data
             .account_kind
             .into_token_settings()
             .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
 
-        validate_token_settings_ever_account(
-            program_id,
-            &token,
-            token_settings_nonce,
-            token_settings_account_info,
-        )?;
+        match token_settings_account_data.kind {
+            TokenKind::Ever { token, .. } => {
+                validate_token_settings_ever_account(
+                    program_id,
+                    &token,
+                    token_settings_nonce,
+                    token_settings_account_info,
+                )?;
+            }
+            TokenKind::Solana { mint, .. } => {
+                validate_token_settings_sol_account(
+                    program_id,
+                    &mint,
+                    token_settings_nonce,
+                    token_settings_account_info,
+                )?;
+            }
+        }
 
         if let Some(new_withdrawal_limit) = new_withdrawal_limit {
             token_settings_account_data.withdrawal_limit = new_withdrawal_limit;

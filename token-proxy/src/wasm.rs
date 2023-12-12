@@ -665,6 +665,10 @@ pub fn change_deposit_limit_ix(
     token_is_sol: bool,
     new_deposit_limit: u64,
 ) -> Result<JsValue, JsValue> {
+    let settings_pubkey = get_settings_address();
+
+    let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
+
     let token_settings_pubkey = if token_is_sol {
         let mint = Pubkey::from_str(token.as_str()).handle_error()?;
         get_token_settings_sol_address(&mint)
@@ -673,8 +677,6 @@ pub fn change_deposit_limit_ix(
         get_token_settings_ever_address(&token)
     };
     let program_data_pubkey = get_programdata_address();
-
-    let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
 
     let data = TokenProxyInstruction::ChangeDepositLimit { new_deposit_limit }
         .try_to_vec()
@@ -685,6 +687,7 @@ pub fn change_deposit_limit_ix(
         accounts: vec![
             AccountMeta::new(authority_pubkey, true),
             AccountMeta::new(token_settings_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
             AccountMeta::new_readonly(program_data_pubkey, false),
         ],
         data,
@@ -701,6 +704,8 @@ pub fn change_withdrawal_limits_ix(
     new_withdrawal_limit: Option<u64>,
     new_withdrawal_daily_limit: Option<u64>,
 ) -> Result<JsValue, JsValue> {
+    let settings_pubkey = get_settings_address();
+
     let token_settings_pubkey = if token_is_sol {
         let mint = Pubkey::from_str(token.as_str()).handle_error()?;
         get_token_settings_sol_address(&mint)
@@ -724,6 +729,7 @@ pub fn change_withdrawal_limits_ix(
         accounts: vec![
             AccountMeta::new(authority_pubkey, true),
             AccountMeta::new(token_settings_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
             AccountMeta::new_readonly(program_data_pubkey, false),
         ],
         data,
@@ -1114,7 +1120,6 @@ pub fn cancel_withdrawal_sol(
     deposit_seed: String,
     recipient: String,
 ) -> Result<JsValue, JsValue> {
-
     let deposit_seed = uuid::Uuid::from_str(&deposit_seed)
         .handle_error()?
         .as_u128();
@@ -1133,8 +1138,8 @@ pub fn cancel_withdrawal_sol(
         deposit_seed,
         recipient,
     }
-        .try_to_vec()
-        .expect("pack");
+    .try_to_vec()
+    .expect("pack");
 
     let ix = Instruction {
         program_id: id(),
@@ -1164,8 +1169,7 @@ pub fn fill_withdrawal_sol(
     withdrawal_pubkey: String,
     deposit_seed: String,
     recipient: String,
-) ->  Result<JsValue, JsValue> {
-
+) -> Result<JsValue, JsValue> {
     let deposit_seed = uuid::Uuid::from_str(&deposit_seed)
         .handle_error()?
         .as_u128();
@@ -1190,8 +1194,8 @@ pub fn fill_withdrawal_sol(
         deposit_seed,
         recipient,
     }
-        .try_to_vec()
-        .expect("pack");
+    .try_to_vec()
+    .expect("pack");
 
     let ix = Instruction {
         program_id: id(),
@@ -1214,7 +1218,6 @@ pub fn fill_withdrawal_sol(
 
     return serde_wasm_bindgen::to_value(&ix).handle_error();
 }
-
 
 #[wasm_bindgen(js_name = "unpackSettings")]
 pub fn unpack_settings(data: Vec<u8>) -> Result<JsValue, JsValue> {

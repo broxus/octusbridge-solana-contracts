@@ -710,8 +710,8 @@ pub fn change_deposit_limit_ix(
         program_id: id(),
         accounts: vec![
             AccountMeta::new(manager_pubkey, true),
-            AccountMeta::new(settings_pubkey, false),
             AccountMeta::new(token_settings_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
         ],
         data,
     }
@@ -736,8 +736,8 @@ pub fn change_withdrawal_limits_ix(
         program_id: id(),
         accounts: vec![
             AccountMeta::new(manager_pubkey, true),
-            AccountMeta::new(settings_pubkey, false),
             AccountMeta::new(token_settings_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
         ],
         data,
     }
@@ -759,8 +759,8 @@ pub fn change_deposit_limit_by_owner_ix(
         program_id: id(),
         accounts: vec![
             AccountMeta::new(owner_pubkey, true),
-            AccountMeta::new(settings_pubkey, false),
             AccountMeta::new(token_settings_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
             AccountMeta::new_readonly(program_data_pubkey, false),
         ],
         data,
@@ -787,8 +787,8 @@ pub fn change_withdrawal_limits_by_owner_ix(
         program_id: id(),
         accounts: vec![
             AccountMeta::new(owner_pubkey, true),
-            AccountMeta::new(settings_pubkey, false),
             AccountMeta::new(token_settings_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
             AccountMeta::new_readonly(program_data_pubkey, false),
         ],
         data,
