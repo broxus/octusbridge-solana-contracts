@@ -70,10 +70,6 @@ impl Processor {
         let _deposit_account_info = next_account_info(account_info_iter)?;
         let mint_account_info = next_account_info(account_info_iter)?;
 
-        if !creator_account_info.is_signer {
-            return Err(ProgramError::MissingRequiredSignature);
-        }
-
         if *mint_account_info.key != spl_token::native_mint::id() {
             return Err(ProgramError::InvalidArgument);
         }
