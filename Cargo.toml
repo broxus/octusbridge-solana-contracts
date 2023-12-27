@@ -5,7 +5,8 @@ resolver = "2"
 members = [
     "bridge-derive",
     "bridge-utils",
+    "native-proxy",
     "round-loader",
-    "token-proxy",
     "solana-bridge",
+    "token-proxy",
 ]
