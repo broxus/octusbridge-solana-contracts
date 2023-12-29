@@ -6,10 +6,6 @@ pub enum NativeProxyInstruction {
     Deposit {
         // Deposit seed
         deposit_seed: u128,
-        // Mint name
-        name: String,
-        // Mint symbol
-        symbol: String,
         // Deposit amount
         amount: u64,
         // Ever recipient address

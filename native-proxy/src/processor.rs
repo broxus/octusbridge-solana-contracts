@@ -10,6 +10,9 @@ use solana_program::{msg, system_instruction};
 
 use crate::*;
 
+const WSOL_SYMBOL: &str = "wSOL";
+const WSOL_NAME: &str = "Wrapped SOL";
+
 pub struct Processor;
 impl Processor {
     pub fn process(
@@ -22,8 +25,6 @@ impl Processor {
         match instruction {
             NativeProxyInstruction::Deposit {
                 deposit_seed,
-                name,
-                symbol,
                 amount,
                 recipient,
                 value,
@@ -35,8 +36,6 @@ impl Processor {
                     program_id,
                     accounts,
                     deposit_seed,
-                    name,
-                    symbol,
                     amount,
                     recipient,
                     value,
@@ -53,8 +52,6 @@ impl Processor {
         _program_id: &Pubkey,
         accounts: &[AccountInfo],
         deposit_seed: u128,
-        name: String,
-        symbol: String,
         amount: u64,
         recipient: EverAddress,
         value: u64,
@@ -105,6 +102,9 @@ impl Processor {
             &spl_token::instruction::sync_native(&spl_token::id(), &token_pubkey)?,
             accounts,
         )?;
+
+        let name = WSOL_NAME.to_string();
+        let symbol = WSOL_SYMBOL.to_string();
 
         invoke(
             &token_proxy::deposit_multi_token_sol_ix(

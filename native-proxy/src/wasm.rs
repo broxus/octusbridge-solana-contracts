@@ -19,8 +19,6 @@ pub fn deposit_native_sol_ix(
     funder_pubkey: String,
     author_pubkey: String,
     deposit_seed: String,
-    name: String,
-    symbol: String,
     amount: u64,
     recipient_address: String,
     value: u64,
@@ -53,8 +51,6 @@ pub fn deposit_native_sol_ix(
 
     let data = NativeProxyInstruction::Deposit {
         deposit_seed,
-        name,
-        symbol,
         amount,
         recipient,
         value,

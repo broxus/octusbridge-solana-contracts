@@ -10,8 +10,6 @@ pub fn deposit_ix(
     funder_pubkey: Pubkey,
     author_pubkey: Pubkey,
     deposit_seed: u128,
-    name: String,
-    symbol: String,
     amount: u64,
     recipient: EverAddress,
     value: u64,
@@ -32,8 +30,6 @@ pub fn deposit_ix(
 
     let data = NativeProxyInstruction::Deposit {
         deposit_seed,
-        name,
-        symbol,
         amount,
         recipient,
         value,

@@ -184,8 +184,6 @@ async fn test_deposit() {
             funder.pubkey(),
             sender.pubkey(),
             deposit_seed,
-            name.clone(),
-            symbol.clone(),
             amount,
             recipient,
             value,
