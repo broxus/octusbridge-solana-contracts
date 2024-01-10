@@ -9,4 +9,5 @@ members = [
     "round-loader",
     "solana-bridge",
     "token-proxy",
+    "wasm",
 ]
