@@ -7010,6 +7010,30 @@ async fn test_withdraw_ever_request_with_payload() {
         },
     );
 
+    // Add Recipient Token Account
+    let token_wallet =
+        spl_associated_token_account::get_associated_token_address(&recipient.pubkey(), &mint);
+
+    let token_wallet_account_data = spl_token::state::Account {
+        mint,
+        owner: recipient.pubkey(),
+        state: AccountState::Initialized,
+        ..Default::default()
+    };
+
+    let mut token_wallet_packed = vec![0; spl_token::state::Account::LEN];
+    spl_token::state::Account::pack(token_wallet_account_data, &mut token_wallet_packed).unwrap();
+    program_test.add_account(
+        token_wallet,
+        Account {
+            lamports: Rent::default().minimum_balance(spl_token::state::Account::LEN),
+            data: token_wallet_packed,
+            owner: spl_token::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
     // Start Program Test
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 

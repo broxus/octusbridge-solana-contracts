@@ -4043,28 +4043,20 @@ impl Processor {
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
-        let recipient_account_info = next_account_info(account_info_iter)?;
+        let creator_account_info = next_account_info(account_info_iter)?;
         let recipient_token_account_info = next_account_info(account_info_iter)?;
         let proxy_account_info = next_account_info(account_info_iter)?;
         let mint_account_info = next_account_info(account_info_iter)?;
 
-        if !recipient_account_info.is_signer {
+        if !creator_account_info.is_signer {
             return Err(ProgramError::MissingRequiredSignature);
-        }
-
-        let recipient_token_pubkey = spl_associated_token_account::get_associated_token_address(
-            recipient_account_info.key,
-            mint_account_info.key,
-        );
-        if recipient_token_pubkey != *recipient_token_account_info.key {
-            return Err(ProgramError::InvalidArgument);
         }
 
         let (proxy, nonce) = Pubkey::find_program_address(
             &[
                 br"proxy",
                 &mint_account_info.key.to_bytes(),
-                &recipient_account_info.key.to_bytes(),
+                &creator_account_info.key.to_bytes(),
             ],
             program_id,
         );
@@ -4073,22 +4065,10 @@ impl Processor {
             return Err(ProgramError::InvalidArgument);
         }
 
-        if recipient_token_account_info.lamports() == 0 {
-            invoke(
-                &spl_associated_token_account::instruction::create_associated_token_account(
-                    recipient_account_info.key,
-                    recipient_account_info.key,
-                    mint_account_info.key,
-                    &spl_token::id(),
-                ),
-                accounts,
-            )?;
-        }
-
         let proxy_signer_seeds: &[&[_]] = &[
             br"proxy",
             &mint_account_info.key.to_bytes(),
-            &recipient_account_info.key.to_bytes(),
+            &creator_account_info.key.to_bytes(),
             &[nonce],
         ];
 

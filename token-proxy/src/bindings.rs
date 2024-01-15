@@ -1186,9 +1186,6 @@ pub fn withdrawal_proxy_ix(
             AccountMeta::new(proxy_pubkey, false),
             AccountMeta::new_readonly(mint_pubkey, false),
             AccountMeta::new_readonly(spl_token::id(), false),
-            // If token settings account is not created
-            AccountMeta::new_readonly(system_program::id(), false),
-            AccountMeta::new_readonly(spl_associated_token_account::id(), false),
         ],
         data,
     }
