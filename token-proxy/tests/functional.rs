@@ -1271,10 +1271,36 @@ async fn test_withdraw_ever_request_with_fake_payload() {
         },
     );
 
-    // Start Program Test
-    let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
+    // Add Mint Account
+    let decimals = spl_token::native_mint::DECIMALS;
 
     let token = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
+
+    let mint = get_mint_address(&token);
+
+    let mint_account_data = spl_token::state::Mint {
+        is_initialized: true,
+        mint_authority: program_option::COption::Some(mint),
+        supply: 0,
+        decimals,
+        ..Default::default()
+    };
+
+    let mut mint_packed = vec![0; spl_token::state::Mint::LEN];
+    spl_token::state::Mint::pack(mint_account_data, &mut mint_packed).unwrap();
+    program_test.add_account(
+        mint,
+        Account {
+            lamports: Rent::default().minimum_balance(spl_token::state::Mint::LEN),
+            data: mint_packed,
+            owner: spl_token::id(),
+            executable: false,
+            rent_epoch: 1,
+        },
+    );
+
+    // Start Program Test
+    let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
     let event_timestamp = 1650988297;
     let event_transaction_lt = 1650988334;
@@ -1282,7 +1308,6 @@ async fn test_withdraw_ever_request_with_fake_payload() {
 
     let name = "USDC ETHEREUM OCTUSBRIDGE".to_string();
     let symbol = "USDC".to_string();
-    let decimals = spl_token::native_mint::DECIMALS;
 
     let recipient = Pubkey::new_unique();
     let amount = 32;
@@ -1384,8 +1409,6 @@ async fn test_withdraw_ever_request_with_fake_payload() {
         ],
         &token_proxy::id(),
     );
-
-    let mint = get_mint_address(&token);
 
     let (_, proxy_nonce) = Pubkey::find_program_address(
         &[br"proxy", &mint.to_bytes(), &recipient.to_bytes()],
@@ -6285,6 +6308,7 @@ async fn test_withdraw_sol_with_payload() {
         WithdrawalTokenStatus::Processed
     );
 }
+
 #[tokio::test]
 async fn test_withdraw_sol_with_payload_unwrap() {
     let mut program_test = ProgramTest::new(
@@ -6896,22 +6920,103 @@ async fn test_withdraw_ever_request_with_payload() {
         },
     );
 
-    // Start Program Test
-    let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
+    // Add Mint Account
+    let decimals = spl_token::native_mint::DECIMALS;
 
     let token = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
+    let token_hash = hash(&token.try_to_vec().unwrap());
+
+    let (_, mint_nonce) =
+        Pubkey::find_program_address(&[br"mint", &token_hash.as_ref()], &token_proxy::id());
+
+    let mint = get_mint_address(&token);
+
+    let mint_account_data = spl_token::state::Mint {
+        is_initialized: true,
+        mint_authority: program_option::COption::Some(mint),
+        supply: 0,
+        decimals,
+        ..Default::default()
+    };
+
+    let mut mint_packed = vec![0; spl_token::state::Mint::LEN];
+    spl_token::state::Mint::pack(mint_account_data, &mut mint_packed).unwrap();
+    program_test.add_account(
+        mint,
+        Account {
+            lamports: Rent::default().minimum_balance(spl_token::state::Mint::LEN),
+            data: mint_packed,
+            owner: spl_token::id(),
+            executable: false,
+            rent_epoch: 1,
+        },
+    );
+
+    // Add Token Settings Account
+    let symbol = "USDT".to_string();
+    let name = "USDT Solana Octusbridge".to_string();
+    let deposit_limit = u64::MAX;
+    let withdrawal_limit = u64::MAX;
+    let withdrawal_daily_limit = u64::MAX;
+    let (_, token_settings_nonce) =
+        Pubkey::find_program_address(&[br"settings", token_hash.as_ref()], &token_proxy::id());
+
+    let token_settings_address = get_token_settings_ever_address(&token);
+
+    let token_settings_account_data = TokenSettings {
+        is_initialized: true,
+        account_kind: AccountKind::TokenSettings(token_settings_nonce, mint_nonce),
+        kind: TokenKind::Ever {
+            mint,
+            token,
+            decimals,
+        },
+        name: name.clone(),
+        symbol: symbol.clone(),
+        deposit_limit,
+        withdrawal_limit,
+        withdrawal_daily_limit,
+        withdrawal_daily_amount: 0,
+        withdrawal_epoch: 0,
+        emergency: false,
+        fee_supply: Default::default(),
+        fee_deposit_info: Default::default(),
+        fee_withdrawal_info: Default::default(),
+    };
+
+    let mut token_settings_packed = vec![0; TokenSettings::LEN];
+    TokenSettings::pack(token_settings_account_data, &mut token_settings_packed).unwrap();
+    program_test.add_account(
+        token_settings_address,
+        Account {
+            lamports: Rent::default().minimum_balance(TokenSettings::LEN),
+            data: token_settings_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add recipient
+    let recipient = Keypair::new();
+    program_test.add_account(
+        recipient.pubkey(),
+        Account {
+            lamports: 1000000000,
+            data: vec![],
+            owner: solana_program::system_program::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Start Program Test
+    let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
     let event_timestamp = 1650988297;
     let event_transaction_lt = 1650988334;
     let event_configuration = Pubkey::new_unique();
 
-    let name = "USDC ETHEREUM OCTUSBRIDGE".to_string();
-    let symbol = "USDC".to_string();
-    let decimals = spl_token::native_mint::DECIMALS;
-
-    let mint = get_mint_address(&token);
-
-    let recipient = Keypair::new();
     let recipient_token_address =
         spl_associated_token_account::get_associated_token_address(&recipient.pubkey(), &mint);
 

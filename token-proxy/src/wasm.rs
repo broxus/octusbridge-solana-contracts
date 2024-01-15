@@ -137,10 +137,12 @@ pub fn withdrawal_multi_token_ever_request_ix(
     ];
 
     if !payload.is_empty() {
-        let mint = get_mint_address(&token);
+        let mint_pubkey = get_mint_address(&token);
+        let proxy_pubkey = get_proxy_address(&mint_pubkey, &recipient);
 
-        let proxy_pubkey = get_proxy_address(&mint, &recipient);
         accounts.push(AccountMeta::new(proxy_pubkey, false));
+        accounts.push(AccountMeta::new(mint_pubkey, false));
+        accounts.push(AccountMeta::new(spl_token::id(), false));
     }
 
     let data = TokenProxyInstruction::WithdrawMultiTokenEverRequest {
@@ -223,7 +225,10 @@ pub fn withdrawal_multi_token_sol_request_ix(
 
     if !payload.is_empty() {
         let proxy_pubkey = get_proxy_address(&mint, &recipient);
+
         accounts.push(AccountMeta::new(proxy_pubkey, false));
+        accounts.push(AccountMeta::new(mint, false));
+        accounts.push(AccountMeta::new(spl_token::id(), false));
     }
 
     let data = TokenProxyInstruction::WithdrawMultiTokenSolRequest {
@@ -938,6 +943,9 @@ pub fn withdrawal_proxy_ix(
             AccountMeta::new(proxy_pubkey, false),
             AccountMeta::new_readonly(mint_pubkey, false),
             AccountMeta::new_readonly(spl_token::id(), false),
+            // If token settings account is not created
+            AccountMeta::new_readonly(system_program::id(), false),
+            AccountMeta::new_readonly(spl_associated_token_account::id(), false),
         ],
         data,
     };

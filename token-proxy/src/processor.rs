@@ -10,7 +10,7 @@ use solana_program::entrypoint::ProgramResult;
 use solana_program::hash::hash;
 use solana_program::program::{invoke, invoke_signed};
 use solana_program::program_error::ProgramError;
-use solana_program::program_pack::{IsInitialized, Pack};
+use solana_program::program_pack::Pack;
 use solana_program::pubkey::Pubkey;
 use solana_program::rent::Rent;
 use solana_program::sysvar::Sysvar;
@@ -1017,6 +1017,11 @@ impl Processor {
 
                 // Create proxy account if not exist
                 if proxy_account_info.lamports() == 0 {
+                    let mint_account_info = next_account_info(account_info_iter)?;
+                    if mint != *mint_account_info.key {
+                        return Err(ProgramError::InvalidArgument);
+                    }
+
                     let proxy_signer_seeds: &[&[_]] =
                         &[br"proxy", &mint.to_bytes(), &recipient.to_bytes(), &[nonce]];
 
@@ -1030,6 +1035,16 @@ impl Processor {
                         ),
                         accounts,
                         &[proxy_signer_seeds],
+                    )?;
+
+                    invoke(
+                        &spl_token::instruction::initialize_account3(
+                            &spl_token::id(),
+                            proxy_account_info.key,
+                            mint_account_info.key,
+                            proxy_account_info.key,
+                        )?,
+                        accounts,
                     )?;
                 }
 
@@ -1256,6 +1271,10 @@ impl Processor {
 
                 // Create proxy account if not exist
                 if proxy_account_info.lamports() == 0 {
+                    let mint_account_info = next_account_info(account_info_iter)?;
+                    if mint != *mint_account_info.key {
+                        return Err(ProgramError::InvalidArgument);
+                    }
                     let proxy_signer_seeds: &[&[_]] =
                         &[br"proxy", &mint.to_bytes(), &recipient.to_bytes(), &[nonce]];
 
@@ -1269,6 +1288,16 @@ impl Processor {
                         ),
                         accounts,
                         &[proxy_signer_seeds],
+                    )?;
+
+                    invoke(
+                        &spl_token::instruction::initialize_account3(
+                            &spl_token::id(),
+                            proxy_account_info.key,
+                            mint_account_info.key,
+                            proxy_account_info.key,
+                        )?,
+                        accounts,
                     )?;
                 }
 
@@ -1785,31 +1814,6 @@ impl Processor {
                             recipient_account_info,
                         )?;
 
-                        // Init Proxy Account
-                        let account = spl_token::state::Account::unpack_unchecked(
-                            &recipient_account_info.data.borrow(),
-                        )?;
-
-                        if !account.is_initialized() {
-                            let proxy_signer_seeds: &[&[_]] = &[
-                                br"proxy",
-                                &mint_account_info.key.to_bytes(),
-                                &withdrawal_account_data.event.data.recipient.to_bytes(),
-                                &[proxy_nonce],
-                            ];
-
-                            invoke_signed(
-                                &spl_token::instruction::initialize_account3(
-                                    &spl_token::id(),
-                                    recipient_account_info.key,
-                                    mint_account_info.key,
-                                    recipient_account_info.key,
-                                )?,
-                                accounts,
-                                &[proxy_signer_seeds],
-                            )?;
-                        }
-
                         // Make transfer to Proxy Account
                         make_ever_transfer(
                             mint_account_info,
@@ -2034,35 +2038,6 @@ impl Processor {
                                     proxy_nonce,
                                     recipient_account_info,
                                 )?;
-
-                                // Init Proxy Account
-                                let account = spl_token::state::Account::unpack_unchecked(
-                                    &recipient_account_info.data.borrow(),
-                                )?;
-
-                                if !account.is_initialized() {
-                                    if mint != *mint_account_info.key {
-                                        return Err(ProgramError::InvalidArgument);
-                                    }
-
-                                    let proxy_signer_seeds: &[&[_]] = &[
-                                        br"proxy",
-                                        &mint_account_info.key.to_bytes(),
-                                        &withdrawal_account_data.event.data.recipient.to_bytes(),
-                                        &[proxy_nonce],
-                                    ];
-
-                                    invoke_signed(
-                                        &spl_token::instruction::initialize_account3(
-                                            &spl_token::id(),
-                                            recipient_account_info.key,
-                                            mint_account_info.key,
-                                            recipient_account_info.key,
-                                        )?,
-                                        accounts,
-                                        &[proxy_signer_seeds],
-                                    )?;
-                                }
 
                                 // Make transfer to Proxy Account
                                 make_sol_transfer(
@@ -4077,6 +4052,14 @@ impl Processor {
             return Err(ProgramError::MissingRequiredSignature);
         }
 
+        let recipient_token_pubkey = spl_associated_token_account::get_associated_token_address(
+            recipient_account_info.key,
+            mint_account_info.key,
+        );
+        if recipient_token_pubkey != *recipient_token_account_info.key {
+            return Err(ProgramError::InvalidArgument);
+        }
+
         let (proxy, nonce) = Pubkey::find_program_address(
             &[
                 br"proxy",
@@ -4088,6 +4071,18 @@ impl Processor {
 
         if proxy != *proxy_account_info.key {
             return Err(ProgramError::InvalidArgument);
+        }
+
+        if recipient_token_account_info.lamports() == 0 {
+            invoke(
+                &spl_associated_token_account::instruction::create_associated_token_account(
+                    recipient_account_info.key,
+                    recipient_account_info.key,
+                    mint_account_info.key,
+                    &spl_token::id(),
+                ),
+                accounts,
+            )?;
         }
 
         let proxy_signer_seeds: &[&[_]] = &[
