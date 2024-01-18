@@ -2010,17 +2010,25 @@ impl Processor {
                                     return Err(ProgramError::InvalidArgument);
                                 }
 
-                                make_sol_transfer(
-                                    vault_account_info,
-                                    recipient_account_info,
-                                    &token_settings_account_data,
-                                    &mut withdrawal_account_data,
-                                    accounts,
-                                    transfer_withdrawal_amount,
+                                let vault_account_data = spl_token::state::Account::unpack(
+                                    &vault_account_info.data.borrow(),
                                 )?;
 
-                                withdrawal_account_data.meta.data.status =
-                                    WithdrawalTokenStatus::Processed;
+                                if transfer_withdrawal_amount > vault_account_data.amount {
+                                    withdrawal_account_data.meta.data.status =
+                                        WithdrawalTokenStatus::Pending;
+                                } else {
+                                    make_sol_transfer(
+                                        vault_account_info,
+                                        recipient_account_info,
+                                        &token_settings_account_data,
+                                        accounts,
+                                        transfer_withdrawal_amount,
+                                    )?;
+
+                                    withdrawal_account_data.meta.data.status =
+                                        WithdrawalTokenStatus::Processed;
+                                }
                             }
                             false => {
                                 // Validate Proxy Account
@@ -2039,18 +2047,25 @@ impl Processor {
                                     recipient_account_info,
                                 )?;
 
-                                // Make transfer to Proxy Account
-                                make_sol_transfer(
-                                    vault_account_info,
-                                    recipient_account_info,
-                                    &token_settings_account_data,
-                                    &mut withdrawal_account_data,
-                                    accounts,
-                                    transfer_withdrawal_amount,
+                                let vault_account_data = spl_token::state::Account::unpack(
+                                    &vault_account_info.data.borrow(),
                                 )?;
 
-                                withdrawal_account_data.meta.data.status =
-                                    WithdrawalTokenStatus::WaitingForExecute;
+                                if transfer_withdrawal_amount > vault_account_data.amount {
+                                    withdrawal_account_data.meta.data.status =
+                                        WithdrawalTokenStatus::Pending;
+                                } else {
+                                    make_sol_transfer(
+                                        vault_account_info,
+                                        recipient_account_info,
+                                        &token_settings_account_data,
+                                        accounts,
+                                        transfer_withdrawal_amount,
+                                    )?;
+
+                                    withdrawal_account_data.meta.data.status =
+                                        WithdrawalTokenStatus::WaitingForExecute;
+                                }
                             }
                         }
                     }
@@ -2074,17 +2089,25 @@ impl Processor {
                                 return Err(ProgramError::InvalidArgument);
                             }
 
-                            make_sol_transfer(
-                                vault_account_info,
-                                recipient_account_info,
-                                &token_settings_account_data,
-                                &mut withdrawal_account_data,
-                                accounts,
-                                transfer_withdrawal_amount,
+                            let vault_account_data = spl_token::state::Account::unpack(
+                                &vault_account_info.data.borrow(),
                             )?;
 
-                            withdrawal_account_data.meta.data.status =
-                                WithdrawalTokenStatus::Processed;
+                            if transfer_withdrawal_amount > vault_account_data.amount {
+                                withdrawal_account_data.meta.data.status =
+                                    WithdrawalTokenStatus::Pending;
+                            } else {
+                                make_sol_transfer(
+                                    vault_account_info,
+                                    recipient_account_info,
+                                    &token_settings_account_data,
+                                    accounts,
+                                    transfer_withdrawal_amount,
+                                )?;
+
+                                withdrawal_account_data.meta.data.status =
+                                    WithdrawalTokenStatus::Processed;
+                            }
                         }
                         false => {
                             // Validate Proxy Account
@@ -2103,17 +2126,25 @@ impl Processor {
                                 recipient_account_info,
                             )?;
 
-                            make_sol_transfer(
-                                vault_account_info,
-                                recipient_account_info,
-                                &token_settings_account_data,
-                                &mut withdrawal_account_data,
-                                accounts,
-                                transfer_withdrawal_amount,
+                            let vault_account_data = spl_token::state::Account::unpack(
+                                &vault_account_info.data.borrow(),
                             )?;
 
-                            withdrawal_account_data.meta.data.status =
-                                WithdrawalTokenStatus::WaitingForExecute;
+                            if transfer_withdrawal_amount > vault_account_data.amount {
+                                withdrawal_account_data.meta.data.status =
+                                    WithdrawalTokenStatus::Pending;
+                            } else {
+                                make_sol_transfer(
+                                    vault_account_info,
+                                    recipient_account_info,
+                                    &token_settings_account_data,
+                                    accounts,
+                                    transfer_withdrawal_amount,
+                                )?;
+
+                                withdrawal_account_data.meta.data.status =
+                                    WithdrawalTokenStatus::WaitingForExecute;
+                            }
                         }
                     }
                 }
@@ -3148,16 +3179,22 @@ impl Processor {
                     return Err(ProgramError::InvalidArgument);
                 }
 
-                make_sol_transfer(
-                    vault_account_info,
-                    recipient_account_info,
-                    &token_settings_account_data,
-                    &mut withdrawal_account_data,
-                    accounts,
-                    withdrawal_amount,
-                )?;
+                let vault_account_data =
+                    spl_token::state::Account::unpack(&vault_account_info.data.borrow())?;
 
-                withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Processed;
+                if withdrawal_amount > vault_account_data.amount {
+                    withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Pending;
+                } else {
+                    make_sol_transfer(
+                        vault_account_info,
+                        recipient_account_info,
+                        &token_settings_account_data,
+                        accounts,
+                        withdrawal_amount,
+                    )?;
+
+                    withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Processed;
+                }
             }
             false => {
                 // Validate Proxy Account
@@ -3176,16 +3213,23 @@ impl Processor {
                     recipient_account_info,
                 )?;
 
-                make_sol_transfer(
-                    vault_account_info,
-                    recipient_account_info,
-                    &token_settings_account_data,
-                    &mut withdrawal_account_data,
-                    accounts,
-                    withdrawal_amount,
-                )?;
+                let vault_account_data =
+                    spl_token::state::Account::unpack(&vault_account_info.data.borrow())?;
 
-                withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::WaitingForExecute;
+                if withdrawal_amount > vault_account_data.amount {
+                    withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Pending;
+                } else {
+                    make_sol_transfer(
+                        vault_account_info,
+                        recipient_account_info,
+                        &token_settings_account_data,
+                        accounts,
+                        withdrawal_amount,
+                    )?;
+
+                    withdrawal_account_data.meta.data.status =
+                        WithdrawalTokenStatus::WaitingForExecute;
+                }
             }
         };
 
@@ -4211,7 +4255,6 @@ fn make_sol_transfer<'a>(
     vault_account_info: &AccountInfo<'a>,
     recipient_account_info: &AccountInfo<'a>,
     settings_account_data: &TokenSettings,
-    withdrawal_account_data: &mut WithdrawalMultiTokenSol,
     accounts: &[AccountInfo],
     withdrawal_amount: u64,
 ) -> ProgramResult {
@@ -4227,14 +4270,6 @@ fn make_sol_transfer<'a>(
         .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
 
     let vault_account_signer_seeds: &[&[_]] = &[br"vault", &mint.to_bytes(), &[vault_nonce]];
-
-    let vault_account_data = spl_token::state::Account::unpack(&vault_account_info.data.borrow())?;
-
-    // If vault balance is not enough
-    if withdrawal_amount > vault_account_data.amount {
-        withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Pending;
-        return Ok(());
-    }
 
     invoke_signed(
         &spl_token::instruction::transfer(
