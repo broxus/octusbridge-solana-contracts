@@ -139,11 +139,12 @@ pub fn withdrawal_ever_request_ix(
     ];
 
     if !event.payload.is_empty() {
-        let mint = token_proxy::get_associated_mint_address(&program_id, &event.token);
+        let mint_pubkey = token_proxy::get_mint_address(&event.token);
+        let proxy_pubkey = token_proxy::get_proxy_address(&mint_pubkey, &event.recipient);
 
-        let proxy_pubkey =
-            token_proxy::get_associated_proxy_address(&program_id, &mint, &event.recipient);
         accounts.push(AccountMeta::new(proxy_pubkey, false));
+        accounts.push(AccountMeta::new(mint_pubkey, false));
+        accounts.push(AccountMeta::new(spl_token::id(), false));
     }
 
     let data = token_proxy::TokenProxyInstruction::WithdrawMultiTokenEverRequest {
@@ -202,9 +203,11 @@ pub fn withdrawal_sol_request_ix(
     ];
 
     if !event.payload.is_empty() {
-        let proxy_pubkey =
-            token_proxy::get_associated_proxy_address(&program_id, &event.mint, &event.recipient);
+        let proxy_pubkey = token_proxy::get_proxy_address(&event.mint, &event.recipient);
+
         accounts.push(AccountMeta::new(proxy_pubkey, false));
+        accounts.push(AccountMeta::new(event.mint, false));
+        accounts.push(AccountMeta::new(spl_token::id(), false));
     }
 
     let data = token_proxy::TokenProxyInstruction::WithdrawMultiTokenSolRequest {

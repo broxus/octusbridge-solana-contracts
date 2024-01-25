@@ -7,6 +7,7 @@ edition = "2021"
 [dependencies]
 borsh = "0.10"
 solana-program = "1.16"
+spl-token = { version = "4.0.0", features = ["no-entrypoint"] }
 
 bridge-utils = { path = "../bridge-utils" }
 round-loader = { path = "../round-loader", features = ["no-entrypoint", "bindings"] }

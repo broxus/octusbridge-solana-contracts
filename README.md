@@ -24,9 +24,8 @@ cargo-test-bpf --manifest-path=./native-proxy/Cargo.toml
 
 #### Build WASM bindings
 ```bash
-wasm-pack build --target web --out-name index token-proxy -- --features wasm
+wasm-pack build --target web --out-name index wasm
 wasm-pack build --target web --out-name index round-loader -- --features wasm
-wasm-pack build --target web --out-name index native-proxy -- --features wasm
 ```
 
 #### Build Rust bindings
