@@ -2177,38 +2177,36 @@ impl Processor {
         let mut withdrawal_account_data =
             WithdrawalMultiTokenEver::unpack(&withdrawal_account_info.data.borrow())?;
 
-        if withdrawal_account_data.meta.data.status != WithdrawalTokenStatus::WaitingForExecute {
-            return Err(SolanaBridgeError::InvalidWithdrawalStatus.into());
+        if withdrawal_account_data.meta.data.status == WithdrawalTokenStatus::WaitingForExecute {
+            let mint = get_associated_mint(program_id, &withdrawal_account_data.event.data.token);
+            let recipient = withdrawal_account_data.event.data.recipient;
+            let (_, nonce) = withdrawal_account_data
+                .account_kind
+                .into_proposal()
+                .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
+
+            let proxy_signer_seeds: &[&[_]] = &[
+                br"proxy",
+                &mint.to_bytes(),
+                &recipient.to_bytes(),
+                &[nonce.unwrap_or_default()],
+            ];
+
+            let ixs: Vec<solana_program::instruction::Instruction> =
+                bincode::deserialize(&withdrawal_account_data.event.data.payload)
+                    .map_err(|_| SolanaBridgeError::DeserializePayload)?;
+
+            for ix in ixs {
+                invoke_signed(&ix, accounts, &[proxy_signer_seeds])?;
+            }
+
+            withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Processed;
+
+            WithdrawalMultiTokenEver::pack(
+                withdrawal_account_data,
+                &mut withdrawal_account_info.data.borrow_mut(),
+            )?;
         }
-
-        let mint = get_associated_mint(program_id, &withdrawal_account_data.event.data.token);
-        let recipient = withdrawal_account_data.event.data.recipient;
-        let (_, nonce) = withdrawal_account_data
-            .account_kind
-            .into_proposal()
-            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
-
-        let proxy_signer_seeds: &[&[_]] = &[
-            br"proxy",
-            &mint.to_bytes(),
-            &recipient.to_bytes(),
-            &[nonce.unwrap_or_default()],
-        ];
-
-        let ixs: Vec<solana_program::instruction::Instruction> =
-            bincode::deserialize(&withdrawal_account_data.event.data.payload)
-                .map_err(|_| SolanaBridgeError::DeserializePayload)?;
-
-        for ix in ixs {
-            invoke_signed(&ix, accounts, &[proxy_signer_seeds])?;
-        }
-
-        withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Processed;
-
-        WithdrawalMultiTokenEver::pack(
-            withdrawal_account_data,
-            &mut withdrawal_account_info.data.borrow_mut(),
-        )?;
 
         Ok(())
     }
@@ -2224,38 +2222,36 @@ impl Processor {
         let mut withdrawal_account_data =
             WithdrawalMultiTokenSol::unpack(&withdrawal_account_info.data.borrow())?;
 
-        if withdrawal_account_data.meta.data.status != WithdrawalTokenStatus::WaitingForExecute {
-            return Err(SolanaBridgeError::InvalidWithdrawalStatus.into());
+        if withdrawal_account_data.meta.data.status == WithdrawalTokenStatus::WaitingForExecute {
+            let mint = withdrawal_account_data.event.data.mint;
+            let recipient = withdrawal_account_data.event.data.recipient;
+            let (_, nonce) = withdrawal_account_data
+                .account_kind
+                .into_proposal()
+                .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
+
+            let proxy_signer_seeds: &[&[_]] = &[
+                br"proxy",
+                &mint.to_bytes(),
+                &recipient.to_bytes(),
+                &[nonce.unwrap_or_default()],
+            ];
+
+            let ixs: Vec<solana_program::instruction::Instruction> =
+                bincode::deserialize(&withdrawal_account_data.event.data.payload)
+                    .map_err(|_| SolanaBridgeError::DeserializePayload)?;
+
+            for ix in ixs {
+                invoke_signed(&ix, accounts, &[proxy_signer_seeds])?;
+            }
+
+            withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Processed;
+
+            WithdrawalMultiTokenSol::pack(
+                withdrawal_account_data,
+                &mut withdrawal_account_info.data.borrow_mut(),
+            )?;
         }
-
-        let mint = withdrawal_account_data.event.data.mint;
-        let recipient = withdrawal_account_data.event.data.recipient;
-        let (_, nonce) = withdrawal_account_data
-            .account_kind
-            .into_proposal()
-            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
-
-        let proxy_signer_seeds: &[&[_]] = &[
-            br"proxy",
-            &mint.to_bytes(),
-            &recipient.to_bytes(),
-            &[nonce.unwrap_or_default()],
-        ];
-
-        let ixs: Vec<solana_program::instruction::Instruction> =
-            bincode::deserialize(&withdrawal_account_data.event.data.payload)
-                .map_err(|_| SolanaBridgeError::DeserializePayload)?;
-
-        for ix in ixs {
-            invoke_signed(&ix, accounts, &[proxy_signer_seeds])?;
-        }
-
-        withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Processed;
-
-        WithdrawalMultiTokenSol::pack(
-            withdrawal_account_data,
-            &mut withdrawal_account_info.data.borrow_mut(),
-        )?;
 
         Ok(())
     }
