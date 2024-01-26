@@ -1,10 +1,8 @@
 mod instruction;
-mod processor;
 mod state;
 mod utils;
 
 pub use self::instruction::*;
-pub use self::processor::*;
 pub use self::state::*;
 pub use self::utils::*;
 
@@ -24,5 +22,11 @@ pub use self::bindings::*;
 
 #[cfg(not(feature = "no-entrypoint"))]
 mod entrypoint;
+
+#[cfg(not(feature = "no-entrypoint"))]
+mod processor;
+
+#[cfg(not(feature = "no-entrypoint"))]
+pub use self::processor::*;
 
 solana_program::declare_id!("roundAsiEM445bGEp7ZwPWXUmWAHh6rpLEndJUKP1V4");

@@ -7,7 +7,7 @@ edition = "2021"
 [features]
 no-entrypoint = []
 test-bpf = ["bindings"]
-bindings = ["no-entrypoint"]
+bindings = []
 wasm = ["no-entrypoint", "bindings", "serde-wasm-bindgen", "wasm-bindgen", "js-sys", "base64", "uuid"]
 
 [dependencies]
