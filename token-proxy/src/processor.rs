@@ -4324,45 +4324,47 @@ fn create_proxy_account<'a>(
         return Err(ProgramError::IllegalOwner);
     }
 
-    let rent = Rent::get()?;
+    if proxy_account_info.data_is_empty() {
+        let rent = Rent::get()?;
 
-    let account_len = spl_associated_token_account::tools::account::get_account_len(
-        spl_token_mint_info,
-        spl_token_program_info,
-        &[ExtensionType::ImmutableOwner],
-    )?;
+        let account_len = spl_associated_token_account::tools::account::get_account_len(
+            spl_token_mint_info,
+            spl_token_program_info,
+            &[ExtensionType::ImmutableOwner],
+        )?;
 
-    spl_associated_token_account::tools::account::create_pda_account(
-        funder_account_info,
-        &rent,
-        account_len,
-        spl_token_program_id,
-        system_program_info,
-        proxy_account_info,
-        proxy_signer_seeds,
-    )?;
-
-    msg!("Initialize the proxy account");
-    invoke(
-        &spl_token_2022::instruction::initialize_immutable_owner(
+        spl_associated_token_account::tools::account::create_pda_account(
+            funder_account_info,
+            &rent,
+            account_len,
             spl_token_program_id,
-            proxy_account_info.key,
-        )?,
-        &[proxy_account_info.clone(), spl_token_program_info.clone()],
-    )?;
-    invoke(
-        &spl_token_2022::instruction::initialize_account3(
-            spl_token_program_id,
-            proxy_account_info.key,
-            spl_token_mint_info.key,
-            proxy_account_info.key,
-        )?,
-        &[
-            proxy_account_info.clone(),
-            spl_token_mint_info.clone(),
-            spl_token_program_info.clone(),
-        ],
-    )?;
+            system_program_info,
+            proxy_account_info,
+            proxy_signer_seeds,
+        )?;
+
+        msg!("Initialize the proxy account");
+        invoke(
+            &spl_token_2022::instruction::initialize_immutable_owner(
+                spl_token_program_id,
+                proxy_account_info.key,
+            )?,
+            &[proxy_account_info.clone(), spl_token_program_info.clone()],
+        )?;
+        invoke(
+            &spl_token_2022::instruction::initialize_account3(
+                spl_token_program_id,
+                proxy_account_info.key,
+                spl_token_mint_info.key,
+                proxy_account_info.key,
+            )?,
+            &[
+                proxy_account_info.clone(),
+                spl_token_mint_info.clone(),
+                spl_token_program_info.clone(),
+            ],
+        )?;
+    }
 
     Ok(nonce)
 }
