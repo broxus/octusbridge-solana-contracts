@@ -14,7 +14,8 @@ use solana_program::program_pack::Pack;
 use solana_program::pubkey::Pubkey;
 use solana_program::rent::Rent;
 use solana_program::sysvar::Sysvar;
-use solana_program::{bpf_loader_upgradeable, msg, system_instruction};
+use solana_program::{bpf_loader_upgradeable, msg, system_instruction, system_program};
+use spl_token_2022::extension::ExtensionType;
 
 use crate::*;
 
@@ -933,7 +934,7 @@ impl Processor {
         let withdrawal_account_info = next_account_info(account_info_iter)?;
         let rl_settings_account_info = next_account_info(account_info_iter)?;
         let relay_round_account_info = next_account_info(account_info_iter)?;
-        let _system_program_info = next_account_info(account_info_iter)?;
+        let system_program_info = next_account_info(account_info_iter)?;
 
         let rent_sysvar_info = next_account_info(account_info_iter)?;
         let rent = &Rent::from_account_info(rent_sysvar_info)?;
@@ -1002,51 +1003,24 @@ impl Processor {
         let proxy_nonce = match payload.is_empty() {
             true => None,
             false => {
-                let mint = get_associated_mint(program_id, &token);
-
-                let (proxy_pubkey, nonce) = Pubkey::find_program_address(
-                    &[br"proxy", &mint.to_bytes(), &recipient.to_bytes()],
-                    program_id,
-                );
-
                 let proxy_account_info = next_account_info(account_info_iter)?;
+                let mint_account_info = next_account_info(account_info_iter)?;
+                let spl_token_program_info = next_account_info(account_info_iter)?;
 
-                if proxy_pubkey != *proxy_account_info.key {
+                let mint = get_associated_mint(program_id, &token);
+                if mint != *mint_account_info.key {
                     return Err(ProgramError::InvalidArgument);
                 }
 
-                // Create proxy account if not exist
-                if proxy_account_info.lamports() == 0 {
-                    let mint_account_info = next_account_info(account_info_iter)?;
-                    if mint != *mint_account_info.key {
-                        return Err(ProgramError::InvalidArgument);
-                    }
-
-                    let proxy_signer_seeds: &[&[_]] =
-                        &[br"proxy", &mint.to_bytes(), &recipient.to_bytes(), &[nonce]];
-
-                    invoke_signed(
-                        &system_instruction::create_account(
-                            funder_account_info.key,
-                            proxy_account_info.key,
-                            1.max(rent.minimum_balance(spl_token::state::Account::LEN)),
-                            spl_token::state::Account::LEN as u64,
-                            &spl_token::id(),
-                        ),
-                        accounts,
-                        &[proxy_signer_seeds],
-                    )?;
-
-                    invoke(
-                        &spl_token::instruction::initialize_account3(
-                            &spl_token::id(),
-                            proxy_account_info.key,
-                            mint_account_info.key,
-                            proxy_account_info.key,
-                        )?,
-                        accounts,
-                    )?;
-                }
+                let nonce = create_proxy_account(
+                    program_id,
+                    &recipient,
+                    funder_account_info,
+                    proxy_account_info,
+                    mint_account_info,
+                    system_program_info,
+                    spl_token_program_info,
+                )?;
 
                 // Attach SOL to proxy account
                 invoke(
@@ -1179,7 +1153,7 @@ impl Processor {
         let token_settings_account_info = next_account_info(account_info_iter)?;
         let rl_settings_account_info = next_account_info(account_info_iter)?;
         let relay_round_account_info = next_account_info(account_info_iter)?;
-        let _system_program_info = next_account_info(account_info_iter)?;
+        let system_program_info = next_account_info(account_info_iter)?;
 
         let rent_sysvar_info = next_account_info(account_info_iter)?;
         let rent = &Rent::from_account_info(rent_sysvar_info)?;
@@ -1259,47 +1233,22 @@ impl Processor {
             true => None,
             false => {
                 let proxy_account_info = next_account_info(account_info_iter)?;
+                let mint_account_info = next_account_info(account_info_iter)?;
+                let spl_token_program_info = next_account_info(account_info_iter)?;
 
-                let (proxy_pubkey, nonce) = Pubkey::find_program_address(
-                    &[br"proxy", &mint.to_bytes(), &recipient.to_bytes()],
-                    program_id,
-                );
-
-                if proxy_pubkey != *proxy_account_info.key {
+                if mint != *mint_account_info.key {
                     return Err(ProgramError::InvalidArgument);
                 }
 
-                // Create proxy account if not exist
-                if proxy_account_info.lamports() == 0 {
-                    let mint_account_info = next_account_info(account_info_iter)?;
-                    if mint != *mint_account_info.key {
-                        return Err(ProgramError::InvalidArgument);
-                    }
-                    let proxy_signer_seeds: &[&[_]] =
-                        &[br"proxy", &mint.to_bytes(), &recipient.to_bytes(), &[nonce]];
-
-                    invoke_signed(
-                        &system_instruction::create_account(
-                            funder_account_info.key,
-                            proxy_account_info.key,
-                            1.max(rent.minimum_balance(spl_token::state::Account::LEN)),
-                            spl_token::state::Account::LEN as u64,
-                            &spl_token::id(),
-                        ),
-                        accounts,
-                        &[proxy_signer_seeds],
-                    )?;
-
-                    invoke(
-                        &spl_token::instruction::initialize_account3(
-                            &spl_token::id(),
-                            proxy_account_info.key,
-                            mint_account_info.key,
-                            proxy_account_info.key,
-                        )?,
-                        accounts,
-                    )?;
-                }
+                let nonce = create_proxy_account(
+                    program_id,
+                    &recipient,
+                    funder_account_info,
+                    proxy_account_info,
+                    mint_account_info,
+                    system_program_info,
+                    spl_token_program_info,
+                )?;
 
                 // Attach SOL to proxy account
                 invoke(
@@ -4337,4 +4286,83 @@ fn delete_account(
     bridge_utils::helper::delete_account(account_info);
 
     Ok(())
+}
+
+fn create_proxy_account<'a>(
+    program_id: &Pubkey,
+    recipient: &Pubkey,
+    funder_account_info: &AccountInfo<'a>,
+    proxy_account_info: &AccountInfo<'a>,
+    spl_token_mint_info: &AccountInfo<'a>,
+    system_program_info: &AccountInfo<'a>,
+    spl_token_program_info: &AccountInfo<'a>,
+) -> Result<u8, ProgramError> {
+    let spl_token_program_id = spl_token_program_info.key;
+
+    let (proxy_pubkey, nonce) = Pubkey::find_program_address(
+        &[
+            br"proxy",
+            &spl_token_mint_info.key.to_bytes(),
+            &recipient.to_bytes(),
+        ],
+        program_id,
+    );
+
+    if proxy_pubkey != *proxy_account_info.key {
+        msg!("Error: Associated proxy address does not match seed derivation");
+        return Err(ProgramError::InvalidSeeds);
+    }
+
+    let proxy_signer_seeds: &[&[_]] = &[
+        br"proxy",
+        &spl_token_mint_info.key.to_bytes(),
+        &recipient.to_bytes(),
+        &[nonce],
+    ];
+
+    if *proxy_account_info.owner != system_program::id() {
+        return Err(ProgramError::IllegalOwner);
+    }
+
+    let rent = Rent::get()?;
+
+    let account_len = spl_associated_token_account::tools::account::get_account_len(
+        spl_token_mint_info,
+        spl_token_program_info,
+        &[ExtensionType::ImmutableOwner],
+    )?;
+
+    spl_associated_token_account::tools::account::create_pda_account(
+        funder_account_info,
+        &rent,
+        account_len,
+        spl_token_program_id,
+        system_program_info,
+        proxy_account_info,
+        proxy_signer_seeds,
+    )?;
+
+    msg!("Initialize the proxy account");
+    invoke(
+        &spl_token_2022::instruction::initialize_immutable_owner(
+            spl_token_program_id,
+            proxy_account_info.key,
+        )?,
+        &[proxy_account_info.clone(), spl_token_program_info.clone()],
+    )?;
+    invoke(
+        &spl_token_2022::instruction::initialize_account3(
+            spl_token_program_id,
+            proxy_account_info.key,
+            spl_token_mint_info.key,
+            proxy_account_info.key,
+        )?,
+        &[
+            proxy_account_info.clone(),
+            spl_token_mint_info.clone(),
+            spl_token_program_info.clone(),
+        ],
+    )?;
+
+    Ok(nonce)
 }
