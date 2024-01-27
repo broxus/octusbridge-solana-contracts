@@ -8,7 +8,6 @@ edition = "2021"
 no-entrypoint = []
 test-bpf = ["bindings"]
 bindings = ["no-entrypoint"]
-wasm = ["no-entrypoint", "bindings", "serde-wasm-bindgen", "wasm-bindgen", "js-sys", "base64", "uuid"]
 
 [dependencies]
 borsh = "0.10"
@@ -17,12 +16,6 @@ solana-program = "1.16"
 serde = { version = "1.0", features = ["derive"] }
 spl-token = {version = "4.0.0", features = ["no-entrypoint"]}
 spl-associated-token-account = {version = "2.2.0", features = ["no-entrypoint"] }
-
-base64 = { version = "0.21", optional = true }
-js-sys = { version = "0.3", optional = true }
-serde-wasm-bindgen = {version = "0.6", optional = true }
-wasm-bindgen = { version = "0.2.83", features = ["serde-serialize"], optional = true }
-uuid = { version = "1.2", features = ["v4", "serde"], optional = true }
 
 bridge-derive = { path = "../bridge-derive" }
 bridge-utils = { path = "../bridge-utils" }

@@ -28,9 +28,8 @@ while [[ $# -gt 0 ]]; do
       -w|--wasm)
         shift # past argument
 
-        wasm-pack build --target web --out-name index token-proxy  -- --features wasm
+        wasm-pack build --target web --out-name index wasm
         wasm-pack build --target web --out-name index round-loader -- --features wasm
-        wasm-pack build --target web --out-name index native-proxy -- --features wasm
       ;;
       -b|--bindings)
         shift # past argument
