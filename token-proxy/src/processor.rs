@@ -15,7 +15,6 @@ use solana_program::pubkey::Pubkey;
 use solana_program::rent::Rent;
 use solana_program::sysvar::Sysvar;
 use solana_program::{bpf_loader_upgradeable, msg, system_instruction, system_program};
-use spl_token_2022::extension::ExtensionType;
 
 use crate::*;
 
@@ -4327,11 +4326,12 @@ fn create_proxy_account<'a>(
     if proxy_account_info.data_is_empty() {
         let rent = Rent::get()?;
 
-        let account_len = spl_associated_token_account::tools::account::get_account_len(
+        let account_len = spl_token::state::Account::LEN;
+        /*let account_len = spl_associated_token_account::tools::account::get_account_len(
             spl_token_mint_info,
             spl_token_program_info,
-            &[ExtensionType::ImmutableOwner],
-        )?;
+            &[spl_token_2022::extension::ExtensionType::ImmutableOwner],
+        )?;*/
 
         spl_associated_token_account::tools::account::create_pda_account(
             funder_account_info,
@@ -4345,14 +4345,14 @@ fn create_proxy_account<'a>(
 
         msg!("Initialize the proxy account");
         invoke(
-            &spl_token_2022::instruction::initialize_immutable_owner(
+            &spl_token::instruction::initialize_immutable_owner(
                 spl_token_program_id,
                 proxy_account_info.key,
             )?,
             &[proxy_account_info.clone(), spl_token_program_info.clone()],
         )?;
         invoke(
-            &spl_token_2022::instruction::initialize_account3(
+            &spl_token::instruction::initialize_account3(
                 spl_token_program_id,
                 proxy_account_info.key,
                 spl_token_mint_info.key,
