@@ -19,13 +19,7 @@ cargo-build-bpf --manifest-path=./native-proxy/Cargo.toml --bpf-out-dir=dist/pro
 ```bash
 cargo-test-bpf --manifest-path=./token-proxy/Cargo.toml
 cargo-test-bpf --manifest-path=./round-loader/Cargo.toml
-cargo-test-bpf --manifest-path=./native-proxy/Cargo.toml
-```
-
-#### Build WASM bindings
-```bash
-wasm-pack build --target web --out-name index wasm
-wasm-pack build --target web --out-name index round-loader -- --features wasm
+cargo-test-bpf --manifest-path=./native-proxy/Cargo.toml # TODO: should fix dependencies
 ```
 
 #### Build Rust bindings
@@ -33,6 +27,12 @@ wasm-pack build --target web --out-name index round-loader -- --features wasm
 cargo build --release --manifest-path=./token-proxy/Cargo.toml --features=bindings
 cargo build --release --manifest-path=./round-loader/Cargo.toml --features=bindings
 cargo build --release --manifest-path=./native-proxy/Cargo.toml --features=bindings
+```
+
+#### Build WASM bindings
+```bash
+wasm-pack build --target web --out-name index wasm
+wasm-pack build --target web --out-name index round-loader -- --features wasm
 ```
 
 ## Docker Configuration

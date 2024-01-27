@@ -6,25 +6,24 @@ edition = "2021"
 
 [features]
 no-entrypoint = []
+default = ["entrypoint"]
 test-bpf = ["bindings"]
 bindings = ["uuid", "getrandom"]
-wasm = ["no-entrypoint", "bindings", "serde-wasm-bindgen", "wasm-bindgen", "js-sys"]
+entrypoint = ["dep:spl-token", "dep:spl-token-2022", "dep:solana-program", "dep:spl-associated-token-account"]
 
 [dependencies]
 base64 = "0.21"
 bincode = "1.3"
 borsh = "0.10"
 enum-as-inner = "0.6"
-solana-program = "1.16"
 serde = { version = "1.0", features = ["derive"] }
-spl-token = { version = "4.0.0", features = ["no-entrypoint"] }
-spl-token-2022 = { version = "1.0.0", features = ["no-entrypoint"] }
 
-getrandom = { version = "0.2", features = ["js"], optional = true }
-js-sys = { version = "0.3", optional = true }
-spl-associated-token-account = {version = "2.2.0", features = ["no-entrypoint"] }
-serde-wasm-bindgen = {version = "0.6", optional = true }
-wasm-bindgen = { version = "0.2.83", features = ["serde-serialize"], optional = true }
+solana-program = { version = "1.17", optional = true }
+spl-token = { version = "4.0.0", features = ["no-entrypoint"], optional = true }
+spl-token-2022 = { version = "1.0.0", features = ["no-entrypoint"], optional = true }
+spl-associated-token-account = {version = "2.3.0", features = ["no-entrypoint"], optional = true }
+
+getrandom = { version = "0.2", optional = true }
 uuid = { version = "1.2", features = ["v4", "serde"], optional = true }
 
 bridge-derive = { path = "../bridge-derive" }
@@ -33,8 +32,8 @@ round-loader = { path = "../round-loader", features = ["no-entrypoint"] }
 
 [dev-dependencies]
 chrono = "0.4.19"
-solana-program-test = "1.16"
-solana-sdk = "1.16"
+solana-program-test = "1.17"
+solana-sdk = "1.17"
 
 [lib]
 crate-type = ["cdylib", "lib"]

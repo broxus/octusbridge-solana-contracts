@@ -8,10 +8,10 @@ edition = "2021"
 [dependencies]
 base64 = "0.21"
 borsh = "0.10"
-solana-program = "1.16"
+solana-program = "1.17"
 serde = { version = "1.0", features = ["derive"] }
 spl-token = { version = "4.0.0", features = ["no-entrypoint"] }
-spl-associated-token-account = {version = "2.2.0", features = ["no-entrypoint"] }
+spl-associated-token-account = {version = "2.3.0", features = ["no-entrypoint"] }
 
 js-sys = { version = "0.3" }
 serde-wasm-bindgen = {version = "0.6" }

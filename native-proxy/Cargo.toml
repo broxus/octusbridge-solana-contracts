@@ -5,23 +5,22 @@ authors = ["Broxus team"]
 edition = "2021"
 
 [features]
+default = ["entrypoint"]
 no-entrypoint = []
 test-bpf = ["bindings"]
 bindings = []
-wasm = ["no-entrypoint", "bindings", "serde-wasm-bindgen", "wasm-bindgen", "js-sys", "base64", "uuid"]
+entrypoint = ["dep:solana-program", "dep:spl-token", "dep:spl-associated-token-account", ]
 
 [dependencies]
 borsh = "0.10"
 enum-as-inner = "0.6"
-solana-program = "1.16"
 serde = { version = "1.0", features = ["derive"] }
-spl-token = {version = "4.0.0", features = ["no-entrypoint"]}
-spl-associated-token-account = {version = "2.2.0", features = ["no-entrypoint"] }
+
+solana-program = { version = "1.17", optional = true }
+spl-token = { version = "4.0.0", features = ["no-entrypoint"], optional = true }
+spl-associated-token-account = {version = "2.3.0", features = ["no-entrypoint"], optional = true }
 
 base64 = { version = "0.21", optional = true }
-js-sys = { version = "0.3", optional = true }
-serde-wasm-bindgen = {version = "0.6", optional = true }
-wasm-bindgen = { version = "0.2.83", features = ["serde-serialize"], optional = true }
 uuid = { version = "1.2", features = ["v4", "serde"], optional = true }
 
 bridge-derive = { path = "../bridge-derive" }
@@ -29,8 +28,8 @@ bridge-utils = { path = "../bridge-utils" }
 token-proxy = { path = "../token-proxy", features = ["no-entrypoint", "bindings"] }
 
 [dev-dependencies]
-solana-program-test = "1.16"
-solana-sdk = "1.16"
+solana-program-test = "1.17"
+solana-sdk = "1.17"
 uuid = { version = "1.2", features = ["v4", "serde"] }
 
 [lib]
