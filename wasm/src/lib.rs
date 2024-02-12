@@ -1299,7 +1299,6 @@ pub fn change_bounty_for_withdrawal_sol_ix(
     withdrawal_pubkey: String,
     bounty: u64,
 ) -> Result<JsValue, JsValue> {
-
     let author_pubkey = Pubkey::from_str(author_pubkey.as_str()).handle_error()?;
     let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).handle_error()?;
 

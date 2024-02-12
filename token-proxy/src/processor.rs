@@ -3576,7 +3576,9 @@ impl Processor {
             return Err(SolanaBridgeError::InvalidWithdrawalStatus.into());
         }
 
-        if withdrawal_account_data.author != *author_account_info.key {
+        if withdrawal_account_data.author != *author_account_info.key
+            && withdrawal_account_data.event.data.recipient != *author_account_info.key
+        {
             return Err(ProgramError::IllegalOwner);
         }
 
