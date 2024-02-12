@@ -14,6 +14,7 @@ use solana_program::{system_program, sysvar};
 
 use bridge_utils::state::*;
 use bridge_utils::types::*;
+use token_proxy::{id, TokenProxyInstruction};
 
 #[wasm_bindgen(js_name = "getMintAddress")]
 pub fn get_mint_address_request(token: String) -> Result<JsValue, JsValue> {
@@ -1285,6 +1286,32 @@ pub fn fill_withdrawal_sol(
             AccountMeta::new_readonly(system_program::id(), false),
             AccountMeta::new_readonly(spl_token::id(), false),
             AccountMeta::new_readonly(sysvar::rent::id(), false),
+        ],
+        data,
+    };
+
+    return serde_wasm_bindgen::to_value(&ix).handle_error();
+}
+
+#[wasm_bindgen(js_name = "changeBountyForWithdrawalSol")]
+pub fn change_bounty_for_withdrawal_sol_ix(
+    author_pubkey: String,
+    withdrawal_pubkey: String,
+    bounty: u64,
+) -> Result<JsValue, JsValue> {
+
+    let author_pubkey = Pubkey::from_str(author_pubkey.as_str()).handle_error()?;
+    let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).handle_error()?;
+
+    let data = TokenProxyInstruction::ChangeBountyForWithdrawSol { bounty }
+        .try_to_vec()
+        .expect("pack");
+
+    let ix = Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(author_pubkey, true),
+            AccountMeta::new(withdrawal_pubkey, false),
         ],
         data,
     };
