@@ -288,6 +288,8 @@ pub enum TokenProxyInstruction {
         deposit_seed: u128,
         // Recipient address
         recipient: EverAddress,
+        // Deposit amount
+        amount: u64,
     },
 
     /// Withdraw tokens from Proxy Account

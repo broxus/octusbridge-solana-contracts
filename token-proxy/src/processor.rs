@@ -4,7 +4,7 @@ use bridge_utils::state::{AccountKind, Proposal, PDA};
 use bridge_utils::types::{EverAddress, UInt256, Vote, RELAY_REPARATION};
 use round_loader::RelayRound;
 
-use solana_program::account_info::{next_account_info, AccountInfo};
+use solana_program::account_info::{next_account_info, next_account_infos, AccountInfo};
 use solana_program::clock::{Clock, SECONDS_PER_DAY};
 use solana_program::entrypoint::ProgramResult;
 use solana_program::hash::hash;
@@ -225,7 +225,7 @@ impl Processor {
                 Self::process_withdraw_sol_fee(program_id, accounts, amount)?;
             }
             TokenProxyInstruction::ChangeBountyForWithdrawSol { bounty } => {
-                msg!("Instruction: Withdraw SOL Fee");
+                msg!("Instruction: Change Bounty For Withdraw Sol");
                 Self::process_change_bounty_for_withdraw_sol(program_id, accounts, bounty)?;
             }
             TokenProxyInstruction::CancelWithdrawSol {
@@ -238,9 +238,16 @@ impl Processor {
             TokenProxyInstruction::FillWithdrawSol {
                 deposit_seed,
                 recipient,
+                amount,
             } => {
                 msg!("Instruction: Fill Withdraw SOL");
-                Self::process_fill_withdraw_sol(program_id, accounts, deposit_seed, recipient)?;
+                Self::process_fill_withdraw_sol(
+                    program_id,
+                    accounts,
+                    deposit_seed,
+                    recipient,
+                    amount,
+                )?;
             }
             TokenProxyInstruction::ExecutePayloadEver => {
                 msg!("Instruction: Execute Payload EVER");
@@ -3792,6 +3799,7 @@ impl Processor {
         accounts: &[AccountInfo],
         deposit_seed: u128,
         recipient: EverAddress,
+        amount: u64,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -3799,8 +3807,6 @@ impl Processor {
         let author_account_info = next_account_info(account_info_iter)?;
         let author_token_account_info = next_account_info(account_info_iter)?;
         let mint_account_info = next_account_info(account_info_iter)?;
-        let withdrawal_account_info = next_account_info(account_info_iter)?;
-        let recipient_token_account_info = next_account_info(account_info_iter)?;
         let deposit_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
         let token_settings_account_info = next_account_info(account_info_iter)?;
@@ -3831,39 +3837,11 @@ impl Processor {
             return Err(SolanaBridgeError::EmergencyEnabled.into());
         }
 
-        // Validate Withdrawal Account
-        let mut withdrawal_account_data =
-            WithdrawalMultiTokenSol::unpack(&withdrawal_account_info.data.borrow())?;
-        let round_number = withdrawal_account_data.round_number;
-        let event_timestamp = withdrawal_account_data.pda.event_timestamp;
-        let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
-        let event_configuration = withdrawal_account_data.pda.event_configuration;
-        let event_data = hash(&withdrawal_account_data.event.data.try_to_vec()?);
-        let (nonce, _) = withdrawal_account_data
-            .account_kind
-            .into_proposal()
-            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
-
-        let withdrawal_pubkey = bridge_utils::helper::validate_proposal_account(
-            program_id,
-            round_number,
-            event_timestamp,
-            event_transaction_lt,
-            &event_configuration,
-            &event_data,
-            nonce,
-            withdrawal_account_info,
-        )?;
-
-        if withdrawal_account_data.meta.data.status != WithdrawalTokenStatus::Pending {
-            return Err(SolanaBridgeError::InvalidWithdrawalStatus.into());
-        }
-
         // Validate Token Setting Account
         let token_settings_account_data =
             TokenSettings::unpack(&token_settings_account_info.data.borrow())?;
 
-        let (token_settings_nonce, _) = token_settings_account_data
+        let (token_settings_nonce, vault_nonce) = token_settings_account_data
             .account_kind
             .into_token_settings()
             .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
@@ -3892,48 +3870,7 @@ impl Processor {
         let mint_account_data = spl_token::state::Mint::unpack(&mint_account_info.data.borrow())?;
         let decimals = mint_account_data.decimals;
 
-        // Check connection between token and proposal
-        if mint != withdrawal_account_data.event.data.mint {
-            return Err(ProgramError::InvalidArgument);
-        }
-
-        // Validate Recipient account
-        let recipient_token_account_data =
-            spl_token::state::Account::unpack(&recipient_token_account_info.data.borrow())?;
-
-        if recipient_token_account_data.owner != withdrawal_account_data.event.data.recipient {
-            return Err(ProgramError::InvalidArgument);
-        }
-
-        if recipient_token_account_info.owner != &spl_token::id() {
-            return Err(ProgramError::InvalidArgument);
-        }
-
-        let withdrawal_amount: u64 = withdrawal_account_data
-            .event
-            .data
-            .amount
-            .try_into()
-            .map_err(|_| SolanaBridgeError::Overflow)?;
-
-        let amount = withdrawal_amount
-            .checked_sub(withdrawal_account_data.meta.data.bounty)
-            .ok_or(SolanaBridgeError::Overflow)?;
-
-        // Transfer SOL tokens
-        invoke(
-            &spl_token::instruction::transfer(
-                &spl_token::id(),
-                author_token_account_info.key,
-                recipient_token_account_info.key,
-                author_account_info.key,
-                &[author_account_info.key],
-                amount,
-            )?,
-            accounts,
-        )?;
-
-        // Create Deposit Account
+        // Deposit Account
         let (deposit_pubkey, deposit_nonce) =
             Pubkey::find_program_address(&[br"deposit", &deposit_seed.to_le_bytes()], program_id);
         let deposit_account_signer_seeds: &[&[_]] =
@@ -3941,6 +3878,103 @@ impl Processor {
 
         if deposit_pubkey != *deposit_account_info.key {
             return Err(ProgramError::InvalidArgument);
+        }
+
+        let mut withdrawals_amount_sum = 0;
+
+        // collect Withdrawal Accounts
+        while let Some(withdrawal_account_infos) = next_account_infos(account_info_iter, 2).ok() {
+            let withdrawal_account_info = &withdrawal_account_infos[0];
+            let recipient_token_account_info = &withdrawal_account_infos[1];
+
+            let mut withdrawal_account_data =
+                WithdrawalMultiTokenSol::unpack(&withdrawal_account_info.data.borrow())?;
+            let round_number = withdrawal_account_data.round_number;
+            let event_timestamp = withdrawal_account_data.pda.event_timestamp;
+            let event_transaction_lt = withdrawal_account_data.pda.event_transaction_lt;
+            let event_configuration = withdrawal_account_data.pda.event_configuration;
+            let event_data = hash(&withdrawal_account_data.event.data.try_to_vec()?);
+            let (nonce, _) = withdrawal_account_data
+                .account_kind
+                .into_proposal()
+                .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
+
+            let withdrawal_pubkey = bridge_utils::helper::validate_proposal_account(
+                program_id,
+                round_number,
+                event_timestamp,
+                event_transaction_lt,
+                &event_configuration,
+                &event_data,
+                nonce,
+                withdrawal_account_info,
+            )?;
+
+            if withdrawal_account_data.meta.data.status != WithdrawalTokenStatus::Pending {
+                return Err(SolanaBridgeError::InvalidWithdrawalStatus.into());
+            }
+
+            // Check connection between token and proposal
+            if mint != withdrawal_account_data.event.data.mint {
+                return Err(ProgramError::InvalidArgument);
+            }
+
+            // Validate Recipient account
+            let recipient_token_account_data =
+                spl_token::state::Account::unpack(&recipient_token_account_info.data.borrow())?;
+
+            if recipient_token_account_data.owner != withdrawal_account_data.event.data.recipient {
+                return Err(ProgramError::InvalidArgument);
+            }
+
+            if recipient_token_account_info.owner != &spl_token::id() {
+                return Err(ProgramError::InvalidArgument);
+            }
+
+            let withdrawal_amount: u64 = withdrawal_account_data
+                .event
+                .data
+                .amount
+                .try_into()
+                .map_err(|_| SolanaBridgeError::Overflow)?;
+
+            withdrawals_amount_sum += withdrawal_amount;
+
+            let amount = withdrawal_amount
+                .checked_sub(withdrawal_account_data.meta.data.bounty)
+                .ok_or(SolanaBridgeError::Overflow)?;
+
+            // Transfer SOL tokens
+            invoke(
+                &spl_token::instruction::transfer(
+                    &spl_token::id(),
+                    author_token_account_info.key,
+                    recipient_token_account_info.key,
+                    author_account_info.key,
+                    &[author_account_info.key],
+                    amount,
+                )?,
+                accounts,
+            )?;
+
+            withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Processed;
+
+            solana_program::log::sol_log_data(&[&UpdateWithdrawalStatusEvent {
+                account: withdrawal_pubkey,
+                status: withdrawal_account_data.meta.data.status,
+            }
+            .try_to_vec()?]);
+
+            WithdrawalMultiTokenSol::pack(
+                withdrawal_account_data,
+                &mut withdrawal_account_info.data.borrow_mut(),
+            )?;
+
+            solana_program::log::sol_log_data(&[&LiquidityRequestEvent {
+                deposit: deposit_pubkey,
+                withdrawal: withdrawal_pubkey,
+            }
+            .try_to_vec()?]);
         }
 
         invoke_signed(
@@ -3955,10 +3989,27 @@ impl Processor {
             &[deposit_account_signer_seeds],
         )?;
 
+        let deposit_amount = amount - withdrawals_amount_sum;
+        if deposit_amount > 0 {
+            let vault_account_info = next_account_info(account_info_iter)?;
+            validate_vault_account(program_id, &mint, vault_nonce, vault_account_info)?;
+
+            // Transfer SOL tokens
+            invoke(
+                &spl_token::instruction::transfer(
+                    &spl_token::id(),
+                    author_token_account_info.key,
+                    vault_account_info.key,
+                    author_account_info.key,
+                    &[author_account_info.key],
+                    deposit_amount,
+                )?,
+                accounts,
+            )?;
+        }
+
         // Init Deposit Account
-        let amount: u128 = withdrawal_amount
-            .try_into()
-            .map_err(|_| SolanaBridgeError::Overflow)?;
+        let amount: u128 = amount.try_into().map_err(|_| SolanaBridgeError::Overflow)?;
 
         let value = u64::default();
         let payload: Vec<u8> = Vec::default();
@@ -4003,25 +4054,6 @@ impl Processor {
             deposit_account_data,
             &mut deposit_account_info.data.borrow_mut(),
         )?;
-
-        withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Processed;
-
-        solana_program::log::sol_log_data(&[&UpdateWithdrawalStatusEvent {
-            account: withdrawal_pubkey,
-            status: withdrawal_account_data.meta.data.status,
-        }
-        .try_to_vec()?]);
-
-        WithdrawalMultiTokenSol::pack(
-            withdrawal_account_data,
-            &mut withdrawal_account_info.data.borrow_mut(),
-        )?;
-
-        solana_program::log::sol_log_data(&[&LiquidityRequestEvent {
-            deposit: deposit_pubkey,
-            withdrawal: withdrawal_pubkey,
-        }
-        .try_to_vec()?]);
 
         Ok(())
     }

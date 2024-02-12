@@ -6137,6 +6137,25 @@ async fn test_fill_withdrawal_sol() {
         Pubkey::find_program_address(&[br"vault", &mint_address.to_bytes()], &token_proxy::id());
 
     let vault_address = get_vault_address(&mint_address);
+    let vault_account_data = spl_token::state::Account {
+        mint: mint_address,
+        owner: vault_address,
+        state: AccountState::Initialized,
+        ..Default::default()
+    };
+
+    let mut vault_packed = vec![0; spl_token::state::Account::LEN];
+    spl_token::state::Account::pack(vault_account_data, &mut vault_packed).unwrap();
+    program_test.add_account(
+        vault_address,
+        Account {
+            lamports: Rent::default().minimum_balance(spl_token::state::Account::LEN),
+            data: vault_packed,
+            owner: spl_token::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
 
     let (_, token_settings_nonce) = Pubkey::find_program_address(
         &[br"settings", &mint_address.to_bytes()],
@@ -6258,11 +6277,13 @@ async fn test_fill_withdrawal_sol() {
         &[fill_withdrawal_sol_ix(
             funder.pubkey(),
             author.pubkey(),
-            recipient_address,
             mint_address,
-            withdrawal_address,
             deposit_seed,
             ever_recipient,
+            100,
+            withdrawal_address,
+            recipient_address,
+            Some(vault_address),
         )],
         Some(&funder.pubkey()),
     );
@@ -6295,7 +6316,7 @@ async fn test_fill_withdrawal_sol() {
 
     let author_token_data =
         spl_token::state::Account::unpack(author_token_info.data()).expect("sender unpack");
-    assert_eq!(author_token_data.amount, 100 - amount as u64 + bounty);
+    assert_eq!(author_token_data.amount, bounty);
 
     let recipient_token_info = banks_client
         .get_account(recipient_token_address)
@@ -6317,7 +6338,7 @@ async fn test_fill_withdrawal_sol() {
     let deposit_data = DepositMultiTokenSol::unpack(deposit_info.data()).expect("deposit unpack");
 
     assert_eq!(deposit_data.is_initialized, true);
-    assert_eq!(deposit_data.event.data.amount, amount);
+    assert_eq!(deposit_data.event.data.amount, 100);
     assert_eq!(deposit_data.meta.data.seed, deposit_seed);
 }
 

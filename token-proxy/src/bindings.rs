@@ -1124,11 +1124,13 @@ pub fn cancel_withdrawal_sol_ix(
 pub fn fill_withdrawal_sol_ix(
     funder_pubkey: Pubkey,
     author_pubkey: Pubkey,
-    to_pubkey: Pubkey,
     mint_pubkey: Pubkey,
-    withdrawal_pubkey: Pubkey,
     deposit_seed: u128,
     recipient: EverAddress,
+    amount: u64,
+    withdrawal_pubkey: Pubkey,
+    to_pubkey: Pubkey,
+    vault_pubkey: Option<Pubkey>,
 ) -> Instruction {
     let author_token_pubkey =
         spl_associated_token_account::get_associated_token_address(&author_pubkey, &mint_pubkey);
@@ -1142,26 +1144,33 @@ pub fn fill_withdrawal_sol_ix(
     let data = TokenProxyInstruction::FillWithdrawSol {
         deposit_seed,
         recipient,
+        amount,
     }
     .try_to_vec()
     .expect("pack");
 
+    let mut accounts = vec![
+        AccountMeta::new(funder_pubkey, true),
+        AccountMeta::new(author_pubkey, true),
+        AccountMeta::new(author_token_pubkey, false),
+        AccountMeta::new(mint_pubkey, false),
+        AccountMeta::new(deposit_pubkey, false),
+        AccountMeta::new_readonly(settings_pubkey, false),
+        AccountMeta::new_readonly(token_settings_pubkey, false),
+        AccountMeta::new_readonly(system_program::id(), false),
+        AccountMeta::new_readonly(spl_token::id(), false),
+        AccountMeta::new_readonly(sysvar::rent::id(), false),
+        AccountMeta::new(withdrawal_pubkey, false),
+        AccountMeta::new(recipient_token_pubkey, false),
+    ];
+
+    if let Some(vault_pubkey) = vault_pubkey {
+        accounts.push(AccountMeta::new(vault_pubkey, false));
+    }
+
     Instruction {
         program_id: id(),
-        accounts: vec![
-            AccountMeta::new(funder_pubkey, true),
-            AccountMeta::new(author_pubkey, true),
-            AccountMeta::new(author_token_pubkey, false),
-            AccountMeta::new(mint_pubkey, false),
-            AccountMeta::new(withdrawal_pubkey, false),
-            AccountMeta::new(recipient_token_pubkey, false),
-            AccountMeta::new(deposit_pubkey, false),
-            AccountMeta::new_readonly(settings_pubkey, false),
-            AccountMeta::new_readonly(token_settings_pubkey, false),
-            AccountMeta::new_readonly(system_program::id(), false),
-            AccountMeta::new_readonly(spl_token::id(), false),
-            AccountMeta::new_readonly(sysvar::rent::id(), false),
-        ],
+        accounts,
         data,
     }
 }

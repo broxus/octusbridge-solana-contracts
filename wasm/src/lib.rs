@@ -1234,15 +1234,23 @@ pub fn cancel_withdrawal_sol(
     return serde_wasm_bindgen::to_value(&ix).handle_error();
 }
 
+#[wasm_bindgen]
+#[derive(Debug)]
+pub struct FillWithdrawals {
+    withdrawal_pubkey: String,
+    to_pubkey: String,
+}
+
 #[wasm_bindgen(js_name = "fillWithdrawalSol")]
 pub fn fill_withdrawal_sol(
     funder_pubkey: String,
     author_pubkey: String,
-    to_pubkey: String,
     mint_pubkey: String,
-    withdrawal_pubkey: String,
     deposit_seed: String,
     recipient: String,
+    amount: u64,
+    withdrawal_pubkeys: Vec<FillWithdrawals>,
+    vault_pubkey: Option<String>,
 ) -> Result<JsValue, JsValue> {
     let deposit_seed = uuid::Uuid::from_str(&deposit_seed)
         .handle_error()?
@@ -1252,13 +1260,9 @@ pub fn fill_withdrawal_sol(
     let funder_pubkey = Pubkey::from_str(funder_pubkey.as_str()).handle_error()?;
     let author_pubkey = Pubkey::from_str(author_pubkey.as_str()).handle_error()?;
     let recipient = EverAddress::from_str(&recipient).handle_error()?;
-    let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).handle_error()?;
-    let to_pubkey = Pubkey::from_str(to_pubkey.as_str()).handle_error()?;
 
     let author_token_pubkey =
         spl_associated_token_account::get_associated_token_address(&author_pubkey, &mint_pubkey);
-    let recipient_token_pubkey =
-        spl_associated_token_account::get_associated_token_address(&to_pubkey, &mint_pubkey);
 
     let settings_pubkey = token_proxy::get_settings_address();
     let deposit_pubkey = token_proxy::get_deposit_address(deposit_seed);
@@ -1267,19 +1271,18 @@ pub fn fill_withdrawal_sol(
     let data = token_proxy::TokenProxyInstruction::FillWithdrawSol {
         deposit_seed,
         recipient,
+        amount,
     }
     .try_to_vec()
     .expect("pack");
 
-    let ix = Instruction {
+    let mut ix = Instruction {
         program_id: token_proxy::id(),
         accounts: vec![
             AccountMeta::new(funder_pubkey, true),
             AccountMeta::new(author_pubkey, true),
             AccountMeta::new(author_token_pubkey, false),
             AccountMeta::new(mint_pubkey, false),
-            AccountMeta::new(withdrawal_pubkey, false),
-            AccountMeta::new(recipient_token_pubkey, false),
             AccountMeta::new(deposit_pubkey, false),
             AccountMeta::new_readonly(settings_pubkey, false),
             AccountMeta::new_readonly(token_settings_pubkey, false),
@@ -1289,6 +1292,21 @@ pub fn fill_withdrawal_sol(
         ],
         data,
     };
+
+    for fill in withdrawal_pubkeys {
+        let withdrawal_pubkey = Pubkey::from_str(fill.withdrawal_pubkey.as_str()).handle_error()?;
+        let to_pubkey = Pubkey::from_str(fill.to_pubkey.as_str()).handle_error()?;
+        let recipient_token_pubkey =
+            spl_associated_token_account::get_associated_token_address(&to_pubkey, &mint_pubkey);
+        ix.accounts.push(AccountMeta::new(withdrawal_pubkey, false));
+        ix.accounts
+            .push(AccountMeta::new(recipient_token_pubkey, false));
+    }
+
+    if let Some(vault_pubkey) = vault_pubkey {
+        let vault_pubkey = Pubkey::from_str(vault_pubkey.as_str()).handle_error()?;
+        ix.accounts.push(AccountMeta::new(vault_pubkey, false));
+    }
 
     return serde_wasm_bindgen::to_value(&ix).handle_error();
 }
