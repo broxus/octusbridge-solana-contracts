@@ -1234,11 +1234,11 @@ pub fn cancel_withdrawal_sol(
     return serde_wasm_bindgen::to_value(&ix).handle_error();
 }
 
-#[wasm_bindgen]
-#[derive(Debug)]
+#[wasm_bindgen(getter_with_clone)]
+#[derive(Debug, Deserialize)]
 pub struct FillWithdrawals {
-    withdrawal_pubkey: String,
-    to_pubkey: String,
+    pub withdrawal_pubkey: String,
+    pub to_pubkey: String,
 }
 
 #[wasm_bindgen(js_name = "fillWithdrawalSol")]
@@ -1249,7 +1249,7 @@ pub fn fill_withdrawal_sol(
     deposit_seed: String,
     recipient: String,
     amount: u64,
-    withdrawal_pubkeys: Vec<FillWithdrawals>,
+    withdrawal_pubkeys: Vec<JsValue>,
     vault_pubkey: Option<String>,
 ) -> Result<JsValue, JsValue> {
     let deposit_seed = uuid::Uuid::from_str(&deposit_seed)
@@ -1294,6 +1294,7 @@ pub fn fill_withdrawal_sol(
     };
 
     for fill in withdrawal_pubkeys {
+        let fill: FillWithdrawals = serde_wasm_bindgen::from_value(fill).handle_error()?;
         let withdrawal_pubkey = Pubkey::from_str(fill.withdrawal_pubkey.as_str()).handle_error()?;
         let to_pubkey = Pubkey::from_str(fill.to_pubkey.as_str()).handle_error()?;
         let recipient_token_pubkey =
