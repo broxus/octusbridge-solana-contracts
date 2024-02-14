@@ -239,6 +239,9 @@ impl Processor {
                 deposit_seed,
                 recipient,
                 amount,
+                value,
+                expected_evers,
+                payload,
             } => {
                 msg!("Instruction: Fill Withdraw SOL");
                 Self::process_fill_withdraw_sol(
@@ -247,6 +250,9 @@ impl Processor {
                     deposit_seed,
                     recipient,
                     amount,
+                    value,
+                    expected_evers,
+                    payload,
                 )?;
             }
             TokenProxyInstruction::ExecutePayloadEver => {
@@ -3800,6 +3806,9 @@ impl Processor {
         deposit_seed: u128,
         recipient: EverAddress,
         amount: u64,
+        value: u64,
+        expected_evers: UInt256,
+        payload: Vec<u8>,
     ) -> ProgramResult {
         let account_info_iter = &mut accounts.iter();
 
@@ -3809,8 +3818,8 @@ impl Processor {
         let mint_account_info = next_account_info(account_info_iter)?;
         let deposit_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
-        let token_settings_account_info = next_account_info(account_info_iter)?;
         let _system_program_info = next_account_info(account_info_iter)?;
+        let token_settings_account_info = next_account_info(account_info_iter)?;
         let _token_program_info = next_account_info(account_info_iter)?;
         let rent_sysvar_info = next_account_info(account_info_iter)?;
         let rent = &Rent::from_account_info(rent_sysvar_info)?;
@@ -4010,10 +4019,6 @@ impl Processor {
 
         // Init Deposit Account
         let amount: u128 = amount.try_into().map_err(|_| SolanaBridgeError::Overflow)?;
-
-        let value = u64::default();
-        let payload: Vec<u8> = Vec::default();
-        let expected_evers = UInt256::default();
         let name = token_settings_account_data.name.clone();
         let symbol = token_settings_account_data.symbol.clone();
 

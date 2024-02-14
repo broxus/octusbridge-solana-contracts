@@ -1251,6 +1251,9 @@ pub fn fill_withdrawal_sol(
     amount: u64,
     withdrawal_pubkeys: Vec<JsValue>,
     vault_pubkey: Option<String>,
+    value: u64,
+    expected_evers: u64,
+    payload: String,
 ) -> Result<JsValue, JsValue> {
     let deposit_seed = uuid::Uuid::from_str(&deposit_seed)
         .handle_error()?
@@ -1268,10 +1271,16 @@ pub fn fill_withdrawal_sol(
     let deposit_pubkey = token_proxy::get_deposit_address(deposit_seed);
     let token_settings_pubkey = token_proxy::get_token_settings_sol_address(&mint_pubkey);
 
+    let expected_evers = UInt256::from_be_bytes(expected_evers.to_be_bytes().as_slice());
+    let payload = general_purpose::STANDARD.decode(payload).handle_error()?;
+
     let data = token_proxy::TokenProxyInstruction::FillWithdrawSol {
         deposit_seed,
         recipient,
         amount,
+        value,
+        expected_evers,
+        payload,
     }
     .try_to_vec()
     .expect("pack");
@@ -1285,8 +1294,8 @@ pub fn fill_withdrawal_sol(
             AccountMeta::new(mint_pubkey, false),
             AccountMeta::new(deposit_pubkey, false),
             AccountMeta::new_readonly(settings_pubkey, false),
-            AccountMeta::new_readonly(token_settings_pubkey, false),
             AccountMeta::new_readonly(system_program::id(), false),
+            AccountMeta::new_readonly(token_settings_pubkey, false),
             AccountMeta::new_readonly(spl_token::id(), false),
             AccountMeta::new_readonly(sysvar::rent::id(), false),
         ],

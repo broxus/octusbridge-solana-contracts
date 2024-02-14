@@ -1131,6 +1131,9 @@ pub fn fill_withdrawal_sol_ix(
     withdrawal_pubkey: Pubkey,
     to_pubkey: Pubkey,
     vault_pubkey: Option<Pubkey>,
+    value: u64,
+    expected_evers: UInt256,
+    payload: Vec<u8>,
 ) -> Instruction {
     let author_token_pubkey =
         spl_associated_token_account::get_associated_token_address(&author_pubkey, &mint_pubkey);
@@ -1145,6 +1148,9 @@ pub fn fill_withdrawal_sol_ix(
         deposit_seed,
         recipient,
         amount,
+        value,
+        expected_evers,
+        payload,
     }
     .try_to_vec()
     .expect("pack");
@@ -1156,8 +1162,8 @@ pub fn fill_withdrawal_sol_ix(
         AccountMeta::new(mint_pubkey, false),
         AccountMeta::new(deposit_pubkey, false),
         AccountMeta::new_readonly(settings_pubkey, false),
-        AccountMeta::new_readonly(token_settings_pubkey, false),
         AccountMeta::new_readonly(system_program::id(), false),
+        AccountMeta::new_readonly(token_settings_pubkey, false),
         AccountMeta::new_readonly(spl_token::id(), false),
         AccountMeta::new_readonly(sysvar::rent::id(), false),
         AccountMeta::new(withdrawal_pubkey, false),

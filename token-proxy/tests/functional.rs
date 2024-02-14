@@ -6206,7 +6206,9 @@ async fn test_fill_withdrawal_sol() {
     let amount = 32;
     let bounty = 2;
 
+    let value = 1000;
     let payload: Vec<u8> = vec![];
+    let expected_evers = UInt256::default();
 
     let withdrawal_address = get_withdrawal_sol_address(
         round_number,
@@ -6219,8 +6221,12 @@ async fn test_fill_withdrawal_sol() {
         payload.clone(),
     );
 
-    let event =
-        WithdrawalMultiTokenSolEventWithLen::new(mint_address, amount, recipient_address, payload);
+    let event = WithdrawalMultiTokenSolEventWithLen::new(
+        mint_address,
+        amount,
+        recipient_address,
+        payload.clone(),
+    );
     let event_data = hash(&event.data.try_to_vec().expect("pack")).to_bytes();
 
     let (_, withdrawal_nonce) = Pubkey::find_program_address(
@@ -6284,6 +6290,9 @@ async fn test_fill_withdrawal_sol() {
             withdrawal_address,
             recipient_address,
             Some(vault_address),
+            value,
+            expected_evers,
+            payload.clone(),
         )],
         Some(&funder.pubkey()),
     );

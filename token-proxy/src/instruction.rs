@@ -290,6 +290,12 @@ pub enum TokenProxyInstruction {
         recipient: EverAddress,
         // Deposit amount
         amount: u64,
+        // Sol amount to transfer to ever
+        value: u64,
+        // Expected SOL amount in EVER
+        expected_evers: UInt256,
+        // Random payload to transfer to ever
+        payload: Vec<u8>,
     },
 
     /// Withdraw tokens from Proxy Account
