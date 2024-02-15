@@ -2930,6 +2930,21 @@ impl Processor {
             solana_decimals,
         )?;
 
+        let fee_info = &token_settings_account_data.fee_withdrawal_info;
+
+        let fee = 1.max(
+            withdrawal_amount
+                .checked_div(fee_info.divisor)
+                .ok_or(SolanaBridgeError::Overflow)?
+                .checked_mul(fee_info.multiplier)
+                .ok_or(SolanaBridgeError::Overflow)?,
+        );
+
+        // Amount without fee
+        let transfer_withdrawal_amount = withdrawal_amount
+            .checked_sub(fee)
+            .ok_or(SolanaBridgeError::Overflow)?;
+
         match withdrawal_account_data.event.data.payload.is_empty() {
             true => {
                 // Validate Recipient Account
@@ -2945,7 +2960,7 @@ impl Processor {
                     recipient_account_info,
                     &token_settings_account_data,
                     accounts,
-                    withdrawal_amount,
+                    transfer_withdrawal_amount,
                 )?;
 
                 withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Processed;
@@ -2972,7 +2987,7 @@ impl Processor {
                     recipient_account_info,
                     &token_settings_account_data,
                     accounts,
-                    withdrawal_amount,
+                    transfer_withdrawal_amount,
                 )?;
 
                 withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::WaitingForExecute;
@@ -2986,7 +3001,7 @@ impl Processor {
             // Decrease withdrawal daily amount
             token_settings_account_data.withdrawal_daily_amount = token_settings_account_data
                 .withdrawal_daily_amount
-                .checked_sub(withdrawal_amount)
+                .checked_sub(transfer_withdrawal_amount)
                 .ok_or(SolanaBridgeError::Overflow)?;
 
             TokenSettings::pack(
@@ -3126,6 +3141,21 @@ impl Processor {
 
         let withdrawal_amount = withdrawal_account_data.event.data.amount as u64;
 
+        let fee_info = &token_settings_account_data.fee_withdrawal_info;
+
+        let fee = 1.max(
+            withdrawal_amount
+                .checked_div(fee_info.divisor)
+                .ok_or(SolanaBridgeError::Overflow)?
+                .checked_mul(fee_info.multiplier)
+                .ok_or(SolanaBridgeError::Overflow)?,
+        );
+
+        // Amount without fee
+        let transfer_withdrawal_amount = withdrawal_amount
+            .checked_sub(fee)
+            .ok_or(SolanaBridgeError::Overflow)?;
+
         match withdrawal_account_data.event.data.payload.is_empty() {
             true => {
                 // Validate Recipient Account
@@ -3139,7 +3169,7 @@ impl Processor {
                 let vault_account_data =
                     spl_token::state::Account::unpack(&vault_account_info.data.borrow())?;
 
-                if withdrawal_amount > vault_account_data.amount {
+                if transfer_withdrawal_amount > vault_account_data.amount {
                     withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Pending;
                 } else {
                     make_sol_transfer(
@@ -3147,7 +3177,7 @@ impl Processor {
                         recipient_account_info,
                         &token_settings_account_data,
                         accounts,
-                        withdrawal_amount,
+                        transfer_withdrawal_amount,
                     )?;
 
                     withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Processed;
@@ -3173,7 +3203,7 @@ impl Processor {
                 let vault_account_data =
                     spl_token::state::Account::unpack(&vault_account_info.data.borrow())?;
 
-                if withdrawal_amount > vault_account_data.amount {
+                if transfer_withdrawal_amount > vault_account_data.amount {
                     withdrawal_account_data.meta.data.status = WithdrawalTokenStatus::Pending;
                 } else {
                     make_sol_transfer(
@@ -3181,7 +3211,7 @@ impl Processor {
                         recipient_account_info,
                         &token_settings_account_data,
                         accounts,
-                        withdrawal_amount,
+                        transfer_withdrawal_amount,
                     )?;
 
                     withdrawal_account_data.meta.data.status =
@@ -3197,7 +3227,7 @@ impl Processor {
             // Decrease withdrawal daily amount
             token_settings_account_data.withdrawal_daily_amount = token_settings_account_data
                 .withdrawal_daily_amount
-                .checked_sub(withdrawal_amount)
+                .checked_sub(transfer_withdrawal_amount)
                 .ok_or(SolanaBridgeError::Overflow)?;
 
             TokenSettings::pack(

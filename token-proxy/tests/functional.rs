@@ -4335,6 +4335,8 @@ async fn test_approve_withdrawal_ever() {
         fee_withdrawal_info: Default::default(),
     };
 
+    let fee_info = token_settings_account_data.fee_withdrawal_info.clone();
+
     let mut token_settings_packed = vec![0; TokenSettings::LEN];
     TokenSettings::pack(token_settings_account_data, &mut token_settings_packed).unwrap();
     program_test.add_account(
@@ -4461,6 +4463,16 @@ async fn test_approve_withdrawal_ever() {
         WithdrawalTokenStatus::Processed
     );
 
+    let fee = 1.max(
+        (amount as u64)
+            .checked_div(fee_info.divisor)
+            .unwrap()
+            .checked_mul(fee_info.multiplier)
+            .unwrap(),
+    );
+
+    let transfer_amount = amount as u64 - fee;
+
     let mint_info = banks_client
         .get_account(mint_address)
         .await
@@ -4468,7 +4480,7 @@ async fn test_approve_withdrawal_ever() {
         .expect("account");
 
     let mint_data = spl_token::state::Mint::unpack(mint_info.data()).expect("mint unpack");
-    assert_eq!(mint_data.supply, amount as u64);
+    assert_eq!(mint_data.supply, transfer_amount as u64);
 
     let recipient_info = banks_client
         .get_account(token_wallet)
@@ -4478,7 +4490,7 @@ async fn test_approve_withdrawal_ever() {
 
     let recipient_data =
         spl_token::state::Account::unpack(recipient_info.data()).expect("token unpack");
-    assert_eq!(recipient_data.amount, amount as u64);
+    assert_eq!(recipient_data.amount, transfer_amount as u64);
 }
 
 #[tokio::test]
@@ -4634,6 +4646,8 @@ async fn test_approve_withdrawal_sol() {
         fee_withdrawal_info: Default::default(),
     };
 
+    let fee_info = token_settings_account_data.fee_withdrawal_info.clone();
+
     let mut token_settings_packed = vec![0; TokenSettings::LEN];
     TokenSettings::pack(token_settings_account_data, &mut token_settings_packed).unwrap();
     program_test.add_account(
@@ -4756,8 +4770,18 @@ async fn test_approve_withdrawal_sol() {
         .expect("get_account")
         .expect("account");
 
+    let fee = 1.max(
+        (amount as u64)
+            .checked_div(fee_info.divisor)
+            .unwrap()
+            .checked_mul(fee_info.multiplier)
+            .unwrap(),
+    );
+
+    let transfer_amount = amount as u64 - fee;
+
     let vault_data = spl_token::state::Account::unpack(vault_info.data()).expect("mint unpack");
-    assert_eq!(vault_data.amount, 100 - amount as u64);
+    assert_eq!(vault_data.amount, 100 - transfer_amount as u64);
 
     let recipient_info = banks_client
         .get_account(token_wallet)
@@ -4767,7 +4791,7 @@ async fn test_approve_withdrawal_sol() {
 
     let recipient_data =
         spl_token::state::Account::unpack(recipient_info.data()).expect("token unpack");
-    assert_eq!(recipient_data.amount, amount as u64);
+    assert_eq!(recipient_data.amount, transfer_amount as u64);
 }
 
 #[tokio::test]
