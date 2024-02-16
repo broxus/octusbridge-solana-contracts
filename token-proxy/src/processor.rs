@@ -3993,6 +3993,7 @@ impl Processor {
             return Err(ProgramError::InvalidArgument);
         }
 
+        let mut fee_amount_sum = 0;
         let mut withdrawals_amount_sum = 0;
 
         let fee_info = &token_settings_account_data.fee_withdrawal_info;
@@ -4061,6 +4062,8 @@ impl Processor {
                     .ok_or(SolanaBridgeError::Overflow)?,
             );
 
+            fee_amount_sum += fee;
+
             // Amount without fee
             let withdrawal_amount = withdrawal_amount
                 .checked_sub(fee)
@@ -4118,37 +4121,39 @@ impl Processor {
             &[deposit_account_signer_seeds],
         )?;
 
-        let deposit_amount = amount - withdrawals_amount_sum;
-        if deposit_amount > 0 {
-            let vault_account_info = next_account_info(account_info_iter)?;
-            validate_vault_account(program_id, &mint, vault_nonce, vault_account_info)?;
-
-            // Make transfer
-            let vault_account_data =
-                spl_token::state::Account::unpack(&vault_account_info.data.borrow())?;
-
-            if vault_account_data
-                .amount
-                .checked_add(amount)
-                .ok_or(SolanaBridgeError::Overflow)?
-                > token_settings_account_data.deposit_limit
-            {
-                return Err(SolanaBridgeError::DepositLimit.into());
-            }
-
-            // Transfer SOL tokens
-            invoke(
-                &spl_token::instruction::transfer(
-                    &spl_token::id(),
-                    author_token_account_info.key,
-                    vault_account_info.key,
-                    author_account_info.key,
-                    &[author_account_info.key],
-                    deposit_amount,
-                )?,
-                accounts,
-            )?;
+        if fee_amount_sum + withdrawals_amount_sum > amount {
+            return Err(ProgramError::InsufficientFunds);
         }
+
+        let deposit_amount = amount - withdrawals_amount_sum;
+        let vault_account_info = next_account_info(account_info_iter)?;
+        validate_vault_account(program_id, &mint, vault_nonce, vault_account_info)?;
+
+        // Make transfer
+        let vault_account_data =
+            spl_token::state::Account::unpack(&vault_account_info.data.borrow())?;
+
+        if vault_account_data
+            .amount
+            .checked_add(amount)
+            .ok_or(SolanaBridgeError::Overflow)?
+            > token_settings_account_data.deposit_limit
+        {
+            return Err(SolanaBridgeError::DepositLimit.into());
+        }
+
+        // Transfer SOL tokens
+        invoke(
+            &spl_token::instruction::transfer(
+                &spl_token::id(),
+                author_token_account_info.key,
+                vault_account_info.key,
+                author_account_info.key,
+                &[author_account_info.key],
+                deposit_amount,
+            )?,
+            accounts,
+        )?;
 
         // Calculate fee
         let fee = 1.max(
