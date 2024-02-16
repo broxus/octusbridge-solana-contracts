@@ -1233,11 +1233,11 @@ pub fn cancel_withdrawal_sol(
             AccountMeta::new(mint_pubkey, false),
             AccountMeta::new(withdrawal_pubkey, false),
             AccountMeta::new(deposit_pubkey, false),
-            AccountMeta::new(multivault_pubkey, false),
             AccountMeta::new_readonly(settings_pubkey, false),
             AccountMeta::new_readonly(token_settings_pubkey, false),
             AccountMeta::new_readonly(system_program::id(), false),
             AccountMeta::new_readonly(sysvar::rent::id(), false),
+            AccountMeta::new(multivault_pubkey, false),
         ],
         data,
     };

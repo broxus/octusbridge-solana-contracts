@@ -3663,11 +3663,12 @@ impl Processor {
         let mint_account_info = next_account_info(account_info_iter)?;
         let withdrawal_account_info = next_account_info(account_info_iter)?;
         let deposit_account_info = next_account_info(account_info_iter)?;
-        let multi_vault_account_info = next_account_info(account_info_iter)?;
         let settings_account_info = next_account_info(account_info_iter)?;
         let token_settings_account_info = next_account_info(account_info_iter)?;
         let _system_program_info = next_account_info(account_info_iter)?;
         let rent_sysvar_info = next_account_info(account_info_iter)?;
+        let multi_vault_account_info = next_account_info(account_info_iter)?;
+
         let rent = &Rent::from_account_info(rent_sysvar_info)?;
 
         if !author_account_info.is_signer {
