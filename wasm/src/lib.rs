@@ -14,7 +14,6 @@ use solana_program::{system_program, sysvar};
 
 use bridge_utils::state::*;
 use bridge_utils::types::*;
-use token_proxy::{id, TokenProxyInstruction};
 
 #[wasm_bindgen(js_name = "getMintAddress")]
 pub fn get_mint_address_request(token: String) -> Result<JsValue, JsValue> {
@@ -1193,6 +1192,9 @@ pub fn cancel_withdrawal_sol(
     mint_pubkey: String,
     deposit_seed: String,
     recipient: String,
+    value: u64,
+    expected_evers: u64,
+    payload: String,
 ) -> Result<JsValue, JsValue> {
     let deposit_seed = uuid::Uuid::from_str(&deposit_seed)
         .handle_error()?
@@ -1205,12 +1207,20 @@ pub fn cancel_withdrawal_sol(
     let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).handle_error()?;
 
     let settings_pubkey = token_proxy::get_settings_address();
+    let multivault_pubkey = token_proxy::get_multivault_address();
     let deposit_pubkey = token_proxy::get_deposit_address(deposit_seed);
     let token_settings_pubkey = token_proxy::get_token_settings_sol_address(&mint_pubkey);
+
+    let expected_evers = UInt256::from_be_bytes(expected_evers.to_be_bytes().as_slice());
+
+    let payload = general_purpose::STANDARD.decode(payload).handle_error()?;
 
     let data = token_proxy::TokenProxyInstruction::CancelWithdrawSol {
         deposit_seed,
         recipient,
+        value,
+        expected_evers,
+        payload,
     }
     .try_to_vec()
     .expect("pack");
@@ -1223,6 +1233,7 @@ pub fn cancel_withdrawal_sol(
             AccountMeta::new(mint_pubkey, false),
             AccountMeta::new(withdrawal_pubkey, false),
             AccountMeta::new(deposit_pubkey, false),
+            AccountMeta::new(multivault_pubkey, false),
             AccountMeta::new_readonly(settings_pubkey, false),
             AccountMeta::new_readonly(token_settings_pubkey, false),
             AccountMeta::new_readonly(system_program::id(), false),
@@ -1330,12 +1341,12 @@ pub fn change_bounty_for_withdrawal_sol_ix(
     let author_pubkey = Pubkey::from_str(author_pubkey.as_str()).handle_error()?;
     let withdrawal_pubkey = Pubkey::from_str(withdrawal_pubkey.as_str()).handle_error()?;
 
-    let data = TokenProxyInstruction::ChangeBountyForWithdrawSol { bounty }
+    let data = token_proxy::TokenProxyInstruction::ChangeBountyForWithdrawSol { bounty }
         .try_to_vec()
         .expect("pack");
 
     let ix = Instruction {
-        program_id: id(),
+        program_id: token_proxy::id(),
         accounts: vec![
             AccountMeta::new(author_pubkey, true),
             AccountMeta::new(withdrawal_pubkey, false),

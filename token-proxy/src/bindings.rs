@@ -1092,14 +1092,21 @@ pub fn cancel_withdrawal_sol_ix(
     mint_pubkey: Pubkey,
     deposit_seed: u128,
     recipient: EverAddress,
+    value: u64,
+    expected_evers: UInt256,
+    payload: Vec<u8>,
 ) -> Instruction {
     let settings_pubkey = get_settings_address();
+    let multivault_pubkey = get_multivault_address();
     let deposit_pubkey = get_deposit_address(deposit_seed);
     let token_settings_pubkey = get_token_settings_sol_address(&mint_pubkey);
 
     let data = TokenProxyInstruction::CancelWithdrawSol {
         deposit_seed,
         recipient,
+        value,
+        expected_evers,
+        payload,
     }
     .try_to_vec()
     .expect("pack");
@@ -1112,6 +1119,7 @@ pub fn cancel_withdrawal_sol_ix(
             AccountMeta::new(mint_pubkey, false),
             AccountMeta::new(withdrawal_pubkey, false),
             AccountMeta::new(deposit_pubkey, false),
+            AccountMeta::new(multivault_pubkey, false),
             AccountMeta::new_readonly(settings_pubkey, false),
             AccountMeta::new_readonly(token_settings_pubkey, false),
             AccountMeta::new_readonly(system_program::id(), false),

@@ -277,6 +277,12 @@ pub enum TokenProxyInstruction {
         deposit_seed: u128,
         // Recipient address
         recipient: EverAddress,
+        // Sol amount to transfer to ever
+        value: u64,
+        // Expected SOL amount in EVER
+        expected_evers: UInt256,
+        // Random payload to transfer to ever
+        payload: Vec<u8>,
     },
 
     /// Fill Withdraw SOL

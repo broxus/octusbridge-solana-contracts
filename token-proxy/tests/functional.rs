@@ -5838,6 +5838,31 @@ async fn test_cancel_withdrawal_sol() {
         },
     );
 
+    // Add MultiVault  Account
+    let (_, multivault_nonce) = Pubkey::find_program_address(&[br"multivault"], &token_proxy::id());
+
+    let multivault_address = get_multivault_address();
+
+    let multivault_account_data = MultiVault {
+        is_initialized: true,
+        account_kind: AccountKind::MultiVault(multivault_nonce),
+    };
+
+    let mut multivault_packed = vec![0; MultiVault::LEN];
+    MultiVault::pack(multivault_account_data, &mut multivault_packed).unwrap();
+
+    let multivault_balance = Rent::default().minimum_balance(MultiVault::LEN);
+    program_test.add_account(
+        multivault_address,
+        Account {
+            lamports: multivault_balance,
+            data: multivault_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
     // Add Token Settings Account
     let symbol = "USDT".to_string();
     let name = "USDT Solana Octusbridge".to_string();
@@ -5871,6 +5896,8 @@ async fn test_cancel_withdrawal_sol() {
         fee_deposit_info: Default::default(),
         fee_withdrawal_info: Default::default(),
     };
+
+    let fee_info = token_settings_account_data.fee_withdrawal_info.clone();
 
     let mut token_settings_packed = vec![0; TokenSettings::LEN];
     TokenSettings::pack(token_settings_account_data, &mut token_settings_packed).unwrap();
@@ -5971,6 +5998,9 @@ async fn test_cancel_withdrawal_sol() {
 
     let deposit_seed = uuid::Uuid::new_v4().as_u128();
     let recipient = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
+    let value = 1000;
+    let expected_evers = Default::default();
+    let payload = Default::default();
 
     let mut transaction = Transaction::new_with_payer(
         &[cancel_withdrawal_sol_ix(
@@ -5980,6 +6010,9 @@ async fn test_cancel_withdrawal_sol() {
             mint_address,
             deposit_seed,
             recipient,
+            value,
+            expected_evers,
+            payload,
         )],
         Some(&funder.pubkey()),
     );
@@ -6014,9 +6047,27 @@ async fn test_cancel_withdrawal_sol() {
     let deposit_data =
         DepositMultiTokenSol::unpack(new_deposit_info.data()).expect("deposit unpack");
     assert_eq!(deposit_data.is_initialized, true);
-    assert_eq!(deposit_data.event.data.amount, amount);
     assert_eq!(deposit_data.event.data.recipient, recipient);
     assert_eq!(deposit_data.meta.data.seed, deposit_seed);
+
+    let fee = 1.max(
+        (amount as u64)
+            .checked_div(fee_info.divisor)
+            .unwrap()
+            .checked_mul(fee_info.multiplier)
+            .unwrap(),
+    );
+
+    let transfer_amount = amount as u64 - fee;
+    assert_eq!(deposit_data.event.data.amount, transfer_amount as u128);
+
+    // Check MultiVault Balance
+    let multivault_info = banks_client
+        .get_account(multivault_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+    assert_eq!(multivault_info.lamports, multivault_balance + value);
 }
 
 #[tokio::test]
