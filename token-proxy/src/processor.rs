@@ -3905,6 +3905,8 @@ impl Processor {
         let token_settings_account_info = next_account_info(account_info_iter)?;
         let _token_program_info = next_account_info(account_info_iter)?;
         let rent_sysvar_info = next_account_info(account_info_iter)?;
+        let multi_vault_account_info = next_account_info(account_info_iter)?;
+
         let rent = &Rent::from_account_info(rent_sysvar_info)?;
 
         if !author_account_info.is_signer {
@@ -3954,6 +3956,25 @@ impl Processor {
             return Err(SolanaBridgeError::EmergencyEnabled.into());
         }
 
+        // Validate Multi Vault Account
+        let multi_vault_account_data = MultiVault::unpack(&multi_vault_account_info.data.borrow())?;
+        let multi_vault_nonce = multi_vault_account_data
+            .account_kind
+            .into_multi_vault()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
+
+        validate_multi_vault_account(program_id, multi_vault_nonce, multi_vault_account_info)?;
+
+        // Send sol amount to multi vault
+        invoke(
+            &system_instruction::transfer(
+                funder_account_info.key,
+                multi_vault_account_info.key,
+                value,
+            ),
+            accounts,
+        )?;
+
         // Validate Mint Account
         if *mint_account_info.key != mint && mint_account_info.owner != &spl_token::id() {
             return Err(ProgramError::InvalidArgument);
@@ -3973,6 +3994,8 @@ impl Processor {
         }
 
         let mut withdrawals_amount_sum = 0;
+
+        let fee_info = &token_settings_account_data.fee_withdrawal_info;
 
         // collect Withdrawal Accounts
         while let Some(withdrawal_account_infos) = next_account_infos(account_info_iter, 2).ok() {
@@ -4030,9 +4053,23 @@ impl Processor {
                 .try_into()
                 .map_err(|_| SolanaBridgeError::Overflow)?;
 
+            let fee = 1.max(
+                withdrawal_amount
+                    .checked_div(fee_info.divisor)
+                    .ok_or(SolanaBridgeError::Overflow)?
+                    .checked_mul(fee_info.multiplier)
+                    .ok_or(SolanaBridgeError::Overflow)?,
+            );
+
+            // Amount without fee
+            let withdrawal_amount = withdrawal_amount
+                .checked_sub(fee)
+                .ok_or(SolanaBridgeError::Overflow)?;
+
             withdrawals_amount_sum += withdrawal_amount;
 
-            let amount = withdrawal_amount
+            // Amount without bounty
+            let transfer_withdrawal_amount = withdrawal_amount
                 .checked_sub(withdrawal_account_data.meta.data.bounty)
                 .ok_or(SolanaBridgeError::Overflow)?;
 
@@ -4044,7 +4081,7 @@ impl Processor {
                     recipient_token_account_info.key,
                     author_account_info.key,
                     &[author_account_info.key],
-                    amount,
+                    transfer_withdrawal_amount,
                 )?,
                 accounts,
             )?;
@@ -4086,6 +4123,19 @@ impl Processor {
             let vault_account_info = next_account_info(account_info_iter)?;
             validate_vault_account(program_id, &mint, vault_nonce, vault_account_info)?;
 
+            // Make transfer
+            let vault_account_data =
+                spl_token::state::Account::unpack(&vault_account_info.data.borrow())?;
+
+            if vault_account_data
+                .amount
+                .checked_add(amount)
+                .ok_or(SolanaBridgeError::Overflow)?
+                > token_settings_account_data.deposit_limit
+            {
+                return Err(SolanaBridgeError::DepositLimit.into());
+            }
+
             // Transfer SOL tokens
             invoke(
                 &spl_token::instruction::transfer(
@@ -4100,8 +4150,22 @@ impl Processor {
             )?;
         }
 
+        // Calculate fee
+        let fee = 1.max(
+            amount
+                .checked_div(fee_info.divisor)
+                .ok_or(SolanaBridgeError::Overflow)?
+                .checked_mul(fee_info.multiplier)
+                .ok_or(SolanaBridgeError::Overflow)?,
+        );
+
         // Init Deposit Account
-        let amount: u128 = amount.try_into().map_err(|_| SolanaBridgeError::Overflow)?;
+        let amount = amount
+            .checked_sub(fee)
+            .ok_or(SolanaBridgeError::Overflow)?
+            .try_into()
+            .map_err(|_| SolanaBridgeError::Overflow)?;
+
         let name = token_settings_account_data.name.clone();
         let symbol = token_settings_account_data.symbol.clone();
 

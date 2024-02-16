@@ -1279,6 +1279,7 @@ pub fn fill_withdrawal_sol(
         spl_associated_token_account::get_associated_token_address(&author_pubkey, &mint_pubkey);
 
     let settings_pubkey = token_proxy::get_settings_address();
+    let multivault_pubkey = token_proxy::get_multivault_address();
     let deposit_pubkey = token_proxy::get_deposit_address(deposit_seed);
     let token_settings_pubkey = token_proxy::get_token_settings_sol_address(&mint_pubkey);
 
@@ -1309,6 +1310,7 @@ pub fn fill_withdrawal_sol(
             AccountMeta::new_readonly(token_settings_pubkey, false),
             AccountMeta::new_readonly(spl_token::id(), false),
             AccountMeta::new_readonly(sysvar::rent::id(), false),
+            AccountMeta::new(multivault_pubkey, false),
         ],
         data,
     };

@@ -1136,8 +1136,7 @@ pub fn fill_withdrawal_sol_ix(
     deposit_seed: u128,
     recipient: EverAddress,
     amount: u64,
-    withdrawal_pubkey: Pubkey,
-    to_pubkey: Pubkey,
+    withdrawals: Vec<(Pubkey, Pubkey)>,
     vault_pubkey: Option<Pubkey>,
     value: u64,
     expected_evers: UInt256,
@@ -1145,10 +1144,9 @@ pub fn fill_withdrawal_sol_ix(
 ) -> Instruction {
     let author_token_pubkey =
         spl_associated_token_account::get_associated_token_address(&author_pubkey, &mint_pubkey);
-    let recipient_token_pubkey =
-        spl_associated_token_account::get_associated_token_address(&to_pubkey, &mint_pubkey);
 
     let settings_pubkey = get_settings_address();
+    let multivault_pubkey = get_multivault_address();
     let deposit_pubkey = get_deposit_address(deposit_seed);
     let token_settings_pubkey = get_token_settings_sol_address(&mint_pubkey);
 
@@ -1174,9 +1172,16 @@ pub fn fill_withdrawal_sol_ix(
         AccountMeta::new_readonly(token_settings_pubkey, false),
         AccountMeta::new_readonly(spl_token::id(), false),
         AccountMeta::new_readonly(sysvar::rent::id(), false),
-        AccountMeta::new(withdrawal_pubkey, false),
-        AccountMeta::new(recipient_token_pubkey, false),
+        AccountMeta::new(multivault_pubkey, false),
     ];
+
+    for (withdrawal_pubkey, to_pubkey) in withdrawals {
+        let recipient_token_pubkey =
+            spl_associated_token_account::get_associated_token_address(&to_pubkey, &mint_pubkey);
+
+        accounts.push(AccountMeta::new(withdrawal_pubkey, false));
+        accounts.push(AccountMeta::new(recipient_token_pubkey, false));
+    }
 
     if let Some(vault_pubkey) = vault_pubkey {
         accounts.push(AccountMeta::new(vault_pubkey, false));

@@ -6259,6 +6259,9 @@ async fn test_fill_withdrawal_sol() {
         fee_withdrawal_info: Default::default(),
     };
 
+    let d_fee_info = token_settings_account_data.fee_deposit_info.clone();
+    let w_fee_info = token_settings_account_data.fee_withdrawal_info.clone();
+
     let mut token_settings_packed = vec![0; TokenSettings::LEN];
     TokenSettings::pack(token_settings_account_data, &mut token_settings_packed).unwrap();
     program_test.add_account(
@@ -6266,6 +6269,31 @@ async fn test_fill_withdrawal_sol() {
         Account {
             lamports: Rent::default().minimum_balance(TokenSettings::LEN),
             data: token_settings_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add MultiVault  Account
+    let (_, multivault_nonce) = Pubkey::find_program_address(&[br"multivault"], &token_proxy::id());
+
+    let multivault_address = get_multivault_address();
+
+    let multivault_account_data = MultiVault {
+        is_initialized: true,
+        account_kind: AccountKind::MultiVault(multivault_nonce),
+    };
+
+    let mut multivault_packed = vec![0; MultiVault::LEN];
+    MultiVault::pack(multivault_account_data, &mut multivault_packed).unwrap();
+
+    let multivault_balance = Rent::default().minimum_balance(MultiVault::LEN);
+    program_test.add_account(
+        multivault_address,
+        Account {
+            lamports: multivault_balance,
+            data: multivault_packed,
             owner: token_proxy::id(),
             executable: false,
             rent_epoch: 0,
@@ -6351,6 +6379,7 @@ async fn test_fill_withdrawal_sol() {
     // Start Program Test
     let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
 
+    let deposit_amount = 100;
     let deposit_seed = uuid::Uuid::new_v4().as_u128();
     let ever_recipient = EverAddress::with_standart(0, Pubkey::new_unique().to_bytes());
 
@@ -6361,9 +6390,8 @@ async fn test_fill_withdrawal_sol() {
             mint_address,
             deposit_seed,
             ever_recipient,
-            100,
-            withdrawal_address,
-            recipient_address,
+            deposit_amount,
+            vec![(withdrawal_address, recipient_address)],
             Some(vault_address),
             value,
             expected_evers,
@@ -6410,7 +6438,17 @@ async fn test_fill_withdrawal_sol() {
 
     let recipient_token_data =
         spl_token::state::Account::unpack(recipient_token_info.data()).expect("recipient unpack");
-    assert_eq!(recipient_token_data.amount, amount as u64 - bounty);
+
+    let fee = 1.max(
+        (amount as u64)
+            .checked_div(w_fee_info.divisor)
+            .unwrap()
+            .checked_mul(w_fee_info.multiplier)
+            .unwrap(),
+    );
+
+    let transfer_amount = amount as u64 - fee - bounty;
+    assert_eq!(recipient_token_data.amount, transfer_amount);
 
     let deposit_address = get_deposit_address(deposit_seed);
     let deposit_info = banks_client
@@ -6422,8 +6460,48 @@ async fn test_fill_withdrawal_sol() {
     let deposit_data = DepositMultiTokenSol::unpack(deposit_info.data()).expect("deposit unpack");
 
     assert_eq!(deposit_data.is_initialized, true);
-    assert_eq!(deposit_data.event.data.amount, 100);
     assert_eq!(deposit_data.meta.data.seed, deposit_seed);
+
+    let fee = 1.max(
+        (deposit_amount)
+            .checked_div(d_fee_info.divisor)
+            .unwrap()
+            .checked_mul(d_fee_info.multiplier)
+            .unwrap(),
+    );
+    assert_eq!(
+        deposit_data.event.data.amount,
+        (deposit_amount - fee).into()
+    );
+
+    // Check MultiVault Balance
+    let multivault_info = banks_client
+        .get_account(multivault_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+    assert_eq!(multivault_info.lamports, multivault_balance + value);
+
+    // Check Vault Balance
+    let vault_info = banks_client
+        .get_account(vault_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let vault_data = spl_token::state::Account::unpack(vault_info.data()).expect("vault unpack");
+    assert_eq!(vault_data.amount, deposit_amount - amount as u64 + fee);
+
+    // Sender balance
+    let sender_token_info = banks_client
+        .get_account(author_token_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let sender_token_data =
+        spl_token::state::Account::unpack(sender_token_info.data()).expect("recipient unpack");
+    assert_eq!(sender_token_data.amount, bounty);
 }
 
 #[tokio::test]
