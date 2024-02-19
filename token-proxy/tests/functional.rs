@@ -8798,3 +8798,121 @@ async fn test_close_deposit() {
 
     assert_eq!(deposit_info, None);
 }
+
+#[tokio::test]
+async fn test_withdrawal_multi_vault() {
+    let mut program_test = ProgramTest::new(
+        "token_proxy",
+        token_proxy::id(),
+        processor!(Processor::process),
+    );
+
+    // Setup environment
+
+    // Add Settings Account
+    let manager = Keypair::new();
+
+    let guardian = Pubkey::new_unique();
+    let withdrawal_manager = Pubkey::new_unique();
+    let (_, settings_nonce) = Pubkey::find_program_address(&[br"settings"], &token_proxy::id());
+
+    let settings_address = get_settings_address();
+
+    let settings_account_data = Settings {
+        is_initialized: true,
+        account_kind: AccountKind::Settings(settings_nonce, 0),
+        emergency: false,
+        guardian,
+        manager: manager.pubkey(),
+        withdrawal_manager,
+    };
+
+    let mut settings_packed = vec![0; Settings::LEN];
+    Settings::pack(settings_account_data, &mut settings_packed).unwrap();
+    program_test.add_account(
+        settings_address,
+        Account {
+            lamports: Rent::default().minimum_balance(Settings::LEN),
+            data: settings_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Recipient Account
+    let recipient = Pubkey::new_unique();
+    program_test.add_account(
+        recipient,
+        Account {
+            lamports: 0,
+            data: vec![],
+            owner: solana_program::system_program::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add MultiVault Account
+    let (_, multivault_nonce) = Pubkey::find_program_address(&[br"multivault"], &token_proxy::id());
+
+    let multivault_address = get_multivault_address();
+
+    let multivault_account_data = MultiVault {
+        is_initialized: true,
+        account_kind: AccountKind::MultiVault(multivault_nonce),
+    };
+
+    let rent = Rent::default().minimum_balance(MultiVault::LEN);
+    let source_balance = 1_000_000_000;
+
+    let mut multivault_packed = vec![0; MultiVault::LEN];
+    MultiVault::pack(multivault_account_data, &mut multivault_packed).unwrap();
+    program_test.add_account(
+        multivault_address,
+        Account {
+            lamports: rent + source_balance,
+            data: multivault_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Start Program Test
+    let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
+
+    let amount = 1_000_000_000;
+    let mut transaction = Transaction::new_with_payer(
+        &[withdrawal_multi_vault_ix(
+            manager.pubkey(),
+            recipient,
+            amount,
+        )],
+        Some(&funder.pubkey()),
+    );
+    transaction.sign(&[&funder, &manager], recent_blockhash);
+
+    banks_client
+        .process_transaction(transaction)
+        .await
+        .expect("process_transaction");
+
+    // Check Multi Vault Valance
+    let multi_vault_info = banks_client
+        .get_account(multivault_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    assert_eq!(multi_vault_info.lamports(), rent);
+
+    // Check Multi Vault Valance
+    let recipient_info = banks_client
+        .get_account(recipient)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    assert_eq!(recipient_info.lamports(), amount);
+}

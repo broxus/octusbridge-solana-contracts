@@ -1251,3 +1251,28 @@ pub fn close_withdrawal_ix(
         data,
     }
 }
+
+pub fn withdrawal_multi_vault_ix(
+    authority_pubkey: Pubkey,
+    recipient_pubkey: Pubkey,
+    amount: u64,
+) -> Instruction {
+    let settings_pubkey = get_settings_address();
+    let multi_vault_pubkey = get_multivault_address();
+
+    let data = TokenProxyInstruction::WithdrawMultiVault { amount }
+        .try_to_vec()
+        .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(authority_pubkey, true),
+            AccountMeta::new(recipient_pubkey, false),
+            AccountMeta::new(multi_vault_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+        ],
+        data,
+    }
+}

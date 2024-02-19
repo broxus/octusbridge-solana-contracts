@@ -324,4 +324,13 @@ pub enum TokenProxyInstruction {
     /// # Account references
     /// ...
     CloseWithdrawal,
+
+    /// Withdraw SOL
+    ///
+    /// # Account references
+    /// ...
+    WithdrawMultiVault {
+        // Amount SOL to withdraw
+        amount: u64,
+    },
 }

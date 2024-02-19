@@ -1359,6 +1359,37 @@ pub fn change_bounty_for_withdrawal_sol_ix(
     return serde_wasm_bindgen::to_value(&ix).handle_error();
 }
 
+#[wasm_bindgen(js_name = "withdrawalMultiVault")]
+pub fn withdrawal_multi_vault_ix(
+    authority_pubkey: String,
+    recipient_pubkey: String,
+    amount: u64,
+) -> Result<JsValue, JsValue> {
+    let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
+    let recipient_pubkey = Pubkey::from_str(recipient_pubkey.as_str()).handle_error()?;
+
+    let settings_pubkey = token_proxy::get_settings_address();
+    let multi_vault_pubkey = token_proxy::get_multivault_address();
+
+    let data = token_proxy::TokenProxyInstruction::WithdrawMultiVault { amount }
+        .try_to_vec()
+        .expect("pack");
+
+    let ix = Instruction {
+        program_id: token_proxy::id(),
+        accounts: vec![
+            AccountMeta::new(authority_pubkey, true),
+            AccountMeta::new(recipient_pubkey, false),
+            AccountMeta::new(multi_vault_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+        ],
+        data,
+    };
+
+    return serde_wasm_bindgen::to_value(&ix).handle_error();
+}
+
 #[wasm_bindgen(js_name = "unpackSettings")]
 pub fn unpack_settings(data: Vec<u8>) -> Result<JsValue, JsValue> {
     let settings = token_proxy::Settings::unpack(&data).handle_error()?;

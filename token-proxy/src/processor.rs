@@ -286,6 +286,10 @@ impl Processor {
                 msg!("Instruction: Close Withdrawal");
                 Self::process_close_withdrawal(program_id, accounts)?;
             }
+            TokenProxyInstruction::WithdrawMultiVault { amount } => {
+                msg!("Instruction: Withdraw Multi Vault");
+                Self::process_withdraw_multi_vault(program_id, accounts, amount)?;
+            }
         };
 
         Ok(())
@@ -4345,6 +4349,75 @@ impl Processor {
         }
 
         delete_account(withdrawal_account_info, withdrawal_author_account_info)?;
+
+        Ok(())
+    }
+
+    fn process_withdraw_multi_vault(
+        program_id: &Pubkey,
+        accounts: &[AccountInfo],
+        amount: u64,
+    ) -> ProgramResult {
+        let account_info_iter = &mut accounts.iter();
+
+        let authority_account_info = next_account_info(account_info_iter)?;
+        let recipient_account_info = next_account_info(account_info_iter)?;
+        let multi_vault_account_info = next_account_info(account_info_iter)?;
+        let settings_account_info = next_account_info(account_info_iter)?;
+
+        if !authority_account_info.is_signer {
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+
+        // Validate Settings Account
+        let settings_account_data = Settings::unpack(&settings_account_info.data.borrow())?;
+
+        let (settings_nonce, programdata_nonce) = settings_account_data
+            .account_kind
+            .into_settings()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
+
+        bridge_utils::helper::validate_settings_account(
+            program_id,
+            settings_nonce,
+            settings_account_info,
+        )?;
+
+        // Validate Manager Account
+        if *authority_account_info.key != settings_account_data.manager {
+            let programdata_account_info = next_account_info(account_info_iter)?;
+
+            // Validate Initializer Account
+            bridge_utils::helper::validate_programdata_account(
+                program_id,
+                programdata_nonce,
+                programdata_account_info.key,
+            )?;
+            bridge_utils::helper::validate_initializer_account(
+                authority_account_info.key,
+                programdata_account_info,
+            )?;
+        }
+
+        // Validate Multi Vault Account
+        let multi_vault_account_data = MultiVault::unpack(&multi_vault_account_info.data.borrow())?;
+        let multi_vault_nonce = multi_vault_account_data
+            .account_kind
+            .into_multi_vault()
+            .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
+
+        validate_multi_vault_account(program_id, multi_vault_nonce, multi_vault_account_info)?;
+
+        // Transfer
+        let multi_vault_starting_lamports = multi_vault_account_info.lamports();
+        **multi_vault_account_info.lamports.borrow_mut() = multi_vault_starting_lamports
+            .checked_sub(amount)
+            .ok_or(SolanaBridgeError::Overflow)?;
+
+        let recipient_starting_lamports = recipient_account_info.lamports();
+        **recipient_account_info.lamports.borrow_mut() = recipient_starting_lamports
+            .checked_add(amount)
+            .ok_or(SolanaBridgeError::Overflow)?;
 
         Ok(())
     }
