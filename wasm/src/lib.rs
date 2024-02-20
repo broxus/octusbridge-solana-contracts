@@ -1390,6 +1390,80 @@ pub fn withdrawal_multi_vault_ix(
     return serde_wasm_bindgen::to_value(&ix).handle_error();
 }
 
+#[wasm_bindgen(js_name = "withdrawalEverFee")]
+pub fn withdrawal_ever_fee_ix(
+    authority_pubkey: String,
+    mint_pubkey: String,
+    recipient_token_pubkey: String,
+    token: String,
+    amount: u64,
+) -> Result<JsValue, JsValue> {
+    let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
+    let mint_pubkey = Pubkey::from_str(mint_pubkey.as_str()).handle_error()?;
+    let recipient_token_pubkey =
+        Pubkey::from_str(recipient_token_pubkey.as_str()).handle_error()?;
+
+    let settings_pubkey = token_proxy::get_settings_address();
+
+    let token = EverAddress::from_str(&token).handle_error()?;
+    let token_settings_pubkey = token_proxy::get_token_settings_ever_address(&token);
+
+    let data = token_proxy::TokenProxyInstruction::WithdrawEverFee { amount }
+        .try_to_vec()
+        .expect("pack");
+
+    let ix = Instruction {
+        program_id: token_proxy::id(),
+        accounts: vec![
+            AccountMeta::new(authority_pubkey, true),
+            AccountMeta::new(mint_pubkey, false),
+            AccountMeta::new(recipient_token_pubkey, false),
+            AccountMeta::new(token_settings_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new_readonly(spl_token::id(), false),
+        ],
+        data,
+    };
+
+    return serde_wasm_bindgen::to_value(&ix).handle_error();
+}
+
+#[wasm_bindgen(js_name = "withdrawalSolFee")]
+pub fn withdrawal_sol_fee_ix(
+    authority_pubkey: String,
+    recipient_token_pubkey: String,
+    mint_pubkey: String,
+    amount: u64,
+) -> Result<JsValue, JsValue> {
+    let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
+    let recipient_token_pubkey =
+        Pubkey::from_str(recipient_token_pubkey.as_str()).handle_error()?;
+    let mint_pubkey = Pubkey::from_str(mint_pubkey.as_str()).handle_error()?;
+
+    let settings_pubkey = token_proxy::get_settings_address();
+    let vault_pubkey = token_proxy::get_vault_address(&mint_pubkey);
+    let token_settings_pubkey = token_proxy::get_token_settings_sol_address(&mint_pubkey);
+
+    let data = token_proxy::TokenProxyInstruction::WithdrawSolFee { amount }
+        .try_to_vec()
+        .expect("pack");
+
+    let ix = Instruction {
+        program_id: token_proxy::id(),
+        accounts: vec![
+            AccountMeta::new(authority_pubkey, true),
+            AccountMeta::new(vault_pubkey, false),
+            AccountMeta::new(token_settings_pubkey, false),
+            AccountMeta::new(recipient_token_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
+            AccountMeta::new_readonly(spl_token::id(), false),
+        ],
+        data,
+    };
+
+    return serde_wasm_bindgen::to_value(&ix).handle_error();
+}
+
 #[wasm_bindgen(js_name = "unpackSettings")]
 pub fn unpack_settings(data: Vec<u8>) -> Result<JsValue, JsValue> {
     let settings = token_proxy::Settings::unpack(&data).handle_error()?;
