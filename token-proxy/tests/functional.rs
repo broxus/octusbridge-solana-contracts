@@ -5213,6 +5213,135 @@ async fn test_update_fee() {
 }
 
 #[tokio::test]
+async fn test_update_token_name() {
+    let mut program_test = ProgramTest::new(
+        "token_proxy",
+        token_proxy::id(),
+        processor!(Processor::process),
+    );
+
+    // Setup environment
+
+    // Add Settings Account
+    let manager = Keypair::new();
+
+    let guardian = Pubkey::new_unique();
+    let withdrawal_manager = Pubkey::new_unique();
+    let (_, settings_nonce) = Pubkey::find_program_address(&[br"settings"], &token_proxy::id());
+
+    let settings_address = get_settings_address();
+
+    let settings_account_data = Settings {
+        is_initialized: true,
+        account_kind: AccountKind::Settings(settings_nonce, 0),
+        emergency: false,
+        guardian,
+        withdrawal_manager,
+        manager: manager.pubkey(),
+    };
+
+    let mut settings_packed = vec![0; Settings::LEN];
+    Settings::pack(settings_account_data, &mut settings_packed).unwrap();
+    program_test.add_account(
+        settings_address,
+        Account {
+            lamports: Rent::default().minimum_balance(Settings::LEN),
+            data: settings_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Add Token Settings Account
+    let symbol = "USDT".to_string();
+    let name = "USDT Solana Octusbridge".to_string();
+    let deposit_limit = u64::MAX;
+    let withdrawal_limit = u64::MAX;
+    let withdrawal_daily_limit = u64::MAX;
+    let mint_address = Pubkey::new_unique();
+
+    let (_, token_settings_nonce) = Pubkey::find_program_address(
+        &[br"settings", &mint_address.to_bytes()],
+        &token_proxy::id(),
+    );
+
+    let token_settings_address = get_token_settings_sol_address(&mint_address);
+
+    let (_, vault_nonce) =
+        Pubkey::find_program_address(&[br"vault", &mint_address.to_bytes()], &token_proxy::id());
+
+    let vault_address = get_vault_address(&mint_address);
+
+    let token_settings_account_data = TokenSettings {
+        is_initialized: true,
+        account_kind: AccountKind::TokenSettings(token_settings_nonce, vault_nonce),
+        kind: TokenKind::Solana {
+            mint: mint_address,
+            vault: vault_address,
+        },
+        name,
+        symbol,
+        deposit_limit,
+        withdrawal_limit,
+        withdrawal_daily_limit,
+        withdrawal_daily_amount: 0,
+        withdrawal_epoch: 0,
+        emergency: false,
+        fee_supply: Default::default(),
+        fee_deposit_info: Default::default(),
+        fee_withdrawal_info: Default::default(),
+    };
+
+    let mut token_settings_packed = vec![0; TokenSettings::LEN];
+    TokenSettings::pack(token_settings_account_data, &mut token_settings_packed).unwrap();
+    program_test.add_account(
+        token_settings_address,
+        Account {
+            lamports: Rent::default().minimum_balance(TokenSettings::LEN),
+            data: token_settings_packed,
+            owner: token_proxy::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Start Program Test
+    let (mut banks_client, funder, recent_blockhash) = program_test.start().await;
+
+    let new_symbol = "newUSDT".to_string();
+    let new_name = "New USDT Solana Octusbridge".to_string();
+
+    let mut transaction = Transaction::new_with_payer(
+        &[update_token_name_ix(
+            manager.pubkey(),
+            token_settings_address,
+            new_symbol.clone(),
+            new_name.clone(),
+        )],
+        Some(&funder.pubkey()),
+    );
+    transaction.sign(&[&funder, &manager], recent_blockhash);
+
+    banks_client
+        .process_transaction(transaction)
+        .await
+        .expect("process_transaction");
+
+    let token_settings_info = banks_client
+        .get_account(token_settings_address)
+        .await
+        .expect("get_account")
+        .expect("account");
+
+    let token_settings_data =
+        TokenSettings::unpack(token_settings_info.data()).expect("token settings unpack");
+
+    assert_eq!(token_settings_data.symbol, new_symbol);
+    assert_eq!(token_settings_data.name, new_name);
+}
+
+#[tokio::test]
 async fn test_withdrawal_ever_fee() {
     let mut program_test = ProgramTest::new(
         "token_proxy",

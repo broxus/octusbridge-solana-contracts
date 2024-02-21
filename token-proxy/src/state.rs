@@ -571,6 +571,13 @@ pub struct UpdateFeeEvent {
 }
 
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
+pub struct UpdateTokenNameEvent {
+    pub token_settings: Pubkey,
+    pub symbol: String,
+    pub name: String,
+}
+
+#[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub struct LiquidityRequestEvent {
     pub deposit: Pubkey,
     pub withdrawal: Pubkey,

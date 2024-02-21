@@ -1105,6 +1105,42 @@ pub fn update_fee(
     return serde_wasm_bindgen::to_value(&ix).handle_error();
 }
 
+#[wasm_bindgen(js_name = "updateTokenName")]
+pub fn update_token_name(
+    authority_pubkey: String,
+    token: String,
+    token_is_sol: bool,
+    symbol: String,
+    name: String,
+) -> Result<JsValue, JsValue> {
+    let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
+    let token_settings_pubkey = if token_is_sol {
+        let mint = Pubkey::from_str(token.as_str()).handle_error()?;
+        token_proxy::get_token_settings_sol_address(&mint)
+    } else {
+        let token = EverAddress::from_str(&token).handle_error()?;
+        token_proxy::get_token_settings_ever_address(&token)
+    };
+
+    let settings_pubkey = token_proxy::get_settings_address();
+
+    let data = token_proxy::TokenProxyInstruction::UpdateTokenName { symbol, name }
+        .try_to_vec()
+        .expect("pack");
+
+    let ix = Instruction {
+        program_id: token_proxy::id(),
+        accounts: vec![
+            AccountMeta::new(authority_pubkey, true),
+            AccountMeta::new(token_settings_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
+        ],
+        data,
+    };
+
+    return serde_wasm_bindgen::to_value(&ix).handle_error();
+}
+
 #[wasm_bindgen(js_name = "approveWithdrawalEver")]
 pub fn approve_withdrawal_ever(
     authority_pubkey: String,

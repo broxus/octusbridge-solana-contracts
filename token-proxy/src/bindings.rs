@@ -1010,6 +1010,29 @@ pub fn update_fee_ix(
     }
 }
 
+pub fn update_token_name_ix(
+    authority_pubkey: Pubkey,
+    token_settings_pubkey: Pubkey,
+    symbol: String,
+    name: String,
+) -> Instruction {
+    let settings_pubkey = get_settings_address();
+
+    let data = TokenProxyInstruction::UpdateTokenName { symbol, name }
+        .try_to_vec()
+        .expect("pack");
+
+    Instruction {
+        program_id: id(),
+        accounts: vec![
+            AccountMeta::new(authority_pubkey, true),
+            AccountMeta::new(token_settings_pubkey, false),
+            AccountMeta::new_readonly(settings_pubkey, false),
+        ],
+        data,
+    }
+}
+
 pub fn withdrawal_ever_fee_ix(
     authority_pubkey: Pubkey,
     mint_pubkey: Pubkey,

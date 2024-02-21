@@ -241,6 +241,17 @@ pub enum TokenProxyInstruction {
         divisor: u64,
     },
 
+    /// Update token naming
+    ///
+    /// # Account references
+    /// ...
+    UpdateTokenName {
+        // Token symbol
+        symbol: String,
+        // Token name
+        name: String,
+    },
+
     /// Withdraw EVER fee
     ///
     /// # Account references
