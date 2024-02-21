@@ -1109,17 +1109,13 @@ pub fn update_fee(
 pub fn update_token_name(
     authority_pubkey: String,
     token: String,
-    token_is_sol: bool,
     symbol: String,
     name: String,
 ) -> Result<JsValue, JsValue> {
     let authority_pubkey = Pubkey::from_str(authority_pubkey.as_str()).handle_error()?;
-    let token_settings_pubkey = if token_is_sol {
+    let token_settings_pubkey = {
         let mint = Pubkey::from_str(token.as_str()).handle_error()?;
         token_proxy::get_token_settings_sol_address(&mint)
-    } else {
-        let token = EverAddress::from_str(&token).handle_error()?;
-        token_proxy::get_token_settings_ever_address(&token)
     };
 
     let settings_pubkey = token_proxy::get_settings_address();

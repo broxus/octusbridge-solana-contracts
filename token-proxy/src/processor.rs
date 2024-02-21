@@ -3418,18 +3418,13 @@ impl Processor {
             .map_err(|_| SolanaBridgeError::InvalidTokenKind)?;
 
         let token_settings_pubkey = match token_settings_account_data.kind {
-            TokenKind::Ever { token, .. } => validate_token_settings_ever_account(
-                program_id,
-                &token,
-                token_settings_nonce,
-                token_settings_account_info,
-            )?,
             TokenKind::Solana { mint, .. } => validate_token_settings_sol_account(
                 program_id,
                 &mint,
                 token_settings_nonce,
                 token_settings_account_info,
             )?,
+            TokenKind::Ever { .. } => return Err(SolanaBridgeError::InvalidTokenKind.into()),
         };
 
         token_settings_account_data.symbol = symbol.clone();
