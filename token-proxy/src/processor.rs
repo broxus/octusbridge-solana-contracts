@@ -897,6 +897,9 @@ impl Processor {
             .try_into()
             .map_err(|_| SolanaBridgeError::Overflow)?;
 
+        let name = token_settings_account_data.name.clone();
+        let symbol = token_settings_account_data.symbol.clone();
+
         let deposit_account_data = DepositMultiTokenSol {
             is_initialized: true,
             account_kind: AccountKind::Deposit(deposit_nonce),
